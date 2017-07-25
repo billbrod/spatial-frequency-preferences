@@ -1,7 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*$py.class
 
 # C extensions
 *.so
@@ -20,7 +19,6 @@ lib64/
 parts/
 sdist/
 var/
-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -43,8 +41,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-*.cover
-.hypothesis/
+*,cover
 
 # Translations
 *.mo
@@ -52,14 +49,6 @@ coverage.xml
 
 # Django stuff:
 *.log
-local_settings.py
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
 
 # Sphinx documentation
 docs/_build/
@@ -67,35 +56,18 @@ docs/_build/
 # PyBuilder
 target/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# dotenv
+# DotEnv configuration
 .env
 
-# virtualenv
-.venv
-venv/
-ENV/
+# Database
+*.db
+*.rdb
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Pycharm
+.idea
 
-# Rope project settings
-.ropeproject
+# Jupyter NB Checkpoints
+.ipynb_checkpoints/
 
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
+# exclude data from source control by default
+/data/
