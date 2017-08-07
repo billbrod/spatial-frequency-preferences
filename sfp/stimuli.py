@@ -14,9 +14,9 @@ def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None):
     Examples
     ============
 
-    radial: `log_polar_grating(512, 4, 10)`
+    circular: `log_polar_grating(512, 4, 10)`
 
-    angular: `log_polar_grating(512, 4, w_a=10)`
+    radial: `log_polar_grating(512, 4, w_a=10)`
 
     spiral: `log_polar_grating(512, 4, 10, 10)`
 
@@ -34,7 +34,7 @@ def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None):
 
     w_a: int, angular frequency.  Units are cycles per revolution around the origin.
 
-    phi: int, phase.
+    phi: int, phase (in radians).
 
     ampl: int, amplitude
 
