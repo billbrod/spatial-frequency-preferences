@@ -119,3 +119,83 @@ def check_aliasing(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_
     aliasing_plot(better_sampled_stim, orig_stim, slices_to_check)
     return orig_stim, better_sampled_stim
 
+
+def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3, scale_factor=1):
+    """Create mask to hide aliasing
+
+    Because of how our stimuli are created, they have higher spatial frequency at the origin
+    (probably center of the image) than at the edge of the image. This makes it a little harder to
+    determine where aliasing will happen, which is made more complicated by the addition of alpha
+    (the radius of the region where the frequency will be held constant, basically) and the
+    possibility of mixing angular and logRadial frequencies. for the specified arguments, this will
+    create the mask that will hide the aliasing of the grating(s) with these arguments. *NOTE* that
+    this means they must have the same of all these arguments: a circular grating with this
+    specified w_r and w_a=0 and a radial one with this w_a and w_r=0 need two different masks.
+
+    the mask will not be strictly binary, there will a `number_of_fade_pixels` where it transitions
+    from 0 to 1. this transition is half of a cosine.
+
+    returns both the faded_mask and the binary mask.
+    """
+    rad = ppt.mkR(size, origin=origin)/scale_factor
+    # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
+    # distance 0 and that means we'll have a divide by zero coming up. this little hack avoids that
+    # issue.
+    if 0 in rad:
+        rad += 1e-12
+    # the angular spatial frequency drops by 1/r as you move away from the origin, where r is the
+    # distance to the origin
+    a_sfmap = w_a / rad
+    # the logRadial spatial frequency drops by r/(r^2+alpha^2). this is proportional to d/dr
+    # log(r^2 + alpha^2)
+    r_sfmap = w_r * rad / (rad**2 + alpha**2)
+    # in both cases above, we don't scale the spatial frequency map appropriately (the derivative
+    # of log(r) is only 1/r when the log's base is e; here it's 2 so we need to scale it). this
+    # scaling constant was found experimentally; it's the value required to get the a_sfmap created
+    # from log_polar_grating(8, 0, w_a=2, phase=45) to have values of .5 in the center four voxels
+    # (if you create this grating, you'll be able to clearly see the center four pixels go from 1
+    # to -1 to 1 to -1 and thus is at the limit of aliasing).
+    a_sfmap *= (.5/2.82842712)
+    r_sfmap *= (.5/2.82842712)
+    nyq_freq = .5
+    a_mask = a_sfmap < nyq_freq
+    r_mask = r_sfmap < nyq_freq
+    # the two masks created above are 0 where there's aliasing and 1 everywhere else. logical_and
+    # then gives us a 1 only where both have 1s; i.e., we mask out anywhere that *either* mask says
+    # will alias.
+    mask = np.logical_and(a_mask, r_mask)
+    alias_rad = (~mask*rad).max()
+    # in order to get the right number of pixels to act as transition, we set the frequency based
+    # on the specified number_of_fade_pixels
+    fade_freq = (size/2.) / (2*number_of_fade_pixels)
+
+    def fade(x):
+        return (-np.cos(fade_freq*2*np.pi*(x-alias_rad) / (size/2.))+1)/2
+
+    faded_mask = np.piecewise(rad,
+                              [rad < alias_rad,
+                               (rad > alias_rad) & (rad < (alias_rad + number_of_fade_pixels)),
+                               rad > (alias_rad + number_of_fade_pixels)],
+                              [0, fade, 1])
+    return faded_mask, mask
+
+
+def check_aliasing_with_mask(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1,
+                             number_of_fade_pixels=3, slices_to_check=None):
+    stim = log_polar_grating(size, alpha, w_r, w_a, phi, ampl, origin, scale_factor)
+    fmask, mask = create_mask(size, alpha, w_r, w_a, origin)
+    better_sampled_stim = _create_better_sampled_grating(size, alpha, w_r, w_a, phi, ampl, origin,
+                                                         scale_factor, 99)
+    big_fmask = fmask.repeat(99, 0).repeat(99, 1)
+    big_mask = mask.repeat(99, 0).repeat(99, 1)
+    if slices_to_check is None:
+        slices_to_check = [(size+1)/2]
+    fig, axes = plt.subplots(ncols=3, nrows=len(slices_to_check), squeeze=False,
+                             figsize=(15, 5*len(slices_to_check)))
+    aliasing_plot(better_sampled_stim, stim, slices_to_check, axes[:, 0])
+    aliasing_plot(big_fmask*better_sampled_stim, fmask*stim, slices_to_check, axes[:, 1])
+    aliasing_plot(big_mask*better_sampled_stim, mask*stim, slices_to_check, axes[:, 2])
+    axes[0, 0].set_title("Slices of un-masked stimulus")
+    axes[0, 1].set_title("Slices of fade-masked stimulus")
+    axes[0, 2].set_title("Slices of binary-masked stimulus")
+    return stim, fmask, mask, better_sampled_stim, big_fmask, big_mask
