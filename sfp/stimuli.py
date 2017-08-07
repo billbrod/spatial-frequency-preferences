@@ -42,6 +42,11 @@ def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None):
     and angles will be relative to. By default, the center of the image
     """
     rad = ppt.mkR(size, origin=origin)
+    # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
+    # distance 0 and, if alpha is also 0, that means we'll have a -inf out of np.log2 and thus a
+    # nan from the cosine. this little hack avoids that issue.
+    if alpha == 0 and 0 in rad:
+        rad += 1e-12
     lrad = np.log2(rad**2 + alpha**2)
     theta = ppt.mkAngle(size, origin=origin)
 
