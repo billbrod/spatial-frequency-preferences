@@ -4,6 +4,7 @@
 import pyPyrTools as ppt
 import numpy as np
 from matplotlib import pyplot as plt
+import itertools
 
 
 def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -214,3 +215,74 @@ def check_aliasing_with_mask(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=No
     axes[0, 1].set_title("Slices of fade-masked stimulus")
     axes[0, 2].set_title("Slices of binary-masked stimulus")
     return stim, fmask, mask, better_sampled_stim, big_fmask, big_mask
+
+
+def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_of_fade_pixels=3,
+         combo_stimuli_type=['spiral']):
+    """Create the specified stimuli and apply the anti-aliasing mask
+
+    this function creates the specified stimuli, calculates what their anti-aliasing masks should
+    be, and applies the largest of those masks to all stimuli. Each argument (except size, origin,
+    and number_of_fade_pixels) should be a list and stimuli will be made from all combinations of
+    these arguments
+
+    Note that this function should be run *last*, after you've determined your parameters and
+    checked to make sure the aliasing is taken care of.
+
+    Parameters
+    =============
+
+    combo_stimuli_type: list with possible elements {'spiral', 'plaid'}. type of stimuli to create
+    when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
+    create circular and radial stimuli, just include 0 in w_a or w_r, respectively).
+    """
+    # we need to make sure that size, origin, and number_of_fade_pixels are not iterable and the
+    # other arguments are
+    if hasattr(size, '__iter__'):
+        raise Exception("size must *not* be iterable! All generated stimuli must be the same size")
+    if hasattr(origin, '__iter__'):
+        raise Exception("origin must *not* be iterable! All generated stimuli must have the same "
+                        " origin")
+    if hasattr(number_of_fade_pixels, '__iter__'):
+        raise Exception("number_of_fade_pixels must *not* be iterable! It's a property of the mask"
+                        " and we want to apply the same mask to all stimuli.")
+    if not hasattr(alpha, '__iter__'):
+        alpha = [alpha]
+    if not hasattr(w_r, '__iter__'):
+        w_r = [w_r]
+    if not hasattr(w_a, '__iter__'):
+        w_a = [w_a]
+    if not hasattr(phi, '__iter__'):
+        phi = [phi]
+    if not hasattr(ampl, '__iter__'):
+        ampl = [ampl]
+    if not hasattr(combo_stimuli_type, '__iter__'):
+        combo_stimuli_type = [combo_stimuli_type]
+    stimuli = []
+    masked_stimuli = []
+    mask = []
+    for a, f_r, f_a in itertools.product(alpha, w_r, w_a):
+        _, tmp_mask = create_mask(size, a, f_r, f_a, origin, number_of_fade_pixels)
+        mask.append(tmp_mask)
+    if len(mask) > 1:
+        mask = np.logical_and.reduce(mask)
+    else:
+        mask = mask[0]
+    mask = _fade_mask(mask, number_of_fade_pixels, origin)
+    for a, f_r, f_a, p, A in itertools.product(alpha, w_r, w_a, phi, ampl):
+        if f_r == 0 and f_a == 0:
+            # this is the empty stimulus
+            continue
+        if f_r == 0 and len(alpha) > 1 and a != alpha[0]:
+            # if we're making a radial grating (i.e., f_r is 0), then the alpha argument has no
+            # effect. so if we're making a radial grating, there's more than one alpha, and this is
+            # not the first one, we skip, because we've already made this stimulus.
+            continue
+        if 0 in [f_r, f_a] or 'spiral' in combo_stimuli_type:
+            stimuli.append(log_polar_grating(size, a, f_r, f_a, p, A, origin))
+            masked_stimuli.append(stimuli[-1]*mask)
+        if 'plaid' in combo_stimuli_type and 0 not in [f_r, f_a]:
+            stimuli.append(log_polar_grating(size, a, f_r, 0, p, A, origin) +
+                           log_polar_grating(size, a, 0, f_a, p, A, origin))
+            masked_stimuli.append(stimuli[-1]*mask)
+    return masked_stimuli, stimuli
