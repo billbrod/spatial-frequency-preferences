@@ -120,6 +120,31 @@ def check_aliasing(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_
     return orig_stim, better_sampled_stim
 
 
+def _fade_mask(mask, number_of_fade_pixels, origin=None):
+    """note that mask must contain 0s where you want to mask out, 1s elsewhere
+    """
+    # if there's no False in mask, then we don't need to mask anything out
+    if False not in mask:
+        return mask
+    size = mask.shape[0]
+    rad = ppt.mkR(size, origin=origin)
+    alias_rad = (~mask*rad).max()
+    # in order to get the right number of pixels to act as transition, we set the frequency based
+    # on the specified number_of_fade_pixels
+    fade_freq = (size/2.) / (2*number_of_fade_pixels)
+    fade_freq = (size/2.) / (2*number_of_fade_pixels)
+
+    def fade(x):
+        return (-np.cos(fade_freq*2*np.pi*(x-alias_rad) / (size/2.))+1)/2
+
+    faded_mask = np.piecewise(rad,
+                              [rad < alias_rad,
+                               (rad > alias_rad) & (rad < (alias_rad + number_of_fade_pixels)),
+                               rad > (alias_rad + number_of_fade_pixels)],
+                              [0, fade, 1])
+    return faded_mask
+
+
 def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3, scale_factor=1):
     """Create mask to hide aliasing
 
@@ -164,24 +189,14 @@ def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
     # then gives us a 1 only where both have 1s; i.e., we mask out anywhere that *either* mask says
     # will alias.
     mask = np.logical_and(a_mask, r_mask)
-    alias_rad = (~mask*rad).max()
-    # in order to get the right number of pixels to act as transition, we set the frequency based
-    # on the specified number_of_fade_pixels
-    fade_freq = (size/2.) / (2*number_of_fade_pixels)
-
-    def fade(x):
-        return (-np.cos(fade_freq*2*np.pi*(x-alias_rad) / (size/2.))+1)/2
-
-    faded_mask = np.piecewise(rad,
-                              [rad < alias_rad,
-                               (rad > alias_rad) & (rad < (alias_rad + number_of_fade_pixels)),
-                               rad > (alias_rad + number_of_fade_pixels)],
-                              [0, fade, 1])
+    faded_mask = _fade_mask(mask, number_of_fade_pixels, origin)
     return faded_mask, mask
 
 
 def check_aliasing_with_mask(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1,
                              number_of_fade_pixels=3, slices_to_check=None):
+    """check the aliasing when mask is applied
+    """
     stim = log_polar_grating(size, alpha, w_r, w_a, phi, ampl, origin, scale_factor)
     fmask, mask = create_mask(size, alpha, w_r, w_a, origin)
     better_sampled_stim = _create_better_sampled_grating(size, alpha, w_r, w_a, phi, ampl, origin,
