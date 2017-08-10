@@ -146,22 +146,10 @@ def _fade_mask(mask, number_of_fade_pixels, origin=None):
     return faded_mask
 
 
-def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3, scale_factor=1):
-    """Create mask to hide aliasing
+def create_sf_maps_cpp(size, alpha, w_r=0, w_a=0, origin=None, scale_factor=1):
+    """Create maps of spatial frequency in cycles per pixel.
 
-    Because of how our stimuli are created, they have higher spatial frequency at the origin
-    (probably center of the image) than at the edge of the image. This makes it a little harder to
-    determine where aliasing will happen, which is made more complicated by the addition of alpha
-    (the radius of the region where the frequency will be held constant, basically) and the
-    possibility of mixing angular and logRadial frequencies. for the specified arguments, this will
-    create the mask that will hide the aliasing of the grating(s) with these arguments. *NOTE* that
-    this means they must have the same of all these arguments: a circular grating with this
-    specified w_r and w_a=0 and a radial one with this w_a and w_r=0 need two different masks.
-
-    the mask will not be strictly binary, there will a `number_of_fade_pixels` where it transitions
-    from 0 to 1. this transition is half of a cosine.
-
-    returns both the faded_mask and the binary mask.
+    returns two maps: the angular spatial frequency map and the radial one.
     """
     rad = ppt.mkR(size, origin=origin)/scale_factor
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
@@ -183,6 +171,45 @@ def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
     # to -1 to 1 to -1 and thus is at the limit of aliasing).
     a_sfmap *= (.5/2.82842712)
     r_sfmap *= (.5/2.82842712)
+    return a_sfmap, r_sfmap
+
+
+def create_sf_maps_cpd(size, alpha, max_visual_angle, w_r=0, w_a=0, origin=None, scale_factor=1):
+    """Create maps of the spatial frequency in cycles per degree of visual angle
+
+    returns two maps: the angular spatial frequency map and the radial one.
+
+    Parameters
+    ============
+
+    max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
+    the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 28)
+    """
+    a_sfmap, r_sfmap = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
+    if hasattr(size, '__iter__'):
+        size = max(size)
+    size = float(size)
+    return a_sfmap / (max_visual_angle / size), r_sfmap / (max_visual_angle / size)
+
+
+def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3, scale_factor=1):
+    """Create mask to hide aliasing
+
+    Because of how our stimuli are created, they have higher spatial frequency at the origin
+    (probably center of the image) than at the edge of the image. This makes it a little harder to
+    determine where aliasing will happen, which is made more complicated by the addition of alpha
+    (the radius of the region where the frequency will be held constant, basically) and the
+    possibility of mixing angular and logRadial frequencies. for the specified arguments, this will
+    create the mask that will hide the aliasing of the grating(s) with these arguments. *NOTE* that
+    this means they must have the same of all these arguments: a circular grating with this
+    specified w_r and w_a=0 and a radial one with this w_a and w_r=0 need two different masks.
+
+    the mask will not be strictly binary, there will a `number_of_fade_pixels` where it transitions
+    from 0 to 1. this transition is half of a cosine.
+
+    returns both the faded_mask and the binary mask.
+    """
+    a_sfmap, r_sfmap = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
     nyq_freq = .5
     a_mask = a_sfmap < nyq_freq
     r_mask = r_sfmap < nyq_freq
