@@ -5,6 +5,8 @@ import pyPyrTools as ppt
 import numpy as np
 from matplotlib import pyplot as plt
 import itertools
+import pandas as pd
+import seaborn as sns
 
 
 def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -244,6 +246,91 @@ def check_aliasing_with_mask(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=No
     axes[0, 1].set_title("Slices of fade-masked stimulus")
     axes[0, 2].set_title("Slices of binary-masked stimulus")
     return stim, fmask, mask, better_sampled_stim, big_fmask, big_mask
+
+
+def check_stim_properties(size, origin, max_visual_angle, alpha=0, w_r=0, w_a=range(10)):
+    """Creates a dataframe with data on several stimulus properties, based on the specified arguments
+
+    the properties examined are:
+    - mask radius (in pixels)
+    - max frequency in cycles per pixel
+    - min frequency in cycles per pixel
+    - max frequency in cycles per degree
+    - min frequency in cycles per degree
+    - max masked frequency in cycles per pixel
+    - max masked frequency in cycles per degree
+
+    note that we don't calculate the min masked frequency because that will always be zero (because
+    we zero out the center of the image, where the frequency is at its highest).
+
+    note that size, origin, and max_visual_angle must have only one value, the others can be lists
+    or single values (and all combinations of them will be checked)
+    """
+    if hasattr(size, '__iter__'):
+        raise Exception("size must *not* be iterable! All generated stimuli must be the same size")
+    if hasattr(origin, '__iter__'):
+        raise Exception("only one value of origin at a time!")
+    if hasattr(max_visual_angle, '__iter__'):
+        raise Exception("only one value of max_visual_angle at a time!")
+    if not hasattr(alpha, '__iter__'):
+        alpha = [alpha]
+    if not hasattr(w_r, '__iter__'):
+        w_r = [w_r]
+    if not hasattr(w_a, '__iter__'):
+        w_a = [w_a]
+    rad = ppt.mkR(size, origin=origin)
+    mask_df = []
+    for i, (a, f_r, f_a) in enumerate(itertools.product(alpha, w_r, w_a)):
+        fmask, mask = create_mask(size, a, f_r, f_a, origin, 0)
+        a_sfmap_cpp, r_sfmap_cpp = create_sf_maps_cpp(size, a, f_r, f_a, origin)
+        a_sfmap_cpd, r_sfmap_cpd = create_sf_maps_cpd(size, a, max_visual_angle, f_r, f_a, origin)
+        data = {'mask_radius': (~mask*rad).max(), 'w_r': f_r, 'w_a': f_a, 'alpha': a, }
+        for name, (a_sfmap, r_sfmap) in zip(['cpp', 'cpd'],
+                                            [(a_sfmap_cpp, r_sfmap_cpp), (a_sfmap_cpd, r_sfmap_cpd)]):
+            data[name + "_max"] = max(a_sfmap.max(), r_sfmap.max())
+            data[name + "_min"] = min(a_sfmap.min(), r_sfmap.min())
+            data[name + "_masked_max"] = max((fmask*a_sfmap).max(), (fmask*r_sfmap).max())
+        mask_df.append(pd.DataFrame(data, index=[i]))
+    return pd.concat(mask_df)
+
+
+def _set_ticklabels(datashape):
+    xticklabels = datashape[1]/10
+    if xticklabels == 0 or xticklabels == 1:
+        xticklabels = True
+    yticklabels = datashape[0]/10
+    if yticklabels == 0 or yticklabels == 1:
+        yticklabels = True
+    return xticklabels, yticklabels
+
+
+def plot_stim_properties(mask_df, x='w_a', y='w_r', col='alpha', data_label='mask_radius',
+                         title_text="Mask radius in pixels",
+                         fancy_labels={"w_a": r"$\omega_a$", "w_r": r"$\omega_r$",
+                                       "alpha": r"$\alpha$"},
+                         **kwargs):
+    """plot the mask_df created by check_mask_radius, to visualize how mask radius depends on args.
+
+    fancy_labels is a dict of mask_df columns to nice (latex) ways of labeling them on the plot.
+    """
+    def facet_heatmap(x, y, data_label, **kwargs):
+        data = kwargs.pop('data').pivot(y, x, data_label)
+        xticks, yticks = _set_ticklabels(data.shape)
+        sns.heatmap(data, xticklabels=xticks, yticklabels=yticks, **kwargs).invert_yaxis()
+
+    cmap = kwargs.pop('cmap', 'Blues')
+    font_scale = kwargs.pop('font_scale', 1.5)
+    plotting_context = kwargs.pop('plotting_context', 'notebook')
+    size = kwargs.pop('size', 3)
+    with sns.plotting_context(plotting_context, font_scale=font_scale):
+        g = sns.FacetGrid(mask_df, col=col, col_wrap=min(4, mask_df[col].nunique()), size=size)
+        cbar_ax = g.fig.add_axes([.92, .3, .02, .4])
+        g.map_dataframe(facet_heatmap, x, y, data_label, vmin=0,
+                        vmax=mask_df[data_label].max(), cmap=cmap, cbar_ax=cbar_ax, **kwargs)
+        g.fig.suptitle(title_text)
+        g.fig.tight_layout(rect=[0, 0, .9, .95])
+        g.set_axis_labels(fancy_labels[x], fancy_labels[y])
+        g.set_titles(r"%s={col_name}" % fancy_labels[col])
 
 
 def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_of_fade_pixels=3,
