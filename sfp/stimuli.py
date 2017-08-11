@@ -28,7 +28,7 @@ def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, sca
     Parameters
     =============
 
-    size: 2-tuple or scalar. if tuple: (Y,X) dimensions of image.  If scalar, image is square.
+    size: scalar. size of the image (only square images permitted).
 
     alpha: int, radius (in pixel spacing) of the "fovea".  IE: log_rad = log(r^2 + alpha^2)
 
@@ -48,6 +48,7 @@ def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, sca
     scale_factor_2 = 100*scale_factor_1. then the two gratings will have the same pattern, just
     sampled differently
     """
+    assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
     rad = ppt.mkR(size, origin=origin)/scale_factor
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
     # distance 0 and, if alpha is also 0, that means we'll have a -inf out of np.log2 and thus a
@@ -151,6 +152,7 @@ def create_sf_maps_cpp(size, alpha, w_r=0, w_a=0, origin=None, scale_factor=1):
 
     returns two maps: the angular spatial frequency map and the radial one.
     """
+    assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
     rad = ppt.mkR(size, origin=origin)/scale_factor
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
     # distance 0 and that means we'll have a divide by zero coming up. this little hack avoids that
