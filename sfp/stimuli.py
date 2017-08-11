@@ -125,7 +125,7 @@ def _fade_mask(mask, number_of_fade_pixels, origin=None):
     """note that mask must contain 0s where you want to mask out, 1s elsewhere
     """
     # if there's no False in mask, then we don't need to mask anything out
-    if False not in mask:
+    if False not in mask or number_of_fade_pixels == 0:
         return mask
     size = mask.shape[0]
     rad = ppt.mkR(size, origin=origin)
@@ -262,6 +262,12 @@ def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_o
     combo_stimuli_type: list with possible elements {'spiral', 'plaid'}. type of stimuli to create
     when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
     create circular and radial stimuli, just include 0 in w_a or w_r, respectively).
+
+    Returns
+    =============
+
+    masked and unmasked stimuli
+
     """
     # we need to make sure that size, origin, and number_of_fade_pixels are not iterable and the
     # other arguments are
