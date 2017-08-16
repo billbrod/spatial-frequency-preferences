@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 import itertools
 import pandas as pd
 import seaborn as sns
+import warnings
 
 
 def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -334,7 +335,7 @@ def plot_stim_properties(mask_df, x='w_a', y='w_r', col='alpha', data_label='mas
 
 
 def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_of_fade_pixels=3,
-         combo_stimuli_type=['spiral']):
+         combo_stimuli_type=['spiral'], filename=None):
     """Create the specified stimuli and apply the anti-aliasing mask
 
     this function creates the specified stimuli, calculates what their anti-aliasing masks should
@@ -344,6 +345,10 @@ def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_o
 
     Note that this function should be run *last*, after you've determined your parameters and
     checked to make sure the aliasing is taken care of.
+
+    If you want to save the created stimuli (for running an experiment, you probably do), then set
+    filename to a string (with extension .npy) and an array containing the masked stimuli will be
+    saved there.
 
     Parameters
     =============
@@ -356,7 +361,6 @@ def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_o
     =============
 
     masked and unmasked stimuli
-
     """
     # we need to make sure that size, origin, and number_of_fade_pixels are not iterable and the
     # other arguments are
@@ -407,4 +411,9 @@ def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_o
             stimuli.append(log_polar_grating(size, a, f_r, 0, p, A, origin) +
                            log_polar_grating(size, a, 0, f_a, p, A, origin))
             masked_stimuli.append(stimuli[-1]*mask)
+    if filename is not None:
+        if not filename.endswith('.npy'):
+            warnings.warn("filename %s does not end in .npy, so adding that extension" % filename)
+            filename += ".npy"
+        np.save(filename, masked_stimuli)
     return masked_stimuli, stimuli
