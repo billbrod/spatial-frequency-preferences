@@ -348,7 +348,7 @@ def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_o
 
     If you want to save the created stimuli (for running an experiment, you probably do), then set
     filename to a string (with extension .npy) and an array containing the masked stimuli will be
-    saved there.
+    saved there. It's recommended you place them within the data/stimuli directory
 
     Parameters
     =============
