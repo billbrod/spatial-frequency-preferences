@@ -334,9 +334,9 @@ def plot_stim_properties(mask_df, x='w_a', y='w_r', col='alpha', data_label='mas
         g.set_titles(r"%s={col_name}" % fancy_labels[col])
 
 
-def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_of_fade_pixels=3,
-         combo_stimuli_type=['spiral'], filename=None):
-    """Create the specified stimuli and apply the anti-aliasing mask
+def gen_stim_set(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None,
+                 number_of_fade_pixels=3, combo_stimuli_type=['spiral'], filename=None):
+    """Generate the specified set of stimuli and apply the anti-aliasing mask
 
     this function creates the specified stimuli, calculates what their anti-aliasing masks should
     be, and applies the largest of those masks to all stimuli. Each argument (except size, origin,
@@ -417,3 +417,41 @@ def main(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None, number_o
             filename += ".npy"
         np.save(filename, masked_stimuli)
     return masked_stimuli, stimuli
+
+
+def main(filename="../data/stimuli/run%s.npy"):
+    """create the stimuli we will use for our experiment
+
+    Those stimuli are: alpha=_, w_r=range(_,_,_), w_a=range(_,_,_), and
+    phi=np.array(range(10))/10.*2*np.pi, with size 1080x1080.
+
+    These will be arranged into blocks of 10 so that each stimuli within one block of 10 differs
+    only by their phase. We will take this set of stimuli and randomize it, within and across those
+    blocks, to create 12 different orders, for the 12 different runs per scanning session.
+
+    These will be saved as run_1.npy through run_12.npy in the data/stimuli folder
+    """
+    alpha = 50
+    w_r = range(0, 600, 100)
+    w_a = range(0, 700, 100)
+    n_classes = len(w_r) * len(w_a)
+    # the -1 is because 0,0 is not a class
+    if 0 in w_r and 0 in w_a:
+        n_classes -= 1
+    phi = np.array(range(10))/10.*2*np.pi
+    n_exemplars = len(phi)
+    res = 1080
+    stim, _ = gen_stim_set(res, alpha, w_r, w_a, phi)
+    stim = np.array(stim)
+    # for i in range(12):
+    for i in range(2):
+        class_idx = np.array(range(n_classes))
+        np.random.shuffle(class_idx)
+        class_idx = np.repeat(class_idx * n_exemplars, n_exemplars)
+        ex_idx = []
+        for j in range(n_classes):
+            ex_idx_tmp = np.array(range(n_exemplars))
+            np.random.shuffle(ex_idx_tmp)
+            ex_idx.extend(ex_idx_tmp)
+        np.save(filename % i, stim[class_idx + ex_idx])
+    return stim
