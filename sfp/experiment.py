@@ -40,7 +40,7 @@ def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_lengt
         probs = np.ones(10)/9
         digits = [int(np.random.uniform(0, 10))]
         for i in range(digit_num-1):
-            if np.random.uniform() < fix_digit_repeat_prob and (len(digits) > 1 or digits[-1] != digits[-2]):
+            if np.random.uniform() < fix_digit_repeat_prob and (len(digits) == 1 or digits[-1] != digits[-2]):
                 digits.append(digits[-1])
             else:
                 probs_tmp = probs.copy()
