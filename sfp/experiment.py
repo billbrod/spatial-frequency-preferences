@@ -12,6 +12,7 @@ from psychopy import visual, core, event
 import h5py
 import datetime
 import glob
+import argparse
 
 
 def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300,
@@ -159,7 +160,7 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
     all_keys = event.waitKeys(keyList=['5', 'q', 'escape'], timeStamped=clock)
     if 'q' in [k[0] for k in all_keys] or 'escape' in [k[0] for k in all_keys]:
         win.close()
-        return None, all_keys
+        return None, all_keys, None
     win.recordFrameIntervals = True
 
     last_stim_change = 0
@@ -214,22 +215,39 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
     return win, keys_pressed, fixation_info
 
 
-def expt(stims_path, subj_name, **kwargs):
+def expt(stims_path, subj_name, output_dir="../data/raw_behavioral", **kwargs):
     """run a full experiment
 
     this just loops through the specified stims_path, passing each one to the run function in
     turn. any other kwargs are sent directly to run as well. it then saves the returned
     keys_pressed and frame intervals
     """
-    file_path = "../data/raw_behavioral/%s_%s_sess{sess}.hdf5" % (datetime.datetime.now().strftime("%Y-%b-%d"), subj_name)
+    if output_dir[-1] != '/':
+        output_dir += '/'
+    file_path = "%s%s_%s_sess{sess}.hdf5" % (output_dir, datetime.datetime.now().strftime("%Y-%b-%d"), subj_name)
     sess_num = 0
     while glob.glob(file_path.format(sess=sess_num)):
         sess_num += 1
     for i, path in enumerate(stims_path):
-        win, keys = run(path, **kwargs)
+        win, keys, fixation = run(path, **kwargs)
         with h5py.File(file_path.format(sess=sess_num), 'a') as f:
             f.create_dataset("run_%s_button_presses" % i, data=np.array(keys))
+            f.create_dataset("run_%s_fixation_data" % i, data=np.array(fixation).astype(str))
             if win is not None:
                 f.create_dataset("run_%s_frame_intervals" % i, data=np.array(win.frameIntervals))
         if 'escape' in [k[0] for k in keys]:
             break
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Run an experiment!",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("stimuli_paths", nargs='+',
+                        help=("path to your stimuli. I assume each path is a set of stimuli for a "
+                              "different run! Using wildcards will probably make this less painful"
+                              ". I also assume you're passing them in the order you want."))
+    parser.add_argument("--output_dir", '-o', help="directory to place output in")
+    args = vars(parser.parse_args())
+    print("Running %d runs, with the following stimuli:" % len(args['stimuli_paths']))
+    print(args['stimuli_paths'])
+    expt(args['stimuli_paths'], "test", args['output_dir'])
