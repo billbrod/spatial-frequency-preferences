@@ -334,14 +334,12 @@ def plot_stim_properties(mask_df, x='w_a', y='w_r', col='alpha', data_label='mas
         g.set_titles(r"%s={col_name}" % fancy_labels[col])
 
 
-def gen_stim_set(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None,
+def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
                  number_of_fade_pixels=3, combo_stimuli_type=['spiral'], filename=None):
     """Generate the specified set of stimuli and apply the anti-aliasing mask
 
     this function creates the specified stimuli, calculates what their anti-aliasing masks should
-    be, and applies the largest of those masks to all stimuli. Each argument (except size, origin,
-    and number_of_fade_pixels) should be a list and stimuli will be made from all combinations of
-    these arguments
+    be, and applies the largest of those masks to all stimuli.
 
     Note that this function should be run *last*, after you've determined your parameters and
     checked to make sure the aliasing is taken care of.
@@ -352,6 +350,10 @@ def gen_stim_set(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None,
 
     Parameters
     =============
+
+    freqs_ra: list of tuples of floats. the frequencies (radial and angular, in that order) of the
+    stimuli to create. Each entry in the list corresponds to one stimuli, which will use the
+    specified (w_r, w_a).
 
     combo_stimuli_type: list with possible elements {'spiral', 'plaid'}. type of stimuli to create
     when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
@@ -372,12 +374,13 @@ def gen_stim_set(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None,
     if hasattr(number_of_fade_pixels, '__iter__'):
         raise Exception("number_of_fade_pixels must *not* be iterable! It's a property of the mask"
                         " and we want to apply the same mask to all stimuli.")
-    if not hasattr(alpha, '__iter__'):
-        alpha = [alpha]
-    if not hasattr(w_r, '__iter__'):
-        w_r = [w_r]
-    if not hasattr(w_a, '__iter__'):
-        w_a = [w_a]
+    if hasattr(alpha, '__iter__'):
+        raise Exception("alpha must *not* be iterable! All generated stimuli must have the same "
+                        " alpha")
+    # this isn't a typo: we want to make sure that freqs_ra is a list of tuples; an easy way to
+    # check is to make sure the *entries* of freqs_ra are iterable
+    if not hasattr(freqs_ra[0], '__iter__'):
+        freqs_ra = [freqs_ra]
     if not hasattr(phi, '__iter__'):
         phi = [phi]
     if not hasattr(ampl, '__iter__'):
@@ -387,29 +390,24 @@ def gen_stim_set(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None,
     stimuli = []
     masked_stimuli = []
     mask = []
-    for a, f_r, f_a in itertools.product(alpha, w_r, w_a):
-        _, tmp_mask = create_mask(size, a, f_r, f_a, origin, number_of_fade_pixels)
+    for w_r, w_a in freqs_ra:
+        _, tmp_mask = create_mask(size, alpha, w_r, w_a, origin, number_of_fade_pixels)
         mask.append(tmp_mask)
     if len(mask) > 1:
         mask = np.logical_and.reduce(mask)
     else:
         mask = mask[0]
     mask = _fade_mask(mask, number_of_fade_pixels, origin)
-    for a, f_r, f_a, p, A in itertools.product(alpha, w_r, w_a, phi, ampl):
-        if f_r == 0 and f_a == 0:
+    for (w_r, w_a), p, A in itertools.product(freqs_ra, phi, ampl):
+        if w_r == 0 and w_a == 0:
             # this is the empty stimulus
             continue
-        if f_r == 0 and len(alpha) > 1 and a != alpha[0]:
-            # if we're making a radial grating (i.e., f_r is 0), then the alpha argument has no
-            # effect. so if we're making a radial grating, there's more than one alpha, and this is
-            # not the first one, we skip, because we've already made this stimulus.
-            continue
-        if 0 in [f_r, f_a] or 'spiral' in combo_stimuli_type:
-            stimuli.append(log_polar_grating(size, a, f_r, f_a, p, A, origin))
+        if 0 in [w_r, w_a] or 'spiral' in combo_stimuli_type:
+            stimuli.append(log_polar_grating(size, alpha, w_r, w_a, p, A, origin))
             masked_stimuli.append(stimuli[-1]*mask)
-        if 'plaid' in combo_stimuli_type and 0 not in [f_r, f_a]:
-            stimuli.append(log_polar_grating(size, a, f_r, 0, p, A, origin) +
-                           log_polar_grating(size, a, 0, f_a, p, A, origin))
+        if 'plaid' in combo_stimuli_type and 0 not in [w_r, w_a]:
+            stimuli.append(log_polar_grating(size, alpha, w_r, 0, p, A, origin) +
+                           log_polar_grating(size, alpha, 0, w_a, p, A, origin))
             masked_stimuli.append(stimuli[-1]*mask)
     if filename is not None:
         if not filename.endswith('.npy'):
@@ -419,33 +417,52 @@ def gen_stim_set(size, alpha, w_r=[0], w_a=[0], phi=[0], ampl=[1], origin=None,
     return masked_stimuli, stimuli
 
 
-def main(filename="../data/stimuli/run%s.npy"):
+def main(filename="../data/stimuli/run%02d.npy"):
     """create the stimuli we will use for our experiment
 
-    Those stimuli are: alpha=_, w_r=range(_,_,_), w_a=range(_,_,_), and
-    phi=np.array(range(10))/10.*2*np.pi, with size 1080x1080.
+    Our stimuli are constructed from a 2d frequency space, with w_r on the x-axis and w_a on the
+    y. The stimuli we want for our experiment then lie along the x-axis, the y-axis, the + and -
+    45-degree angle lines (that is, x=y and x=-y, y>0 for both), and the arc that connects all of
+    them. For those stimuli that lie along straight lines / axes, they'll have frequencies from
+    2^(2.5) to 2^(7.5) (distance from the radius) in half-octave increments, while the arc will lie
+    half-way between the two extremes, with radius 2^(7.5-2.5)=32.
 
-    These will be arranged into blocks of 10 so that each stimuli within one block of 10 differs
-    only by their phase. We will take this set of stimuli and randomize it, within and across those
-    blocks, to create 12 different orders, for the 12 different runs per scanning session.
+    all stimuli will have the same alpha value, _, and there will be 8 different phases equally
+    spaced from 0 to 2 pi: np.array(range(8))/8.*2*np.pi
 
-    These will be saved as run_1.npy through run_12.npy in the data/stimuli folder
+    These will be arranged into blocks of 8 so that each stimuli within one block differ only by
+    their phase. We will take this set of stimuli and randomize it, within and across those blocks,
+    to create 12 different orders, for the 12 different runs per scanning session. There will also
+    be 10 blank trials per session, randomly interspersed (these will be represented as arrays full
+    of 0s)
+
+    These will be saved as run_00.npy through run_11.npy in the data/stimuli folder
+
+    returns (one copy) of the (un-shuffled) stimuli, for inspection. this un-shuffled version will
+    also be stored at data/stimuli/unshuffled.npy
     """
     nruns = 12
     num_blank_trials = 10
     alpha = 50
-    w_r = range(0, 600, 100)
-    w_a = range(0, 700, 100)
-    n_classes = len(w_r) * len(w_a)
-    # the -1 is because 0,0 is not a class
-    if 0 in w_r and 0 in w_a:
-        n_classes -= 1
+    base_freqs = [2**i for i in np.arange(2.5, 8, .5)]
+    # circular, where w_r=0
+    freqs = [(0, f) for f in base_freqs]
+    # radial, where w_a=0
+    freqs.extend([(f, 0) for f in base_freqs])
+    # spirals, where w_a=w_r or -w_a=w_r
+    freqs.extend([(f*np.sin(np.pi/4), f*np.sin(np.pi/4)) for f in base_freqs])
+    freqs.extend([(-f*np.sin(np.pi/4), f*np.sin(np.pi/4)) for f in base_freqs])
+    # arc, where distance from the origin is 2^5
+    #  skip those values which we've already gotten: 0, pi/4, pi/2, 3*pi/4, and pi
+    angles = [np.pi*1/12.*i for i in [1, 2, 4, 5, 7, 8, 10, 11]]
+    freqs.extend([(base_freqs[len(base_freqs)/2]*np.sin(i),
+                   base_freqs[len(base_freqs)/2]*np.cos(i)) for i in angles])
+    n_classes = len(freqs)
     phi = np.array(range(8))/8.*2*np.pi
     n_exemplars = len(phi)
     res = 1080
-    stim, _ = gen_stim_set(res, alpha, w_r, w_a, phi)
-    stim = np.array(stim)
-    # for i in range(12):
+    stim, _ = gen_stim_set(res, alpha, freqs, phi)
+    stim = np.concatenate([np.array(stim), np.zeros((num_blank_trials, res, res))])
     for i in range(nruns):
         class_idx = np.array(range(n_classes))
         np.random.shuffle(class_idx)
@@ -456,4 +473,5 @@ def main(filename="../data/stimuli/run%s.npy"):
             np.random.shuffle(ex_idx_tmp)
             ex_idx.extend(ex_idx_tmp)
         np.save(filename % i, stim[class_idx + ex_idx])
+    np.save("../data/stimuli/unshuffled.npy", stim)
     return stim
