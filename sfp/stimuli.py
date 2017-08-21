@@ -215,7 +215,7 @@ def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
     returns both the faded_mask and the binary mask.
     """
     a_sfmap, r_sfmap = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
-    nyq_freq = .5
+    nyq_freq = .475
     a_mask = a_sfmap < nyq_freq
     r_mask = r_sfmap < nyq_freq
     # the two masks created above are 0 where there's aliasing and 1 everywhere else. logical_and
