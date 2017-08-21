@@ -431,6 +431,8 @@ def main(filename="../data/stimuli/run%s.npy"):
 
     These will be saved as run_1.npy through run_12.npy in the data/stimuli folder
     """
+    nruns = 12
+    num_blank_trials = 10
     alpha = 50
     w_r = range(0, 600, 100)
     w_a = range(0, 700, 100)
@@ -438,13 +440,13 @@ def main(filename="../data/stimuli/run%s.npy"):
     # the -1 is because 0,0 is not a class
     if 0 in w_r and 0 in w_a:
         n_classes -= 1
-    phi = np.array(range(10))/10.*2*np.pi
+    phi = np.array(range(8))/8.*2*np.pi
     n_exemplars = len(phi)
     res = 1080
     stim, _ = gen_stim_set(res, alpha, w_r, w_a, phi)
     stim = np.array(stim)
     # for i in range(12):
-    for i in range(2):
+    for i in range(nruns):
         class_idx = np.array(range(n_classes))
         np.random.shuffle(class_idx)
         class_idx = np.repeat(class_idx * n_exemplars, n_exemplars)
