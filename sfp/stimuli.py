@@ -8,6 +8,7 @@ import itertools
 import pandas as pd
 import seaborn as sns
 import warnings
+from scipy import misc as smisc
 
 
 def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -335,7 +336,8 @@ def plot_stim_properties(mask_df, x='w_a', y='w_r', col='alpha', data_label='mas
 
 
 def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
-                 number_of_fade_pixels=3, combo_stimuli_type=['spiral'], filename=None):
+                 number_of_fade_pixels=3, combo_stimuli_type=['spiral'], filename=None,
+                 bytescale=False):
     """Generate the specified set of stimuli and apply the anti-aliasing mask
 
     this function creates the specified stimuli, calculates what their anti-aliasing masks should
@@ -358,6 +360,11 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     combo_stimuli_type: list with possible elements {'spiral', 'plaid'}. type of stimuli to create
     when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
     create circular and radial stimuli, just include 0 in w_a or w_r, respectively).
+
+    bytescale: boolean, default False. if True, calls smisc.bytescale(cmin=-ampl, cmax=ampl) on
+    image to rescale it to between 0 and 255, with dtype uint8. this is done because this is
+    probably sufficient for displays and takes up much less space.
+
 
     Returns
     =============
@@ -399,17 +406,26 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
         mask = mask[0]
     mask = _fade_mask(mask, number_of_fade_pixels, origin)
     for (w_r, w_a), p, A in itertools.product(freqs_ra, phi, ampl):
-        print("Running %s, %s, %s" % (w_r, w_a, p))
         if w_r == 0 and w_a == 0:
             # this is the empty stimulus
             continue
         if 0 in [w_r, w_a] or 'spiral' in combo_stimuli_type:
-            stimuli.append(log_polar_grating(size, alpha, w_r, w_a, p, A, origin))
-            masked_stimuli.append(stimuli[-1]*mask)
+            tmp_stimuli = log_polar_grating(size, alpha, w_r, w_a, p, A, origin)
+            if bytescale:
+                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-A, cmax=A))
+                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-A, cmax=A))
+            else:
+                masked_stimuli.append(tmp_stimuli*mask)
+                stimuli.append(tmp_stimuli)
         if 'plaid' in combo_stimuli_type and 0 not in [w_r, w_a]:
-            stimuli.append(log_polar_grating(size, alpha, w_r, 0, p, A, origin) +
+            tmp_stimuli = (log_polar_grating(size, alpha, w_r, 0, p, A, origin) +
                            log_polar_grating(size, alpha, 0, w_a, p, A, origin))
-            masked_stimuli.append(stimuli[-1]*mask)
+            if bytescale:
+                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-A, cmax=A))
+                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-A, cmax=A))
+            else:
+                masked_stimuli.append(tmp_stimuli*mask)
+                stimuli.append(tmp_stimuli)
     if filename is not None:
         if not filename.endswith('.npy'):
             warnings.warn("filename %s does not end in .npy, so adding that extension" % filename)
@@ -468,8 +484,10 @@ def main(output_dir="../data/stimuli/"):
     n_exemplars = 8
     phi = np.array(range(n_exemplars))/float(n_exemplars)*2*np.pi
     res = 1080
-    stim, _ = gen_stim_set(res, alpha, freqs, phi)
-    stim = np.concatenate([np.array(stim), np.zeros((num_blank_trials * n_exemplars, res, res))])
+    stim, _ = gen_stim_set(res, alpha, freqs, phi, bytescale=True)
+    stim = np.concatenate([np.array(stim),
+                           smisc.bytescale(np.zeros((num_blank_trials * n_exemplars, res, res)),
+                                           cmin=-1, cmax=1)])
     for i in range(nruns):
         class_idx = np.array(range(n_classes))
         np.random.shuffle(class_idx)
