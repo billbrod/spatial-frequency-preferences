@@ -425,7 +425,9 @@ def main(filename="../data/stimuli/run%02d.npy"):
     45-degree angle lines (that is, x=y and x=-y, y>0 for both), and the arc that connects all of
     them. For those stimuli that lie along straight lines / axes, they'll have frequencies from
     2^(2.5) to 2^(7.5) (distance from the radius) in half-octave increments, while the arc will lie
-    half-way between the two extremes, with radius 2^(7.5-2.5)=32.
+    half-way between the two extremes, with radius 2^(7.5-2.5)=32. We don't use the actual
+    half-octave increments, because non-integer frequencies cause obvious breaks (especially in the
+    spirals), so we round all frequencies to the nearest integer.
 
     all stimuli will have the same alpha value, _, and there will be 8 different phases equally
     spaced from 0 to 2 pi: np.array(range(8))/8.*2*np.pi
@@ -457,9 +459,10 @@ def main(filename="../data/stimuli/run%02d.npy"):
     angles = [np.pi*1/12.*i for i in [1, 2, 4, 5, 7, 8, 10, 11]]
     freqs.extend([(base_freqs[len(base_freqs)/2]*np.sin(i),
                    base_freqs[len(base_freqs)/2]*np.cos(i)) for i in angles])
+    freqs = np.round(freqs)
     n_classes = len(freqs)
-    phi = np.array(range(8))/8.*2*np.pi
-    n_exemplars = len(phi)
+    n_exemplars = 8
+    phi = np.array(range(n_exemplars))/float(n_exemplars)*2*np.pi
     res = 1080
     stim, _ = gen_stim_set(res, alpha, freqs, phi)
     stim = np.concatenate([np.array(stim), np.zeros((num_blank_trials, res, res))])
