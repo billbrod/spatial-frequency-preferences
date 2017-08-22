@@ -9,6 +9,7 @@ also make sure that you've already set up the monitor you'll be using in PsychoP
 
 import numpy as np
 from psychopy import visual, core, event
+from psychopy.tools import imagetools
 import h5py
 import datetime
 import glob
@@ -23,9 +24,13 @@ def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_lengt
     """set the various experiment parameters
     """
     stimuli = np.load(stim_filename)
-    expt_params = {'session_length_frames': session_length * refresh_rate}
-    expt_params['on_frame_length'] = np.round(on_msec_length / (1000. / refresh_rate))
+    expt_params = {'on_frame_length': np.round(on_msec_length / (1000. / refresh_rate))}
     expt_params['off_frame_length'] = np.round(off_msec_length / (1000. / refresh_rate))
+    if session_length is not None:
+        expt_params['session_length_frames'] = session_length * refresh_rate
+    else:
+        # in this case, we want to show all stimuli
+        expt_params['session_length_frames'] = int(len(stimuli) * (expt_params['on_frame_length'] + expt_params['off_frame_length']))
     if fixation_type == 'dot':
         # we want to convert the range of time that the fixation dot will remain the same color
         # from seconds to frames
@@ -53,15 +58,17 @@ def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_lengt
     # the first dimension of stimuli (retrieved by len) is how many stimuli we have. the next two
     # are the size of the stimuli
     expt_params['stim_size'] = stimuli.shape[1:]
-    repeat_num = (session_length - final_blank_sec_length) / (len(stimuli) * ((on_msec_length + off_msec_length) / 1000.))
-    # with these two, we guarantee that stimuli will either end at the same time or before
-    # session_length
-    if repeat_num > 1:
-        # this rounds down if repeat_num is not an integer (i.e., repeat(2.5) is the same as
-        # repeat(2)), which is what we want because we'd rather have a bit of dead time
-        stimuli = np.tile(stimuli, (int(repeat_num), 1, 1))
-    elif repeat_num < 1:
-        stimuli = stimuli[:int(len(stimuli) * repeat_num)]
+    if session_length is not None:
+        # when session_length is None, we show all of them!
+        repeat_num = (session_length - final_blank_sec_length) / (len(stimuli) * ((on_msec_length + off_msec_length) / 1000.))
+        # with these two, we guarantee that stimuli will either end at the same time or before
+        # session_length
+        if repeat_num > 1:
+            # this rounds down if repeat_num is not an integer (i.e., repeat(2.5) is the same as
+            # repeat(2)), which is what we want because we'd rather have a bit of dead time
+            stimuli = np.tile(stimuli, (int(repeat_num), 1, 1))
+        elif repeat_num < 1:
+            stimuli = stimuli[:int(len(stimuli) * repeat_num)]
 
     monitor_kwargs.update({'size': size, 'monitor': monitor, 'units': units, 'fullscr': fullscr,
                            'screen': screen})
@@ -91,7 +98,8 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
 
     stim_filename: string, path to .npy file where stimuli are stored (as 3d array)
 
-    session_length: int, length in seconds
+    session_length: int or None, length in seconds. If None, then will be long enough to use all
+    stimuli found at stim_filename.
 
     refresh_rate: int or float, the refresh rate of the monitor, in Hz. If you don't know this,
     psychopy.info.RunTimeInfo() will give you the windowRefreshTime, and 1000 over that number is
@@ -251,4 +259,4 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
     print("Running %d runs, with the following stimuli:" % len(args['stimuli_paths']))
     print(args['stimuli_paths'])
-    expt(args['stimuli_paths'], "test", args['output_dir'])
+    expt(args['stimuli_paths'], "test", args['output_dir'], session_length=None)
