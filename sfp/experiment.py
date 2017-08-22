@@ -148,7 +148,8 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
         fixation = [visual.TextStim(win, str(dig), height=fix_pix_size,
                                     color=['white', 'black'][i % 2]) for i, dig in enumerate(expt_params['digits'])]
         last_fix_change = 0
-    gratings = [visual.ImageStim(win, image=stim, size=expt_params['stim_size']) for stim in stimuli]
+    gratings = [visual.ImageStim(win, image=imagetools.array2image(stim),
+                                 size=expt_params['stim_size']) for stim in stimuli]
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))
