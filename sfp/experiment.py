@@ -52,7 +52,7 @@ def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_lengt
                 probs_tmp = probs.copy()
                 probs_tmp[digits[-1]] = 0
                 digits.append(np.random.choice(range(10), p=probs_tmp))
-        expt_params['digits'] = digits
+        expt_params['digits'] = iter(digits)
     else:
         raise Exception("Don't know what to do with fixation_type %s!" % fixation_type)
     # the first dimension of stimuli (retrieved by len) is how many stimuli we have. the next two
@@ -154,12 +154,13 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
         fixation = visual.GratingStim(win, size=fix_pix_size, pos=[0, 0], color=(1, 0, 0), sf=0,
                                       mask='circle')
     elif fixation_type == 'digit':
-        fixation = [visual.TextStim(win, str(dig), height=fix_pix_size,
-                                    color=['white', 'black'][i % 2]) for i, dig in enumerate(expt_params['digits'])]
+        fixation = visual.TextStim(win, str(expt_params['digits'].next()), height=fix_pix_size,
+                                   color='white')
         last_fix_change = 0
-    gratings = [visual.ImageStim(win, image=imagetools.array2image(stim),
-                                 size=expt_params['stim_size']) for stim in stimuli]
-    stim_total_num = len(gratings)
+    stim_total_num = len(stimuli)
+    stimuli = iter(stimuli)
+    grating = visual.ImageStim(win, image=imagetools.array2image(stimuli.next()),
+                               size=expt_params['stim_size'], mask='raisedCos')
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))
@@ -181,11 +182,12 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
     if fixation_type == 'dot':
         fixation_info = [(0, clock.getTime(), fixation.color)]
     else:
-        fixation_info = [(0, clock.getTime(), fixation[0].text)]
+        fixation_info = [(0, clock.getTime(), fixation.text)]
+
     for frame_num in xrange(expt_params['session_length_frames']):
         if stim_num < stim_total_num:
             if frame_num < (last_stim_change + expt_params['on_frame_length']):
-                gratings[stim_num].draw()
+                grating.draw()
                 # print frame_num, stim_num, clock.getTime(), last_stim_change
             # there's a hidden condition here, where we don't want to draw anything (and, in order
             # to make sure things line up exactly, we reset the last_stim_change and stim_num right
@@ -193,9 +195,10 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
             elif frame_num >= (last_stim_change + expt_params['on_frame_length'] + expt_params['off_frame_length'] - 1):
                 last_stim_change = frame_num+1
                 stim_num += 1
-                # print frame_num, 'switching', clock.getTime(), last_stim_change
-            # else:
-                # print frame_num, '-', clock.getTime(), last_stim_change
+                grating.image = imagetools.array2image(stimuli.next())
+        #         print frame_num, 'switching', clock.getTime(), last_stim_change
+        #     else:
+        #         print frame_num, '-', clock.getTime(), last_stim_change
         # else:
         #     print frame_num, 'waiting', clock.getTime()
         if fixation_type == 'dot':
@@ -210,12 +213,17 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
         else:
             # we know this fixation type must be digit or we would've thrown an exception earlier
             if frame_num < last_fix_change + expt_params['digit_frame_length']:
-                fixation[fix_num].draw()
+                fixation.draw()
                 if last_fix_change == frame_num:
-                    fixation_info.append((frame_num, clock.getTime(), fixation[fix_num].text))
+                    fixation_info.append((frame_num, clock.getTime(), fixation.text))
             elif frame_num >= (last_fix_change + expt_params['digit_frame_length'] + expt_params['delay_frame_length'] - 1):
                 last_fix_change = frame_num+1
                 fix_num += 1
+                fixation.text = expt_params['digits'].next()
+                if fixation.color == 'white':
+                    fixation.color = 'black'
+                elif fixation.color == 'black':
+                    fixation.color = 'white'
         win.flip()
         all_keys = event.getKeys(timeStamped=clock)
         if all_keys:
