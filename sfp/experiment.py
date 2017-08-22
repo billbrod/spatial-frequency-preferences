@@ -145,6 +145,7 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
         fix_digit_repeat_prob, final_blank_sec_length, **monitor_kwargs)
 
     win = visual.Window(**monitor_kwargs)
+    win.gammaRamp = np.tile(np.linspace(0, 1, 256)**2, (3, 1))
 
     if fix_deg_size is not None:
         fix_pix_size = fix_deg_size * (monitor_kwargs['size'][0] / float(max_visual_angle))
