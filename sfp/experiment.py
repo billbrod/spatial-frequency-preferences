@@ -158,6 +158,7 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
         last_fix_change = 0
     gratings = [visual.ImageStim(win, image=imagetools.array2image(stim),
                                  size=expt_params['stim_size']) for stim in stimuli]
+    stim_total_num = len(gratings)
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))
@@ -181,7 +182,7 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
     else:
         fixation_info = [(0, clock.getTime(), fixation[0].text)]
     for frame_num in xrange(expt_params['session_length_frames']):
-        if stim_num < len(stimuli-1):
+        if stim_num < stim_total_num:
             if frame_num < (last_stim_change + expt_params['on_frame_length']):
                 gratings[stim_num].draw()
                 # print frame_num, stim_num, clock.getTime(), last_stim_change
