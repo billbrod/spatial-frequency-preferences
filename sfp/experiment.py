@@ -19,8 +19,8 @@ import argparse
 def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300,
                 off_msec_length=200, fixation_type='digit', fix_dot_length_range=(1, 3),
                 fix_digit_length=500, fix_digit_delay_length=170, fix_digit_repeat_prob=1/6.,
-                final_blank_sec_length=8, size=[1080, 1080], monitor='test', units='pix',
-                fullscr=True, screen=1, **monitor_kwargs):
+                final_blank_sec_length=8, size=[1920, 1080], monitor='CBI-prisma-projector',
+                units='pix', fullscr=True, screen=1, **monitor_kwargs):
     """set the various experiment parameters
     """
     stimuli = np.load(stim_filename)
