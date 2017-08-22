@@ -399,6 +399,7 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
         mask = mask[0]
     mask = _fade_mask(mask, number_of_fade_pixels, origin)
     for (w_r, w_a), p, A in itertools.product(freqs_ra, phi, ampl):
+        print("Running %s, %s, %s" % (w_r, w_a, p))
         if w_r == 0 and w_a == 0:
             # this is the empty stimulus
             continue
@@ -417,7 +418,7 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     return masked_stimuli, stimuli
 
 
-def main(filename="../data/stimuli/run%02d.npy"):
+def main(output_dir="../data/stimuli/"):
     """create the stimuli we will use for our experiment
 
     Our stimuli are constructed from a 2d frequency space, with w_r on the x-axis and w_a on the
@@ -441,6 +442,9 @@ def main(filename="../data/stimuli/run%02d.npy"):
     returns (one copy) of the (un-shuffled) stimuli, for inspection. this un-shuffled version will
     also be stored at data/stimuli/unshuffled.npy
     """
+    if output_dir[-1] != '/':
+        output_dir += '/'
+    filename = output_dir + "run%02d.npy"
     nruns = 12
     num_blank_trials = 10
     alpha = 50
@@ -457,12 +461,12 @@ def main(filename="../data/stimuli/run%02d.npy"):
     angles = [np.pi*1/12.*i for i in [1, 2, 4, 5, 7, 8, 10, 11]]
     freqs.extend([(base_freqs[len(base_freqs)/2]*np.sin(i),
                    base_freqs[len(base_freqs)/2]*np.cos(i)) for i in angles])
-    n_classes = len(freqs)
+    n_classes = len(freqs) + num_blank_trials
     phi = np.array(range(8))/8.*2*np.pi
     n_exemplars = len(phi)
     res = 1080
     stim, _ = gen_stim_set(res, alpha, freqs, phi)
-    stim = np.concatenate([np.array(stim), np.zeros((num_blank_trials, res, res))])
+    stim = np.concatenate([np.array(stim), np.zeros((num_blank_trials * n_exemplars, res, res))])
     for i in range(nruns):
         class_idx = np.array(range(n_classes))
         np.random.shuffle(class_idx)
@@ -473,5 +477,10 @@ def main(filename="../data/stimuli/run%02d.npy"):
             np.random.shuffle(ex_idx_tmp)
             ex_idx.extend(ex_idx_tmp)
         np.save(filename % i, stim[class_idx + ex_idx])
-    np.save("../data/stimuli/unshuffled.npy", stim)
+    np.save(output_dir + "unshuffled.npy", stim)
     return stim
+
+
+if __name__ == '__main__':
+    print("Creating stimuli!")
+    _ = main("/scratch/wfb229/stimuli")
