@@ -287,7 +287,9 @@ if __name__ == '__main__':
                               "different run! Using wildcards will probably make this less painful"
                               ". I also assume you're passing them in the order you want."))
     parser.add_argument("--output_dir", '-o', help="directory to place output in")
+    parser.add_argument("--subj_name", '-s', help="name of the subject")
     args = vars(parser.parse_args())
     print("Running %d runs, with the following stimuli:" % len(args['stimuli_paths']))
     print(args['stimuli_paths'])
-    expt(args['stimuli_paths'], "test", args['output_dir'], session_length=None)
+    expt(args['stimuli_paths'], args['subj_name'], args['output_dir'], session_length=None,
+         fix_deg_size=.25)
