@@ -18,9 +18,9 @@ from scipy import misc as smisc
 
 
 def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_length=200,
-                fixation_type='digit', fix_button_prob=1/6., final_blank_sec_length=8,
-                size=[1920, 1080], monitor='CBI-prisma-projector', units='pix', fullscr=True,
-                screen=1, **monitor_kwargs):
+                fixation_type='digit', fix_button_prob=1/6., fix_dot_length_range=(1, 3),
+                final_blank_sec_length=8, size=[1920, 1080], monitor='CBI-prisma-projector',
+                units='pix', fullscr=True, screen=1, **monitor_kwargs):
     """set the various experiment parameters
     """
     stimuli = np.load(stim_path)
@@ -60,11 +60,16 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
         # we need enough colors for each stimuli ON and OFF
         dot_num = stimuli.shape[0] * 2
         colors = ['red']
-        for i in range(dot_num):
-            if np.random.uniform() < fix_button_prob and (len(colors) == 1 or colors[-1] != colors[-2]):
-                colors.append(colors[-1])
-            else:
-                colors.append({'red': 'green', 'green': 'red'}.get(colors[-1]))
+        while len(colors) < dot_num:
+            current_color = [colors[-1]]
+            next_flip = np.random.uniform(*fix_dot_length_range)
+            i, j = 0, 0
+            while i*(on_msec_length/1000.) + j*(off_msec_length/1000.) < next_flip:
+                i += 1
+                if i*(on_msec_length/1000.) + j*(off_msec_length/1000.) < next_flip:
+                    j += 1
+            colors.extend(current_color*(i+j-1))
+            colors.append({'red': 'green', 'green': 'red'}.get(current_color[0]))
         expt_params['fixation_color'] = iter(colors)
     elif fixation_type == 'digit':
         digit_num = stimuli.shape[0]
@@ -91,7 +96,7 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
 
 def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_length=200,
         final_blank_sec_length=8, fixation_type="digit", fix_pix_size=10, fix_deg_size=None,
-        fix_button_prob=1/6., max_visual_angle=28, **monitor_kwargs):
+        fix_button_prob=1/6., fix_dot_length_range=(1, 3), max_visual_angle=28, **monitor_kwargs):
     """run one run of the experiment
 
     stim_path specifies the path of the unshuffled experiment stimuli, while idx_path specifies the
@@ -104,8 +109,9 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     (`fixation_type='dot'`) or a stream of digits whose colors alternate between black and white,
     with a `fix_button_prob` chance of repeating (`fixation_type='digit'`). For the digit, a digit
     is presented when the stimulus is presented and off when the stimulus is off (new one presented
-    with new stimulus). For now, you can't change this. For the dot, there is a `fix_button_prob`
-    chance that the color will change every time the stimulus goes off or on.
+    with new stimulus). For now, you can't change this. For the dot, `fix_dot_length_range`
+    determines the range of time, in seconds, that the dot will change color in. It will be rounded
+    to the nearest stimuli on or stimuli off.
 
     If `session_length` is None, all stimuli loaded in from stim_path will be shown. Else, the
     session will last exactly that long, so the stimuli will be cut short so that it ends after
@@ -148,12 +154,16 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     probability is relative to each stimulus presentation / ON block starting; for fixation dot,
     it's each stimulus change (stimulus ON or OFF block starting).
 
+    fix_dot_length_range: 2-tuple of ints. A random pull from a uniform distribution with these end
+    points will determine when the next dot color change is (in seconds). It will be rounded to the
+    nearest stimuli on or stimuli off.
+
     max_visual_angle: int or float. the max visual angle (in degrees) of the full screen. used to
     convert fix_deg_size to pixels.
     """
     stimuli, idx, expt_params, monitor_kwargs = _set_params(
         stim_path, idx_path, session_length, on_msec_length, off_msec_length, fixation_type,
-        fix_button_prob, final_blank_sec_length, **monitor_kwargs)
+        fix_button_prob, fix_dot_length_range, final_blank_sec_length, **monitor_kwargs)
 
     win = visual.Window(**monitor_kwargs)
     win.gammaRamp = np.tile(np.linspace(0, 1, 256)**2, (3, 1))
