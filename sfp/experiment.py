@@ -20,7 +20,7 @@ from scipy import misc as smisc
 def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_length=200,
                 fixation_type='digit', fix_button_prob=1/6., fix_dot_length_range=(1, 3),
                 final_blank_sec_length=8, size=[1920, 1080], monitor='CBI-prisma-projector',
-                units='pix', fullscr=True, screen=1, **monitor_kwargs):
+                units='pix', fullscr=True, screen=1, color=127, colorSpace='rgb255',  **monitor_kwargs):
     """set the various experiment parameters
     """
     stimuli = np.load(stim_path)
@@ -90,7 +90,7 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
     # are the size of the stimuli
 
     monitor_kwargs.update({'size': size, 'monitor': monitor, 'units': units, 'fullscr': fullscr,
-                           'screen': screen})
+                           'screen': screen, 'color': color, 'colorSpace': colorSpace})
     return stimuli, idx, expt_params, monitor_kwargs
 
 
@@ -181,7 +181,8 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     # first one is special: we preload it, but we still want to include it in the iterator so the
     # numbers all match up (we don't draw or wait during the on part of the first iteration)
     grating = visual.ImageStim(win, image=imagetools.array2image(stimuli[0]),
-                               size=expt_params['stim_size'], mask='raisedCos')
+                               size=expt_params['stim_size'], mask='raisedCos',
+                               maskParams={'fringeWidth': .05})
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))
