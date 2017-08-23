@@ -107,7 +107,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     with new stimulus). For now, you can't change this. For the dot, there is a `fix_button_prob`
     chance that the color will change every time the stimulus goes off or on.
 
-    If `session_length` is None, all stimuli loaded in from stim_filename will be shown. Else, the
+    If `session_length` is None, all stimuli loaded in from stim_path will be shown. Else, the
     session will last exactly that long, so the stimuli will be cut short so that it ends after
     that amount of time (with the `final_blank_sec_length`) or looped to reach that amount of
     time. If you opt for this, make sure you think about your session_length carefully, because
@@ -123,7 +123,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     idx_path: string, path to .npy file where shuffled indices are stored (as 1d array)
 
     session_length: int or None, length in seconds. If None, then will be long enough to use all
-    stimuli found at stim_filename.
+    stimuli found at stim_path.
 
     on_msec_length: int, length of the ON blocks in milliseconds; that is, the length of time to
     display each stimulus before moving on
@@ -179,7 +179,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     all_keys = event.waitKeys(keyList=['5', 'q', 'escape'], timeStamped=clock)
     if 'q' in [k[0] for k in all_keys] or 'escape' in [k[0] for k in all_keys]:
         win.close()
-        return None, all_keys, None, None
+        return all_keys, [], [], expt_params, idx
 
     keys_pressed = [(key[0], key[1]) for key in all_keys]
     timings = []
