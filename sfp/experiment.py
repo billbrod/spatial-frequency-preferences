@@ -175,14 +175,21 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         fixation = visual.GratingStim(win, size=fix_pix_size, pos=[0, 0], sf=0, color=None,
                                       mask='circle')
     else:
-        fixation = visual.TextStim(win, None, height=fix_pix_size, color=None)
-    stimuli = iter(stimuli)
-    grating = visual.ImageStim(win, image=None, size=expt_params['stim_size'], mask='raisedCos')
+        fixation = visual.TextStim(win, expt_params['fixation_text'].next(), height=fix_pix_size,
+                                   color=None)
+    fixation.color = expt_params['fixation_color'].next()
+    # first one is special: we preload it, but we still want to include it in the iterator so the
+    # numbers all match up (we don't draw or wait during the on part of the first iteration)
+    grating = visual.ImageStim(win, image=imagetools.array2image(stimuli[0]),
+                               size=expt_params['stim_size'], mask='raisedCos')
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))
     wait_text.draw()
     win.flip()
+    # preload these to save time
+    grating.draw()
+    fixation.draw()
 
     clock = core.Clock()
     # wait until receive 5, which is the scanner trigger
@@ -192,15 +199,20 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         return all_keys, [], [], expt_params, idx
 
     keys_pressed = [(key[0], key[1]) for key in all_keys]
-    timings = []
+    timings = [("start", "off", clock.getTime())]
     fixation_info = []
     for i, stim in enumerate(stimuli):
-        if "fixation_text" in expt_params:
-            fixation.text = expt_params['fixation_text'].next()
-        grating.image = imagetools.array2image(stim)
-        fixation.color = expt_params['fixation_color'].next()
-        grating.draw()
-        fixation.draw()
+        if i > 0:
+            # we don't wait the first time, and all these have been preloaded while we were waiting
+            # for the scan trigger
+            if "fixation_text" in expt_params:
+                fixation.text = expt_params['fixation_text'].next()
+            grating.image = imagetools.array2image(stim)
+            fixation.color = expt_params['fixation_color'].next()
+            grating.draw()
+            fixation.draw()
+            next_stim_time = (i*on_msec_length + i*off_msec_length - 2)/1000.
+            core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
         win.flip()
         timings.append(("stimulus_%d" % i, "on", clock.getTime()))
         if fixation_type == "digit":
@@ -218,8 +230,6 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
             fixation_info.append((fixation.text, "off", clock.getTime()))
         elif fixation_type == 'dot':
             fixation_info.append((fixation.color, clock.getTime()))
-        next_stim_time = ((i+1)*on_msec_length + (i+1)*off_msec_length - 2)/1000.
-        core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
         all_keys = event.getKeys(timeStamped=clock)
         if all_keys:
             keys_pressed.extend([(key[0], key[1]) for key in all_keys])
