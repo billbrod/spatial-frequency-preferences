@@ -14,49 +14,17 @@ import h5py
 import datetime
 import glob
 import argparse
+from scipy import misc as smisc
 
 
-def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300,
-                off_msec_length=200, fixation_type='digit', fix_dot_length_range=(1, 3),
-                fix_digit_length=500, fix_digit_delay_length=170, fix_digit_repeat_prob=1/6.,
-                final_blank_sec_length=8, size=[1920, 1080], monitor='CBI-prisma-projector',
-                units='pix', fullscr=True, screen=1, **monitor_kwargs):
+def _set_params(stim_filename, session_length=30, on_msec_length=300, off_msec_length=200,
+                fixation_type='digit', fix_button_prob=1/6., final_blank_sec_length=8,
+                size=[1920, 1080], monitor='CBI-prisma-projector', units='pix', fullscr=True,
+                screen=1, **monitor_kwargs):
     """set the various experiment parameters
     """
     stimuli = np.load(stim_filename)
-    expt_params = {'on_frame_length': np.round(on_msec_length / (1000. / refresh_rate))}
-    expt_params['off_frame_length'] = np.round(off_msec_length / (1000. / refresh_rate))
-    if session_length is not None:
-        expt_params['session_length_frames'] = session_length * refresh_rate
-    else:
-        # in this case, we want to show all stimuli
-        expt_params['session_length_frames'] = int(len(stimuli) * (expt_params['on_frame_length'] + expt_params['off_frame_length']))
-    if fixation_type == 'dot':
-        # we want to convert the range of time that the fixation dot will remain the same color
-        # from seconds to frames
-        fix_dot_length_range = np.array(fix_dot_length_range) * float(refresh_rate)
-        fix_lengths = []
-        while sum(fix_lengths) < expt_params['session_length_frames']:
-            fix_lengths.append(np.floor(np.random.uniform(*fix_dot_length_range)))
-        expt_params['fixation_changes'] = np.cumsum(fix_lengths)
-    elif fixation_type == 'digit':
-        expt_params['digit_frame_length'] = np.round(fix_digit_length / (1000. / refresh_rate))
-        expt_params['delay_frame_length'] = np.round(fix_digit_delay_length / (1000. / refresh_rate))
-        digit_num = np.ceil(expt_params['session_length_frames'] / (expt_params['digit_frame_length'] + expt_params['delay_frame_length'])).astype(int)
-        probs = np.ones(10)/9
-        digits = [int(np.random.uniform(0, 10))]
-        for i in range(digit_num-1):
-            if np.random.uniform() < fix_digit_repeat_prob and (len(digits) == 1 or digits[-1] != digits[-2]):
-                digits.append(digits[-1])
-            else:
-                probs_tmp = probs.copy()
-                probs_tmp[digits[-1]] = 0
-                digits.append(np.random.choice(range(10), p=probs_tmp))
-        expt_params['digits'] = iter(digits)
-    else:
-        raise Exception("Don't know what to do with fixation_type %s!" % fixation_type)
-    # the first dimension of stimuli (retrieved by len) is how many stimuli we have. the next two
-    # are the size of the stimuli
+    expt_params = {}
     expt_params['stim_size'] = stimuli.shape[1:]
     if session_length is not None:
         # when session_length is None, we show all of them!
@@ -69,28 +37,77 @@ def _set_params(stim_filename, session_length=30, refresh_rate=60, on_msec_lengt
             stimuli = np.tile(stimuli, (int(repeat_num), 1, 1))
         elif repeat_num < 1:
             stimuli = stimuli[:int(len(stimuli) * repeat_num)]
+    expt_params['non_blank_stimuli_num'] = stimuli.shape[0]
+    # In order to get the right amount of blank time at the end of the run, we insert an
+    # appropriate amount of blank stimuli.
+    nblanks = final_blank_sec_length / ((on_msec_length + off_msec_length) / 1000.)
+    if nblanks != int(nblanks):
+        raise Exception("Because of your timing (final_blank_sec_length, on_msec_length, and "
+                        "off_msec_length), I can't show blanks for the final %.02f seconds. "
+                        "final_blank_sec_length must be a multiple of on_msec_length+"
+                        "off_msec_length!" % final_blank_sec_length)
+    nblanks = int(nblanks)
+    stimuli = np.concatenate([stimuli, smisc.bytescale(np.zeros((nblanks, stimuli.shape[1],
+                                                                 stimuli.shape[2])),
+                                                       cmin=-1, cmax=1)])
+    expt_params['nblanks'] = nblanks
+
+    if fixation_type == 'dot':
+        # we need enough colors for each stimuli ON and OFF
+        dot_num = stimuli.shape[0] * 2
+        colors = ['red']
+        for i in range(dot_num):
+            if np.random.uniform() < fix_button_prob and (len(colors) == 1 or colors[-1] != colors[-2]):
+                colors.append(colors[-1])
+            else:
+                colors.append({'red': 'green', 'green': 'red'}.get(colors[-1]))
+        expt_params['fixation_color'] = iter(colors)
+    elif fixation_type == 'digit':
+        digit_num = stimuli.shape[0]
+        probs = np.ones(10)/9
+        digits = [int(np.random.uniform(0, 10))]
+        for i in range(digit_num-1):
+            if np.random.uniform() < fix_button_prob and (len(digits) == 1 or digits[-1] != digits[-2]):
+                digits.append(digits[-1])
+            else:
+                probs_tmp = probs.copy()
+                probs_tmp[digits[-1]] = 0
+                digits.append(np.random.choice(range(10), p=probs_tmp))
+        expt_params['fixation_text'] = iter(digits)
+        expt_params['fixation_color'] = iter(['white', 'black'] * int(np.ceil(digit_num/2.)))
+    else:
+        raise Exception("Don't know what to do with fixation_type %s!" % fixation_type)
+    # the first dimension of stimuli (retrieved by len) is how many stimuli we have. the next two
+    # are the size of the stimuli
 
     monitor_kwargs.update({'size': size, 'monitor': monitor, 'units': units, 'fullscr': fullscr,
                            'screen': screen})
     return stimuli, expt_params, monitor_kwargs
 
 
-def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, off_msec_length=200,
-        final_blank_sec_length=8, fixation_type="digit", fix_dot_length_range=(1, 3),
-        fix_pix_size=10, fix_deg_size=None, fix_digit_length=500, fix_digit_delay_length=170,
-        fix_digit_repeat_prob=1/6., max_visual_angle=28, **monitor_kwargs):
+def run(stim_filename, session_length=30, on_msec_length=300, off_msec_length=200,
+        final_blank_sec_length=8, fixation_type="digit", fix_pix_size=10, fix_deg_size=None,
+        fix_button_prob=1/6., max_visual_angle=28, **monitor_kwargs):
     """run one run of the experiment
 
     Before running this, you need to make sure the stimuli specified are in the correct order. This
-    function will simply go through those stimuli in order, showing each stimuli for 300 msecs and
-    then a blank screen for 100 msecs (or as close as possible, given the refresh_rate). A fixation
-    dot will be shown in the center of the screen (with a width of 10 pixels), whose color will
-    change pseudo-randomly from red to green (change will happen at least twice a session, always
-    separated by at least one second).
+    function will simply go through those stimuli in order, showing each stimuli for
+    `on_msec_length` msecs and then a blank screen for `off_msec_length` msecs (or as close as
+    possible, given the monitor's refresh rate).
 
-    you should create enough stimuli that, allowing for 400 msecs per stimuli, they last the number
-    of seconds specified by session_length. However, session_length takes priority, so stimuli will
-    be cut short or looped if the lengths don't match up.
+    For fixation, you can either choose a dot whose color changes from red to green
+    (`fixation_type='dot'`) or a stream of digits whose colors alternate between black and white,
+    with a `fix_button_prob` chance of repeating (`fixation_type='digit'`). For the digit, a digit
+    is presented when the stimulus is presented and off when the stimulus is off (new one presented
+    with new stimulus). For now, you can't change this. For the dot, there is a `fix_button_prob`
+    chance that the color will change every time the stimulus goes off or on.
+
+    If `session_length` is None, all stimuli loaded in from stim_filename will be shown. Else, the
+    session will last exactly that long, so the stimuli will be cut short so that it ends after
+    that amount of time (with the `final_blank_sec_length`) or looped to reach that amount of
+    time. If you opt for this, make sure you think about your session_length carefully, because
+    this presentation code does not know about your classes or anything else and so could very
+    easily end in the middle of one.
 
 
     Arguments
@@ -100,11 +117,6 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
 
     session_length: int or None, length in seconds. If None, then will be long enough to use all
     stimuli found at stim_filename.
-
-    refresh_rate: int or float, the refresh rate of the monitor, in Hz. If you don't know this,
-    psychopy.info.RunTimeInfo() will give you the windowRefreshTime, and 1000 over that number is
-    your refresh_rate. most monitors have a 60 Hz refresh rate, but the projecter at NYU's primsa
-    scanner goes up to 360 Hz depending on the resolution
 
     on_msec_length: int, length of the ON blocks in milliseconds; that is, the length of time to
     display each stimulus before moving on
@@ -117,9 +129,6 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
     the digit is a stream of digits alternating between black and white. note that only a subset of
     the following fix_* arguments apply to each of these fixation types.
 
-    fix_dot_length_range: 2-tuple of ints or floats. the length of time the fixation dot will
-    remain the same color is picked from a uniform distribution with these endpoints
-
     fix_pix_size: int, the size of the fixation dot or digits, in pixels.
 
     fix_deg_size: int, float or None. the size of the fixation dot or digits, in degrees of visual
@@ -127,22 +136,17 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
     into pixels based on monitor_kwargs['size'], default 1080x1080, and max_visual_angle, default
     28)
 
-    fix_digit_length: int. the length of time, in msecs, that the fixation digit will remain on the
-    screen.
-
-    fix_digit_delay_length: int. the length of time, in msecs, that nothing will be shown at
-    fixation between digits.
-
-    fix_digit_repeat_prob: float. the probability that the fixation digit will repeat (will never
-    repeat more than once in a row).
+    fix_button_prob: float. the probability that the fixation digit will repeat or the fixation dot
+    will change color (will never repeat more than once in a row). For fixation digit, this
+    probability is relative to each stimulus presentation / ON block starting; for fixation dot,
+    it's each stimulus change (stimulus ON or OFF block starting).
 
     max_visual_angle: int or float. the max visual angle (in degrees) of the full screen. used to
     convert fix_deg_size to pixels.
     """
     stimuli, expt_params, monitor_kwargs = _set_params(
-        stim_filename, session_length, refresh_rate, on_msec_length, off_msec_length,
-        fixation_type, fix_dot_length_range, fix_digit_length, fix_digit_delay_length,
-        fix_digit_repeat_prob, final_blank_sec_length, **monitor_kwargs)
+        stim_filename, session_length, on_msec_length, off_msec_length, fixation_type,
+        fix_button_prob, final_blank_sec_length, **monitor_kwargs)
 
     win = visual.Window(**monitor_kwargs)
     win.gammaRamp = np.tile(np.linspace(0, 1, 256)**2, (3, 1))
@@ -151,16 +155,12 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
         fix_pix_size = fix_deg_size * (monitor_kwargs['size'][0] / float(max_visual_angle))
 
     if fixation_type == 'dot':
-        fixation = visual.GratingStim(win, size=fix_pix_size, pos=[0, 0], color=(1, 0, 0), sf=0,
+        fixation = visual.GratingStim(win, size=fix_pix_size, pos=[0, 0], sf=0, color=None,
                                       mask='circle')
-    elif fixation_type == 'digit':
-        fixation = visual.TextStim(win, str(expt_params['digits'].next()), height=fix_pix_size,
-                                   color='white')
-        last_fix_change = 0
-    stim_total_num = len(stimuli)
+    else:
+        fixation = visual.TextStim(win, None, height=fix_pix_size, color=None)
     stimuli = iter(stimuli)
-    grating = visual.ImageStim(win, image=imagetools.array2image(stimuli.next()),
-                               size=expt_params['stim_size'], mask='raisedCos')
+    grating = visual.ImageStim(win, image=None, size=expt_params['stim_size'], mask='raisedCos')
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))
@@ -173,86 +173,43 @@ def run(stim_filename, session_length=30, refresh_rate=60, on_msec_length=300, o
     if 'q' in [k[0] for k in all_keys] or 'escape' in [k[0] for k in all_keys]:
         win.close()
         return None, all_keys, None, None
-    win.recordFrameIntervals = True
 
     keys_pressed = [(key[0], key[1]) for key in all_keys]
-    if fixation_type == 'dot':
-        fixation_info = [(0, clock.getTime(), fixation.color)]
-    else:
-        fixation_info = [(0, clock.getTime(), fixation.text)]
-
     timings = []
-    fix_num = 0
-    stim_num = 0
-    last_stim_change = 0
-    last_fix_change = 0
-    # for frame_num in xrange(expt_params['session_length_frames']):
-
+    fixation_info = []
     for i, stim in enumerate(stimuli):
+        if "fixation_text" in expt_params:
+            fixation.text = expt_params['fixation_text'].next()
+        grating.image = imagetools.array2image(stim)
+        fixation.color = expt_params['fixation_color'].next()
         grating.draw()
         fixation.draw()
         win.flip()
         timings.append(("stimulus_%d" % i, "on", clock.getTime()))
-        grating.image = imagetools.array2image(stim)
-        fixation.text = expt_params['digits'].next()
-        if fixation.color == 'white':
-            fixation.color = 'black'
-        elif fixation.color == 'black':
-            fixation.color = 'white'
+        if fixation_type == "digit":
+            fixation_info.append((fixation.text, "on", clock.getTime()))
+        elif fixation_type == 'dot':
+            fixation_info.append((fixation.color, clock.getTime()))
+            # the dot advances its color and stays drawn during the stimulus off segments
+            fixation.color = expt_params['fixation_color'].next()
+            fixation.draw()
         next_stim_time = ((i+1)*on_msec_length + i*off_msec_length - 1)/1000.
-        next_fix_time = ((fix_num+1)*fix_digit_length + fix_num*fix_digit_delay_length - 2)/1000.
         core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
         win.flip()
         timings.append(("stimulus_%d" % i, "off", clock.getTime()))
+        if fixation_type == 'digit':
+            fixation_info.append((fixation.text, "off", clock.getTime()))
+        elif fixation_type == 'dot':
+            fixation_info.append((fixation.color, clock.getTime()))
         next_stim_time = ((i+1)*on_msec_length + (i+1)*off_msec_length - 2)/1000.
         core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
-        # if stim_num < stim_total_num:
-        #     if frame_num < (last_stim_change + expt_params['on_frame_length']):
-        #         grating.draw()
-        #         # print frame_num, stim_num, clock.getTime(), last_stim_change
-        #     # there's a hidden condition here, where we don't want to draw anything (and, in order
-        #     # to make sure things line up exactly, we reset the last_stim_change and stim_num right
-        #     # before)
-        #     elif frame_num >= (last_stim_change + expt_params['on_frame_length'] + expt_params['off_frame_length'] - 1):
-        #         last_stim_change = frame_num+1
-        #         stim_num += 1
-        #         grating.image = imagetools.array2image(stimuli.next())
-        # #         print frame_num, 'switching', clock.getTime(), last_stim_change
-        # #     else:
-        # #         print frame_num, '-', clock.getTime(), last_stim_change
-        # # else:
-        # #     print frame_num, 'waiting', clock.getTime()
-        # if fixation_type == 'dot':
-        #     if frame_num >= expt_params['fixation_changes'][fix_num]:
-        #         if (fixation.color == (0, 1, 0)).all():
-        #             fixation.color = (1, 0, 0)
-        #         elif (fixation.color == (1, 0, 0)).all():
-        #             fixation.color = (0, 1, 0)
-        #         fixation_info.append((frame_num, clock.getTime(), fixation.color))
-        #         fix_num += 1
-        #     fixation.draw()
-        # else:
-        #     # we know this fixation type must be digit or we would've thrown an exception earlier
-        #     if frame_num < last_fix_change + expt_params['digit_frame_length']:
-        #         fixation.draw()
-        #         if last_fix_change == frame_num:
-        #             fixation_info.append((frame_num, clock.getTime(), fixation.text))
-        #     elif frame_num >= (last_fix_change + expt_params['digit_frame_length'] + expt_params['delay_frame_length'] - 1):
-        #         last_fix_change = frame_num+1
-        #         fix_num += 1
-        #         fixation.text = expt_params['digits'].next()
-        #         if fixation.color == 'white':
-        #             fixation.color = 'black'
-        #         elif fixation.color == 'black':
-        #             fixation.color = 'white'
-        # win.flip()
         all_keys = event.getKeys(timeStamped=clock)
         if all_keys:
             keys_pressed.extend([(key[0], key[1]) for key in all_keys])
         if 'q' in [k[0] for k in all_keys] or 'escape' in [k[0] for k in all_keys]:
             break
     win.close()
-    return win, keys_pressed, fixation_info, timings
+    return keys_pressed, fixation_info, timings, expt_params
 
 
 def expt(stims_path, subj_name, output_dir="../data/raw_behavioral", **kwargs):
@@ -269,12 +226,19 @@ def expt(stims_path, subj_name, output_dir="../data/raw_behavioral", **kwargs):
     while glob.glob(file_path.format(sess=sess_num)):
         sess_num += 1
     for i, path in enumerate(stims_path):
-        win, keys, fixation = run(path, **kwargs)
+        keys, fixation, timings, expt_params = run(path, **kwargs)
         with h5py.File(file_path.format(sess=sess_num), 'a') as f:
-            f.create_dataset("run_%s_button_presses" % i, data=np.array(keys))
-            f.create_dataset("run_%s_fixation_data" % i, data=np.array(fixation).astype(str))
-            if win is not None:
-                f.create_dataset("run_%s_frame_intervals" % i, data=np.array(win.frameIntervals))
+            f.create_dataset("run_%02d_button_presses" % i, data=np.array(keys))
+            f.create_dataset("run_%02d_fixation_data" % i, data=np.array(fixation).astype(str))
+            f.create_dataset("run_%02d_timing_data" % i, data=np.array(timings))
+            f.create_dataset("run_%02d_stim_path" % i, data=path)
+            for k, v in expt_params.iteritems():
+                if k in ['fixation_color', 'fixation_text']:
+                    continue
+                f.create_dataset("run_%02d_%s" % (i, k), data=v)
+            # also note differences from default options
+            for k, v in kwargs.iteritems():
+                f.create_dataset("run_%02d_%s" % (i, k), data=v)
         if 'escape' in [k[0] for k in keys]:
             break
 
