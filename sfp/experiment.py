@@ -166,7 +166,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         fix_button_prob, fix_dot_length_range, final_blank_sec_length, **monitor_kwargs)
 
     win = visual.Window(**monitor_kwargs)
-    win.gammaRamp = np.tile(np.linspace(0, 1, 256)**2, (3, 1))
+    win.gammaRamp = np.tile(np.linspace(0, 1, 256), (3, 1))
 
     if fix_deg_size is not None:
         fix_pix_size = fix_deg_size * (monitor_kwargs['size'][0] / float(max_visual_angle))
@@ -182,7 +182,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     # numbers all match up (we don't draw or wait during the on part of the first iteration)
     grating = visual.ImageStim(win, image=imagetools.array2image(stimuli[0]),
                                size=expt_params['stim_size'], mask='raisedCos',
-                               maskParams={'fringeWidth': .05})
+                               maskParams={'fringeWidth': .1})
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))
