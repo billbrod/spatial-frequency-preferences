@@ -434,7 +434,7 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     return masked_stimuli, stimuli
 
 
-def main(subj_name, output_dir="../data/stimuli/", create_stim=True):
+def main(subj_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True):
     """create the stimuli we will use for our experiment
 
     Our stimuli are constructed from a 2d frequency space, with w_r on the x-axis and w_a on the
@@ -492,43 +492,50 @@ def main(subj_name, output_dir="../data/stimuli/", create_stim=True):
     n_exemplars = 8
     phi = np.array(range(n_exemplars))/float(n_exemplars)*2*np.pi
     res = 1080
-    for i in range(nruns):
-        class_idx = np.array(range(n_classes))
-        # we don't want to have two blank trials in a row, so we use this little method to avoid
-        # that. blank_idx contains the class indices that correspond to blanks, e.g., the last 10
-        # of them
-        blank_idx = class_idx.copy()[-num_blank_trials:]
-        # this is where they are in the current class_idx
-        blank_loc = np.where(np.in1d(class_idx, blank_idx))[0]
-        # now, if two blanks are next to each other, this will return true and thus we shuffle
-        # class_idx. note that this will always return true the first time, which is good because
-        # we want at least one shuffle. This is the "dumb way" of doing this, which relies
-        # *heavily* on the fact that there aren't many blank trials relative to the total number of
-        # classes.
-        while 1 in (blank_loc[1:] - blank_loc[:-1]):
-            np.random.shuffle(class_idx)
+    if create_idx:
+        if os.path.isfile(filename % 0):
+            raise Exception("Indices with template %s already exist!" % filename)
+        for i in range(nruns):
+            class_idx = np.array(range(n_classes))
+            # we don't want to have two blank trials in a row, so we use this little method to
+            # avoid that. blank_idx contains the class indices that correspond to blanks, e.g., the
+            # last 10 of them
+            blank_idx = class_idx.copy()[-num_blank_trials:]
+            # this is where they are in the current class_idx
             blank_loc = np.where(np.in1d(class_idx, blank_idx))[0]
-        class_idx = np.repeat(class_idx * n_exemplars, n_exemplars)
-        ex_idx = []
-        for j in range(n_classes):
-            ex_idx_tmp = np.array(range(n_exemplars))
-            np.random.shuffle(ex_idx_tmp)
-            ex_idx.extend(ex_idx_tmp)
-        np.save(filename % i, class_idx + ex_idx)
-    df = []
-    for i, ((w_r, w_a), p) in enumerate(itertools.product(freqs, phi)):
-        df.append((w_r, w_a, p, res, alpha, i))
-    max_idx = i+1
-    for i, _ in enumerate(itertools.product(range(num_blank_trials), phi)):
-        df.append((None, None, None, res, None, i+max_idx))
-    df = pd.DataFrame(df, columns=['w_r', 'w_a', 'phi', 'res', 'alpha', 'index'])
-    df.to_csv(output_dir + "unshuffled_stim_description.csv")
+            # now, if two blanks are next to each other, this will return true and thus we shuffle
+            # class_idx. note that this will always return true the first time, which is good
+            # because we want at least one shuffle. This is the "dumb way" of doing this, which
+            # relies *heavily* on the fact that there aren't many blank trials relative to the
+            # total number of classes.
+            while 1 in (blank_loc[1:] - blank_loc[:-1]):
+                np.random.shuffle(class_idx)
+                blank_loc = np.where(np.in1d(class_idx, blank_idx))[0]
+            class_idx = np.repeat(class_idx * n_exemplars, n_exemplars)
+            ex_idx = []
+            for j in range(n_classes):
+                ex_idx_tmp = np.array(range(n_exemplars))
+                np.random.shuffle(ex_idx_tmp)
+                ex_idx.extend(ex_idx_tmp)
+            np.save(filename % i, class_idx + ex_idx)
     if create_stim:
+        if os.path.isfile(output_dir + "unshuffled.npy"):
+            raise Exception("unshuffled data already exists!")
+        if os.path.isfile(output_dir + "unshuffled_stim_description.csv"):
+            raise Exception("unshuffled data already exists!")
         stim, _ = gen_stim_set(res, alpha, freqs, phi, bytescale=True)
         stim = np.concatenate([np.array(stim),
                                smisc.bytescale(np.zeros((num_blank_trials * n_exemplars, res, res)),
                                                cmin=-1, cmax=1)])
         np.save(output_dir + "unshuffled.npy", stim)
+        df = []
+        for i, ((w_r, w_a), p) in enumerate(itertools.product(freqs, phi)):
+            df.append((w_r, w_a, p, res, alpha, i))
+        max_idx = i+1
+        for i, _ in enumerate(itertools.product(range(num_blank_trials), phi)):
+            df.append((None, None, None, res, None, i+max_idx))
+        df = pd.DataFrame(df, columns=['w_r', 'w_a', 'phi', 'res', 'alpha', 'index'])
+        df.to_csv(output_dir + "unshuffled_stim_description.csv")
         return stim
 
 
