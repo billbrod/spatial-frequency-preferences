@@ -72,18 +72,21 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
             colors.append({'red': 'green', 'green': 'red'}.get(current_color[0]))
         expt_params['fixation_color'] = iter(colors)
     elif fixation_type == 'digit':
-        digit_num = stimuli.shape[0]
+        # we show a digit with every other stimuli.
+        digit_num = stimuli.shape[0] / 2
         probs = np.ones(10)/9
-        digits = [int(np.random.uniform(0, 10))]
+        digits = [int(np.random.uniform(0, 10)), ""]
         for i in range(digit_num-1):
-            if np.random.uniform() < fix_button_prob and (len(digits) == 1 or digits[-1] != digits[-2]):
-                digits.append(digits[-1])
+            if np.random.uniform() < fix_button_prob and (len(digits) == 2 or digits[-1] != digits[-2]):
+                digits.append(digits[-2])
             else:
                 probs_tmp = probs.copy()
-                probs_tmp[digits[-1]] = 0
+                probs_tmp[digits[-2]] = 0
                 digits.append(np.random.choice(range(10), p=probs_tmp))
+            # after every digit, we show a blank
+            digits.append("")
         expt_params['fixation_text'] = iter(digits)
-        expt_params['fixation_color'] = iter(['white', 'black'] * int(np.ceil(digit_num/2.)))
+        expt_params['fixation_color'] = iter(['white', 'white', 'black', 'black'] * int(np.ceil(digit_num/2.)))
     else:
         raise Exception("Don't know what to do with fixation_type %s!" % fixation_type)
     # the first dimension of stimuli (retrieved by len) is how many stimuli we have. the next two
@@ -107,11 +110,12 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
 
     For fixation, you can either choose a dot whose color changes from red to green
     (`fixation_type='dot'`) or a stream of digits whose colors alternate between black and white,
-    with a `fix_button_prob` chance of repeating (`fixation_type='digit'`). For the digit, a digit
-    is presented when the stimulus is presented and off when the stimulus is off (new one presented
-    with new stimulus). For now, you can't change this. For the dot, `fix_dot_length_range`
-    determines the range of time, in seconds, that the dot will change color in. It will be rounded
-    to the nearest stimuli on or stimuli off.
+    with a `fix_button_prob` chance of repeating (`fixation_type='digit'`). For the digit, digits
+    are presented with alternating stimuli ON and OFF blocks, so that a digit will be shown for
+    on_msec_length+off_msec_length msecs and then there will be nothing at fixation for the next
+    on_msec_length+off_msec_length msecs. For now, you can't change this. For the dot,
+    `fix_dot_length_range` determines the range of time, in seconds, that the dot will change color
+    in. It will be rounded to the nearest stimuli on or stimuli off.
 
     If `session_length` is None, all stimuli loaded in from stim_path will be shown. Else, the
     session will last exactly that long, so the stimuli will be cut short so that it ends after
@@ -217,19 +221,17 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         win.flip()
         timings.append(("stimulus_%d" % i, "on", clock.getTime()))
         if fixation_type == "digit":
-            fixation_info.append((fixation.text, "on", clock.getTime()))
+            fixation_info.append((fixation.text, clock.getTime()))
         elif fixation_type == 'dot':
             fixation_info.append((fixation.color, clock.getTime()))
             # the dot advances its color and stays drawn during the stimulus off segments
             fixation.color = expt_params['fixation_color'].next()
-            fixation.draw()
+        fixation.draw()
         next_stim_time = ((i+1)*on_msec_length + i*off_msec_length - 1)/1000.
         core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
         win.flip()
         timings.append(("stimulus_%d" % i, "off", clock.getTime()))
-        if fixation_type == 'digit':
-            fixation_info.append((fixation.text, "off", clock.getTime()))
-        elif fixation_type == 'dot':
+        if fixation_type == 'dot':
             fixation_info.append((fixation.color, clock.getTime()))
         all_keys = event.getKeys(timeStamped=clock)
         if all_keys:
