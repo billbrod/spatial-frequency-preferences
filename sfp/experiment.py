@@ -185,8 +185,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     # first one is special: we preload it, but we still want to include it in the iterator so the
     # numbers all match up (we don't draw or wait during the on part of the first iteration)
     grating = visual.ImageStim(win, image=imagetools.array2image(stimuli[0]),
-                               size=expt_params['stim_size'], mask='raisedCos',
-                               maskParams={'fringeWidth': .1})
+                               size=expt_params['stim_size'])
 
     wait_text = visual.TextStim(win, ("Press 5 to start\nq will quit this run\nescape will quit "
                                       "this session"))

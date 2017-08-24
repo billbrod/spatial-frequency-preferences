@@ -9,6 +9,7 @@ import pandas as pd
 import seaborn as sns
 import warnings
 from scipy import misc as smisc
+import os
 
 
 def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -126,28 +127,44 @@ def check_aliasing(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_
     return orig_stim, better_sampled_stim
 
 
-def _fade_mask(mask, number_of_fade_pixels, origin=None):
+def _fade_mask(mask, inner_number_of_fade_pixels, outer_number_of_fade_pixels, origin=None):
     """note that mask must contain 0s where you want to mask out, 1s elsewhere
     """
-    # if there's no False in mask, then we don't need to mask anything out
-    if False not in mask or number_of_fade_pixels == 0:
+    # if there's no False in mask, then we don't need to mask anything out. and if there's only
+    # False, we don't need to fade anything. and if there's no fade pixels, then we don't fade
+    # anything
+    if False not in mask or True not in mask or (inner_number_of_fade_pixels == 0 and outer_number_of_fade_pixels == 0):
         return mask
     size = mask.shape[0]
     rad = ppt.mkR(size, origin=origin)
-    alias_rad = (~mask*rad).max()
+    inner_rad = (mask*rad)[(mask*rad).nonzero()].min()
+    # in this case, there really isn't an inner radius, just an outer one, so we ignore this
+    if inner_rad == rad.min():
+        inner_rad = 0
+        inner_number_of_fade_pixels = 0
+    outer_rad = (mask*rad).max()
+
     # in order to get the right number of pixels to act as transition, we set the frequency based
     # on the specified number_of_fade_pixels
-    fade_freq = (size/2.) / (2*number_of_fade_pixels)
-    fade_freq = (size/2.) / (2*number_of_fade_pixels)
+    def inner_fade(x):
+        if inner_number_of_fade_pixels == 0:
+            return (-np.cos(2*np.pi*(x-inner_rad) / (size/2.))+1)/2
+        inner_fade_freq = (size/2.) / (2*inner_number_of_fade_pixels)
+        return (-np.cos(inner_fade_freq*2*np.pi*(x-inner_rad) / (size/2.))+1)/2
 
-    def fade(x):
-        return (-np.cos(fade_freq*2*np.pi*(x-alias_rad) / (size/2.))+1)/2
+    def outer_fade(x):
+        if outer_number_of_fade_pixels == 0:
+            return (-np.cos(2*np.pi*(x-outer_rad) / (size/2.))+1)/2
+        outer_fade_freq = (size/2.) / (2*outer_number_of_fade_pixels)
+        return (-np.cos(outer_fade_freq*2*np.pi*(x-outer_rad) / (size/2.))+1)/2
 
     faded_mask = np.piecewise(rad,
-                              [rad < alias_rad,
-                               (rad > alias_rad) & (rad < (alias_rad + number_of_fade_pixels)),
-                               rad > (alias_rad + number_of_fade_pixels)],
-                              [0, fade, 1])
+                              [rad < inner_rad,
+                               (rad >= inner_rad) & (rad <= (inner_rad + inner_number_of_fade_pixels)),
+                               (rad > (inner_rad + inner_number_of_fade_pixels)) & (rad < outer_rad - outer_number_of_fade_pixels),
+                               (rad >= outer_rad - outer_number_of_fade_pixels) & (rad <= (outer_rad)),
+                               (rad > (outer_rad))],
+                              [0, inner_fade, 1, outer_fade, 0])
     return faded_mask
 
 
@@ -198,7 +215,7 @@ def create_sf_maps_cpd(size, alpha, max_visual_angle, w_r=0, w_a=0, origin=None,
     return a_sfmap / (max_visual_angle / size), r_sfmap / (max_visual_angle / size)
 
 
-def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3, scale_factor=1):
+def create_antialiasing_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3, scale_factor=1):
     """Create mask to hide aliasing
 
     Because of how our stimuli are created, they have higher spatial frequency at the origin
@@ -223,8 +240,31 @@ def create_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
     # then gives us a 1 only where both have 1s; i.e., we mask out anywhere that *either* mask says
     # will alias.
     mask = np.logical_and(a_mask, r_mask)
-    faded_mask = _fade_mask(mask, number_of_fade_pixels, origin)
+    faded_mask = _fade_mask(mask, number_of_fade_pixels, 0, origin)
     return faded_mask, mask
+
+
+def create_outer_mask(size, origin, radius=None, number_of_fade_pixels=3):
+    """Create mask around the outside of the image
+
+    this gets us a window that creates a circular (or some subset of circular) edge. this returns
+    both the faded and the unfaded versions.
+
+    radius: float or None. the radius, in pixels, of the mask. Everything farther away from the
+    origin than this will be masked out. If None, we pick radius such that it's the distance to the
+    edge of the square image. If horizontal and vertical have different distances, we will take the
+    shorter of the two. If the distance from the origin to the horizontal edge is not identical in
+    both directions, we'll take the longer of the two (similar for vertical).
+
+    To combine this with the antialiasing mask, call np.logical_and on the two unfaded masks (and
+    then fade that if you want to fade it)
+    """
+    rad = ppt.mkR(size, origin=origin)
+    assert not hasattr(size, "__iter__"), "size must be a scalar!"
+    if radius is None:
+        radius = min(rad[:, size/2].max(), rad[size/2, :].max())
+    mask = rad < radius
+    return _fade_mask(mask, 0, number_of_fade_pixels, origin), mask
 
 
 def check_aliasing_with_mask(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1,
@@ -232,7 +272,7 @@ def check_aliasing_with_mask(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=No
     """check the aliasing when mask is applied
     """
     stim = log_polar_grating(size, alpha, w_r, w_a, phi, ampl, origin, scale_factor)
-    fmask, mask = create_mask(size, alpha, w_r, w_a, origin)
+    fmask, mask = create_antialiasing_mask(size, alpha, w_r, w_a, origin)
     better_sampled_stim = _create_better_sampled_grating(size, alpha, w_r, w_a, phi, ampl, origin,
                                                          scale_factor, 99)
     big_fmask = fmask.repeat(99, 0).repeat(99, 1)
@@ -283,7 +323,7 @@ def check_stim_properties(size, origin, max_visual_angle, alpha=0, w_r=0, w_a=ra
     rad = ppt.mkR(size, origin=origin)
     mask_df = []
     for i, (a, f_r, f_a) in enumerate(itertools.product(alpha, w_r, w_a)):
-        fmask, mask = create_mask(size, a, f_r, f_a, origin, 0)
+        fmask, mask = create_antialiasing_mask(size, a, f_r, f_a, origin, 0)
         a_sfmap_cpp, r_sfmap_cpp = create_sf_maps_cpp(size, a, f_r, f_a, origin)
         a_sfmap_cpd, r_sfmap_cpd = create_sf_maps_cpd(size, a, max_visual_angle, f_r, f_a, origin)
         data = {'mask_radius': (~mask*rad).max(), 'w_r': f_r, 'w_a': f_a, 'alpha': a, }
@@ -341,7 +381,8 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     """Generate the specified set of stimuli and apply the anti-aliasing mask
 
     this function creates the specified stimuli, calculates what their anti-aliasing masks should
-    be, and applies the largest of those masks to all stimuli.
+    be, and applies the largest of those masks to all stimuli. It also applies an outer mask so
+    each of them is surrounded by faded, circular mask.
 
     Note that this function should be run *last*, after you've determined your parameters and
     checked to make sure the aliasing is taken care of.
@@ -398,13 +439,14 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     masked_stimuli = []
     mask = []
     for w_r, w_a in freqs_ra:
-        _, tmp_mask = create_mask(size, alpha, w_r, w_a, origin, number_of_fade_pixels)
+        _, tmp_mask = create_antialiasing_mask(size, alpha, w_r, w_a, origin, number_of_fade_pixels)
         mask.append(tmp_mask)
+    mask.append(create_outer_mask(size, origin, None, number_of_fade_pixels)[1])
     if len(mask) > 1:
         mask = np.logical_and.reduce(mask)
     else:
         mask = mask[0]
-    mask = _fade_mask(mask, number_of_fade_pixels, origin)
+    mask = _fade_mask(mask, number_of_fade_pixels, number_of_fade_pixels, origin)
     for (w_r, w_a), p, A in itertools.product(freqs_ra, phi, ampl):
         if w_r == 0 and w_a == 0:
             # this is the empty stimulus
