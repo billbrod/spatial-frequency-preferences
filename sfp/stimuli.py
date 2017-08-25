@@ -10,6 +10,7 @@ import seaborn as sns
 import warnings
 from scipy import misc as smisc
 import os
+import argparse
 
 
 def log_polar_grating(size, alpha, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -476,8 +477,8 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     return masked_stimuli, stimuli
 
 
-def main(subj_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True):
-    """create the stimuli we will use for our experiment
+def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True):
+    """create the stimuli for the spatial frequency preferences experiment
 
     Our stimuli are constructed from a 2d frequency space, with w_r on the x-axis and w_a on the
     y. The stimuli we want for our experiment then lie along the x-axis, the y-axis, the + and -
@@ -507,12 +508,15 @@ def main(subj_name, output_dir="../data/stimuli/", create_stim=True, create_idx=
     if create_stim is False, then we don't create the stim, just create and save the shuffled
     indices.
 
-    returns (one copy) of the (un-shuffled) stimuli, for inspection. this un-shuffled version will
-    also be stored at data/stimuli/unshuffled.npy
+    NOTE That if create_idx is True and the indices already exist, this will throw an
+    exception. Similarly if create_stim is True and either the stimuli .npy file or the descriptive
+    dataframe .csv file
+
+    returns (one copy) of the (un-shuffled) stimuli, for inspection.
     """
     if output_dir[-1] != '/':
         output_dir += '/'
-    filename = output_dir + "{subj}_run%02d_idx.npy".format(subj=subj_name)
+    filename = output_dir + "{subj}_run%02d_idx.npy".format(subj=subject_name)
     nruns = 12
     num_blank_trials = 10
     alpha = 50
@@ -582,5 +586,20 @@ def main(subj_name, output_dir="../data/stimuli/", create_stim=True, create_idx=
 
 
 if __name__ == '__main__':
-    print("Creating stimuli!")
-    _ = main("test", "/scratch/wfb229/stimuli")
+    class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+        pass
+    parser = argparse.ArgumentParser(description=(main.__doc__),
+                                     formatter_class=CustomFormatter)
+    parser.add_argument("subject_name", help=("The name of the subject for this randomization. "
+                        "Will be used in filename for data."))
+    parser.add_argument("--output_dir", '-o', help="directory to place stimuli and indices in",
+                        default="data/stimuli")
+    parser.add_argument("--create_stim", '-c', action="store_true",
+                        help="Create and save the experiment stimuli and descriptive dataframe")
+    parser.add_argument("--create_idx", '-i', action="store_true",
+                        help=("Create and save the 12 randomized indices for this subject"))
+    args = vars(parser.parse_args())
+    if not args["create_stim"] and not args['create_idx']:
+        print("Nothing to create, exiting...")
+    else:
+        _ = main(**args)
