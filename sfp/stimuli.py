@@ -303,6 +303,9 @@ def check_stim_properties(size, origin, max_visual_angle, alpha=0, w_r=0, w_a=ra
     - max masked frequency in cycles per pixel
     - max masked frequency in cycles per degree
 
+    WARNING: THE CALCULATIONS FOR MIN (and possibly min) FREQUENCIES DISPLAYED IS BROKEN. I NEED TO
+    THINK MORE ABOUT HOW THE MULTIPLE MAPS INTERACT WITH EACH OTHER
+
     note that we don't calculate the min masked frequency because that will always be zero (because
     we zero out the center of the image, where the frequency is at its highest).
 
@@ -331,7 +334,7 @@ def check_stim_properties(size, origin, max_visual_angle, alpha=0, w_r=0, w_a=ra
         for name, (a_sfmap, r_sfmap) in zip(['cpp', 'cpd'],
                                             [(a_sfmap_cpp, r_sfmap_cpp), (a_sfmap_cpd, r_sfmap_cpd)]):
             data[name + "_max"] = max(a_sfmap.max(), r_sfmap.max())
-            data[name + "_min"] = min(a_sfmap.min(), r_sfmap.min())
+            data[name + "_min"] = max(a_sfmap.min(), r_sfmap.min())
             data[name + "_masked_max"] = max((fmask*a_sfmap).max(), (fmask*r_sfmap).max())
         mask_df.append(pd.DataFrame(data, index=[i]))
     return pd.concat(mask_df)
