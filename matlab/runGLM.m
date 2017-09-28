@@ -67,12 +67,12 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
         load(sprintf(designMatPathTemplate, behavRuns(ii)));
         design{ii} = eval(sprintf('design_matrix_run_%02d', behavRuns(ii)));
         boldTmp = niftiRead(sprintf(boldPathTemplate, boldRuns(ii)));
-        bold{ii} = boldTmp.data;
+        bold{ii} = single(boldTmp.data);
     end
 
     [results, denoiseddata] = GLMdenoisedata(design, bold, stim_length, TR_length, [], [], struct('seed', seed), outputDir)
 
-    save(fullfile(outputDir, 'results.mat'), '-struct', 'results')
-    save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata')
+    save(fullfile(outputDir, 'results.mat'), '-struct', 'results', '-v7.3')
+    save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata', '-v7.3')
 
 end
