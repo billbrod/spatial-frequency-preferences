@@ -8,7 +8,7 @@
 %
 % requires GLMdenoise and Freesurfer
 
-function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, vistaSoftPath, spmPath, glmDenoisePath, seed, outputDir)
+function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, fsPath, glmDenoisePath, seed, outputDir)
 % function runGLM(designMatPathTemplate, boldPathTemplate, runs, runDetailsPath, vistaSoftPath, spmPath, glmDenoisePath, seed)
 %
 % <designMatPathTemplate> string, template path to the design matrices
@@ -40,9 +40,8 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
 % includes two variables: stim_length and TR_length, which we pass
 % to GlMdenoise data as stimdur and tr, respectively
 % 
-% <vistaSoftPath> string, path to the vistaSoft matlab toolbox.
-% 
-% <spmPath> string, path to the SPM matlab toolbox.
+% <fsPath> string, path to the freesurfer matlab functions (e.g.,
+% freesurfer/6.0.0/matlab).
 % 
 % <glmDenoisePath> string, path to the GLMdenoise matlab toolbox.
 % 
@@ -51,8 +50,7 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
 % <outputDir> path. Directory to save results in. Does not need to
 % exist
 
-    addpath(genpath(vistaSoftPath));
-    addpath(genpath(spmPath));
+    addpath(genpath(fsPath));
     addpath(genpath(glmDenoisePath));
 
     load(runDetailsPath);
@@ -66,13 +64,13 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     for ii=1:length(behavRuns)
         load(sprintf(designMatPathTemplate, behavRuns(ii)));
         design{ii} = eval(sprintf('design_matrix_run_%02d', behavRuns(ii)));
-        boldTmp = niftiRead(sprintf(boldPathTemplate, boldRuns(ii)));
-        bold{ii} = boldTmp.data;
+        boldTmp = MRIread(sprintf(boldPathTemplate, boldRuns(ii)));
+        bold{ii} = single(boldTmp.vol);
     end
 
     [results, denoiseddata] = GLMdenoisedata(design, bold, stim_length, TR_length, [], [], struct('seed', seed), outputDir)
 
-    save(fullfile(outputDir, 'results.mat'), '-struct', 'results')
-    save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata')
+    save(fullfile(outputDir, 'results.mat'), '-struct', 'results', '-v7.3')
+    save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata', '-v7.3')
 
 end
