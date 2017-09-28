@@ -6,7 +6,7 @@
 % the proper format and then runs Kendrick Kay's GLMdenoise on the
 % data to run the GLM on the data.
 %
-% requires vistaSoft (which requires SPM) and GLMdenoise
+% requires GLMdenoise and Freesurfer
 
 function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, vistaSoftPath, spmPath, glmDenoisePath, seed, outputDir)
 % function runGLM(designMatPathTemplate, boldPathTemplate, runs, runDetailsPath, vistaSoftPath, spmPath, glmDenoisePath, seed)
