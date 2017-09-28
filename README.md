@@ -7,6 +7,16 @@ frequency and eccentricity in the human early visual cortex.
 Much of the structure is based on the cookiecutter-data-science and so
 currently empty / unused.
 
+# Requirements
+
+Matlab:
+
+ - [GLMdenoise](https://github.com/kendrickkay/GLMdenoise/)
+ 
+Python: see `requirements.txt` file
+
+Other: [FreeSurfer](http://freesurfer.net/)
+
 Project Organization
 ------------
 
