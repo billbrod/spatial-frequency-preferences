@@ -9,7 +9,12 @@
 % requires GLMdenoise and Freesurfer
 
 function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, fsPath, glmDenoisePath, seed, outputDir)
-% function runGLM(designMatPathTemplate, boldPathTemplate, runs, runDetailsPath, vistaSoftPath, spmPath, glmDenoisePath, seed)
+% function runGLM(designMatPathTemplate, boldPathTemplate, runs, runDetailsPath, fsPath, glmDenoisePath, seed)
+% 
+% Loads in the data, rearranges them, runs GLMdenoise, saves the
+% output, and then also saves niftis for R2, R2run, modelse, and
+% modelmd. If you want others, you'll have to load them from
+% results.mat and save them yourself.
 %
 % <designMatPathTemplate> string, template path to the design matrices
 % (as .mat). Must include a string formatting symbol (e.g., %s, %02d)
@@ -69,6 +74,18 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     end
 
     [results, denoiseddata] = GLMdenoisedata(design, bold, stim_length, TR_length, [], [], struct('seed', seed), outputDir)
+
+    bold{1}.vol = results.modelmd{2};
+    MRIwrite(bold{1}, fullfile(outputDir, 'modelmd'))
+
+    bold{1}.vol = results.modelse{2};
+    MRIwrite(bold{1}, fullfile(outputDir, 'modelse'))
+
+    bold{1}.vol = results.R2;
+    MRIwrite(bold{1}, fullfile(outputDir, 'R2'))
+
+    bold{1}.vol = results.R2run;
+    MRIwrite(bold{1}, fullfile(outputDir, 'R2run'))    
 
     save(fullfile(outputDir, 'results.mat'), '-struct', 'results', '-v7.3')
     save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata', '-v7.3')
