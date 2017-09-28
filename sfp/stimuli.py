@@ -480,6 +480,7 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     return masked_stimuli, stimuli
 
 
+## TODO: set random seed
 def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True):
     """create the stimuli for the spatial frequency preferences experiment
 
