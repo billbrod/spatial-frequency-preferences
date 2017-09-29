@@ -69,16 +69,16 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     [results, denoiseddata] = GLMdenoisedata(design, bold, stim_length, TR_length, [], [], struct('seed', seed), outputDir)
 
     boldTmp.vol = results.modelmd{2};
-    MRIwrite(boldTmp, fullfile(outputDir, 'modelmd'))
+    MRIwrite(boldTmp, fullfile(outputDir, 'modelmd.nii.gz'))
 
     boldTmp.vol = results.modelse{2};
-    MRIwrite(boldTmp, fullfile(outputDir, 'modelse'))
+    MRIwrite(boldTmp, fullfile(outputDir, 'modelse.nii.gz'))
 
     boldTmp.vol = results.R2;
-    MRIwrite(boldTmp, fullfile(outputDir, 'R2'))
+    MRIwrite(boldTmp, fullfile(outputDir, 'R2.nii.gz'))
 
     boldTmp.vol = results.R2run;
-    MRIwrite(boldTmp, fullfile(outputDir, 'R2run'))
+    MRIwrite(boldTmp, fullfile(outputDir, 'R2run.nii.gz'))
 
     save(fullfile(outputDir, 'results.mat'), '-struct', 'results', '-v7.3')
     save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata', '-v7.3')
