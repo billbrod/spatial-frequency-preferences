@@ -128,16 +128,25 @@ def plot_design_matrix(design_matrix, title, save_path=None):
 
 
 def create_all_design_matrices(behavioral_results_path, unshuffled_stim_descriptions_path,
-                               save_path="data/MRI_first_level/run_%02d_design_matrix.mat"):
+                               save_path="data/MRI_first_level/run_%02d_design_matrix.mat",
+                               mat_type="stim_class"):
     """create and save design matrices for all runs
 
     we do this for all non-empty runs in the h5py File found at behavioral_results_path
 
     save_path should contain some string formatting symbol (e.g., %s, %02d) that can indicate the
     run number and should end in .mat
+
+    mat_type: {"stim_class", "all_visual"}. What design matrix to make. stim_class has each
+    stimulus class as a separate regressor and is our actual design matrix for the
+    experiment. all_visual has every stimulus class combined into regressor (so that that
+    regressors represents whenever anything is on the screen) and is used to check that things are
+    working as expected, since every voxel in the visual cortex should then show increased
+    activation relative to baseline.
     """
     results = h5py.File(behavioral_results_path)
     df = pd.read_csv(unshuffled_stim_descriptions_path)
+    assert mat_type in ["stim_class", "all_visual"], "Don't know how to handle mat_type %s!" % mat_type
     run_num = 0
     stim_lengths = []
     TR_lengths = []
@@ -150,6 +159,8 @@ def create_all_design_matrices(behavioral_results_path, unshuffled_stim_descript
             stim_lengths.append(stim)
             TR_lengths.append(TR)
             check_design_matrix(design_mat, run_num)
+            if mat_type == "all_visual":
+                design_mat = design_mat.sum(1).reshape((design_mat.shape[0], 1))
             plot_design_matrix(design_mat, "Design matrix for run %02d" % run_num,
                                save_path.replace('.mat', '.png') % run_num)
             sio.savemat(save_path % run_num, {"design_matrix_run_%02d" % run_num: design_mat})
