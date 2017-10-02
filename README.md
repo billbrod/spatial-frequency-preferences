@@ -17,6 +17,31 @@ Python: see `requirements.txt` file
 
 Other: [FreeSurfer](http://freesurfer.net/)
 
+# Overview of analysis
+
+The analysis for this project takes place over several step and makes
+use of Python, Matlab, and command-line tools. The notebooks folder
+contains several Jupyter notebooks which (hopefully) walk through the
+logic of the experiment and analysis.
+
+Eventually, the Makefile will be updated to include all the steps, but
+for now, the following the analysis steps:
+
+1. Create the stimuli (`python -m sfp.stimuli subject_name -c -i`)
+2. Run the experiment and gather fMRI data
+3. Pre-process your fMRI data
+   (using
+   [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
+4. Create design matrices for each run
+   (`sfp.first_level_analysis.create_all_design_matrices`)
+5. Run GLMdenoise (`runGLM.m`)
+6. Align to freesurfer anatomy (`sfp.realign`)
+7. Construct tuning curves
+
+Note that several of these steps (preprocessing and running
+GLMdenoise) should be run on a cluster and will take way too long or
+too much memory to run on laptop
+
 Project Organization
 ------------
 
