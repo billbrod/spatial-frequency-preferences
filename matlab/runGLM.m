@@ -80,8 +80,8 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     boldTmp.vol = results.R2run;
     MRIwrite(boldTmp, fullfile(outputDir, 'R2run.nii.gz'));
 
-    boldTmp.vol = results.models{2};
-    MRIwrite(boldTmp, fullfile(outputDir, 'models.nii.gz'));
+    % boldTmp.vol = results.models{2};
+    % MRIwrite(boldTmp, fullfile(outputDir, 'models.nii.gz'));
 
     display('Saved result niftis');
 
