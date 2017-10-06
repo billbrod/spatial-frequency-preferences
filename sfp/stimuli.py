@@ -493,7 +493,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     half-octave increments, because non-integer frequencies cause obvious breaks (especially in the
     spirals), so we round all frequencies to the nearest integer.
 
-    all stimuli will have the same alpha value, _, and there will be 8 different phases equally
+    all stimuli will have the same alpha value, 50, and there will be 8 different phases equally
     spaced from 0 to 2 pi: np.array(range(8))/8.*2*np.pi
 
     These will be arranged into blocks of 8 so that each stimuli within one block differ only by
