@@ -40,9 +40,9 @@ def _find_times(value, name):
     lengths = (value[1:] - value[:-1]).astype(float)
     real_length = np.round(lengths[0])
     if (np.abs(lengths - real_length)/real_length > .005).any():
-        perc_diff = (np.abs(lengths - real_length) / real_length).max()
-        warnings.warn("One of your %s lenghts is greater than .5% different than the assumed "
-                      "length of %s! It differs by %.02f percent" % (name, real_length, perc_diff))
+        perc_diff = (np.abs(lengths - real_length) / real_length).max() * 100
+        warnings.warn("One of your %s lenghts is greater than .5 percent different than the assumed"
+                      " length of %s! It differs by %.02f percent" % (name, real_length, perc_diff))
     return real_length
 
 
