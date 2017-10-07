@@ -77,7 +77,9 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
         probs = np.ones(10)/9
         digits = [int(np.random.uniform(0, 10)), ""]
         for i in range(digit_num-1):
-            if np.random.uniform() < fix_button_prob and (len(digits) == 2 or digits[-1] != digits[-2]):
+            # because -1 and -3 (and all negative odd indices) will be blanks, we check two and
+            # four ago to make sure there are no repeats here
+            if np.random.uniform() < fix_button_prob and (len(digits) == 2 or digits[-4] != digits[-2]):
                 digits.append(digits[-2])
             else:
                 probs_tmp = probs.copy()
