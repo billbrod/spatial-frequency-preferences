@@ -80,8 +80,10 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     boldTmp.vol = results.R2run;
     MRIwrite(boldTmp, fullfile(outputDir, 'R2run.nii.gz'));
 
-    % boldTmp.vol = results.models{2};
-    % MRIwrite(boldTmp, fullfile(outputDir, 'models.nii.gz'));
+    for ii=1:size(model{2}, 4)
+        boldTmp.vol = squeeze(results.models{2}(:, :, :, ii, :));
+        MRIwrite(boldTmp, fullfile(outputDir, sprintf('models_class_%02d.nii.gz', ii)));
+    end
 
     display('Saved result niftis');
 
@@ -90,4 +92,4 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata', '-v7.3')
     display('Saved denoiseddata.mat');
 
-end
+endp
