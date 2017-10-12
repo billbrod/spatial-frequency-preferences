@@ -1,6 +1,6 @@
 #!/bin/bash
 # See NYU HPC documentation for more details on these options
-#SBATCH --job-name=runGLM
+#SBATCH --job-name=realign
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48GB
