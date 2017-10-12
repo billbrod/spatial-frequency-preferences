@@ -77,7 +77,9 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
         probs = np.ones(10)/9
         digits = [int(np.random.uniform(0, 10)), ""]
         for i in range(digit_num-1):
-            if np.random.uniform() < fix_button_prob and (len(digits) == 2 or digits[-1] != digits[-2]):
+            # because -1 and -3 (and all negative odd indices) will be blanks, we check two and
+            # four ago to make sure there are no repeats here
+            if np.random.uniform() < fix_button_prob and (len(digits) == 2 or digits[-4] != digits[-2]):
                 digits.append(digits[-2])
             else:
                 probs_tmp = probs.copy()
@@ -99,7 +101,8 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
 
 def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_length=200,
         final_blank_sec_length=8, fixation_type="digit", fix_pix_size=10, fix_deg_size=None,
-        fix_button_prob=1/6., fix_dot_length_range=(1, 3), max_visual_angle=28, **monitor_kwargs):
+        fix_button_prob=1/6., fix_dot_length_range=(1, 3), max_visual_angle=28, save_frames=None,
+        **monitor_kwargs):
     """run one run of the experiment
 
     stim_path specifies the path of the unshuffled experiment stimuli, while idx_path specifies the
@@ -164,6 +167,11 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
 
     max_visual_angle: int or float. the max visual angle (in degrees) of the full screen. used to
     convert fix_deg_size to pixels.
+
+    save_frames: None or str. if not None, this should be the filename you wish to save frames at
+    (one image will be made for each frame). WARNING: typically a large number of files will be
+    saved (depends on the length of your session), which means this may make the end of the run
+    (with the screen completely blank) take a while
     """
     stimuli, idx, expt_params, monitor_kwargs = _set_params(
         stim_path, idx_path, session_length, on_msec_length, off_msec_length, fixation_type,
@@ -191,6 +199,8 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
                                       "this session"))
     wait_text.draw()
     win.flip()
+    if save_frames is not None:
+        win.getMovieFrame()
     # preload these to save time
     grating.draw()
     fixation.draw()
@@ -218,6 +228,8 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
             next_stim_time = (i*on_msec_length + i*off_msec_length - 2)/1000.
             core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
         win.flip()
+        if save_frames is not None:
+            win.getMovieFrame()
         timings.append(("stimulus_%d" % i, "on", clock.getTime()))
         if fixation_type == "digit":
             fixation_info.append((fixation.text, clock.getTime()))
@@ -229,6 +241,8 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         next_stim_time = ((i+1)*on_msec_length + i*off_msec_length - 1)/1000.
         core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
         win.flip()
+        if save_frames is not None:
+            win.getMovieFrame()
         timings.append(("stimulus_%d" % i, "off", clock.getTime()))
         if fixation_type == 'dot':
             fixation_info.append((fixation.color, clock.getTime()))
@@ -237,6 +251,8 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
             keys_pressed.extend([(key[0], key[1]) for key in all_keys])
         if 'q' in [k[0] for k in all_keys] or 'escape' in [k[0] for k in all_keys]:
             break
+    if save_frames is not None:
+        win.saveMovieFrames(save_frames)
     win.close()
     return keys_pressed, fixation_info, timings, expt_params, idx
 

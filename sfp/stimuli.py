@@ -493,7 +493,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     half-octave increments, because non-integer frequencies cause obvious breaks (especially in the
     spirals), so we round all frequencies to the nearest integer.
 
-    all stimuli will have the same alpha value, _, and there will be 8 different phases equally
+    all stimuli will have the same alpha value, 50, and there will be 8 different phases equally
     spaced from 0 to 2 pi: np.array(range(8))/8.*2*np.pi
 
     These will be arranged into blocks of 8 so that each stimuli within one block differ only by
@@ -531,7 +531,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     freqs.extend([(f, 0) for f in base_freqs])
     # spirals, where w_a=w_r or -w_a=w_r
     freqs.extend([(f*np.sin(np.pi/4), f*np.sin(np.pi/4)) for f in base_freqs])
-    freqs.extend([(-f*np.sin(np.pi/4), f*np.sin(np.pi/4)) for f in base_freqs])
+    freqs.extend([(f*np.sin(np.pi/4), -f*np.sin(np.pi/4)) for f in base_freqs])
     # arc, where distance from the origin is 2^5
     #  skip those values which we've already gotten: 0, pi/4, pi/2, 3*pi/4, and pi
     angles = [np.pi*1/12.*i for i in [1, 2, 4, 5, 7, 8, 10, 11]]

@@ -28,7 +28,11 @@ Eventually, the Makefile will be updated to include all the steps, but
 for now, the following the analysis steps:
 
 1. Create the stimuli (`python -m sfp.stimuli subject_name -c -i`)
-2. Run the experiment and gather fMRI data
+2. Run the experiment and gather fMRI data (`python -m sfp.experiment
+   data/stimuli/unshuffled.npy 12 subject_name`). Experiment will run
+   4 minutes and 16 seconds (52 stimulus classes and 10 blank trials,
+   each for 4 seconds, gives you 4 minutes 8 seconds, and then each
+   run ends with 8 seconds of blank screen).
 3. Pre-process your fMRI data
    (using
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
