@@ -11,6 +11,7 @@ import warnings
 import pyPyrTools as ppt
 import nibabel as nib
 import itertools
+import re
 
 # TODO:
 # - if main block for command line
@@ -246,74 +247,64 @@ def _load_mgz(path):
         return tmp.reshape(max(tmp.shape), sorted(tmp.shape)[-2])
 
 
-def _unfold_4d_mgz(mgz, value_name, hemi):
-    tmp = pd.DataFrame(mgz)
-    tmp = pd.melt(tmp.reset_index(), id_vars='index')
-    tmp['hemi'] = hemi
-    tmp = tmp.rename(columns={'index': 'voxel', 'variable': 'stimulus_class', 'value': value_name})
-    return tmp.set_index(['voxel', 'stimulus_class'])
-
-
-def create_GLM_result_df(design_df, benson_template_path, results_template_path,
-                         results_names=['modelse', 'modelmd', 'R2']):
-    """this loads in the realigned mgz files and creates a dataframe of their values
-
-    This only returns those voxels that lie within visual areas outlined by the Benson14 varea mgz
-
-    this should be run after GLMdenoise and after realign.py. The mgz files you give the path to
-    should be surfaces, not volumes. this may take up to 2 minutes to run.
-
-    design_df: output of create_design_df
-
-    benson_template_path: template path to the Benson14 mgz files, containing two string formatting
-    symbols (%s; one for hemisphere, one for variable [angle, varea, eccen]),
-    e.g. /mnt/Acadia/Freesurfer_subjects/wl_subj042/surf/%s.benson14_%s.mgz
-
-    results_template_path: template path to the results mgz files (outputs of realign.py),
-    containing two string formatting symbols (%s; one for hemisphere, one for results_names)
-    """
-    ##### MAKE OWN FUNCTION
+def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results_names, vareas,
+                            eccen_range, eccen_bin=True):
     mgzs = {}
-    varea = {'lh': _load_mgz(benson_template_path % ('lh', 'varea'))}
-    varea['rh'] = _load_mgz(benson_template_path % ('rh', 'varea'))
+    varea_mask = {'lh': _load_mgz(benson_template_path % ('lh', 'varea'))}
+    varea_mask['lh'] = np.isin(varea_mask['lh'], vareas)
+    varea_mask['rh'] = _load_mgz(benson_template_path % ('rh', 'varea'))
+    varea_mask['rh'] = np.isin(varea_mask['rh'], vareas)
+
+    eccen_mask = {'lh': _load_mgz(benson_template_path % ('lh', 'eccen'))}
+    eccen_mask['lh'] = (eccen_mask['lh'] > eccen_range[0]) & (eccen_mask['lh'] < eccen_range[1])
+    eccen_mask['rh'] = _load_mgz(benson_template_path % ('rh', 'eccen'))
+    eccen_mask['rh'] = (eccen_mask['rh'] > eccen_range[0]) & (eccen_mask['rh'] < eccen_range[1])
     for hemi, var in itertools.product(['lh', 'rh'], ['varea', 'angle', 'eccen']):
         tmp = _load_mgz(benson_template_path % (hemi, var))
-        mgzs['%s-%s' % (var, hemi)] = tmp[varea['%s' % hemi] != 0]
+        mgzs['%s-%s' % (var, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
 
     for hemi, res in itertools.product(['lh', 'rh'], results_names):
         tmp = _load_mgz(results_template_path % (res, hemi))
+        res_name = os.path.split(res)[-1]
         if tmp.ndim == 1:
-            mgzs['%s-%s' % (res, hemi)] = tmp[varea['%s' % hemi] != 0]
+            mgzs['%s-%s' % (res_name, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
         # some will be 2d, not 1d (since they start with 4 dimensions)
         elif tmp.ndim == 2:
-            mgzs['%s-%s' % (res, hemi)] = tmp[varea['%s' % hemi] != 0, :]
+            mgzs['%s-%s' % (res_name, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi]), :]
 
-    ##### MAKE OWN FUNCTION
-    df = {}
-    for hemi in ['lh', 'rh']:
-        df[hemi] = _unfold_4d_mgz(mgzs['modelse-%s' % hemi], 'model_std_error', hemi)
+    if eccen_bin:
+        for hemi in ['lh', 'rh']:
+            bin_masks = []
+            for i in range(*eccen_range):
+                bin_masks.append((mgzs['eccen-%s' % hemi] > i) & (mgzs['eccen-%s' % hemi] < i+1))
+            for res in results_names + ['varea', 'angle', 'eccen']:
+                res_name = os.path.split(res)[-1]
+                tmp = mgzs['%s-%s' % (res_name, hemi)]
+                mgzs['%s-%s' % (res_name, hemi)] = np.array([tmp[m].mean(0) for m in bin_masks])
+    return mgzs
 
-        tmp = _unfold_4d_mgz(mgzs['modelmd-%s' % hemi], 'model_ampl_est', hemi)
-        df[hemi]['model_ampl_est'] = tmp['model_ampl_est']
 
-        df[hemi] = df[hemi].reset_index('stimulus_class')
-        for k in ['varea', 'angle', 'eccen', 'R2']:
-            tmp = pd.DataFrame(mgzs['%s-%s' % (k, hemi)])
-            tmp.index.rename('voxel', True)
-            df[hemi][k] = tmp[0]
+def _unfold_2d_mgz(mgz, value_name, variable_name, hemi, mgz_name):
+    tmp = pd.DataFrame(mgz)
+    tmp = pd.melt(tmp.reset_index(), id_vars='index')
+    tmp['hemi'] = hemi
+    tmp = tmp.rename(columns={'index': 'voxel', 'variable': variable_name, 'value': value_name})
+    if 'models_class' in mgz_name:
+        # then the value name contains which stimulus class this and the actual value_name is
+        # amplitude_estimate
+        class_idx = re.search('models_class_([0-9]+)', mgz_name).groups()
+        assert len(class_idx) == 1, "models_class title %s should only contain one number, to identify stimulus class!" % value_name
+        tmp['stimulus_class'] = int(class_idx[0])
+    return tmp
 
-        df[hemi] = df[hemi].reset_index()
 
-    df['rh'].voxel = df['rh'].voxel + df['lh'].voxel.max()+1
-    df = pd.concat(df).reset_index(0, drop=True)
+def _add_freq_metainfo(design_df):
+    """this function takes the design_df and adds some metainfo based on the stimulus frequency
 
-    # Add the stimulus frequency information
-    df = df.set_index('stimulus_class')
-    df = df.join(design_df)
-    df = df.reset_index().rename(columns={'index': 'stimulus_class'})
-
-    ##### MAKE OWN FUNCTION
-
+    right now these are: stimulus_superclass (radial, circular, etc), freq_space_angle (the angle
+    in our 2d frequency space) and freq_space_distance (distance from the origin in our 2d
+    frequency space)
+    """
     # stimuli belong to five super classes, or paths through the frequency space: w_r=0; w_a=0;
     # w_r=w_a; w_r=-w_a; and sqrt(w_r^2 + w_a^)=32. We want to be able to look at them separately,
     # so we label them (this is inefficient but works). We also want to get some other identifying
@@ -336,15 +327,62 @@ def create_GLM_result_df(design_df, benson_template_path, results_template_path,
             ang = np.arctanh(x.w_a / x.w_r)
         return sc, ang, np.sqrt(x.w_r**2 + x.w_a**2)
 
-    properties_list = df[['w_r', 'w_a']].apply(freq_identifier, 1)
+    properties_list = design_df[['w_r', 'w_a']].apply(freq_identifier, 1)
     sc = pd.Series([i[0] for i in properties_list.values], properties_list.index)
     ang = pd.Series([i[1] for i in properties_list.values], properties_list.index)
     dist = pd.Series([i[2] for i in properties_list.values], properties_list.index)
 
-    df['stimulus_superclass'] = sc
-    df['freq_space_angle'] = ang
-    df['freq_space_distance'] = dist
+    design_df['stimulus_superclass'] = sc
+    design_df['freq_space_angle'] = ang
+    design_df['freq_space_distance'] = dist
+    return design_df
 
+
+def _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode):
+
+    df = {}
+    for hemi in ['lh', 'rh']:
+        for brain_name in results_names:
+            if df_mode == 'summary':
+                value_name = {'modelmd': 'amplitude_estimate_median',
+                              'modelse': 'amplitude_estimate_std_error'}.get(brain_name)
+                tmp = _unfold_2d_mgz(mgzs['%s-%s' % (brain_name, hemi)], value_name,
+                                     'stimulus_class', hemi, brain_name)
+            elif df_mode == 'full':
+                tmp = _unfold_2d_mgz(mgzs['%s-%s' % (brain_name, hemi)], 'amplitude_estimate',
+                                     'bootstrap_num', hemi, brain_name)
+            if hemi not in df:
+                df[hemi] = tmp
+            else:
+                if df_mode == 'summary':
+                    df[hemi] = df[hemi].set_index(['voxel', 'stimulus_class'])
+                    tmp = tmp.set_index(['voxel', 'stimulus_class'])
+                    df[hemi][value_name] = tmp[value_name]
+                    df[hemi] = df[hemi].reset_index()
+                elif df_mode == 'full':
+                    df[hemi] = pd.concat([df[hemi], tmp])
+
+        df[hemi] = df[hemi].set_index('voxel')
+        for brain_name in ['varea', 'eccen', 'angle', 'R2']:
+            tmp = pd.DataFrame(mgzs['%s-%s' % (brain_name, hemi)])
+            tmp.index.rename('voxel', True)
+            df[hemi][brain_name] = tmp[0]
+
+        df[hemi] = df[hemi].reset_index()
+
+    # because python 0-indexes, the minimum voxel number is 0. thus if we were to just add the max,
+    # the min in the right hemi would be the same as the max in the left hemi
+    df['rh'].voxel = df['rh'].voxel + df['lh'].voxel.max()+1
+    df = pd.concat(df).reset_index(0, drop=True)
+
+    # Add the stimulus frequency information
+    design_df = _add_freq_metainfo(design_df)
+
+    df = df.set_index('stimulus_class')
+    df = df.join(design_df)
+    df = df.reset_index().rename(columns={'index': 'stimulus_class'})
+    
+    df['eccen'] = df['eccen'].apply(lambda x: '%i-%i' % (np.floor(x), np.ceil(x)))
     return df
 
 
@@ -353,10 +391,66 @@ def _find_closest_to(a, bs):
     return bs[idx]
 
 
-def round_freq_space_distance(df, core_distances=[6, 8, 11, 16, 23, 32, 45, 64, 91, 128, 181]):
+def _round_freq_space_distance(df, core_distances=[6, 8, 11, 16, 23, 32, 45, 64, 91, 128, 181]):
     df['rounded_freq_space_distance'] = df.freq_space_distance.apply(_find_closest_to,
                                                                      bs=core_distances)
     return df
+
+
+def create_GLM_result_df(design_df, benson_template_path, results_template_path,
+                         df_mode='summary', save_path=None, class_nums=range(52), vareas=[1],
+                         eccen_range=(2, 8)):
+    """this loads in the realigned mgz files and creates a dataframe of their values
+
+    This only returns those voxels that lie within visual areas outlined by the Benson14 varea mgz
+
+    this should be run after GLMdenoise and after realign.py. The mgz files you give the path to
+    should be surfaces, not volumes. this may take up to 2 minutes to run.
+
+    design_df: output of create_design_df
+
+    benson_template_path: template path to the Benson14 mgz files, containing two string formatting
+    symbols (%s; one for hemisphere, one for variable [angle, varea, eccen]),
+    e.g. /mnt/Acadia/Freesurfer_subjects/wl_subj042/surf/%s.benson14_%s.mgz
+
+    results_template_path: template path to the results mgz files (outputs of realign.py),
+    containing two string formatting symbols (%s; one for hemisphere, one for results_names)
+
+    df_mode: 'summary' or 'full'. If 'summary', will load in the 'modelmd' and 'modelse' mgz files,
+    using those calculated summary values. If 'full', will load in the 'models_class_##' mgz files,
+    containing the info to calculate central tendency and spread directly. In both cases, 'R2' will
+    also be loaded in. Assumes modelmd and modelse lie directly in results_template_path and that
+    models_class_## files lie within the subfolder models_niftis
+
+    save_path: None or str. if str, will save the GLM_result_df at this location
+
+    class_nums: list of ints. if df_mode=='full', which classes to load in.
+
+    vareas: list of ints. Which visual areas to include. the Benson14 template numbers vertices 0
+    (not a visual area), -3, -2 (V3v and V2v, respectively), and 1 through 7.
+
+    eccen_range: 2-tuple of ints or floats. What range of eccentricities to include. Will bin in
+    integer increments.
+    """
+    if df_mode == 'summary':
+        results_names = ['modelse', 'modelmd']
+    elif df_mode == 'full':
+        results_names = ['models_niftis/models_class_%02d' % i for i in class_nums]
+    else:
+        raise Exception("Don't know how to construct df with df_mode %s!" % df_mode)
+    mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
+                                   results_names+['R2'], vareas, eccen_range)
+    results_names = [os.path.split(i)[-1] for i in results_names]
+
+    df = _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode)
+    core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
+    df = _round_freq_space_distance(df, core_dists)
+
+    if save_path is not None:
+        df.to_csv(save_path)
+
+    return df
+
 
 # Make wrapper function that does above, loading in design_df and maybe grabbing it for different
 # results? and then combining them.
