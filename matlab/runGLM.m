@@ -82,7 +82,7 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
 
     for ii=1:size(results.models{2}, 4)
         boldTmp.vol = squeeze(results.models{2}(:, :, :, ii, :));
-        MRIwrite(boldTmp, fullfile(outputDir, sprintf('models_class_%02d.nii.gz', ii)));
+        MRIwrite(boldTmp, fullfile(outputDir, sprintf('models_class_%02d.nii.gz', ii-1)));
     end
 
     display('Saved result niftis');
