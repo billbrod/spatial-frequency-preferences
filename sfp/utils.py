@@ -5,6 +5,7 @@
 import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy as sp
 
 
 class MidpointNormalize(matplotlib.colors.Normalize):
@@ -48,7 +49,8 @@ def scatter_ci_dist(x, y, ci_vals=[2.5, 97.5], **kwargs):
     bootstrap distribution.
 
     by default, this draws the 95% confidence interval. to change this, change the ci_vals
-    argument.
+    argument. for instance, if you only want to draw the mean point, pass ci_vals=[50, 50] (this is
+    eqiuvalent to just calling plt.scatter)
     """
     data = kwargs.pop('data')
     plot_data = data.groupby(x)[y].mean()
@@ -94,3 +96,20 @@ def add_img_to_xaxis(fig, ax, img, rel_position, size=.1):
     ax1 = fig.add_axes([xl + w*rel_position, yl-size, size, size])
     ax1.axison = False
     im_plot(img, ax=ax1)
+
+
+def fit_log_norm(x, y, **kwargs):
+    """fit log norm to data and plot the result
+
+    to be used with seaborn.FacetGrid.map_dataframe
+    """
+    data = kwargs.pop('data')
+    plot_data = data.groupby(x)[y].mean()
+
+    def log_norm(x, a, mu, sigma):
+        # the pdf of the log normal distribution, with a scale factor
+        # the normalizing term isn't necessary, but we keep it here for propriety's sake
+        return a * (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
+
+    popt, pcov = sp.optimize.curve_fit(log_norm, plot_data.index, plot_data.values)
+    plt.plot(plot_data.index, log_norm(plot_data.index, *popt), **kwargs)
