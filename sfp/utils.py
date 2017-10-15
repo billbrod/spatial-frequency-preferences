@@ -75,7 +75,7 @@ def im_plot(im, **kwargs):
     ax.axes.yaxis.set_visible(False)
 
 
-def add_img_to_xaxis(fig, ax, img, rel_position, size=.1):
+def add_img_to_xaxis(fig, ax, img, rel_position, size=.1, **kwargs):
     """add image to x-axis
 
     after calling this, you probably want to make your x axis invisible:
@@ -95,7 +95,7 @@ def add_img_to_xaxis(fig, ax, img, rel_position, size=.1):
 
     ax1 = fig.add_axes([xl + w*rel_position, yl-size, size, size])
     ax1.axison = False
-    im_plot(img, ax=ax1)
+    im_plot(img, ax=ax1, **kwargs)
 
 
 def fit_log_norm(x, y, **kwargs):
