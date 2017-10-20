@@ -98,6 +98,13 @@ def add_img_to_xaxis(fig, ax, img, rel_position, size=.1, **kwargs):
     im_plot(img, ax=ax1, **kwargs)
 
 
+def log_norm_pdf(x, a, mu, sigma):
+    """the pdf of the log normal distribution, with a scale factor
+    """
+    # the normalizing term isn't necessary, but we keep it here for propriety's sake
+    return a * (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
+
+
 def fit_log_norm(x, y, **kwargs):
     """fit log norm to data and plot the result
 
@@ -106,10 +113,7 @@ def fit_log_norm(x, y, **kwargs):
     data = kwargs.pop('data')
     plot_data = data.groupby(x)[y].mean()
 
-    def log_norm(x, a, mu, sigma):
-        # the pdf of the log normal distribution, with a scale factor
-        # the normalizing term isn't necessary, but we keep it here for propriety's sake
-        return a * (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
+    popt, pcov = sp.optimize.curve_fit(log_norm_pdf, plot_data.index, plot_data.values)
+    plt.plot(plot_data.index, log_norm_pdf(plot_data.index, *popt), **kwargs)
 
-    popt, pcov = sp.optimize.curve_fit(log_norm, plot_data.index, plot_data.values)
-    plt.plot(plot_data.index, log_norm(plot_data.index, *popt), **kwargs)
+    # to plot ci band, use ax.fill_between(x, low, high, facecolor=color, alpha=.2)
