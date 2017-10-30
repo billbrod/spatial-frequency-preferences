@@ -26,7 +26,7 @@ def create_alternating_stimuli(size):
 
 
 def test_display(screen_size, stimulus=None):
-    """create a psychopy window and display a stimulu
+    """create a psychopy window and display a stimulus
 
     if stimulus is None, display create_alternating_stimuli. if a filename ending in npy, load that
     array in and show that array. if it's an array, display that array
