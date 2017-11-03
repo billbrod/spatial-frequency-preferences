@@ -13,6 +13,7 @@ import nibabel as nib
 import itertools
 import re
 
+
 # TODO:
 # - if main block for command line
 
@@ -248,7 +249,7 @@ def _load_mgz(path):
 
 
 def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results_names, vareas,
-                            eccen_range, eccen_bin=True):
+                            eccen_range, eccen_bin=True, hemi_bin=True):
     mgzs = {}
     varea_mask = {'lh': _load_mgz(benson_template_path % ('lh', 'varea'))}
     varea_mask['lh'] = np.isin(varea_mask['lh'], vareas)
@@ -281,13 +282,20 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
                 res_name = os.path.split(res)[-1]
                 tmp = mgzs['%s-%s' % (res_name, hemi)]
                 mgzs['%s-%s' % (res_name, hemi)] = np.array([tmp[m].mean(0) for m in bin_masks])
+        if hemi_bin:
+            mgzs_tmp = {}
+            for res in results_names + ['varea', 'angle', 'eccen']:
+                res_name = os.path.split(res)[-1]
+                mgzs_tmp[res_name] = np.mean([mgzs['%s-lh' % res_name], mgzs['%s-rh' % res_name]], 0)
+            mgzs = mgzs_tmp
     return mgzs
 
 
-def _unfold_2d_mgz(mgz, value_name, variable_name, hemi, mgz_name):
+def _unfold_2d_mgz(mgz, value_name, variable_name, mgz_name, hemi=None):
     tmp = pd.DataFrame(mgz)
     tmp = pd.melt(tmp.reset_index(), id_vars='index')
-    tmp['hemi'] = hemi
+    if hemi is not None:
+        tmp['hemi'] = hemi
     tmp = tmp.rename(columns={'index': 'voxel', 'variable': variable_name, 'value': value_name})
     if 'models_class' in mgz_name:
         # then the value name contains which stimulus class this and the actual value_name is
@@ -338,42 +346,54 @@ def _add_freq_metainfo(design_df):
     return design_df
 
 
-def _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode):
-
-    df = {}
-    for hemi in ['lh', 'rh']:
-        for brain_name in results_names:
+def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None):
+    df = None
+    if hemi is None:
+        mgz_key = '%s'
+    else:
+        mgz_key = '%s-{}'.format(hemi)
+    for brain_name in results_names:
+        if df_mode == 'summary':
+            value_name = {'modelmd': 'amplitude_estimate_median',
+                          'modelse': 'amplitude_estimate_std_error'}.get(brain_name)
+            tmp = _unfold_2d_mgz(mgzs[mgz_key % brain_name], value_name,
+                                 'stimulus_class', brain_name, hemi)
+        elif df_mode == 'full':
+            tmp = _unfold_2d_mgz(mgzs[mgz_key % brain_name], 'amplitude_estimate',
+                                 'bootstrap_num', brain_name, hemi)
+        if df is None:
+            df = tmp
+        else:
             if df_mode == 'summary':
-                value_name = {'modelmd': 'amplitude_estimate_median',
-                              'modelse': 'amplitude_estimate_std_error'}.get(brain_name)
-                tmp = _unfold_2d_mgz(mgzs['%s-%s' % (brain_name, hemi)], value_name,
-                                     'stimulus_class', hemi, brain_name)
+                df = df.set_index(['voxel', 'stimulus_class'])
+                tmp = tmp.set_index(['voxel', 'stimulus_class'])
+                df[value_name] = tmp[value_name]
+                df = df.reset_index()
             elif df_mode == 'full':
-                tmp = _unfold_2d_mgz(mgzs['%s-%s' % (brain_name, hemi)], 'amplitude_estimate',
-                                     'bootstrap_num', hemi, brain_name)
-            if hemi not in df:
-                df[hemi] = tmp
-            else:
-                if df_mode == 'summary':
-                    df[hemi] = df[hemi].set_index(['voxel', 'stimulus_class'])
-                    tmp = tmp.set_index(['voxel', 'stimulus_class'])
-                    df[hemi][value_name] = tmp[value_name]
-                    df[hemi] = df[hemi].reset_index()
-                elif df_mode == 'full':
-                    df[hemi] = pd.concat([df[hemi], tmp])
+                df = pd.concat([df, tmp])
 
-        df[hemi] = df[hemi].set_index('voxel')
-        for brain_name in ['varea', 'eccen', 'angle', 'R2']:
-            tmp = pd.DataFrame(mgzs['%s-%s' % (brain_name, hemi)])
-            tmp.index.rename('voxel', True)
-            df[hemi][brain_name] = tmp[0]
+    df = df.set_index('voxel')
+    for brain_name in ['varea', 'eccen', 'angle', 'R2']:
+        tmp = pd.DataFrame(mgzs[mgz_key % brain_name])
+        tmp.index.rename('voxel', True)
+        df[brain_name] = tmp[0]
 
-        df[hemi] = df[hemi].reset_index()
+    df = df.reset_index()
+    return df
 
-    # because python 0-indexes, the minimum voxel number is 0. thus if we were to just add the max,
-    # the min in the right hemi would be the same as the max in the left hemi
-    df['rh'].voxel = df['rh'].voxel + df['lh'].voxel.max()+1
-    df = pd.concat(df).reset_index(0, drop=True)
+
+def _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin=True, hemi_bin=True):
+    if not hemi_bin:
+        df = {}
+        for hemi in ['lh', 'rh']:
+            df[hemi] = _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi)
+
+        # because python 0-indexes, the minimum voxel number is 0. thus if we were to just add the
+        # max, the min in the right hemi would be the same as the max in the left hemi
+        df['rh'].voxel = df['rh'].voxel + df['lh'].voxel.max()+1
+        df = pd.concat(df).reset_index(0, drop=True)
+    else:
+        df = _setup_mgzs_for_df(mgzs, results_names, df_mode, None)
 
     # Add the stimulus frequency information
     design_df = _add_freq_metainfo(design_df)
@@ -381,8 +401,9 @@ def _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode):
     df = df.set_index('stimulus_class')
     df = df.join(design_df)
     df = df.reset_index().rename(columns={'index': 'stimulus_class'})
-    
-    df['eccen'] = df['eccen'].apply(lambda x: '%i-%i' % (np.floor(x), np.ceil(x)))
+
+    if eccen_bin:
+        df['eccen'] = df['eccen'].apply(lambda x: '%i-%i' % (np.floor(x), np.ceil(x)))
     return df
 
 
@@ -398,14 +419,15 @@ def _round_freq_space_distance(df, core_distances=[6, 8, 11, 16, 23, 32, 45, 64,
 
 
 def create_GLM_result_df(design_df, benson_template_path, results_template_path,
-                         df_mode='summary', save_path=None, class_nums=range(52), vareas=[1],
-                         eccen_range=(2, 8)):
+                         df_mode='summary', save_path=None, class_nums=xrange(52), vareas=[1],
+                         eccen_range=(2, 8), eccen_bin=True, hemi_bin=True):
     """this loads in the realigned mgz files and creates a dataframe of their values
 
     This only returns those voxels that lie within visual areas outlined by the Benson14 varea mgz
 
     this should be run after GLMdenoise and after realign.py. The mgz files you give the path to
-    should be surfaces, not volumes. this may take up to 2 minutes to run.
+    should be surfaces, not volumes. this will take a while to run, which is why it's recommended
+    to provide save_path so the resulting dataframe can be saved.
 
     design_df: output of create_design_df
 
@@ -424,25 +446,40 @@ def create_GLM_result_df(design_df, benson_template_path, results_template_path,
 
     save_path: None or str. if str, will save the GLM_result_df at this location
 
-    class_nums: list of ints. if df_mode=='full', which classes to load in.
+    class_nums: list of ints. if df_mode=='full', which classes to load in. If df_mode=='summary',
+    then this is ignored.
 
     vareas: list of ints. Which visual areas to include. the Benson14 template numbers vertices 0
     (not a visual area), -3, -2 (V3v and V2v, respectively), and 1 through 7.
 
-    eccen_range: 2-tuple of ints or floats. What range of eccentricities to include. Will bin in
-    integer increments.
+    eccen_range: 2-tuple of ints or floats. What range of eccentricities to include.
+
+    eccen_bin: boolean, default True. Whether to bin the eccentricities in integer
+    increments. HIGHLY RECOMMENDED to be True if df_mode=='full', otherwise this will take much
+    longer and the resulting DataFrame will be absurdly large and unwieldy.
+
+    hemi_bin: boolean, default True. Does nothing if eccen_bin is False, but if eccen_bin is True,
+    average corresponding eccentricity ROIs across the two hemispheres. Generally, this is what you
+    want, unless you also to examine differences between the two hemispheres.
     """
     if df_mode == 'summary':
         results_names = ['modelse', 'modelmd']
     elif df_mode == 'full':
         results_names = ['models_niftis/models_class_%02d' % i for i in class_nums]
+        if not eccen_bin:
+            warnings.warn("Not binning by eccentricities while constructing the full DataFrame is "
+                          "NOT recommended! This may fail because you run out of memory!")
     else:
         raise Exception("Don't know how to construct df with df_mode %s!" % df_mode)
+    if hemi_bin and not eccen_bin:
+        warnings.warn("You set eccen_bin to False but hemi_bin to True. I can only bin across "
+                      "hemispheres if also binning eccentricities!")
+        hemi_bin = False
     mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
-                                   results_names+['R2'], vareas, eccen_range)
+                                   results_names+['R2'], vareas, eccen_range, eccen_bin, hemi_bin)
     results_names = [os.path.split(i)[-1] for i in results_names]
 
-    df = _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode)
+    df = _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin, hemi_bin)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     df = _round_freq_space_distance(df, core_dists)
 
