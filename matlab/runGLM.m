@@ -92,4 +92,4 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata', '-v7.3')
     display('Saved denoiseddata.mat');
 
-endp
+end
