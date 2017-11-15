@@ -12,6 +12,7 @@ import pyPyrTools as ppt
 import nibabel as nib
 import itertools
 import re
+from collections import Counter
 
 
 # TODO:
@@ -60,7 +61,8 @@ def find_lengths(design_df):
     return stim_length, TR_length
 
 
-def create_design_df(behavioral_results, unshuffled_stim_description, run_num, drop_blanks=True):
+def create_design_df(behavioral_results, unshuffled_stim_description, run_num, drop_blanks=True,
+                     only_stim_class=True):
     """create and return the design df for a run, which describes stimulus classes
 
     behavioral_results: h5py File (not the path) containing behavioral results
@@ -68,6 +70,15 @@ def create_design_df(behavioral_results, unshuffled_stim_description, run_num, d
     unshuffled_stim_description: dataframe containing info on the stimuli
 
     run_num: int, which run (as used in behavioral_results) to examine
+
+    drop_blanks: boolean, whether to drop the blank stimuli. You want to do this when creating the
+    design matrix for GLMdenoise.
+
+    only_stim_class: boolean, whether to drop all the instances of the stimuli classes and just
+    leave one exemplar for each. You want to do this when creating the design matrix for
+    GLMdenoise, you don't want to do this when creating the BIDS events.tsv file. In this case, we
+    will not return the lengths of stimuli and TRs, since the current calculation looks for
+    integers and that's not the case for the exemplars of the stimulus classes.
 
     returns the design dataframe, lengths of stimuli and TRs (in seconds)
     """
@@ -85,23 +96,82 @@ def create_design_df(behavioral_results, unshuffled_stim_description, run_num, d
     timing = [float(i[2]) - initial_TR_time for i in timing]
     # and add to our dataframe
     df['Onset time (sec)'] = timing
-    # we only look at the class transitions
-    design_df = df[::class_size]
+    if only_stim_class:
+        # we only look at the class transitions
+        design_df = df[::class_size]
+    else:
+        design_df = df
     # 5 indicates a backtick from the scanner
     TR_times = np.array([float(i[1]) for i in behavioral_results['run_%02d_button_presses' % run_num].value if '5' == i[0]])
     TR_times -= TR_times[0]
-    stim_times = design_df['Onset time (sec)'].values
-    stim_times = np.expand_dims(stim_times, 1)
-    stim_times = np.repeat(stim_times, len(TR_times), 1)
-    time_from_TR = np.round(stim_times - TR_times)
-    design_df['Onset time (TR)'] = np.where(time_from_TR == 0)[1]
-    # need to do this before dropping the blanks, or the times get messed up
-    stim, TR = find_lengths(design_df)
+    if only_stim_class:
+        stim_times = design_df['Onset time (sec)'].values
+        stim_times = np.expand_dims(stim_times, 1)
+        stim_times = np.repeat(stim_times, len(TR_times), 1)
+        time_from_TR = np.round(stim_times - TR_times)
+        design_df['Onset time (TR)'] = np.where(time_from_TR == 0)[1]
+        # need to do this before dropping the blanks, or the times get messed up
+        stim, TR = find_lengths(design_df)
+    else:
+        # the calculation I do doesn't work if we have the exemplars instead of just the stimulus
+        # classes, because it looks for integer values.
+        stim, TR = None, None
     if drop_blanks:
         # Our blanks show up as having nan values, and we don't want to model them in our GLM, so we
         # drop them
         design_df = design_df.dropna()
     return design_df, stim, TR
+
+
+def _find_timing_from_results(results, run_num):
+    """find stimulus directly timing from results hdf5
+    """
+    timing = pd.DataFrame(results['run_%02d_timing_data' % run_num].value, columns=['stimulus', 'event_type', 'timing'])
+    timing.timing = timing.timing.astype(float)
+    timing.timing = timing.timing.apply(lambda x: x - timing.timing.iloc[0])
+    # the first entry is the start, which doesn't correspond to any stimuli
+    timing = timing.drop(0)
+    # this way the stimulus column just contains the stimulus number
+    timing.stimulus = timing.stimulus.apply(lambda x: int(x.replace('stimulus_', '')))
+    # this way we get the duration of time that the stimulus was on, for each stimulus (sorting by
+    # stimulus shouldn't be necessary, but just ensures that the values line up correctly)
+    times = (timing[timing.event_type == 'off'].sort_values('stimulus').timing.values -
+             timing[timing.event_type == 'on'].sort_values('stimulus').timing.values)
+    times = np.round(times, 2)
+    assert times.max() - times.min() < .040, "Stimulus timing differs by more than 40 msecs!"
+    warnings.warn("Stimulus timing varies by up to %.03f seconds!" % (times.max() - times.min()))
+    return Counter(times).most_common(1)[0][0]
+
+
+def create_all_BIDS_events_tsv(behavioral_results_path, unshuffled_stim_descriptions_path,
+                               save_path='data/MRI_first_level/run_%02d_events.tsv'):
+    """create and save BIDS events tsvs for all runs.
+
+    we do this for all non-empty runs in the h5py File found at behavioral_results_path
+
+    save_path should contain some string formatting symbol (e.g., %s, %02d) that can indicate the
+    run number and should end in .tsv
+    """
+    results = h5py.File(behavioral_results_path)
+    df = pd.read_csv(unshuffled_stim_descriptions_path)
+    if not os.path.exists(os.path.split(save_path)[0]) and os.path.split(save_path)[0]:
+        os.makedirs(os.path.split(save_path)[0])
+    run_num = 0
+    while "run_%02d_button_presses" % run_num in results.keys():
+        n_TRs = sum(['5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
+        if n_TRs > 0:
+            design_df, _, _ = create_design_df(results, df, run_num, only_stim_class=False)
+            design_df = design_df.reset_index().rename(
+                columns={'index': 'stim_file_index', 'class_idx': 'trial_type',
+                         'Onset time (sec)': 'onset'})
+            design_df['duration'] = _find_timing_from_results(results, run_num)
+            stim_path = results['run_%02d_stim_path' % run_num].value
+            stim_path = stim_path.replace('data/', '../')
+            design_df['stim_file'] = stim_path
+            design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index']]
+            design_df['onset'] = design_df.onset.apply(lambda x: "%.03f" % x)
+            design_df.to_csv(save_path % run_num, '\t')
+            run_num += 1
 
 
 def create_design_matrix(design_df, behavioral_results, run_num):
