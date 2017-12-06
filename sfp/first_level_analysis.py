@@ -43,15 +43,15 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
     if sorted(benson_template_names.keys()) != ['angle', 'eccen', 'varea']:
         raise Exception("The keys of benson_template_names MUST be angle, eccen, and varea!")
     mgzs = {}
-    varea_mask = {'lh': _load_mgz(benson_template_path % ('lh', benson_template_names['varea']))}
-    varea_mask['lh'] = np.isin(varea_mask['lh'], vareas)
-    varea_mask['rh'] = _load_mgz(benson_template_path % ('rh', benson_template_names['varea']))
-    varea_mask['rh'] = np.isin(varea_mask['rh'], vareas)
 
-    eccen_mask = {'lh': _load_mgz(benson_template_path % ('lh', benson_template_names['eccen']))}
-    eccen_mask['lh'] = (eccen_mask['lh'] > eccen_range[0]) & (eccen_mask['lh'] < eccen_range[1])
-    eccen_mask['rh'] = _load_mgz(benson_template_path % ('rh', benson_template_names['eccen']))
-    eccen_mask['rh'] = (eccen_mask['rh'] > eccen_range[0]) & (eccen_mask['rh'] < eccen_range[1])
+    varea_mask = {}
+    eccen_mask = {}
+    for hemi in ['lh', 'rh']:
+        varea_mask[hemi] = _load_mgz(benson_template_path % (hemi, benson_template_names['varea']))
+        varea_mask[hemi] = np.isin(varea_mask[hemi], vareas)
+        eccen_mask[hemi] = _load_mgz(benson_template_path % (hemi, benson_template_names['eccen']))
+        eccen_mask[hemi] = (eccen_mask[hemi] > eccen_range[0]) & (eccen_mask[hemi] < eccen_range[1])
+
     for hemi, var in itertools.product(['lh', 'rh'], benson_template_names.keys()):
         tmp = _load_mgz(benson_template_path % (hemi, benson_template_names[var]))
         mgzs['%s-%s' % (var, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
@@ -67,13 +67,14 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
 
     if eccen_bin:
         for hemi in ['lh', 'rh']:
-            bin_masks = []
-            for i in range(*eccen_range):
-                bin_masks.append((mgzs['eccen-%s' % hemi] > i) & (mgzs['eccen-%s' % hemi] < i+1))
-            for res in results_names + ['varea', 'angle', 'eccen']:
+            masks = []
+            for area in vareas:
+                for i in range(*eccen_range):
+                    masks.append((mgzs['eccen-%s' % hemi] > i) & (mgzs['eccen-%s' % hemi] < i+1) & (mgzs['varea-%s' % hemi] == area))
+            for res in results_names + benson_template_names.keys():
                 res_name = os.path.split(res)[-1]
                 tmp = mgzs['%s-%s' % (res_name, hemi)]
-                mgzs['%s-%s' % (res_name, hemi)] = np.array([tmp[m].mean(0) for m in bin_masks])
+                mgzs['%s-%s' % (res_name, hemi)] = np.array([tmp[m].mean(0) for m in masks])
         if hemi_bin:
             mgzs_tmp = {}
             for res in results_names + benson_template_names.keys():
