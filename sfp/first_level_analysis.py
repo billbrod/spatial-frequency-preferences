@@ -22,19 +22,36 @@ def _load_mgz(path):
 
 
 def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results_names, vareas,
-                            eccen_range, eccen_bin=True, hemi_bin=True):
+                            eccen_range, eccen_bin=True, hemi_bin=True,
+                            benson_template_names={'varea': 'varea', 'angle': 'angle',
+                                                   'eccen': 'eccen'}):
+    """load in the mgzs, optionally binning them, put in dictionary and return that dictionary
+
+    will bin by eccentricity and hemisphere if eccen_bin or hemi_bin are true, respectively
+    
+    vareas: list of ints. which visual areas (as defined in the Benson visual area template) to
+    include. all others will be discarded.
+
+    eccen_range: 2-tuple of ints or floats. What range of eccentricities to include (as specified
+    in the Benson eccentricity template).
+
+    benson_template_names: dictionary between the labels we use for the different Benson templates
+    (varea, angle, eccen) and the ones that are actually found in the filename. Doing this because
+    the names for the Benson templates are different depending on when they're run (and so differ
+    for different subjects).
+    """
     mgzs = {}
-    varea_mask = {'lh': _load_mgz(benson_template_path % ('lh', 'varea'))}
+    varea_mask = {'lh': _load_mgz(benson_template_path % ('lh', benson_template_names['varea']))}
     varea_mask['lh'] = np.isin(varea_mask['lh'], vareas)
-    varea_mask['rh'] = _load_mgz(benson_template_path % ('rh', 'varea'))
+    varea_mask['rh'] = _load_mgz(benson_template_path % ('rh', benson_template_names['varea']))
     varea_mask['rh'] = np.isin(varea_mask['rh'], vareas)
 
-    eccen_mask = {'lh': _load_mgz(benson_template_path % ('lh', 'eccen'))}
+    eccen_mask = {'lh': _load_mgz(benson_template_path % ('lh', benson_template_names['eccen']))}
     eccen_mask['lh'] = (eccen_mask['lh'] > eccen_range[0]) & (eccen_mask['lh'] < eccen_range[1])
-    eccen_mask['rh'] = _load_mgz(benson_template_path % ('rh', 'eccen'))
+    eccen_mask['rh'] = _load_mgz(benson_template_path % ('rh', benson_template_names['eccen']))
     eccen_mask['rh'] = (eccen_mask['rh'] > eccen_range[0]) & (eccen_mask['rh'] < eccen_range[1])
-    for hemi, var in itertools.product(['lh', 'rh'], ['varea', 'angle', 'eccen']):
-        tmp = _load_mgz(benson_template_path % (hemi, var))
+    for hemi, var in itertools.product(['lh', 'rh'], benson_template_names.keys()):
+        tmp = _load_mgz(benson_template_path % (hemi, benson_template_names[var]))
         mgzs['%s-%s' % (var, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
 
     for hemi, res in itertools.product(['lh', 'rh'], results_names):
@@ -57,7 +74,7 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
                 mgzs['%s-%s' % (res_name, hemi)] = np.array([tmp[m].mean(0) for m in bin_masks])
         if hemi_bin:
             mgzs_tmp = {}
-            for res in results_names + ['varea', 'angle', 'eccen']:
+            for res in results_names + benson_template_names.keys():
                 res_name = os.path.split(res)[-1]
                 mgzs_tmp[res_name] = np.mean([mgzs['%s-lh' % res_name], mgzs['%s-rh' % res_name]], 0)
             mgzs = mgzs_tmp
@@ -248,8 +265,18 @@ def create_GLM_result_df(design_df, benson_template_path, results_template_path,
         warnings.warn("You set eccen_bin to False but hemi_bin to True. I can only bin across "
                       "hemispheres if also binning eccentricities!")
         hemi_bin = False
-    mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
-                                   results_names+['R2'], vareas, eccen_range, eccen_bin, hemi_bin)
+    if os.path.isfile(benson_template_path % ('lh', 'varea')):
+        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
+                                       results_names+['R2'], vareas, eccen_range, eccen_bin,
+                                       hemi_bin)
+    elif os.path.isfile(benson_template_path % ('lh', 'areas')):
+        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
+                                       results_names+['R2'], vareas, eccen_range, eccen_bin,
+                                       hemi_bin,
+                                       {'varea': 'areas', 'angle': 'angle', 'eccen': 'eccen'})
+    else:
+        raise Exception("Unable to find the Benson visual areas template! Check your "
+                        "benson_template_path!")
     results_names = [os.path.split(i)[-1] for i in results_names]
 
     df = _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin, hemi_bin)
