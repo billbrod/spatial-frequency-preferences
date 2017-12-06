@@ -40,6 +40,8 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
     the names for the Benson templates are different depending on when they're run (and so differ
     for different subjects).
     """
+    if sorted(benson_template_names.keys()) != ['angle', 'eccen', 'varea']:
+        raise Exception("The keys of benson_template_names MUST be angle, eccen, and varea!")
     mgzs = {}
     varea_mask = {'lh': _load_mgz(benson_template_path % ('lh', benson_template_names['varea']))}
     varea_mask['lh'] = np.isin(varea_mask['lh'], vareas)
