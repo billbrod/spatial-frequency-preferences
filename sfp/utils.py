@@ -98,15 +98,15 @@ def add_img_to_xaxis(fig, ax, img, rel_position, size=.1, **kwargs):
     im_plot(img, ax=ax1, **kwargs)
 
 
-def create_sin_cpd(size, freq_cpd, max_degree_rad=12):
+def create_sin_cpd(size, freq_cpd, stim_rad_deg=12):
     """create a full 2d sine wave, with frequency in cpd
 
     this converts the desired freq_cpd into the frequency shown in an image by using the
-    max_degree_rad, the radius of the image in degrees of visual angle.
+    stim_rad_deg, the radius of the image in degrees of visual angle.
     """
     x = np.array(range(size))/float(size)
     x, _ = np.meshgrid(x, x)
-    freq_pix = freq_cpd / (size / (2*float(max_degree_rad)))
+    freq_pix = freq_cpd / (size / (2*float(stim_rad_deg)))
     freq_screen = size * freq_pix
     return np.sin(2*np.pi*x*freq_screen)
 

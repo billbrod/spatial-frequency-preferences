@@ -207,7 +207,7 @@ def create_sf_maps_cpd(size, alpha, max_visual_angle, w_r=0, w_a=0, origin=None,
     ============
 
     max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
-    the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 28)
+    the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 24)
     """
     a_sfmap, r_sfmap = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
     if hasattr(size, '__iter__'):

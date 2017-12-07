@@ -8,6 +8,9 @@ import warnings
 import nibabel as nib
 import itertools
 import re
+from matplotlib import pyplot as plt
+import stimuli
+import pyPyrTools as ppt
 
 
 def _load_mgz(path):
@@ -219,9 +222,109 @@ def _round_freq_space_distance(df, core_distances=[6, 8, 11, 16, 23, 32, 45, 64,
     return df
 
 
+def calculate_stim_local_sf(w_r, w_a=0, alpha=50, stim_size_pix=1080, stim_rad_deg=12,
+                            eccen_bin=True, eccen_range=(2, 8), eccens=[], plot_flag=False):
+    """calculate the local spatial frequency for a specified stimulus and screen size
+
+    WARNING: Currently this only works for circular stimuli.
+
+    NOTE: this assumes that the local spatial frequency does not depend on angle, only on
+    eccentricity.
+
+    This works slightly differently if you are binning by eccentricity or not (i.e., depending on
+    whether eccen_bin is True or False). If binning, then we take the annulus with inner edge i
+    degrees from the origin and outer edge i+1 degrees (where i runs from eccen_range[0] to
+    eccen_range[1]-1) and average together the local spatial frequency found there.
+
+    If not binning, eccen_range is ignored, and eccens must be specified. We then look for the
+    spatial frequency at the closest eccentricity value we have in the
+    distance(-in-degrees)-from-origin map (made by rescaling the output of ppt.mkR()) for each
+    value in eccens.
+
+    w_r, w_a: ints or floats. the radial and angular components, respectively, of the stimulus's
+    spatial frequency
+
+    alpha: int, radius (in pixel spacing) of the "fovea".  IE: log_rad = log(r^2 + alpha^2)
+
+    stim_size_pix: int, the size (diameter) of the stimulus, in pixels
+
+    stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
+
+    eccen_bin:
+
+    plot_flag: boolean, optional, default False. Whether to create a plot showing the local spatial
+    frequency vs eccentricity for the specified stimulus
+    """
+    if w_a != 0:
+        warnings.warn("Currently this only works for circular stimuli!")
+    _, w_r = stimuli.create_sf_maps_cpd(stim_size_pix, alpha, stim_rad_deg*2, w_r, w_a)
+    R = ppt.mkR(stim_size_pix)
+
+    # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
+    # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of
+    # the screen, because R starts from the center and goes to the edge
+    R = R/(R.max()/np.sqrt(2*stim_rad_deg**2))
+
+    if eccen_bin:
+        # create masks that look at each degree
+        bin_masks = []
+        eccen_idx = []
+        for i in range(*eccen_range):
+            bin_masks.append((R > i) & (R < (i+1)))
+            eccen_idx.append('%s-%s' % (i, i+1))
+
+        eccen_local_freqs = []
+        eccens = []
+        for m in bin_masks:
+            eccens.append(R[m].mean())
+            eccen_local_freqs.append(w_r[m].mean())
+    else:
+        eccen_idx = eccens
+        eccen_local_freqs = [w_r.flatten()[abs(R - e).argmin()] for e in eccens]
+
+    if plot_flag:
+        plt.plot(eccens, eccen_local_freqs)
+        ax = plt.gca()
+        ax.set_title('Spatial frequency vs eccentricity')
+        ax.set_xlabel('Eccentricity (degrees)')
+        ax.set_ylabel('Local spatial frequency (cpd)')
+
+    return pd.Series(eccen_local_freqs, eccen_idx)
+
+
+def _add_local_sf_to_df(df, eccen_bin, eccen_range, alpha=50, stim_size_pix=1080, stim_rad_deg=12):
+    """Adds local spatial frequency information for all stimuli to the df
+
+    WARNING: For now, this only works on circular stimuli
+    """
+    warnings.warn("For now, we only add local spatial frequency information for circular stimuli!")
+    w_r = df[df.stimulus_superclass == 'circular'].w_r.unique()
+    sfs = []
+
+    for r in w_r:
+        tmp = calculate_stim_local_sf(r, 0, alpha, stim_size_pix, stim_rad_deg, eccen_bin,
+                                      eccen_range, df.eccen.unique())
+        tmp = pd.DataFrame(tmp, columns=['Local spatial frequency (cpd)'])
+        tmp.index.name = 'eccen'
+        tmp['w_r'] = r
+        sfs.append(tmp)
+
+    sfs = pd.concat(sfs)
+
+    sfs['stimulus_superclass'] = 'circular'
+    sfs['w_a'] = 0
+    sfs = sfs.reset_index()
+
+    sfs = sfs.set_index(['stimulus_superclass', 'w_a', 'w_r', 'eccen'])
+    df = df.set_index(['stimulus_superclass', 'w_a', 'w_r', 'eccen'])
+    df = df.join(sfs)
+
+    return df.reset_index()
+
+
 def create_GLM_result_df(design_df, benson_template_path, results_template_path,
                          df_mode='summary', save_path=None, class_nums=xrange(52), vareas=[1],
-                         eccen_range=(2, 8), eccen_bin=True, hemi_bin=True):
+                         eccen_range=(2, 8), eccen_bin=True, hemi_bin=True, stim_rad_deg=12):
     """this loads in the realigned mgz files and creates a dataframe of their values
 
     This only returns those voxels that lie within visual areas outlined by the Benson14 varea mgz
@@ -262,6 +365,8 @@ def create_GLM_result_df(design_df, benson_template_path, results_template_path,
     hemi_bin: boolean, default True. Does nothing if eccen_bin is False, but if eccen_bin is True,
     average corresponding eccentricity ROIs across the two hemispheres. Generally, this is what you
     want, unless you also to examine differences between the two hemispheres.
+
+    stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
     """
     if df_mode == 'summary':
         results_names = ['modelse', 'modelmd']
@@ -294,6 +399,8 @@ def create_GLM_result_df(design_df, benson_template_path, results_template_path,
     df = _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin, hemi_bin)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     df = _round_freq_space_distance(df, core_dists)
+    df = _add_local_sf_to_df(df, eccen_bin, eccen_range, design_df.alpha.unique()[0],
+                             design_df.res.unique()[0], stim_rad_deg)
 
     if save_path is not None:
         df.to_csv(save_path)
