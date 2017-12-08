@@ -222,6 +222,50 @@ def _round_freq_space_distance(df, core_distances=[6, 8, 11, 16, 23, 32, 45, 64,
     return df
 
 
+def find_ecc_range_in_pixels(stim):
+    """find the min and max eccentricity of the stimulus, in pixels
+
+    all of our stimuli have a central aperture where nothing is presented and an outside limit,
+    beyond which nothing is presented.
+
+    this assumes the fixation is in the center of the stimulus, will have to re-think things if
+    it's not. also assumes that the "middle / zero value", which corresponds to no stimulus, is 127
+
+    returns min, max
+    """
+    if stim.ndim == 3:
+        stim = stim[0, :, :]
+    R = ppt.mkR(stim.shape)
+    # 127 is the middle value.
+    x, y = np.where(stim != 127)
+    return R[x, y].min(), R[x, y].max()
+
+
+def find_ecc_range_in_degrees(stim, stim_rad_deg):
+    """find the min and max eccentricity of the stimulus, in degrees
+
+    all of our stimuli have a central aperture where nothing is presented and an outside limit,
+    beyond which nothing is presented. In order to make sure we're not looking at voxels whose pRFs
+    lie outside the stimulus, we want to know the extent of the stimulus annulus, in degrees
+
+    this assumes the fixation is in the center of the stimulus, will have to re-think things if
+    it's not. also assumes that the "middle / zero value", which corresponds to no stimulus, is 127
+
+    stim_rad_deg: int or float, the radius of the stimulus, in degrees.
+
+    returns min, max
+    """
+    if stim.ndim == 3:
+        stim = stim[0, :, :]
+    Rmin, Rmax = find_ecc_range_in_pixels(stim)
+    R = ppt.mkR(stim.shape)
+    # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
+    # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of
+    # the screen, because R starts from the center and goes to the edge
+    factor = R.max() / np.sqrt(2*stim_rad_deg**2)
+    return Rmin / factor, Rmax / factor
+
+
 def calculate_stim_local_sf(w_r, w_a=0, alpha=50, stim_size_pix=1080, stim_rad_deg=12,
                             eccen_bin=True, eccen_range=(2, 8), eccens=[], plot_flag=False):
     """calculate the local spatial frequency for a specified stimulus and screen size
