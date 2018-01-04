@@ -186,7 +186,7 @@ def create_sf_maps_cpp(size, alpha, w_r=0, w_a=0, origin=None, scale_factor=1):
     a_sfmap = w_a / rad
     # the logRadial spatial frequency drops by r/(r^2+alpha^2). this is proportional to d/dr
     # log(r^2 + alpha^2)
-    r_sfmap = w_r * rad / (rad**2 + alpha**2)
+    r_sfmap = (w_r) * ((rad) / (rad**2 + alpha**2))
     # in both cases above, we don't scale the spatial frequency map appropriately (the derivative
     # of log(r) is only 1/r when the log's base is e; here it's 2 so we need to scale it). this
     # scaling constant was found experimentally; it's the value required to get the a_sfmap created
@@ -216,7 +216,8 @@ def create_sf_maps_cpd(size, alpha, max_visual_angle, w_r=0, w_a=0, origin=None,
     return a_sfmap / (max_visual_angle / size), r_sfmap / (max_visual_angle / size)
 
 
-def create_antialiasing_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3, scale_factor=1):
+def create_antialiasing_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
+                             scale_factor=1):
     """Create mask to hide aliasing
 
     Because of how our stimuli are created, they have higher spatial frequency at the origin
@@ -234,6 +235,8 @@ def create_antialiasing_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_f
     returns both the faded_mask and the binary mask.
     """
     a_sfmap, r_sfmap = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
+    # the nyquist frequency is .5 cycle per pixel, but we make it a lower to give ourselves a
+    # little fudge factor
     nyq_freq = .475
     a_mask = a_sfmap < nyq_freq
     r_mask = r_sfmap < nyq_freq
