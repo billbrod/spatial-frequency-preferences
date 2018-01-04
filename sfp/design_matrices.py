@@ -10,7 +10,6 @@ import pandas as pd
 import os
 import scipy.io as sio
 import matplotlib.pyplot as plt
-import pyPyrTools as ppt
 
 
 def _discover_class_size(df):
@@ -187,29 +186,6 @@ def create_design_matrix(design_df, behavioral_results, run_num):
         row = row.astype(int)
         design_matrix[row['Onset time (TR)'], row['class_idx']] = 1
     return design_matrix
-
-
-def find_ecc_range_in_degrees(stim, rad_in_degrees):
-    """find the min and max eccentricity of the stimulus, in degrees
-
-    all of our stimuli have a central aperture where nothing is presented and an outside limit,
-    beyond which nothing is presented. In order to make sure we're not looking at voxels whose pRFs
-    lie outside the stimulus, we want to know the extent of the stimulus annulus, in degrees
-
-    this assumes the fixation is in the center of the stimulus, will have to re-think things if
-    it's not. also assumes that the "middle / zero value", which corresponds to no stimulus, is 127
-
-    rad_in_degrees: int or float, the radius of the viewing screen, in degrees.
-
-    returns min, max
-    """
-    if stim.ndim == 3:
-        stim = stim[0, :, :]
-    R = ppt.mkR(stim.shape)
-    factor = R.max() / float(rad_in_degrees)
-    # 127 is the middle value.
-    x, y = np.where(stim != 127)
-    return R[x, y].min() / factor, R[x, y].max() / factor
 
 
 def check_design_matrix(design_matrix, run_num=None):
