@@ -38,8 +38,12 @@ for now, the following the analysis steps:
 3. Pre-process your fMRI data
    (using
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
-4. Create design matrices for each run
-   (`sfp.first_level_analysis.create_all_design_matrices`)
+4. Create design matrices for each run (`python sfp/design_matrices.py
+   -s subject_name behavioral_results_path
+   unshuffled_stim_descriptions_path`). The `behavioral_results` h5py
+   file is created when the experiment is run and the
+   `unshuffled_stim_descriptions` csv file is created when the stimuli
+   are created.
 5. Run GLMdenoise (`runGLM.m`)
 6. Align to freesurfer anatomy (`sfp.realign`)
 7. Construct tuning curves
@@ -56,7 +60,7 @@ for now, the following the analysis steps:
 
 Note that several of these steps (preprocessing and running
 GLMdenoise) should be run on a cluster and will take way too long or
-too much memory to run on laptop
+too much memory to run on laptop.
 
 Project Organization
 ------------
