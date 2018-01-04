@@ -66,11 +66,15 @@ def scatter_heat(x, y, c, **kwargs):
 
 
 def im_plot(im, **kwargs):
-    if 'ax' in kwargs:
+    try:
+        cmap = kwargs.pop('cmap')
+    except KeyError:
+        cmap = 'gray'
+    try:
         ax = kwargs.pop('ax')
-        ax.imshow(im, cmap='gray', **kwargs)
-    else:
-        ax = plt.imshow(im, cmap='gray', **kwargs)
+        ax.imshow(im, cmap=cmap, **kwargs)
+    except KeyError:
+        ax = plt.imshow(im, cmap=cmap, **kwargs)
     ax.axes.xaxis.set_visible(False)
     ax.axes.yaxis.set_visible(False)
 
