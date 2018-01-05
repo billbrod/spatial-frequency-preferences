@@ -172,36 +172,51 @@ def _fade_mask(mask, inner_number_of_fade_pixels, outer_number_of_fade_pixels, o
 def create_sf_maps_cpp(size, alpha, w_r=0, w_a=0, origin=None, scale_factor=1):
     """Create maps of spatial frequency in cycles per pixel.
 
-    returns two maps: the angular spatial frequency map and the radial one.
+    returns four maps: the spatial frequency in the x direction (dx), the spatial frequency in the
+    y direction (dy), the magnitude (sqrt(dx**2 + dy**2)) and the direction (arctan2(dy, dx))
+
+    In most cases, you want the magnitude, as this is the local spatial frequency of the
+    corresponding log polar grating at that point. You will want to use dx and dy if you are going
+    to plot approximations of the grating using sfp.utils.plot_approx (which you should use to
+    convince yourself these values are correct)
     """
     assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
-    rad = ppt.mkR(size, origin=origin)/scale_factor
+    if origin is None:
+        origin = ((size+1) / 2., (size+1) / 2.)
+    # we do this in terms of x and y
+    x, y = np.divide(np.meshgrid(np.array(range(1, size+1)) - origin[0],
+                                 np.array(range(1, size+1)) - origin[1]),
+                     scale_factor)
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
     # distance 0 and that means we'll have a divide by zero coming up. this little hack avoids that
     # issue.
-    if 0 in rad:
-        rad += 1e-12
-    # the angular spatial frequency drops by 1/r as you move away from the origin, where r is the
-    # distance to the origin
-    a_sfmap = w_a / rad
-    # the logRadial spatial frequency drops by r/(r^2+alpha^2). this is proportional to d/dr
-    # log(r^2 + alpha^2)
-    r_sfmap = (w_r) * ((rad) / (rad**2 + alpha**2))
-    # in both cases above, we don't scale the spatial frequency map appropriately (the derivative
-    # of log(r) is only 1/r when the log's base is e; here it's 2 so we need to scale it). this
-    # scaling constant was found experimentally; it's the value required to get the a_sfmap created
-    # from log_polar_grating(8, 0, w_a=2, phi=45) to have values of .5 in the center four voxels
-    # (if you create this grating, you'll be able to clearly see the center four pixels go from 1
-    # to -1 to 1 to -1 and thus is at the limit of aliasing).
-    a_sfmap *= (.5/2.82842712)
-    r_sfmap *= (.5/2.82842712)
-    return a_sfmap, r_sfmap
+    if 0 in x:
+        x += 1e-12
+    if 0 in y:
+        y += 1e-12
+    # we want to approximate the spatial frequency of our log polar gratings. We can do that using
+    # the first two terms of the Taylor series. Since our gratings are of the form cos(g(X)) (where
+    # X contains both x and y values), then to approximate them at location X_0, we'll use
+    # cos(g(X_0) + g'(X_0)(X-X_0)), where g'(X_0) is the derivative of g at X_0 (with separate x
+    # and y components). g(X_0) is the phase of the approximation and so not important here, but
+    # that g'(X_0) is the local spatial frequency that we're interested in. Thus we take the
+    # derivative of our log polar grating function with respect to x and y in order to get dx and
+    # dy, respectively (after some re-arranging and cleaning up)
+    dy = (2*y*(w_r/np.pi)) / ((x**2 + y**2 + alpha**2) * np.log(2)) + (w_a * x) / (x**2 + y**2)
+    dx = (2*x*(w_r/np.pi)) / ((x**2 + y**2 + alpha**2) * np.log(2)) - (w_a * y) / (x**2 + y**2)
+    # Since x, y are in pixels (and so run from ~0 to ~size/2), dx and dy need to be divided by
+    # 2*pi in order to get the frequency in cycles / pixel. This is analogous to the 1d case: if x
+    # runs from 0 to 1 and f(x) = cos(w * x), then the number of cycles in f(x) is w / 2*pi.
+    dy /= 2*np.pi
+    dx /= 2*np.pi
+    return dx, dy, np.sqrt(dx**2 + dy**2), np.arctan2(dy, dx)
 
 
 def create_sf_maps_cpd(size, alpha, max_visual_angle, w_r=0, w_a=0, origin=None, scale_factor=1):
-    """Create maps of the spatial frequency in cycles per degree of visual angle
+    """Create map of the spatial frequency in cycles per degree of visual angle
 
-    returns two maps: the angular spatial frequency map and the radial one.
+    returns one map: the local spatial frequency (magnitude from create_sf_maps_cpp) in cycles per
+    degree
 
     Parameters
     ============
@@ -209,11 +224,8 @@ def create_sf_maps_cpd(size, alpha, max_visual_angle, w_r=0, w_a=0, origin=None,
     max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
     the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 24)
     """
-    a_sfmap, r_sfmap = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
-    if hasattr(size, '__iter__'):
-        size = max(size)
-    size = float(size)
-    return a_sfmap / (max_visual_angle / size), r_sfmap / (max_visual_angle / size)
+    _, _, mag, _ = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
+    return mag / (max_visual_angle / float(size))
 
 
 def create_antialiasing_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
@@ -234,16 +246,11 @@ def create_antialiasing_mask(size, alpha, w_r=0, w_a=0, origin=None, number_of_f
 
     returns both the faded_mask and the binary mask.
     """
-    a_sfmap, r_sfmap = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
+    _, _, mag, _ = create_sf_maps_cpp(size, alpha, w_r, w_a, origin, scale_factor)
     # the nyquist frequency is .5 cycle per pixel, but we make it a lower to give ourselves a
     # little fudge factor
     nyq_freq = .475
-    a_mask = a_sfmap < nyq_freq
-    r_mask = r_sfmap < nyq_freq
-    # the two masks created above are 0 where there's aliasing and 1 everywhere else. logical_and
-    # then gives us a 1 only where both have 1s; i.e., we mask out anywhere that *either* mask says
-    # will alias.
-    mask = np.logical_and(a_mask, r_mask)
+    mask = mag < nyq_freq
     faded_mask = _fade_mask(mask, number_of_fade_pixels, 0, origin)
     return faded_mask, mask
 
@@ -306,10 +313,7 @@ def check_stim_properties(size, origin, max_visual_angle, alpha=0, w_r=0, w_a=ra
     - max masked frequency in cycles per pixel
     - max masked frequency in cycles per degree
 
-    WARNING: THE CALCULATIONS FOR MIN (and possibly min) FREQUENCIES DISPLAYED IS BROKEN. I NEED TO
-    THINK MORE ABOUT HOW THE MULTIPLE MAPS INTERACT WITH EACH OTHER
-
-    note that we don't calculate the min masked frequency because that will always be zero (because
+    Note that we don't calculate the min masked frequency because that will always be zero (because
     we zero out the center of the image, where the frequency is at its highest).
 
     note that size, origin, and max_visual_angle must have only one value, the others can be lists
@@ -331,14 +335,13 @@ def check_stim_properties(size, origin, max_visual_angle, alpha=0, w_r=0, w_a=ra
     mask_df = []
     for i, (a, f_r, f_a) in enumerate(itertools.product(alpha, w_r, w_a)):
         fmask, mask = create_antialiasing_mask(size, a, f_r, f_a, origin, 0)
-        a_sfmap_cpp, r_sfmap_cpp = create_sf_maps_cpp(size, a, f_r, f_a, origin)
-        a_sfmap_cpd, r_sfmap_cpd = create_sf_maps_cpd(size, a, max_visual_angle, f_r, f_a, origin)
+        _, _, mag_cpp, _ = create_sf_maps_cpp(size, a, f_r, f_a, origin)
+        mag_cpd = create_sf_maps_cpd(size, a, max_visual_angle, f_r, f_a, origin)
         data = {'mask_radius': (~mask*rad).max(), 'w_r': f_r, 'w_a': f_a, 'alpha': a, }
-        for name, (a_sfmap, r_sfmap) in zip(['cpp', 'cpd'],
-                                            [(a_sfmap_cpp, r_sfmap_cpp), (a_sfmap_cpd, r_sfmap_cpd)]):
-            data[name + "_max"] = max(a_sfmap.max(), r_sfmap.max())
-            data[name + "_min"] = max(a_sfmap.min(), r_sfmap.min())
-            data[name + "_masked_max"] = max((fmask*a_sfmap).max(), (fmask*r_sfmap).max())
+        for name, mag in zip(['cpp', 'cpd'], [mag_cpp, mag_cpd]):
+            data[name + "_max"] = mag.max()
+            data[name + "_min"] = mag.min()
+            data[name + "_masked_max"] = (fmask * mag).max()
         mask_df.append(pd.DataFrame(data, index=[i]))
     return pd.concat(mask_df)
 
@@ -483,8 +486,8 @@ def gen_stim_set(size, alpha, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
     return masked_stimuli, stimuli
 
 
-## TODO: set random seed
-def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True):
+def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True,
+         seed=None):
     """create the stimuli for the spatial frequency preferences experiment
 
     Our stimuli are constructed from a 2d frequency space, with w_r on the x-axis and w_a on the
@@ -515,12 +518,16 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     if create_stim is False, then we don't create the stim, just create and save the shuffled
     indices.
 
+    seed: the random seed to use for this randomization. if unset, defaults to None. (uses
+    np.random.seed)
+
     NOTE That if create_idx is True and the indices already exist, this will throw an
     exception. Similarly if create_stim is True and either the stimuli .npy file or the descriptive
     dataframe .csv file
 
     returns (one copy) of the (un-shuffled) stimuli, for inspection.
     """
+    np.random.seed(seed)
     if output_dir[-1] != '/':
         output_dir += '/'
     filename = output_dir + "{subj}_run%02d_idx.npy".format(subj=subject_name)
@@ -605,8 +612,12 @@ if __name__ == '__main__':
                         help="Create and save the experiment stimuli and descriptive dataframe")
     parser.add_argument("--create_idx", '-i', action="store_true",
                         help=("Create and save the 12 randomized indices for this subject"))
+    parser.add_argument("--seed", '-s', default=None,
+                        help="Seed to initialize randomizer, for stimuli presentation randomization")
     args = vars(parser.parse_args())
     if not args["create_stim"] and not args['create_idx']:
         print("Nothing to create, exiting...")
     else:
+        if args['seed'] is not None:
+            args['seed'] = int(args['seed'])
         _ = main(**args)

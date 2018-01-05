@@ -299,18 +299,14 @@ def calculate_stim_local_sf(stim, w_r, w_a=0, alpha=50, stim_size_pix=1080, stim
     plot_flag: boolean, optional, default False. Whether to create a plot showing the local spatial
     frequency vs eccentricity for the specified stimulus
     """
-    if w_a != 0:
-        warnings.warn("Currently this only works for circular stimuli!")
-    w_a, w_r = stimuli.create_sf_maps_cpd(stim_size_pix, alpha, stim_rad_deg*2, w_r, w_a)
+    mag = stimuli.create_sf_maps_cpd(stim_size_pix, alpha, stim_rad_deg*2, w_r, w_a)
     R = ppt.mkR(stim_size_pix)
 
     # this limits the frequency maps to only where our stimulus has a grating.
     x, y = np.where(stim != 127)
     Rmin, Rmax = R[x, y].min(), R[x, y].max()
-    w_a[R < Rmin] = 0
-    w_a[R > Rmax] = 0
-    w_r[R < Rmin] = 0
-    w_r[R > Rmax] = 0
+    mag[R < Rmin] = 0
+    mag[R > Rmax] = 0
 
     # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
     # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of
@@ -329,10 +325,10 @@ def calculate_stim_local_sf(stim, w_r, w_a=0, alpha=50, stim_size_pix=1080, stim
         eccens = []
         for m in bin_masks:
             eccens.append(R[m].mean())
-            eccen_local_freqs.append(w_r[m].mean())
+            eccen_local_freqs.append(mag[m].mean())
     else:
         eccen_idx = eccens
-        eccen_local_freqs = [w_r.flatten()[abs(R - e).argmin()] for e in eccens]
+        eccen_local_freqs = [mag.flatten()[abs(R - e).argmin()] for e in eccens]
 
     if plot_flag:
         plt.plot(eccens, eccen_local_freqs)
@@ -347,27 +343,23 @@ def calculate_stim_local_sf(stim, w_r, w_a=0, alpha=50, stim_size_pix=1080, stim
 def _add_local_sf_to_df(df, eccen_bin, eccen_range, stimuli, alpha=50, stim_size_pix=1080,
                         stim_rad_deg=12):
     """Adds local spatial frequency information for all stimuli to the df
-
-    WARNING: For now, this only works on circular stimuli
     """
-    warnings.warn("For now, we only add local spatial frequency information for circular stimuli!")
-    w_r = df[df.stimulus_superclass == 'circular'].w_r.unique()
+    freqs = df.drop_duplicates(['w_r', 'w_a'])[['w_r', 'w_a', 'stimulus_superclass']]
     sfs = []
 
-    for r in w_r:
+    for w_r, w_a, stim_class in freqs.values:
         # we only need one stimulus, because all of them have the same masks, which is what we're
         # interested in here
-        tmp = calculate_stim_local_sf(stimuli[0, :, :], r, 0, alpha, stim_size_pix, stim_rad_deg,
-                                      eccen_bin, eccen_range, df.eccen.unique())
+        tmp = calculate_stim_local_sf(stimuli[0, :, :], w_r, w_a, alpha, stim_size_pix,
+                                      stim_rad_deg, eccen_bin, eccen_range, df.eccen.unique())
         tmp = pd.DataFrame(tmp, columns=['Local spatial frequency (cpd)'])
         tmp.index.name = 'eccen'
-        tmp['w_r'] = r
+        tmp['w_r'] = w_r
+        tmp['w_a'] = w_a
+        tmp['stimulus_superclass'] = stim_class
         sfs.append(tmp)
 
     sfs = pd.concat(sfs)
-
-    sfs['stimulus_superclass'] = 'circular'
-    sfs['w_a'] = 0
     sfs = sfs.reset_index()
 
     sfs = sfs.set_index(['stimulus_superclass', 'w_a', 'w_r', 'eccen'])
@@ -467,3 +459,9 @@ def create_GLM_result_df(design_df, stimuli, benson_template_path, results_templ
 
 # Make wrapper function that does above, loading in design_df and maybe grabbing it for different
 # results? and then combining them.
+def main(behavioral_results_path, benson_template_path, results_template_path,
+         unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv"):
+    """wrapper function that loads in relevant bits of information and calls relevant functions
+
+    Ends up creating and saving the dataframe containing the first level results.
+    """
