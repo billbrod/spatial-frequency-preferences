@@ -266,7 +266,7 @@ def find_ecc_range_in_degrees(stim, stim_rad_deg):
     return Rmin / factor, Rmax / factor
 
 
-def calculate_stim_local_sf(w_r, w_a=0, alpha=50, stim_size_pix=1080, stim_rad_deg=12,
+def calculate_stim_local_sf(stim, w_r, w_a=0, alpha=50, stim_size_pix=1080, stim_rad_deg=12,
                             eccen_bin=True, eccen_range=(2, 8), eccens=[], plot_flag=False):
     """calculate the local spatial frequency for a specified stimulus and screen size
 
@@ -301,8 +301,16 @@ def calculate_stim_local_sf(w_r, w_a=0, alpha=50, stim_size_pix=1080, stim_rad_d
     """
     if w_a != 0:
         warnings.warn("Currently this only works for circular stimuli!")
-    _, w_r = stimuli.create_sf_maps_cpd(stim_size_pix, alpha, stim_rad_deg*2, w_r, w_a)
+    w_a, w_r = stimuli.create_sf_maps_cpd(stim_size_pix, alpha, stim_rad_deg*2, w_r, w_a)
     R = ppt.mkR(stim_size_pix)
+
+    # this limits the frequency maps to only where our stimulus has a grating.
+    x, y = np.where(stim != 127)
+    Rmin, Rmax = R[x, y].min(), R[x, y].max()
+    w_a[R < Rmin] = 0
+    w_a[R > Rmax] = 0
+    w_r[R < Rmin] = 0
+    w_r[R > Rmax] = 0
 
     # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
     # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of
@@ -336,7 +344,8 @@ def calculate_stim_local_sf(w_r, w_a=0, alpha=50, stim_size_pix=1080, stim_rad_d
     return pd.Series(eccen_local_freqs, eccen_idx)
 
 
-def _add_local_sf_to_df(df, eccen_bin, eccen_range, alpha=50, stim_size_pix=1080, stim_rad_deg=12):
+def _add_local_sf_to_df(df, eccen_bin, eccen_range, stimuli, alpha=50, stim_size_pix=1080,
+                        stim_rad_deg=12):
     """Adds local spatial frequency information for all stimuli to the df
 
     WARNING: For now, this only works on circular stimuli
@@ -346,8 +355,10 @@ def _add_local_sf_to_df(df, eccen_bin, eccen_range, alpha=50, stim_size_pix=1080
     sfs = []
 
     for r in w_r:
-        tmp = calculate_stim_local_sf(r, 0, alpha, stim_size_pix, stim_rad_deg, eccen_bin,
-                                      eccen_range, df.eccen.unique())
+        # we only need one stimulus, because all of them have the same masks, which is what we're
+        # interested in here
+        tmp = calculate_stim_local_sf(stimuli[0, :, :], r, 0, alpha, stim_size_pix, stim_rad_deg,
+                                      eccen_bin, eccen_range, df.eccen.unique())
         tmp = pd.DataFrame(tmp, columns=['Local spatial frequency (cpd)'])
         tmp.index.name = 'eccen'
         tmp['w_r'] = r
@@ -366,7 +377,7 @@ def _add_local_sf_to_df(df, eccen_bin, eccen_range, alpha=50, stim_size_pix=1080
     return df.reset_index()
 
 
-def create_GLM_result_df(design_df, benson_template_path, results_template_path,
+def create_GLM_result_df(design_df, stimuli, benson_template_path, results_template_path,
                          df_mode='summary', save_path=None, class_nums=xrange(52), vareas=[1],
                          eccen_range=(2, 8), eccen_bin=True, hemi_bin=True, stim_rad_deg=12):
     """this loads in the realigned mgz files and creates a dataframe of their values
@@ -378,6 +389,8 @@ def create_GLM_result_df(design_df, benson_template_path, results_template_path,
     to provide save_path so the resulting dataframe can be saved.
 
     design_df: output of create_design_df
+
+    stimuli: numpy array of unpermuted stimuli used in the experiment.
 
     benson_template_path: template path to the Benson14 mgz files, containing two string formatting
     symbols (%s; one for hemisphere, one for variable [angle, varea, eccen]),
@@ -443,7 +456,7 @@ def create_GLM_result_df(design_df, benson_template_path, results_template_path,
     df = _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin, hemi_bin)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     df = _round_freq_space_distance(df, core_dists)
-    df = _add_local_sf_to_df(df, eccen_bin, eccen_range, design_df.alpha.unique()[0],
+    df = _add_local_sf_to_df(df, eccen_bin, eccen_range, stimuli, design_df.alpha.unique()[0],
                              design_df.res.unique()[0], stim_rad_deg)
 
     if save_path is not None:
