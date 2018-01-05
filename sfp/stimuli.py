@@ -190,7 +190,7 @@ def create_sf_maps_cpp(size, alpha, w_r=0, w_a=0, origin=None, scale_factor=1):
     # in both cases above, we don't scale the spatial frequency map appropriately (the derivative
     # of log(r) is only 1/r when the log's base is e; here it's 2 so we need to scale it). this
     # scaling constant was found experimentally; it's the value required to get the a_sfmap created
-    # from log_polar_grating(8, 0, w_a=2, phase=45) to have values of .5 in the center four voxels
+    # from log_polar_grating(8, 0, w_a=2, phi=45) to have values of .5 in the center four voxels
     # (if you create this grating, you'll be able to clearly see the center four pixels go from 1
     # to -1 to 1 to -1 and thus is at the limit of aliasing).
     a_sfmap *= (.5/2.82842712)

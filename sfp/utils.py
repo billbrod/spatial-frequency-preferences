@@ -161,7 +161,7 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
     to be used with seaborn.FacetGrid.map_dataframe.
 
     because this goes through all the bootstraps and calculates their log normal tuning curves
-    separately, it's takes much more time than fit_log_norm_ci
+    separately, it's takes much more time than fit_log_norm
 
     the data passed here must contain a column named `bootstrap_num`, which specifies which number
     bootstrap the observation corresponds to. Each value of bootstrap_num will be fit
