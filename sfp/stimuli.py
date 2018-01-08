@@ -177,10 +177,11 @@ def create_sf_maps_cpp(size, alpha, w_r=0, w_a=0, origin=None, scale_factor=1):
 
     In most cases, you want the magnitude, as this is the local spatial frequency of the
     corresponding log polar grating at that point. You will want to use dx and dy if you are going
-    to plot approximations of the grating using sfp.utils.plot_approx (which you should use to
-    convince yourself these values are correct)
+    to plot approximations of the grating using sfp.utils.plot_grating_approximation (which you
+    should use to convince yourself these values are correct)
     """
     assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
+    size = int(size)
     if origin is None:
         origin = ((size+1) / 2., (size+1) / 2.)
     # we do this in terms of x and y

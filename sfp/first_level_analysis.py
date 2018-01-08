@@ -11,6 +11,7 @@ import re
 from matplotlib import pyplot as plt
 import stimuli
 import pyPyrTools as ppt
+import utils
 
 
 def _load_mgz(path):
@@ -303,10 +304,7 @@ def calculate_stim_local_sf(stim, w_r, w_a=0, alpha=50, stim_size_pix=1080, stim
     R = ppt.mkR(stim_size_pix)
 
     # this limits the frequency maps to only where our stimulus has a grating.
-    x, y = np.where(stim != 127)
-    Rmin, Rmax = R[x, y].min(), R[x, y].max()
-    mag[R < Rmin] = 0
-    mag[R > Rmax] = 0
+    mag = utils.mask_array_like_grating(stim, mag)
 
     # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
     # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of

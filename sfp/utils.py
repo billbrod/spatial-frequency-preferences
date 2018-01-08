@@ -6,6 +6,7 @@ import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
+import pyPyrTools as ppt
 
 
 class MidpointNormalize(matplotlib.colors.Normalize):
@@ -102,17 +103,24 @@ def add_img_to_xaxis(fig, ax, img, rel_position, size=.1, **kwargs):
     im_plot(img, ax=ax1, **kwargs)
 
 
-def create_sin_cpd(size, freq_cpd, stim_rad_deg=12):
-    """create a full 2d sine wave, with frequency in cpd
+def create_sin_cpp(size, w_x, w_y, phase=0):
+    """create a full 2d sine wave, with frequency in cycles / pixel
+    """
+    origin = (size+1) / 2.
+    x = np.array(range(1, size+1))
+    x, y = np.meshgrid(x - origin, x - origin)
+    return np.cos(2*np.pi*x*w_x + 2*np.pi*y*w_y + phase)
 
-    this converts the desired freq_cpd into the frequency shown in an image by using the
+
+def create_sin_cpd(size, w_x_cpd, w_y_cpd, phase=0, stim_rad_deg=12):
+    """create a full 2d sine wave, with frequency in cycles / degree
+
+    this converts the desired cycles / degree into the frequency shown in an image by using the
     stim_rad_deg, the radius of the image in degrees of visual angle.
     """
-    x = np.array(range(size))/float(size)
-    x, _ = np.meshgrid(x, x)
-    freq_pix = freq_cpd / (size / (2*float(stim_rad_deg)))
-    freq_screen = size * freq_pix
-    return np.sin(2*np.pi*x*freq_screen)
+    w_x_pix = w_x_cpd / (size / (2*float(stim_rad_deg)))
+    w_y_pix = w_y_cpd / (size / (2*float(stim_rad_deg)))
+    return create_sin_cpp(size, w_x_pix, w_y_pix, phase)
 
 
 def create_circle_mask(x, y, rad, size):
@@ -126,6 +134,25 @@ def create_circle_mask(x, y, rad, size):
     mask = np.zeros((size, size))
     mask[(x_grid - x)**2 + (y_grid - y)**2 <= rad**2] = 1
     return mask
+
+
+def mask_array_like_grating(masked, array_to_mask, mid_val=127, val_to_set=0):
+    """mask array_to_mask the way that masked has been masked
+
+    this takes two arrays of the same size, grating and array_to_mask. masked should already be
+    masked into an annulus, while array_to_mask should be unmasked. This then finds the inner and
+    outer radii of that annulus and applies the same mask to array_to_mask. the value in the masked
+    part of masked should be mid_val (by default, 127, as you'd get when the grating runs from 0 to
+    255; mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want
+    to set array_to_mask to is val_to_set (same reasonable values as mid_val)
+    """
+    R = ppt.mkR(masked.shape)
+    x, y = np.where(masked != mid_val)
+    Rmin = R[x, y].min()
+    array_to_mask[R < Rmin] = val_to_set
+    Rmax = R[x, y].max()
+    array_to_mask[R > Rmax] = val_to_set
+    return array_to_mask
 
 
 def log_norm_pdf(x, a, mu, sigma):
@@ -195,3 +222,93 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
     plt.fill_between(plot_idx, cis[0], cis[1], alpha=.2, **kwargs)
     plt.plot(plot_idx, lines_mean, color=color, **kwargs)
     return lines
+
+
+def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, alpha=50, phase=0, origin=None):
+    """create a local 2d sin grating based on the gradients dx and dy
+
+    this uses the gradients at location loc_x, loc_y to create a small grating to approximate a
+    larger one at that location. This can be done either for the log polar gratings we use as
+    stimuli (in which case w_r and w_a should be set to get the phase correct) or a regular 2d sin
+    grating (like the one created by create_sin_cpp), in which case they can be left at 0
+
+    dx and dy should be in cycles / pixel
+    """
+    size = dx.shape[0]
+    x, y = np.meshgrid(np.array(range(1, size+1)) - loc_x,
+                       np.array(range(1, size+1)) - loc_y)
+    if origin is None:
+        origin = ((size+1) / 2., (size+1) / 2.)
+    x_orig, y_orig = np.meshgrid(np.array(range(1, size+1))-origin[0],
+                                 np.array(range(1, size+1))-origin[1])
+    local_x = x_orig[loc_y, loc_x]
+    local_y = y_orig[loc_y, loc_x]
+
+    w_x = 2 * np.pi * dx[loc_y, loc_x]
+    w_y = 2 * np.pi * dy[loc_y, loc_x]
+
+    # the local phase is just the value of the actual grating at that point (see the explanation in
+    # sfp.stimuli.create_sf_maps_cpp about why this works).
+    if w_r is None and w_a is None:
+        local_phase = np.mod(w_x * local_x + w_y * local_y + phase, 2*np.pi)
+    else:
+        local_phase = np.mod((w_r/np.pi) * np.log2(local_x**2 + local_y**2 + alpha**2) +
+                             w_a * np.arctan2(local_y, local_x) + phase, 2*np.pi)
+    if w_x == 0 and w_y == 0:
+        return 0
+    else:
+        return np.cos(w_x*x + w_y*y + local_phase)
+
+
+def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, alpha=50, w_r=None,
+                               w_a=None, origin=None, figsize=None, **kwargs):
+    """plot the "windowed approximation" of a grating
+
+    note that this will not create the grating or its gradients (dx/dy), it only plots them. For
+    this to work, dx and dy must be in cycles / pixel
+
+    this will work for either regular 2d gratings or the log polar gratings we use as stimuli,
+    though it will look slightly different depending on which you do. In the regular case, the
+    space between windows will be mid-gray, while for the log polar gratings, it will be
+    black. This allows for a creation of a neat illusion for some regular gratings (use
+    grating=sfp.utils.create_sin_cpp(1080, .005, .005) to see an example)!
+
+    if `grating` is one of our log polar gratings, then w_r and w_a also need to be set. if it's a
+    regular 2d grating, then they should both be None and alpha is unused.
+
+    num_windows: int, the number of windows in each direction that we'll use. as this gets larger,
+    the approximation will look better and better (and this will take a longer time to run)
+
+    kwargs will be past to im_plot.
+    """
+    size = grating.shape[0]
+    # we need to window the gradients dx and dy so they only have values where the grating does
+    # (since they're derived analytically, they'll have values everywhere)
+    dx = mask_array_like_grating(grating, dx)
+    dy = mask_array_like_grating(grating, dy)
+    mask_spacing = np.round(size / num_windows)
+    # for this to work, the gratings must be non-overlapping
+    mask_size = np.round(mask_spacing / 2) - 1
+    masked_grating = np.zeros((size, size))
+    masked_approx = np.zeros((size, size))
+    masks = np.zeros((size, size))
+    for i in range(mask_size, size, mask_spacing):
+        for j in range(mask_size, size, mask_spacing):
+            loc_x, loc_y = i, j
+            mask = create_circle_mask(loc_x, loc_y, mask_size, size)
+            masks += mask
+            masked_grating += mask * grating
+            masked_approx += mask * local_grad_sin(dx, dy, loc_x, loc_y, w_r, w_a, alpha, phase,
+                                                   origin)
+    if w_r is not None and w_a is not None:
+        # in order to make the space between the masks black, that area should have the minimum
+        # value, -1. but for the above to all work, that area needs to be 0, so this corrects that.
+        masked_approx[~masks.astype(bool)] -= 1
+    if figsize is None:
+        figsize = (15, 10)
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    im_plot(masked_grating, ax=axes[0], **kwargs)
+    axes[0].set_title("Windowed view of actual grating")
+    im_plot(masked_approx, ax=axes[1], **kwargs)
+    axes[1].set_title("Windowed view of linear approximation")
+    return masked_grating, masked_approx
