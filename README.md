@@ -28,8 +28,9 @@ Eventually, the Makefile will be updated to include all the steps, but
 for now, the following the analysis steps:
 
 1. Create the stimuli (`python -m sfp.stimuli subject_name -c
-   -i`). After you run this the first time (and create the unshuffled
-   stimuli), you probably only need the `-i` flag to create the index.
+   -i`). After you run this the first time (and thus create the
+   unshuffled stimuli), you probably only need the `-i` flag to create
+   the index.
 2. Run the experiment and gather fMRI data (`python -m sfp.experiment
    data/stimuli/unshuffled.npy 12 subject_name`). Experiment will run
    4 minutes and 16 seconds (52 stimulus classes and 10 blank trials,
@@ -39,11 +40,10 @@ for now, the following the analysis steps:
    (using
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
 4. Create design matrices for each run (`python sfp/design_matrices.py
-   -s subject_name behavioral_results_path
-   unshuffled_stim_descriptions_path`). The `behavioral_results` h5py
-   file is created when the experiment is run and the
+   -s subject_name behavioral_results_path`). The `behavioral_results`
+   h5py file is created when the experiment is run and the
    `unshuffled_stim_descriptions` csv file is created when the stimuli
-   are created.
+   are created (you can probably trust the default for its path).
 5. Run GLMdenoise (`runGLM.m`)
 6. Align to freesurfer anatomy (`sfp.realign`)
 7. Construct tuning curves
@@ -61,6 +61,12 @@ for now, the following the analysis steps:
 Note that several of these steps (preprocessing and running
 GLMdenoise) should be run on a cluster and will take way too long or
 too much memory to run on laptop.
+
+When running python scripts from the command line, they should be run
+from this directory (and so you should call `python sfp/foo.py` or
+`python -m sfp.foo`), in order for the default paths to work. You can
+run them from somewhere else, but then you'll need to use the optional
+arguments to set the paths yourself.
 
 Project Organization
 ------------
