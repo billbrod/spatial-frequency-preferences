@@ -286,7 +286,8 @@ if __name__ == '__main__':
     parser.add_argument("behavioral_results_path",
                         help=("Path to the behavioral results that contains the timing of stimuli"
                               " and scans"))
-    parser.add_argument("unshuffled_stim_descriptions_path",
+    parser.add_argument("--unshuffled_stim_descriptions_path", "-d",
+                        default="data/stimuli/unshuffled_stim_description.csv",
                         help=("Path to the unshuffled_stim_descriptions.csv file that contains the"
                               "pandas Dataframe that specifies each stimulus's frequency"))
     parser.add_argument("--subject", "-s", default=None,
