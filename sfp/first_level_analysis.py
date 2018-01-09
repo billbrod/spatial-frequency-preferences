@@ -1,6 +1,7 @@
 #!/usr/bin/python
 """functions to run first-level MRI analyses
 """
+import argparse
 import pandas as pd
 import numpy as np
 import os
@@ -12,6 +13,8 @@ from matplotlib import pyplot as plt
 import stimuli
 import pyPyrTools as ppt
 import utils
+import h5py
+import design_matrices
 
 
 def _load_mgz(path):
@@ -457,9 +460,126 @@ def create_GLM_result_df(design_df, stimuli, benson_template_path, results_templ
 
 # Make wrapper function that does above, loading in design_df and maybe grabbing it for different
 # results? and then combining them.
-def main(behavioral_results_path, benson_template_path, results_template_path,
+def main(behavioral_results_path, benson_template_path, results_template_path, save_path,
+         df_mode='summary', class_nums=xrange(52), vareas=[1], eccen_range=(2, 8), eccen_bin=True,
+         hemi_bin=True, stim_rad_deg=12, unshuffled_stim_path="../data/stimuli/unshuffled.npy",
          unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv"):
     """wrapper function that loads in relevant bits of information and calls relevant functions
 
-    Ends up creating and saving the dataframe containing the first level results.
+    Ends up creating and saving the dataframe containing the first level results and so doesn't
+    return anything
     """
+    # This file contains the button presses (which also show the TR onsets) and the order the
+    # stimuli were presented in (along with their timing)
+    behav_results = h5py.File(behavioral_results_path)
+    # This contains the information on each stimulus, allowing us to determine whether some stimuli
+    # are part of the same class or a separate one.
+    stim_df = pd.read_csv(unshuffled_stim_descriptions_path, index_col=0)
+    # Array full of the actual stimuli
+    stimuli = np.load(unshuffled_stim_path)
+
+    # for this, we just want any run, since they all contain the same classes and we don't care
+    # about their order
+    design_df, _, _ = design_matrices.create_design_df(behav_results, stim_df, 1)
+    design_df = design_df.reset_index(drop=True).sort_values(by="class_idx")
+    design_df = design_df[['w_r', 'w_a', 'class_idx', 'alpha', 'res']].set_index('class_idx')
+
+    stim_df = stim_df.set_index(['w_r', 'w_a'])
+    stim_df['class_idx'] = design_df.reset_index().set_index(['w_r', 'w_a'])['class_idx']
+    stim_df = stim_df.reset_index()
+
+    df = create_GLM_result_df(design_df, stimuli, benson_template_path, results_template_path,
+                              df_mode, save_path, class_nums, vareas, eccen_range, eccen_bin,
+                              hemi_bin, stim_rad_deg)
+
+
+if __name__ == '__main__':
+    class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter):
+        pass
+    parser = argparse.ArgumentParser(
+        description=("Load in relevant data and create a DataFrame summarizing the first-level "
+                     "results for a given subject. Note that this can take a rather long time, "
+                     "especially if you are not binning by eccentricity."),
+        formatter_class=CustomFormatter)
+    parser.add_argument("subject",
+                        help=("Subject string. Will be used to generate the save path and will "
+                              "also check benson_template_path to fill in there as well"))
+    parser.add_argument("behavioral_results_path",
+                        help=("Path to the behavioral results that contains the timing of stimuli"
+                              " and scans. Can contain {subj} or any environmental variable (in "
+                              "all caps, contained within curly brackets, e.g., {SUBJECTS_DIR})"))
+    parser.add_argument("results_template_path",
+                        help=("template path to the results mgz files (outputs of realign.py), "
+                              "containing two string formatting symbols (one for hemisphere, "
+                              "one specifying results type). Can contain {subj} or any environment"
+                              "al variable (in all caps, contained within curly brackets, e.g., "
+                              "{SUBJECTS_DIR})"))
+    parser.add_argument("--benson_template_path", "-b",
+                        default="{SUBJECTS_DIR}/{subj}/surf/%s.benson14_%s.mgz",
+                        help=("template path to the Benson14 mgz files, containing two string "
+                              "formatting symbols (one for hemisphere, one for variable [angle"
+                              ", varea, eccen]). By default will use your Freesurfer "
+                              "SUBJECTS_DIR (from your environmental variables) and the subject "
+                              "name."))
+    parser.add_argument("--save_dir", default="data/MRI_first_level",
+                        help=("directory to save the GLM result DataFrame in. The DataFrame will "
+                              "be saved in a sub-directory (named for the subject) of this as a "
+                              "csv with some identifying information in the path."))
+    parser.add_argument("--df_mode", default='summary',
+                        help=("{summary, full}. If summary, will load in the 'modelmd' and "
+                              "'modelse' mgz files, and use those calculated summary values. If "
+                              "full, will load in the 'models_class_##' mgz files, which contain "
+                              "the info to calculate central tendency and spread directly. In both"
+                              " cases, 'R2' will also be loaded in. Assumes modelmd and modelse "
+                              "lie directly in results_template_path and that models_class_## "
+                              "files lie within the subfolder models_niftis"))
+    parser.add_argument("--class_nums", "-c", nargs='+', default=xrange(52), type=int,
+                        help=("list of ints. if df_mode=='full', which classes to load in. If "
+                              "df_mode=='summary', then this is ignored."))
+    parser.add_argument("--vareas", "-v", nargs='+', default=[1], type=int,
+                        help=("list of ints. Which visual areas to include. the Benson14 template "
+                              "numbers vertices 0 (not a visual area), -3, -2 (V3v and V2v, "
+                              "respectively), and 1 through 7."))
+    parser.add_argument("--eccen_range", "-r", nargs=2, default=(2, 8), type=int,
+                        help=("2-tuple of ints or floats. What range of eccentricities to "
+                              "include."))
+    parser.add_argument("--eccen_bin", action="store_false",
+                        help=("Whether to bin the eccentricities in integer"
+                              "increments. HIGHLY RECOMMENDED to be True if df_mode=='full', "
+                              "otherwise this will take much longer and the resulting DataFrame "
+                              "will be absurdly large and unwieldy."))
+    parser.add_argument("--hemi_bin", action="store_false",
+                        help=("Does nothing if eccen_bin is False, but if "
+                              "eccen_bin is True, average corresponding eccentricity ROIs across "
+                              "the two hemispheres. Generally, this is what you want, unless you "
+                              "also to examine differences between the two hemispheres."))
+    parser.add_argument("--stim_rad_deg", default=12, type=float,
+                        help="float, the radius of the stimulus, in degrees of visual angle")
+    parser.add_argument("--unshuffled_stim_descriptions_path", "-d",
+                        default="data/stimuli/unshuffled_stim_description.csv",
+                        help=("Path to the unshuffled_stim_descriptions.csv file that contains the"
+                              " pandas Dataframe that specifies each stimulus's frequency"))
+    parser.add_argument("--unshuffled_stim_path", "-s",
+                        default="data/stimuli/unshuffled.npy",
+                        help=("Path to the unshuffled.npy file that contains the numpy array with"
+                              "the stimuli used in the experiment"))
+    args = vars(parser.parse_args())
+    subject = args.pop('subject')
+    save_dir = args.pop('save_dir')
+    save_dict = {'df_mode': args['df_mode'], 'vareas': '-'.join(str(i) for i in args['vareas']),
+                 'eccen': '-'.join(str(i) for i in args['eccen_range'])}
+    if args['eccen_bin']:
+        save_dict['eccen_bin'] = '_eccen_bin'
+    else:
+        save_dict['eccen_bin'] = ''
+    if args['hemi_bin']:
+        save_dict['hemi_bin'] = '_hemi_bin'
+    else:
+        save_dict['hemi_bin'] = ''
+    save_name = "{df_mode}_v{vareas}_e{eccen}{eccen_bin}{hemi_bin}.csv".format(**save_dict)
+    args['save_path'] = os.path.join(save_dir, subject, save_name)
+    if not os.path.isdir(os.path.split(args['save_path'])[0]):
+        os.makedirs(os.path.split(args['save_path'])[0])
+    for k in ['behavioral_results_path', 'results_template_path', 'benson_template_path']:
+        args[k] = args[k].format(subj=subject, **os.environ)
+    main(**args)
