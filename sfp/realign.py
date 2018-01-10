@@ -14,6 +14,7 @@ variable is properly set.
 import subprocess
 import os
 import argparse
+import glob
 
 
 def vol2vol(input_volume="MRI_first_level/stim_class/results/R2.nii.gz",
@@ -72,19 +73,65 @@ def vol2surf(hemisphere, projfrac_options=[0, 1, .05],
     return proc.communicate()
 
 
-def main():
-    results_dir = "MRI_first_level/stim_class/results"
-    for vol in ['modelmd.nii.gz', 'modelse.nii.gz', 'R2.nii.gz', 'R2run.nii.gz']:
-        # out, err = vol2vol(os.path.join(results_dir, vol))
-        # print(out)
-        # print(err)
+def main(results_dir, reg_path, base_path, vol_mode='all', projfrac_options=[0, 1, .05]):
+    """run mri_vol2surf and mri_vol2vol
+
+    vol_mode: {'summary', 'classes', 'all'}. which vols to realign to Freesurfer space. If
+    'summary', then will do ['modelmd.nii.gz', 'modelse.nii.gz', 'R2.nii.gz', 'R2run.nii.gz']. If
+    'classes', then will do 'models_niftis/models_class_*.nii.gz', finding all volumes that match
+    that pattern. If 'all', will do both of these.
+    """
+    vols = []
+    if vol_mode in ['summary', 'all']:
+        vols += ['modelmd.nii.gz', 'modelse.nii.gz', 'R2.nii.gz', 'R2run.nii.gz']
+    if vol_mode in ['classes', 'all']:
+        vols += glob.glob('models_niftis/models_class_*.nii.gz')
+    for vol in vols:
+        out, err = vol2vol(os.path.join(results_dir, vol), reg_path, base_path)
+        print(out)
+        print(err)
         for hemi in ['lh', 'rh']:
-            out, err = vol2surf(hemi, input_volume=os.path.join(results_dir, vol))
+            out, err = vol2surf(hemi, projfrac_options, os.path.join(results_dir, vol), reg_path,
+                                base_path)
             print(out)
             print(err)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Realign GLMdenoise outputs to freesurfer anatomy (vol and surf)")
-    parser.parse_args()
-    main()
+    class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter):
+        pass
+    parser = argparse.ArgumentParser(
+        description=("Realign GLMdenoise outputs to freesurfer anatomy (vol and surf). Will run "
+                     "`mri_vol2vol --mov input_volume --reg reg_path --o out_file --fstarg` and "
+                     "`mri_vol2surf --mov input_volume --reg reg_path --projfrac-avg "
+                     "projrac_options --o out_file --hemi hemisphere` on all results files."),
+        formatter_class=CustomFormatter)
+    parser.add_argument("base_path",
+                        help=("Path to directory that contains all of your results and source "
+                              "registration files. This is mainly provided as a convenience so "
+                              "your paths for results_dir and reg_path can be shorter. For example"
+                              ", if your registration file lives at /this/is/a/directory/and/file."
+                              "dat and your results are in /this/is/a/directory/results/files/, "
+                              "then base_path=/this/is/a/directory, while reg_path=and/file.dat, "
+                              "and results_dir=results/files/"))
+    parser.add_argument("results_dir",
+                        help=("Directory (relative to base_path) that contains your results files."
+                              " The specific results files we'll look for are specified by "
+                              "vol_mode. See help for base_path for an example."))
+    parser.add_argument("reg_path",
+                        help=("Path (relative to base_path) to source registration file. See help "
+                              "for base_path for an example."))
+    parser.add_argument("--vol_mode", '-v',
+                        help=("{summary, classes, all}. Which vols to realign to Freesurfer space."
+                              " If 'summary', then will do ['modelmd.nii.gz', 'modelse.nii.gz', "
+                              "'R2.nii.gz', 'R2run.nii.gz']. If 'classes', then will do 'models_"
+                              "niftis/models_class_*.nii.gz', finding all volumes that match that"
+                              " pattern. If 'all', will do both of these."))
+    parser.add_argument("--projfrac_options", '-p', nargs=3, default=[0, 1, .05],
+                        help=("Options to pass to mri_vol2surf for the projfrac-avg flag. From "
+                              "mri_vol2surf's help: Options for projecting along the surface "
+                              "normal; average along normal"))
+    args = vars(parser.parse_args())
+    if args['vol_mode'] not in ['summary', 'classes', 'all']:
+        raise Exception("Unable to align vols specified by vol_mode %s!" % args['vol_mode'])
+    main(**args)
