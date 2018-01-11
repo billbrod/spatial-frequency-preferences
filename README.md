@@ -24,7 +24,7 @@ use of Python, Matlab, and command-line tools. The notebooks folder
 contains several Jupyter notebooks which (hopefully) walk through the
 logic of the experiment and analysis.
 
-Eventually, the Makefile will be updated to include all the steps, but
+Eventually, the Snakefile will be updated to include all the steps, but
 for now, the following the analysis steps:
 
 1. Create the stimuli (`python -m sfp.stimuli subject_name -c
