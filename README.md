@@ -68,6 +68,10 @@ from this directory (and so you should call `python sfp/foo.py` or
 run them from somewhere else, but then you'll need to use the optional
 arguments to set the paths yourself.
 
+`transfer_to_BIDS.py` is a file used to get the data from the format
+it came off the scanner into the BIDS structure. As such, you will not
+need it.
+
 Project Organization
 ------------
 
