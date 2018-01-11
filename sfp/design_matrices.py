@@ -149,7 +149,7 @@ def create_all_BIDS_events_tsv(behavioral_results_path, unshuffled_stim_descript
     df = pd.read_csv(unshuffled_stim_descriptions_path)
     if not os.path.exists(os.path.split(save_path)[0]) and os.path.split(save_path)[0]:
         os.makedirs(os.path.split(save_path)[0])
-    run_num = 1
+    run_num = 0
     while "run_%02d_button_presses" % run_num in results.keys():
         n_TRs = sum(['5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
         if n_TRs > 0:
@@ -163,8 +163,8 @@ def create_all_BIDS_events_tsv(behavioral_results_path, unshuffled_stim_descript
             design_df['stim_file'] = stim_path
             design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index']]
             design_df['onset'] = design_df.onset.apply(lambda x: "%.03f" % x)
-            design_df.to_csv(save_path % run_num, '\t')
-            run_num += 1
+            design_df.to_csv(save_path % run_num+1, '\t')
+        run_num += 1
 
 
 def create_design_matrix(design_df, behavioral_results, run_num):

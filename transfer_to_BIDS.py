@@ -7,7 +7,7 @@ comes off of the prisma scanner.
 However, it only does this approximately. Ideally we'll eventually have a fully-featured way of
 moving it over, but this should have most of the essential details.
 
-Before running this, you must set the two path constants at the top of the file
+Before running this, you must set the path constants at the top of the file
 
 This should be run from the BIDS code directory (by default, all paths will assume that).
 """
@@ -28,8 +28,8 @@ from sfp import design_matrices
 
 def wlsubj001_oct(base_dir):
     prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj001', '20171007_prisma'),
-                             base_dir, [8, 10, 12, 14, 16, 18, 20, 22, 24, 26],
-                             [7, 9, 11, 13, 15, 17, 19, 21, 23, 25], "sfp", "01")
+                             base_dir, [10, 12, 14, 16, 18, 20, 22, 24, 26],
+                             [9, 11, 13, 15, 17, 19, 21, 23, 25], "sfp", "01")
     prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj001', '20171007_prisma'),
                              base_dir, 6, 5, session_label="01")
     prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Anatomy", "wl_subj001", "RAS",
@@ -39,7 +39,9 @@ def wlsubj001_oct(base_dir):
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Oct-09_wl_subj001_sess1.hdf5"),
         os.path.join(base_dir, "stimuli", "unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj001", "ses-01", "func",
-                     "sub-wlsubj001_ses-01_task-sfp_run_%02d_events.tsv"))
+                     "sub-wlsubj001_ses-01_task-sfp_run-%02d_events.tsv"))
+    if not os.path.isdir(os.path.join(base_dir, 'sub-wlsubj001', 'ses-01', 'beh')):
+        os.makedirs(os.path.join(base_dir, 'sub-wlsubj001', 'ses-01', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Oct-09_wl_subj001_sess1.hdf5"),
         os.path.join(base_dir, "sub-wlsubj001", 'ses-01', 'beh',
@@ -63,7 +65,9 @@ def wlsubj042_pilot(base_dir):
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Aug-23_wl_subj042_sess1.hdf5"),
         os.path.join(base_dir, "stimuli", "pilot_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj042", "ses-00", "func",
-                     "sub-wlsubj042_ses-00_task-sfp_run_%02d_events.tsv"))
+                     "sub-wlsubj042_ses-00_task-sfp_run-%02d_events.tsv"))
+    if not os.path.isdir(os.path.join(base_dir, 'sub-wlsubj042', 'ses-00', 'beh')):
+        os.makedirs(os.path.join(base_dir, 'sub-wlsubj042', 'ses-00', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Aug-23_wl_subj042_sess1.hdf5"),
         os.path.join(base_dir, "sub-wlsubj042", 'ses-00', 'beh',
@@ -87,7 +91,9 @@ def wlsubj042_nov(base_dir):
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042_sess0.hdf5"),
         os.path.join(base_dir, "stimuli", "unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj042", "ses-01", "func",
-                     "sub-wlsubj042_ses-01_task-sfp_run_%02d_events.tsv"))
+                     "sub-wlsubj042_ses-01_task-sfp_run-%02d_events.tsv"))
+    if not os.path.isdir(os.path.join(base_dir, 'sub-wlsubj042', 'ses-01', 'beh')):
+        os.makedirs(os.path.join(base_dir, 'sub-wlsubj042', 'ses-01', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042_sess0.hdf5"),
         os.path.join(base_dir, "sub-wlsubj042", 'ses-01', 'beh',
@@ -111,7 +117,9 @@ def wlsubj045_nov(base_dir):
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj045_sess0.hdf5"),
         os.path.join(base_dir, "stimuli", "unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj045", "ses-01", "func",
-                     "sub-wlsubj045_ses-01_task-sfp_run_%02d_events.tsv"))
+                     "sub-wlsubj045_ses-01_task-sfp_run-%02d_events.tsv"))
+    if not os.path.isdir(os.path.join(base_dir, 'sub-wlsubj045', 'ses-01', 'beh')):
+        os.makedirs(os.path.join(base_dir, 'sub-wlsubj045', 'ses-01', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj045_sess0.hdf5"),
         os.path.join(base_dir, "sub-wlsubj045", 'ses-01', 'beh',
