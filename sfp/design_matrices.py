@@ -163,7 +163,7 @@ def create_all_BIDS_events_tsv(behavioral_results_path, unshuffled_stim_descript
             design_df['stim_file'] = stim_path
             design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index']]
             design_df['onset'] = design_df.onset.apply(lambda x: "%.03f" % x)
-            design_df.to_csv(save_path % run_num+1, '\t')
+            design_df.to_csv(save_path % (run_num+1), '\t', index=False)
         run_num += 1
 
 
