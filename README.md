@@ -16,7 +16,7 @@ Matlab:
 Python: 
 
  - see `requirements.txt` file
- - ![WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
+ - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
    (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/))
 
 Other: 
@@ -81,17 +81,17 @@ need it.
 # Snakemake
 
 A Snakefile is included with this project to enable the use
-of ![snakemake](http://snakemake.readthedocs.io/en/latest/). This is
+of [snakemake](http://snakemake.readthedocs.io/en/latest/). This is
 highly recommended, since it will allow you to easily to rerun the
 analyses exactly as I have performed them and it enables easy use on a
 cluster. To
 use,
-![install snakemake](http://snakemake.readthedocs.io/en/latest/getting_started/installation.html) and,
+[install snakemake](http://snakemake.readthedocs.io/en/latest/getting_started/installation.html) and,
 if using on a cluster, set up your
 appropriate
-![Snakemake profile](https://github.com/Snakemake-Profiles/doc) (see
+[Snakemake profile](https://github.com/Snakemake-Profiles/doc) (see
 the
-![snakemake docs](http://snakemake.readthedocs.io/en/latest/executable.html#profiles)for
+[snakemake docs](http://snakemake.readthedocs.io/en/latest/executable.html#profiles)for
 more info on profiles). Then simply type `snakemake {target}` to
 re-run the analyses. 
 
