@@ -1,5 +1,5 @@
 import os
-# the directory that contains the data (in BIDS format)
+
 configfile:
     "config.yml"
 if not os.path.isdir(config["DATA_DIR"]):
@@ -33,19 +33,16 @@ rule stimuli_idx:
     shell:
         "python sfp/stimuli.py {wildcards.subject} -i -s {params.seed}"
 
-# I was thinking I should do something like this
-# https://groups.google.com/forum/#!topic/snakemake/e0XNmXqL7Bg in order to be able to run things
-# both on and off cluster, but now I'm thinking maybe I make the things that should be run on the
-# cluster always call `module` so they fail if run locally. that would work for me at any rate.
-
-# this has to be run on the cluster, otherwise it will fail
 rule preprocess:
     input:
         os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", "{subject}"),
         data_dir = os.path.join(config["DATA_DIR"], "{subject}", "{session}"),
         freesurfer_dir = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer"),
     output:
-        output_dir = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}"),
+        output_dir = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}")
+    resources:
+        cpus_per_task = 10,
+        mem = 48
     params:
         sbref = 1,
         epis = lambda wildcards:
@@ -55,9 +52,10 @@ rule preprocess:
          ('sub-wlsubj045', 'ses-pilot01'): [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}.get((wildcards.subject, wildcards.session)),
         distortPE = 'PA',
         distortrevPE = 'AP',
-        plugin = "Linear",        
-        working_dir = "/scratch/wfb229",
-        PEdim = 'y'
+        plugin = "MultiProc",        
+        working_dir = lambda wildcards: "/scratch/wfb229/preproc_%s_%s" % (wildcards.subject, wildcards.session),
+        PEdim = 'y',
+        plugin_args = lambda wildcards, resources: ",".join("%s:%s" % (k,v) for k,v in {'n_procs': resources.cpus_per_task, 'memory_gb': resources.mem}.items())
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_benchmark.txt")
     log:
@@ -67,4 +65,13 @@ rule preprocess:
         "python ~/MRI_tools/preprocessing/prisma_preproc.py -subject {wildcards.subject} -datadir "
         "{input.data_dir} -outdir {output.output_dir} -epis {params.epis} -sbref {params.sbref} "
         "-distortPE {params.distortPE} -distortrevPE {params.distortrevPE} -working_dir "
-        "{params.working_dir} -PEdim {params.PEdim} -plugin {params.plugin} -dir_structure bids"
+        "{params.working_dir} -PEdim {params.PEdim} -plugin {params.plugin} -dir_structure bids "
+        "-plugin_args {params.plugin_args}"
+
+rule GLMdenoise:
+    input:
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}"),
+        GLMdenoise_path = os.path.join(os.path.expanduser('~'), 'matlab-toolboxes', 'GLMdenoise')
+    resources:
+        cpus_per_task = 8,
+        mem = 62
