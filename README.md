@@ -13,9 +13,15 @@ Matlab:
 
  - [GLMdenoise](https://github.com/kendrickkay/GLMdenoise/)
  
-Python: see `requirements.txt` file
+Python: 
 
-Other: [FreeSurfer](http://freesurfer.net/)
+ - see `requirements.txt` file
+ - ![WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
+   (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/))
+
+Other: 
+
+ - [FreeSurfer](http://freesurfer.net/)
 
 # Overview of analysis
 
@@ -71,6 +77,30 @@ arguments to set the paths yourself.
 `transfer_to_BIDS.py` is a file used to get the data from the format
 it came off the scanner into the BIDS structure. As such, you will not
 need it.
+
+# Snakemake
+
+A Snakefile is included with this project to enable the use
+of ![snakemake](http://snakemake.readthedocs.io/en/latest/). This is
+highly recommended, since it will allow you to easily to rerun the
+analyses exactly as I have performed them and it enables easy use on a
+cluster. To
+use,
+![install snakemake](http://snakemake.readthedocs.io/en/latest/getting_started/installation.html) and,
+if using on a cluster, set up your
+appropriate
+![Snakemake profile](https://github.com/Snakemake-Profiles/doc) (see
+the
+![snakemake docs](http://snakemake.readthedocs.io/en/latest/executable.html#profiles)for
+more info on profiles). Then simply type `snakemake {target}` to
+re-run the analyses. 
+
+For example, if running on NYU's HPC cluster, set up the SLURM profile
+and use the following command: `snakemake --profile slurm --jobs {n}
+--cluster-config cluster.json {target}`, where `{n}` is the number of
+jobs you allow `snakemake` to simultaneously submit to the cluster and
+`cluster.json` is an included configuration file with some reasonable
+values for the cluster (feel free to change these as needed).
 
 Project Organization
 ------------
