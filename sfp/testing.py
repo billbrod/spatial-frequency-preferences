@@ -5,6 +5,7 @@
 import numpy as np
 from psychopy import visual, event
 from psychopy.tools import imagetools
+import pandas as pd
 import argparse
 import warnings
 
@@ -25,7 +26,7 @@ def create_alternating_stimuli(size):
     return np.cos(size * np.pi * x)
 
 
-def test_display(screen_size, stimulus=None):
+def test_display(screen_size, stimulus=None, stimulus_description_csv=None, freqs=None):
     """create a psychopy window and display a stimulus
 
     if stimulus is None, display create_alternating_stimuli. if a filename ending in npy, load that
@@ -35,6 +36,15 @@ def test_display(screen_size, stimulus=None):
         screen_size = [screen_size, screen_size]
     if isinstance(stimulus, str):
         stimulus = np.load(stimulus)
+        if stimulus_description_csv is not None:
+            stim_df = pd.read_csv(stimulus_description_csv)
+            print(freqs)
+            print(type(freqs))
+            if 'w_r' in stim_df.columns:
+                stim_idx = stim_df[(stim_df.w_a==freqs[0]) & (stim_df.w_r==freqs[1])].index[0]
+            else:
+                stim_idx = stim_df[(stim_df.w_x==freqs[0]) & (stim_df.w_y==freqs[1])].index[0]
+            stimulus = stimulus[stim_idx, :, :]
     elif stimulus is None:
         stimulus = create_alternating_stimuli(min(screen_size))
     if stimulus.ndim > 2:
@@ -51,8 +61,8 @@ def test_display(screen_size, stimulus=None):
     all_keys = event.waitKeys(keyList=['q', 'escape'])
     if 'q' in [k[0] for k in all_keys] or 'escape' in [k[0] for k in all_keys]:
         win.close()
-        
-        
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Test your display")
     parser.add_argument("screen_size", help="Screen size, in pixels. Can be one or two integers",
@@ -60,5 +70,11 @@ if __name__ == '__main__':
     parser.add_argument("--stimulus", "-s",
                         help=("Optional, path to stimulus. If not used, will create alternating "
                               "black and white pixels the size of the screen"))
+    parser.add_argument("--stimulus_description_csv", '-d',
+                        help=("Optional, path to csv containing description of stimuli. Used with"
+                              " --freqs arg to find stimuli with specified frequency"))
+    parser.add_argument("--freqs", '-f', nargs=2, type=float,
+                        help=("Optional, 2 floats specifying the frequency of the stimulus to "
+                              "display. Should be either w_x, w_y or w_a, w_r"))
     args = vars(parser.parse_args())
-    test_display(args['screen_size'], args['stimulus'])
+    test_display(**args)

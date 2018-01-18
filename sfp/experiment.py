@@ -8,6 +8,7 @@ also make sure that you've already set up the monitor you'll be using in PsychoP
 """
 
 import numpy as np
+import os
 from psychopy import visual, core, event
 from psychopy.tools import imagetools
 import h5py
@@ -178,6 +179,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         fix_button_prob, fix_dot_length_range, final_blank_sec_length, **monitor_kwargs)
 
     win = visual.Window(**monitor_kwargs)
+    win.mouseVisible = False
     win.gammaRamp = np.tile(np.linspace(0, 1, 256), (3, 1))
 
     if fix_deg_size is not None:
@@ -257,7 +259,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     return keys_pressed, fixation_info, timings, expt_params, idx
 
 
-def expt(stim_path, number_of_runs, subj_name, output_dir="../data/raw_behavioral",
+def expt(stim_path, number_of_runs, first_run, subj_name, output_dir="../data/raw_behavioral",
          input_dir="../data/stimuli", **kwargs):
     """run a full experiment
 
@@ -273,7 +275,14 @@ def expt(stim_path, number_of_runs, subj_name, output_dir="../data/raw_behaviora
     sess_num = 0
     while glob.glob(file_path.format(sess=sess_num)):
         sess_num += 1
-    idx_paths = [input_dir + "%s_run%02d_idx.npy" % (subj_name, i) for i in range(number_of_runs)]
+    idx_paths = [input_dir + "%s_run%02d_idx.npy" % (subj_name, i) for i in range(first_run, first_run+number_of_runs)]
+    for p in idx_paths:
+        if not os.path.isfile(p):
+            raise IOError("Unable to find array of stimulus indices %s!" % p)
+    print("Running %d runs, with the following stimulus:" % number_of_runs)
+    print("\t%s" % stim_path)
+    print("Will use the following indices:")
+    print("\t%s" % "\n\t".join(idx_paths))
     for i, path in enumerate(idx_paths):
         keys, fixation, timings, expt_params, idx = run(stim_path, path, **kwargs)
         with h5py.File(file_path.format(sess=sess_num), 'a') as f:
@@ -302,9 +311,9 @@ if __name__ == '__main__':
         description=("Run an experiment! This takes in the path to your unshuffled stimuli, the "
                      "name of your subject, and the number of runs, and passes that to expt. This "
                      "will then assume that your run indices (which shuffle the stimuli) are saved"
-                     "in the INPUT_DIR at SUBJ_NAME_runNUM_idx.npy, where NUM runs from 00 to "
-                     "NUMBER_OF_RUNS-1 (because this is python, 0-based indexing), with all "
-                     "single-digit numbers represented as 0#."),
+                     "in the INPUT_DIR at SUBJ_NAME_runNUM_idx.npy, where NUM runs from FIRST_RUN "
+                     "to FIRST_RUN+NUMBER_OF_RUNS-1 (because this is python, 0-based indexing), "
+                     "with all single-digit numbers represented as 0#."),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("stimuli_path",
                         help="path to your unshuffled stimuli. There should only be one of these")
@@ -315,8 +324,10 @@ if __name__ == '__main__':
                         default="data/stimuli")
     parser.add_argument("--output_dir", '-o', help="directory to place output in",
                         default="data/raw_behavioral")
+    parser.add_argument("--first_run", '-f', type=int, default=0,
+                        help=("Which run to run first. Useful if, for instance, you ran the first "
+                              "two runs without problem and then had to quit out in the third. You"
+                              " should then set this to 3."))
     args = vars(parser.parse_args())
-    print("Running %d runs, with the following stimulus:" % args['number_of_runs'])
-    print(args['stimuli_path'])
-    expt(args['stimuli_path'], args['number_of_runs'], args['subj_name'], args['output_dir'],
-         args['input_dir'], session_length=None, fix_deg_size=.25)
+    expt(args['stimuli_path'], args['number_of_runs'], args['first_run'], args['subj_name'],
+         args['output_dir'], args['input_dir'], session_length=None, fix_deg_size=.25)
