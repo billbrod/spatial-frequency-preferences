@@ -103,12 +103,13 @@ def add_img_to_xaxis(fig, ax, img, rel_position, size=.1, **kwargs):
     im_plot(img, ax=ax1, **kwargs)
 
 
-def create_sin_cpp(size, w_x, w_y, phase=0):
+def create_sin_cpp(size, w_x, w_y, phase=0, origin=None):
     """create a full 2d sine wave, with frequency in cycles / pixel
     """
-    origin = (size+1) / 2.
+    if origin is None:
+        origin = [(size+1) / 2., (size+1) / 2.]
     x = np.array(range(1, size+1))
-    x, y = np.meshgrid(x - origin, x - origin)
+    x, y = np.meshgrid(x - origin[0], x - origin[1])
     return np.cos(2*np.pi*x*w_x + 2*np.pi*y*w_y + phase)
 
 
@@ -136,7 +137,7 @@ def create_circle_mask(x, y, rad, size):
     return mask
 
 
-def mask_array_like_grating(masked, array_to_mask, mid_val=127, val_to_set=0):
+def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     """mask array_to_mask the way that masked has been masked
 
     this takes two arrays of the same size, grating and array_to_mask. masked should already be
@@ -149,9 +150,17 @@ def mask_array_like_grating(masked, array_to_mask, mid_val=127, val_to_set=0):
     R = ppt.mkR(masked.shape)
     x, y = np.where(masked != mid_val)
     Rmin = R[x, y].min()
-    array_to_mask[R < Rmin] = val_to_set
+    try:
+        array_to_mask[R < Rmin] = val_to_set
+    except IndexError:
+        # then there is no R<Rmin
+        pass
     Rmax = R[x, y].max()
-    array_to_mask[R > Rmax] = val_to_set
+    try:
+        array_to_mask[R > Rmax] = val_to_set
+    except IndexError:
+        # then there is no R>Rmax
+        pass
     return array_to_mask
 
 
@@ -178,8 +187,6 @@ def fit_log_norm(x, y, **kwargs):
 
     popt, pcov = sp.optimize.curve_fit(log_norm_pdf, plot_data.index, plot_data.values)
     plt.plot(plot_data.index, log_norm_pdf(plot_data.index, *popt), **kwargs)
-
-    # to plot ci band, use ax.fill_between(x, low, high, facecolor=color, alpha=.2)
 
 
 def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
@@ -224,7 +231,7 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
     return lines
 
 
-def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, alpha=50, phase=0, origin=None):
+def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=None):
     """create a local 2d sin grating based on the gradients dx and dy
 
     this uses the gradients at location loc_x, loc_y to create a small grating to approximate a
@@ -252,7 +259,7 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, alpha=50, phase=0, 
     if w_r is None and w_a is None:
         local_phase = np.mod(w_x * local_x + w_y * local_y + phase, 2*np.pi)
     else:
-        local_phase = np.mod((w_r/np.pi) * np.log2(local_x**2 + local_y**2 + alpha**2) +
+        local_phase = np.mod(((w_r * np.log(2))/2.) * np.log2(local_x**2 + local_y**2) +
                              w_a * np.arctan2(local_y, local_x) + phase, 2*np.pi)
     if w_x == 0 and w_y == 0:
         return 0
@@ -260,7 +267,7 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, alpha=50, phase=0, 
         return np.cos(w_x*x + w_y*y + local_phase)
 
 
-def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, alpha=50, w_r=None,
+def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=None,
                                w_a=None, origin=None, figsize=None, **kwargs):
     """plot the "windowed approximation" of a grating
 
@@ -274,7 +281,7 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, alpha=5
     grating=sfp.utils.create_sin_cpp(1080, .005, .005) to see an example)!
 
     if `grating` is one of our log polar gratings, then w_r and w_a also need to be set. if it's a
-    regular 2d grating, then they should both be None and alpha is unused.
+    regular 2d grating, then they should both be None.
 
     num_windows: int, the number of windows in each direction that we'll use. as this gets larger,
     the approximation will look better and better (and this will take a longer time to run)
@@ -298,8 +305,7 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, alpha=5
             mask = create_circle_mask(loc_x, loc_y, mask_size, size)
             masks += mask
             masked_grating += mask * grating
-            masked_approx += mask * local_grad_sin(dx, dy, loc_x, loc_y, w_r, w_a, alpha, phase,
-                                                   origin)
+            masked_approx += mask * local_grad_sin(dx, dy, loc_x, loc_y, w_r, w_a, phase, origin)
     if w_r is not None and w_a is not None:
         # in order to make the space between the masks black, that area should have the minimum
         # value, -1. but for the above to all work, that area needs to be 0, so this corrects that.
