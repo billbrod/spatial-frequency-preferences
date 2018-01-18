@@ -74,9 +74,9 @@ from this directory (and so you should call `python sfp/foo.py` or
 run them from somewhere else, but then you'll need to use the optional
 arguments to set the paths yourself.
 
-`transfer_to_BIDS.py` is a file used to get the data from the format
-it came off the scanner into the BIDS structure. As such, you will not
-need it.
+`sfp/transfer_to_BIDS.py` is a file used to get the data from the
+format it came off the scanner into the BIDS structure. As such, you
+will not need it.
 
 # Snakemake
 
@@ -92,8 +92,10 @@ appropriate
 [Snakemake profile](https://github.com/Snakemake-Profiles/doc) (see
 the
 [snakemake docs](http://snakemake.readthedocs.io/en/latest/executable.html#profiles)for
-more info on profiles). Then simply type `snakemake {target}` to
-re-run the analyses. 
+more info on profiles; I had to make some modifications to get this
+working on NYU's HPC, see my
+profile [here](https://github.com/billbrod/snakemake-slurm)). Then
+simply type `snakemake {target}` to re-run the analyses.
 
 For example, if running on NYU's HPC cluster, set up the SLURM profile
 and use the following command: `snakemake --profile slurm --jobs {n}
