@@ -32,13 +32,13 @@ def wlsubj001_oct(base_dir):
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj001', '20171007_prisma'),
                                  base_dir, [10, 12, 14, 16, 18, 20, 22, 24, 26],
-                                 [9, 11, 13, 15, 17, 19, 21, 23, 25], "sfp", "01")
+                                 [9, 11, 13, 15, 17, 19, 21, 23, 25], "sfp", "pilot01")
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj001', '20171007_prisma'),
-                                 base_dir, 6, 5, session_label="01")
+                                 base_dir, 6, 5, session_label="pilot01")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
@@ -74,13 +74,13 @@ def wlsubj042_pilot(base_dir):
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20170823_prisma_pilot'),
                                  base_dir, [10, 12, 14, 16, 18, 20, 22, 24],
-                                 [9, 11, 13, 15, 17, 19, 21, 23], "sfp", "00")
+                                 [9, 11, 13, 15, 17, 19, 21, 23], "sfp", "pilot00")
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20170823_prisma_pilot'),
-                                 base_dir, 6, 5, session_label="00")
+                                 base_dir, 6, 5, session_label="pilot00")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
@@ -116,13 +116,13 @@ def wlsubj042_nov(base_dir):
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20171107'),
                                  base_dir, [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
-                                 [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "01")
+                                 [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "pilot01")
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20171107'),
-                                 base_dir, 6, 5, session_label="01")
+                                 base_dir, 6, 5, session_label="pilot01")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
@@ -158,13 +158,13 @@ def wlsubj045_nov(base_dir):
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj045', '20171107'),
                                  base_dir, [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
-                                 [9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31], "sfp", "01")
+                                 [9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31], "sfp", "pilot01")
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj045', '20171107'),
-                                 base_dir, 6, 5, session_label="01")
+                                 base_dir, 6, 5, session_label="pilot01")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
