@@ -76,6 +76,8 @@ def create_design_df(behavioral_results, unshuffled_stim_description, run_num, d
     returns the design dataframe, lengths of stimuli and TRs (in seconds)
     """
     df = unshuffled_stim_description[['w_r', 'w_a', 'index', 'res']].set_index('index')
+    if len(df) != len(behavioral_results['run_%02d_shuffled_indices' % run_num]):
+        raise Exception("Behavioral results and stimulus description csv have different numbers of stimuli!")
     df = df.reindex(behavioral_results['run_%02d_shuffled_indices' % run_num].value)
     class_size = _discover_class_size(df)
     df['class_idx'] = df.index / class_size
