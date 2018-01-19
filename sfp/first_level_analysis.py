@@ -570,8 +570,8 @@ if __name__ == '__main__':
         save_dict['hemi_bin'] = ''
     save_name = "{df_mode}_v{vareas}_e{eccen}{eccen_bin}{hemi_bin}.csv".format(**save_dict)
     args['save_path'] = os.path.join(save_dir, subject, save_name)
-    if not os.path.isdir(os.path.split(args['save_path'])[0]):
-        os.makedirs(os.path.split(args['save_path'])[0])
+    if not os.path.isdir(os.path.dirname(args['save_path'])):
+        os.makedirs(os.path.dirname(args['save_path']))
     for k in ['behavioral_results_path', 'results_template_path', 'benson_template_path']:
         args[k] = args[k].format(subj=subject, **os.environ)
     main(**args)

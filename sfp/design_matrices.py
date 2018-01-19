@@ -149,8 +149,8 @@ def create_all_BIDS_events_tsv(behavioral_results_path, unshuffled_stim_descript
     """
     results = h5py.File(behavioral_results_path)
     df = pd.read_csv(unshuffled_stim_descriptions_path)
-    if not os.path.exists(os.path.split(save_path)[0]) and os.path.split(save_path)[0]:
-        os.makedirs(os.path.split(save_path)[0])
+    if not os.path.exists(os.path.dirname(save_path)) and os.path.dirname(save_path):
+        os.makedirs(os.path.dirname(save_path))
     run_num = 0
     while "run_%02d_button_presses" % run_num in results.keys():
         n_TRs = sum(['5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
@@ -245,14 +245,14 @@ def create_all_design_matrices(behavioral_results_path, unshuffled_stim_descript
     run_num = 0
     stim_lengths = []
     TR_lengths = []
-    if not os.path.exists(os.path.split(save_path)[0]):
-        os.makedirs(os.path.split(save_path)[0])
+    if not os.path.exists(os.path.dirname(save_path)):
+        os.makedirs(os.path.dirname(save_path))
     while "run_%02d_button_presses" % run_num in results.keys():
         n_TRs = sum(['5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
         if n_TRs > 0:
             run_nums.append(run_num)
         run_num += 1
-    run_details_save_path = os.path.join(os.path.split(save_path)[0], "run_details_%s.mat" % mat_type)
+    run_details_save_path = os.path.join(os.path.dirname(save_path), "run_details_%s.mat" % mat_type)
     save_labels = np.array(run_nums).copy()
     if permuted is True:
         if 'permuted' not in save_path:
