@@ -20,11 +20,13 @@ import os
 import sys
 import argparse
 import shutil
+import h5py
 sys.path.append(os.path.join(MRI_TOOLS_PATH, "BIDS"))
 sys.path.append(SFP_PATH)
 import prisma_to_BIDS
 from sfp import design_matrices
 import warnings
+import glob
 
 
 def wlsubj001_oct(base_dir):
@@ -193,6 +195,27 @@ def wlsubj045_nov(base_dir):
         os.path.join(base_dir, "sourcedata", "wl_subj045", '20171107',
                      '2017-Nov-07_wl_subj045_notes.md'))
     print("  Successfully moved over notes")
+
+
+def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
+                   raw_behavioral_glob_str="data/raw_behavioral/2017-Aug*.hdf5"):
+    """renames the stimuli in hdf5 file from old_stim_name to new_stim_name
+
+    this is useful because 'canonical' stimuli name for this experiment is unshuffled.npy but as
+    I've updated the stimuli a couple of times and so want to update the files referred to in the
+    raw behavioral files (which is how we store this information) to make sure they're correct. I
+    always want to keep the current stimuli as unshuffled.npy, and so would like to rename the old
+    stimuli to pilot00_unshuffled.npy or something similar.
+
+    NOTE that this doesn't rename the actual stimuli npy file!
+    """
+    for f in glob.glob(raw_behavioral_glob_str):
+        res = h5py.File(f)
+        for k, v in res.iteritems():
+            if 'stim_path' in k and old_stim_name == os.path.split(v.value)[-1]:
+                del res[k]
+                res.create_dataset(k, data=v.value.replace(old_stim_name, new_stim_name))
+        res.close()
 
 
 if __name__ == '__main__':
