@@ -38,12 +38,14 @@ def wlsubj001_oct(base_dir):
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj001", "ses-pilot01", "func"))
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj001', '20171007_prisma'),
                                  base_dir, 6, 5, session_label="pilot01")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj001", "ses-pilot01", "fmap"))
     try:
         prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Anatomy", "wl_subj001", "RAS",
                                               'raw', "EK_2013_12_17_T1"),
@@ -69,9 +71,13 @@ def wlsubj001_oct(base_dir):
         os.path.join(base_dir, "sourcedata", "wl_subj001", '20171007_prisma',
                      '2017-Oct-09_wl_subj001_notes.md'))
     print("  Successfully moved over notes")
+    for f in glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "wl_subj001_run*_idx.npy")):
+        shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj001", '20171007_prisma',
+                                    os.path.split(f)[1]))
+    print("  Successfully moved over stimuli presentation indices")
 
 
-def wlsubj042_pilot(base_dir):
+def wlsubj042_aug(base_dir):
     print("Moving wl_subj042's data from 20170823_prisma_pilot")
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20170823_prisma_pilot'),
@@ -80,12 +86,14 @@ def wlsubj042_pilot(base_dir):
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj042", "ses-pilot00", "func"))
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20170823_prisma_pilot'),
                                  base_dir, 6, 5, session_label="pilot00")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj042", "ses-pilot00", "fmap"))
     try:
         prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Retinotopy", "wl_subj042",
                                               "20170713_PrismaPilot", "RAW"),
@@ -111,6 +119,10 @@ def wlsubj042_pilot(base_dir):
         os.path.join(base_dir, "sourcedata", "wl_subj042", '20170823_prisma_pilot',
                      '2017-Aug-23_wl_subj042_notes.md'))
     print("  Successfully moved over notes")
+    for f in glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "wl_subj042_run*_idx.npy")):
+        shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj042", '201710823_prisma_pilot',
+                                    os.path.split(f)[1]))
+    print("  Successfully moved over stimuli presentation indices")
 
 
 def wlsubj042_nov(base_dir):
@@ -122,12 +134,14 @@ def wlsubj042_nov(base_dir):
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj042", "ses-pilot01", "func"))
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20171107'),
                                  base_dir, 6, 5, session_label="pilot01")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj042", "ses-pilot01", "fmap"))
     try:
         prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Retinotopy", "wl_subj042",
                                               "20170713_PrismaPilot", "RAW"),
@@ -150,9 +164,13 @@ def wlsubj042_nov(base_dir):
     print("  Successfully moved over behavioral data hdf5")
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042.md"),
-        os.path.join(base_dir, "sourcedata", "wl_subj042", '20170823_prisma_pilot',
+        os.path.join(base_dir, "sourcedata", "wl_subj042", '20171107',
                      '2017-Nov-07_wl_subj042_notes.md'))
     print("  Successfully moved over notes")
+    for f in glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "wl_subj042_pilot_run*_idx.npy")):
+        shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj042", '20171107',
+                                    os.path.split(f)[1]))
+    print("  Successfully moved over stimuli presentation indices")
 
 
 def wlsubj045_nov(base_dir):
@@ -164,12 +182,14 @@ def wlsubj045_nov(base_dir):
         print("  Successfully moved over functional data")
     except IOError:
         warnings.warn("Functional data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj045", "ses-pilot01", "func"))
     try:
         prisma_to_BIDS.copy_fmap(os.path.join(base_dir, "sourcedata", 'wl_subj045', '20171107'),
                                  base_dir, 6, 5, session_label="pilot01")
         print("  Successfully moved over field map data")
     except IOError:
         warnings.warn("Field map data already found, skipping...")
+    prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj045", "ses-pilot01", "fmap"))
     try:
         prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Retinotopy", "wl_subj045",
                                               "20171031_Anatomy", "RAW"),
@@ -195,6 +215,10 @@ def wlsubj045_nov(base_dir):
         os.path.join(base_dir, "sourcedata", "wl_subj045", '20171107',
                      '2017-Nov-07_wl_subj045_notes.md'))
     print("  Successfully moved over notes")
+    for f in glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "wl_subj045_run*_idx.npy")):
+        shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj045", '20171107',
+                                    os.path.split(f)[1]))
+    print("  Successfully moved over stimuli presentation indices")
 
 
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
@@ -232,7 +256,7 @@ if __name__ == '__main__':
     if 'wl_subj001' in args['subject']:
         wlsubj001_oct(args['base_dir'])
     if 'wl_subj042-0' in args['subject']:
-        wlsubj042_pilot(args['base_dir'])
+        wlsubj042_aug(args['base_dir'])
     if 'wl_subj042-1' in args['subject']:
         wlsubj042_nov(args['base_dir'])
     if 'wl_subj045' in args['subject']:
