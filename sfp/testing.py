@@ -26,7 +26,7 @@ def create_alternating_stimuli(size):
     return np.cos(size * np.pi * x)
 
 
-def test_display(screen_size, stimulus=None, stimulus_description_csv=None, freqs=None):
+def test_display(screen_size, stimulus=None, stimulus_description_csv=None, freqs=None, text=None):
     """create a psychopy window and display a stimulus
 
     if stimulus is None, display create_alternating_stimuli. if a filename ending in npy, load that
@@ -45,18 +45,21 @@ def test_display(screen_size, stimulus=None, stimulus_description_csv=None, freq
             else:
                 stim_idx = stim_df[(stim_df.w_x==freqs[0]) & (stim_df.w_y==freqs[1])].index[0]
             stimulus = stimulus[stim_idx, :, :]
-    elif stimulus is None:
+    elif stimulus is None and text is None:
         stimulus = create_alternating_stimuli(min(screen_size))
-    if stimulus.ndim > 2:
-        warnings.warn("stimulus is more than 2d, assuming it's three and [0,:,:] ...")
-        stimulus = stimulus[0, :, :]
-    stim_shape = stimulus.shape
-    if stimulus.min() < -1 or stimulus.max() > 1:
-        stimulus = imagetools.array2image(stimulus)
     win = visual.Window(screen_size, fullscr=True, screen=1, colorSpace='rgb255', color=127,
                         units='pix')
-    grating = visual.ImageStim(win, stimulus, size=stim_shape)
-    grating.draw()
+    if text is None:
+        if stimulus.ndim > 2:
+            warnings.warn("stimulus is more than 2d, assuming it's three and [0,:,:] ...")
+            stimulus = stimulus[0, :, :]
+        stim_shape = stimulus.shape
+        if stimulus.min() < -1 or stimulus.max() > 1:
+            stimulus = imagetools.array2image(stimulus)
+        thing_to_display = visual.ImageStim(win, stimulus, size=stim_shape)
+    else:
+        thing_to_display = visual.TextStim(win, text)
+    thing_to_display.draw()
     win.flip()
     all_keys = event.waitKeys(keyList=['q', 'escape'])
     if 'q' in [k[0] for k in all_keys] or 'escape' in [k[0] for k in all_keys]:
@@ -76,5 +79,9 @@ if __name__ == '__main__':
     parser.add_argument("--freqs", '-f', nargs=2, type=float,
                         help=("Optional, 2 floats specifying the frequency of the stimulus to "
                               "display. Should be either w_x, w_y or w_a, w_r"))
+    parser.add_argument("--text", "-t", type=str,
+                        help=("Optional, text to display. If set, will not show a grating but "
+                              "instead whatever text you enter. Text can be easier to check for "
+                              "blur"))
     args = vars(parser.parse_args())
     test_display(**args)
