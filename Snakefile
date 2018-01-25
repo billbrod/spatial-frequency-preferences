@@ -21,7 +21,9 @@ rule all:
 rule stimuli:
     output:
         "data/stimuli/unshuffled.npy",
-        "data/stimuli/unshuffled_stim_description.csv"
+        "data/stimuli/unshuffled_stim_description.csv",
+        "data/stimuli/constant_unshuffled.npy",
+        "data/stimuli/constant_unshuffled_stim_description.csv"
     shell:
         "python sfp/stimuli.py -c"
 
