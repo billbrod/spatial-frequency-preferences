@@ -316,7 +316,7 @@ if __name__ == '__main__':
                      "with all single-digit numbers represented as 0#."),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("stimuli_path",
-                        help="path to your unshuffled stimuli. There should only be one of these")
+                        help="path to your unshuffled stimuli.")
     parser.add_argument("number_of_runs", help="number of runs you want to run", type=int)
     parser.add_argument("subj_name", help="name of the subject")
     parser.add_argument("--input_dir", '-i', help=("path to directory that contains your shuffled"
