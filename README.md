@@ -37,7 +37,7 @@ for now, the following the analysis steps:
    -i`). After you run this the first time (and thus create the
    unshuffled stimuli), you probably only need the `-i` flag to create
    the index.
-2. Run the experiment and gather fMRI data (`python -m sfp.experiment
+2. Run the experiment and gather fMRI data (`python sfp/experiment
    data/stimuli/unshuffled.npy 12 subject_name`). Each run will last 4
    minutes (48 stimulus classes and 10 blank trials, each for 4
    seconds, gives you 3 minutes 52 seconds, and then each run ends
