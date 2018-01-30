@@ -14,7 +14,6 @@ This should be run from the BIDS code directory (by default, all paths will assu
 
 MRI_TOOLS_PATH = "/home/billbrod/Documents/Winawer_lab_MRI_tools"
 SFP_PATH = "/home/billbrod/Documents/spatial-frequency-preferences"
-ACADIA_PROJECTS_PATH = "/mnt/Acadia/Projects"
 
 import os
 import sys
@@ -29,7 +28,7 @@ import warnings
 import glob
 
 
-def wlsubj001_oct(base_dir):
+def wlsubj001_oct(base_dir, acadia_projects_dir):
     print("Moving wl_subj001's data from 20171007_prisma")
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj001', '20171007_prisma'),
@@ -48,7 +47,7 @@ def wlsubj001_oct(base_dir):
         warnings.warn("Field map data already found, skipping...")
     prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj001", "ses-pilot01", "fmap"))
     try:
-        prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Anatomy", "wl_subj001", "RAS",
+        prisma_to_BIDS.copy_anat(os.path.join(acadia_projects_dir, "Anatomy", "wl_subj001", "RAS",
                                               'raw', "EK_2013_12_17_T1"),
                                  base_dir, [2, 3, 4], 'T1w')
         print("  Successfully moved over anatomical data")
@@ -78,7 +77,7 @@ def wlsubj001_oct(base_dir):
     print("  Successfully moved over stimuli presentation indices")
 
 
-def wlsubj042_aug(base_dir):
+def wlsubj042_aug(base_dir, acadia_projects_dir):
     print("Moving wl_subj042's data from 20170823_prisma_pilot")
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20170823_prisma_pilot'),
@@ -96,7 +95,7 @@ def wlsubj042_aug(base_dir):
         warnings.warn("Field map data already found, skipping...")
     prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj042", "ses-pilot00", "fmap"))
     try:
-        prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Retinotopy", "wl_subj042",
+        prisma_to_BIDS.copy_anat(os.path.join(acadia_projects_dir, "Retinotopy", "wl_subj042",
                                               "20170713_PrismaPilot", "RAW"),
                                  base_dir, [15, 16], 'T1w')
         print("  Successfully moved over anatomical data")
@@ -126,7 +125,7 @@ def wlsubj042_aug(base_dir):
     print("  Successfully moved over stimuli presentation indices")
 
 
-def wlsubj042_nov(base_dir):
+def wlsubj042_nov(base_dir, acadia_projects_dir):
     print("Moving wl_subj042's data from 20171107")
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj042', '20171107'),
@@ -145,7 +144,7 @@ def wlsubj042_nov(base_dir):
         warnings.warn("Field map data already found, skipping...")
     prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj042", "ses-pilot01", "fmap"))
     try:
-        prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Retinotopy", "wl_subj042",
+        prisma_to_BIDS.copy_anat(os.path.join(acadia_projects_dir, "Retinotopy", "wl_subj042",
                                               "20170713_PrismaPilot", "RAW"),
                                  base_dir, [15, 16], 'T1w')
         print("  Successfully moved over anatomical data")
@@ -175,7 +174,7 @@ def wlsubj042_nov(base_dir):
     print("  Successfully moved over stimuli presentation indices")
 
 
-def wlsubj045_nov(base_dir):
+def wlsubj045_nov(base_dir, acadia_projects_dir):
     print("Moving wl_subj045's data from 20171107")
     try:
         prisma_to_BIDS.copy_func(os.path.join(base_dir, "sourcedata", 'wl_subj045', '20171107'),
@@ -194,7 +193,7 @@ def wlsubj045_nov(base_dir):
         warnings.warn("Field map data already found, skipping...")
     prisma_to_BIDS.json_check(os.path.join(base_dir, "sub-wlsubj045", "ses-pilot01", "fmap"))
     try:
-        prisma_to_BIDS.copy_anat(os.path.join(ACADIA_PROJECTS_PATH, "Retinotopy", "wl_subj045",
+        prisma_to_BIDS.copy_anat(os.path.join(acadia_projects_dir, "Retinotopy", "wl_subj045",
                                               "20171031_Anatomy", "RAW"),
                                  base_dir, [5, 6, 7], 'T1w')
         print("  Successfully moved over anatomical data")
@@ -255,12 +254,15 @@ if __name__ == '__main__':
     parser.add_argument("--base_dir", default='..',
                         help=("Base directory for the BIDS project. If unset, will assume this is"
                               "being run from the code directory within the BIDS structure."))
+    parser.add_argument("--acadia_projects_dir", default="/mnt/Acadia/Projects",
+                        help=("Path to the Acadia Projects directory. Necessary to find the "
+                              "anatomical data"))
     args = vars(parser.parse_args())
     if 'wl_subj001' in args['subject']:
-        wlsubj001_oct(args['base_dir'])
+        wlsubj001_oct(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj042-0' in args['subject']:
-        wlsubj042_aug(args['base_dir'])
+        wlsubj042_aug(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj042-1' in args['subject']:
-        wlsubj042_nov(args['base_dir'])
+        wlsubj042_nov(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj045' in args['subject']:
-        wlsubj045_nov(args['base_dir'])
+        wlsubj045_nov(args['base_dir'], args['acadia_projects_dir'])
