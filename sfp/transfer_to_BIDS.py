@@ -132,7 +132,7 @@ def wlsubj042_aug(base_dir, acadia_projects_dir):
                      '2017-Aug-23_wl_subj042_notes.md'))
     print("  Successfully moved over notes")
     for f in glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "wl_subj042_run*_idx.npy")):
-        shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj042", '201710823_prisma_pilot',
+        shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj042", '20170823_prisma_pilot',
                                     os.path.split(f)[1]))
     print("  Successfully moved over stimuli presentation indices")
     if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot00_unshuffled_stim_description.csv")):
