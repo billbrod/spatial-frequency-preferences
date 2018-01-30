@@ -64,8 +64,8 @@ def wlsubj001_oct(base_dir):
         os.makedirs(os.path.join(base_dir, 'sub-wlsubj001', 'ses-pilot01', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Oct-09_wl_subj001_sess1.hdf5"),
-        os.path.join(base_dir, "sub-wlsubj001", 'ses-pilot01', 'beh',
-                     'sub-wlsubj001_ses-pilot01_task-sfp_beh.hdf5'))
+        os.path.join(base_dir, "sourcedata", "wl_subj001", '20171007_prisma',
+                     '2017-Oct-09_wl_subj001_sess1.hdf5'))
     print("  Successfully moved over behavioral data hdf5")
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Oct-09_wl_subj001.md"),
@@ -112,8 +112,8 @@ def wlsubj042_aug(base_dir):
         os.makedirs(os.path.join(base_dir, 'sub-wlsubj042', 'ses-pilot00', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Aug-23_wl_subj042_sess1.hdf5"),
-        os.path.join(base_dir, "sub-wlsubj042", 'ses-pilot00', 'beh',
-                     'sub-wlsubj042_ses-pilot00_task-sfp_beh.hdf5'))
+        os.path.join(base_dir, "sourcedata", "wl_subj042", '20170823_prisma_pilot',
+                     '2017-Aug-23_wl_subj042_sess1.hdf5'))
     print("  Successfully moved over behavioral data hdf5")
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Aug-23_wl_subj042.md"),
@@ -161,8 +161,8 @@ def wlsubj042_nov(base_dir):
         os.makedirs(os.path.join(base_dir, 'sub-wlsubj042', 'ses-pilot01', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042_sess0.hdf5"),
-        os.path.join(base_dir, "sub-wlsubj042", 'ses-pilot01', 'beh',
-                     'sub-wlsubj042_ses-pilot01_task-sfp_beh.hdf5'))
+        os.path.join(base_dir, "sourcedata", "wl_subj042", '20171107',
+                     '2017-Nov-07_wl_subj042_sess0.hdf5'))
     print("  Successfully moved over behavioral data hdf5")
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042.md"),
@@ -210,8 +210,8 @@ def wlsubj045_nov(base_dir):
         os.makedirs(os.path.join(base_dir, 'sub-wlsubj045', 'ses-pilot01', 'beh'))
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj045_sess0.hdf5"),
-        os.path.join(base_dir, "sub-wlsubj045", 'ses-pilot01', 'beh',
-                     'sub-wlsubj045_ses-pilot01_task-sfp_beh.hdf5'))
+        os.path.join(base_dir, "sourcedata", "wl_subj045", '20171107',
+                     '2017-Nov-07_wl_subj045_sess0.hdf5'))
     print("  Successfully moved over behavioral data hdf5")
     shutil.copy(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj045.md"),
