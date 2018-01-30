@@ -12,8 +12,8 @@ Before running this, you must set the path constants at the top of the file
 This should be run from the BIDS code directory (by default, all paths will assume that).
 """
 
-MRI_TOOLS_PATH = "/home/billbrod/Documents/Winawer_lab_MRI_tools"
-SFP_PATH = "/home/billbrod/Documents/spatial-frequency-preferences"
+MRI_TOOLS_PATH = "/home/wfb229/MRI_tools"
+SFP_PATH = "/home/wfb229/spatial-frequency-preferences"
 
 import os
 import sys
@@ -55,7 +55,7 @@ def wlsubj001_oct(base_dir, acadia_projects_dir):
         warnings.warn("Anatomical data already found, skipping...")
     design_matrices.create_all_BIDS_events_tsv(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Oct-09_wl_subj001_sess1.hdf5"),
-        os.path.join(base_dir, "stimuli", "unshuffled_stim_description.csv"),
+        os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj001", "ses-pilot01", "func",
                      "sub-wlsubj001_ses-pilot01_task-sfp_run-%02d_events.tsv"))
     print("  Successfully moved over events tsv")
@@ -75,6 +75,18 @@ def wlsubj001_oct(base_dir, acadia_projects_dir):
         shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj001", '20171007_prisma',
                                     os.path.split(f)[1]))
     print("  Successfully moved over stimuli presentation indices")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot01_unshuffled_stim_description.csv")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
+                    os.path.join(base_dir, "stimuli", "pilot01_unshuffled_stim_description.csv"))
+        print("  Successfully moved over stimuli description csv")
+    else:
+        print("  Found stimuli description csv, skipping")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot01_unshuffled.npy")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled.npy"),
+                    os.path.join(base_dir, "stimuli", "pilot01_unshuffled.npy"))
+        print("  Successfully moved over stimuli numpy array")
+    else:
+        print("  Found stimuli numpy array, skipping")
 
 
 def wlsubj042_aug(base_dir, acadia_projects_dir):
@@ -103,7 +115,7 @@ def wlsubj042_aug(base_dir, acadia_projects_dir):
         warnings.warn("Anatomical data already found, skipping...")
     design_matrices.create_all_BIDS_events_tsv(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Aug-23_wl_subj042_sess1.hdf5"),
-        os.path.join(base_dir, "stimuli", "pilot_unshuffled_stim_description.csv"),
+        os.path.join(SFP_PATH, "data", "stimuli", "pilot00_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj042", "ses-pilot00", "func",
                      "sub-wlsubj042_ses-pilot00_task-sfp_run-%02d_events.tsv"))
     print("  Successfully moved over events tsv")
@@ -123,6 +135,18 @@ def wlsubj042_aug(base_dir, acadia_projects_dir):
         shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj042", '201710823_prisma_pilot',
                                     os.path.split(f)[1]))
     print("  Successfully moved over stimuli presentation indices")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot00_unshuffled_stim_description.csv")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot00_unshuffled_stim_description.csv"),
+                    os.path.join(base_dir, "stimuli", "pilot00_unshuffled_stim_description.csv"))
+        print("  Successfully moved over stimuli description csv")
+    else:
+        print("  Found stimuli description csv, skipping")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot00_unshuffled.npy")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot00_unshuffled.npy"),
+                    os.path.join(base_dir, "stimuli", "pilot00_unshuffled.npy"))
+        print("  Successfully moved over stimuli numpy array")
+    else:
+        print("  Found stimuli numpy array, skipping")
 
 
 def wlsubj042_nov(base_dir, acadia_projects_dir):
@@ -152,7 +176,7 @@ def wlsubj042_nov(base_dir, acadia_projects_dir):
         warnings.warn("Anatomical data already found, skipping...")
     design_matrices.create_all_BIDS_events_tsv(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042_sess0.hdf5"),
-        os.path.join(base_dir, "stimuli", "unshuffled_stim_description.csv"),
+        os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj042", "ses-pilot01", "func",
                      "sub-wlsubj042_ses-pilot01_task-sfp_run-%02d_events.tsv"))
     print("  Successfully moved over events tsv")
@@ -172,6 +196,18 @@ def wlsubj042_nov(base_dir, acadia_projects_dir):
         shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj042", '20171107',
                                     os.path.split(f)[1]))
     print("  Successfully moved over stimuli presentation indices")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot01_unshuffled_stim_description.csv")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
+                    os.path.join(base_dir, "stimuli", "pilot01_unshuffled_stim_description.csv"))
+        print("  Successfully moved over stimuli description csv")
+    else:
+        print("  Found stimuli description csv, skipping")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot01_unshuffled.npy")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled.npy"),
+                    os.path.join(base_dir, "stimuli", "pilot01_unshuffled.npy"))
+        print("  Successfully moved over stimuli numpy array")
+    else:
+        print("  Found stimuli numpy array, skipping")
 
 
 def wlsubj045_nov(base_dir, acadia_projects_dir):
@@ -201,7 +237,7 @@ def wlsubj045_nov(base_dir, acadia_projects_dir):
         warnings.warn("Anatomical data already found, skipping...")
     design_matrices.create_all_BIDS_events_tsv(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj045_sess0.hdf5"),
-        os.path.join(base_dir, "stimuli", "unshuffled_stim_description.csv"),
+        os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj045", "ses-pilot01", "func",
                      "sub-wlsubj045_ses-pilot01_task-sfp_run-%02d_events.tsv"))
     print("  Successfully moved over events tsv")
@@ -221,6 +257,18 @@ def wlsubj045_nov(base_dir, acadia_projects_dir):
         shutil.copy(f, os.path.join(base_dir, "sourcedata", "wl_subj045", '20171107',
                                     os.path.split(f)[1]))
     print("  Successfully moved over stimuli presentation indices")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot01_unshuffled_stim_description.csv")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
+                    os.path.join(base_dir, "stimuli", "pilot01_unshuffled_stim_description.csv"))
+        print("  Successfully moved over stimuli description csv")
+    else:
+        print("  Found stimuli description csv, skipping")
+    if not os.path.isfile(os.path.join(base_dir, "stimuli", "pilot01_unshuffled.npy")):
+        shutil.copy(os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled.npy"),
+                    os.path.join(base_dir, "stimuli", "pilot01_unshuffled.npy"))
+        print("  Successfully moved over stimuli numpy array")
+    else:
+        print("  Found stimuli numpy array, skipping")
 
 
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
