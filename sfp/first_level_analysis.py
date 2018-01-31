@@ -466,7 +466,7 @@ def main(behavioral_results_path, benson_template_path, results_template_path, s
     behav_results = h5py.File(behavioral_results_path)
     # This contains the information on each stimulus, allowing us to determine whether some stimuli
     # are part of the same class or a separate one.
-    stim_df = pd.read_csv(unshuffled_stim_descriptions_path, index_col=0)
+    stim_df = pd.read_csv(unshuffled_stim_descriptions_path)
     # Array full of the actual stimuli
     stimuli = np.load(unshuffled_stim_path)
 
