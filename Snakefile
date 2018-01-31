@@ -31,9 +31,9 @@ rule stimuli_idx:
     output:
         ["data/stimuli/{subject}_run%02d_idx.npy" % i for i in range(12)]
     params:
-        seed = lambda wildcards: {'wl_subj001': 1, 'wl_subj042': 2, 'wl_subj045': 3}.get(wildcards.subject)
+        seed = lambda wildcards: {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3}.get(wildcards.subject)
     shell:
-        "python sfp/stimuli.py {wildcards.subject} -i -s {params.seed}"
+        "python sfp/stimuli.py --subject_name {wildcards.subject} -i -s {params.seed}"
 
 rule preprocess:
     input:
@@ -46,17 +46,8 @@ rule preprocess:
         cpus_per_task = 10,
         mem = 48
     params:
-        sbref = 1,
-        epis = lambda wildcards:
-        {('sub-wlsubj001', 'ses-pilot01'): [1, 2, 3, 4, 5, 6, 7, 8, 9],
-         ('sub-wlsubj042', 'ses-pilot00'): [1, 2, 3, 4, 5, 6, 7, 8],
-         ('sub-wlsubj042', 'ses-pilot01'): [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-         ('sub-wlsubj045', 'ses-pilot01'): [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}.get((wildcards.subject, wildcards.session)),
-        distortPE = 'PA',
-        distortrevPE = 'AP',
         plugin = "MultiProc",        
         working_dir = lambda wildcards: "/scratch/wfb229/preproc_%s_%s" % (wildcards.subject, wildcards.session),
-        PEdim = 'y',
         plugin_args = lambda wildcards, resources: ",".join("%s:%s" % (k,v) for k,v in {'n_procs': resources.cpus_per_task, 'memory_gb': resources.mem}.items())
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_benchmark.txt")
@@ -64,11 +55,9 @@ rule preprocess:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}.log")
     shell:
         "export SUBJECTS_DIR={input.freesurfer_dir};"
-        "python ~/MRI_tools/preprocessing/prisma_preproc.py -subject {wildcards.subject} -datadir "
-        "{input.data_dir} -outdir {output.output_dir} -epis {params.epis} -sbref {params.sbref} "
-        "-distortPE {params.distortPE} -distortrevPE {params.distortrevPE} -working_dir "
-        "{params.working_dir} -PEdim {params.PEdim} -plugin {params.plugin} -dir_structure bids "
-        "-plugin_args {params.plugin_args}"
+        "python ~/MRI_tools/preprocessing/prisma_preproc.py -datadir {input.data_dir} -outdir "
+        "{output.output_dir} -working_dir {params.working_dir} -plugin {params.plugin} "
+        "-dir_structure bids -plugin_args {params.plugin_args}"
 
 rule GLMdenoise:
     input:
