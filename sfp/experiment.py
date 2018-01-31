@@ -327,7 +327,7 @@ if __name__ == '__main__':
     parser.add_argument("--first_run", '-f', type=int, default=0,
                         help=("Which run to run first. Useful if, for instance, you ran the first "
                               "two runs without problem and then had to quit out in the third. You"
-                              " should then set this to 3."))
+                              " should then set this to 2 (because they're 0-indexed)."))
     args = vars(parser.parse_args())
     expt(args['stimuli_path'], args['number_of_runs'], args['first_run'], args['subj_name'],
          args['output_dir'], args['input_dir'], session_length=None, fix_deg_size=.25)

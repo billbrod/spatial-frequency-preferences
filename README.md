@@ -33,7 +33,7 @@ logic of the experiment and analysis.
 Eventually, the Snakefile will be updated to include all the steps, but
 for now, the following the analysis steps:
 
-1. Create the stimuli (`python -m sfp.stimuli subject_name -c
+1. Create the stimuli (`python sfp/stimuli.py subject_name -c
    -i`). After you run this the first time (and thus create the
    unshuffled stimuli), you probably only need the `-i` flag to create
    the index.
