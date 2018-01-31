@@ -51,7 +51,9 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     addpath(genpath(fsPath));
     addpath(genpath(glmDenoisePath));
 
-    load(runDetailsPath);
+    fid = fopen(runDetailsPath);
+    runDetails = jsondecode(char(fread(fid, inf)'));
+    fclose(fid);
 
     if length(behavRuns) ~= length(boldRuns)
         error('You have different numbers of behavioral and bold runs!')
@@ -61,12 +63,12 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     bold = cell(1, length(boldRuns));
     for ii=1:length(behavRuns)
         load(sprintf(designMatPathTemplate, behavRuns(ii)));
-        design{ii} = eval(sprintf('design_matrix_run_%02d', behavRuns(ii)));
+        design{ii} = dlmread(sprintf(designMatPathTemplate, behavRuns(ii)), '\t');
         boldTmp = MRIread(sprintf(boldPathTemplate, boldRuns(ii)));
         bold{ii} = single(boldTmp.vol);
     end
 
-    [results, denoiseddata] = GLMdenoisedata(design, bold, stim_length, TR_length, [], [], struct('seed', seed), outputDir)
+    [results, denoiseddata] = GLMdenoisedata(design, bold, runDetails.stim_length, runDetails.TR_length, [], [], struct('seed', seed), outputDir)
 
     boldTmp.vol = results.modelmd{2};
     MRIwrite(boldTmp, fullfile(outputDir, 'modelmd.nii.gz'));

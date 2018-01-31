@@ -590,12 +590,12 @@ def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir, sti
     # log-polar csv
     df = []
     for i, ((w_1, w_2), p) in enumerate(itertools.product(freqs, phi)):
-        df.append((w_1, w_2, p, res, i))
+        df.append((w_1, w_2, p, res, i, i / n_exemplars))
     max_idx = i+1
     for i, _ in enumerate(itertools.product(range(num_blank_trials), phi)):
-        df.append((None, None, None, res, i+max_idx))
+        df.append((None, None, None, res, i+max_idx, None))
     df = pd.DataFrame(df, columns=col_names)
-    df.to_csv(os.path.join(output_dir, stimuli_description_csv_name))
+    df.to_csv(os.path.join(output_dir, stimuli_description_csv_name), index=False)
     return stim, mask
 
 
@@ -694,12 +694,13 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
         # log-polar stimuli and csv
         stim, mask = _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir,
                                   stimuli_name, stimuli_description_csv_name,
-                                  ['w_r', 'w_a', 'phi', 'res', 'index'], 'logpolar')
+                                  ['w_r', 'w_a', 'phi', 'res', 'index', 'class_idx'], 'logpolar')
         # constant stimuli and csv
         constant_stim = _create_stim(res, constant_freqs, phi, num_blank_trials, n_exemplars,
                                      output_dir, "constant_" + stimuli_name,
                                      "constant_" + stimuli_description_csv_name,
-                                     ['w_x', 'w_y', 'phi', 'res', 'index'], 'constant', mask)
+                                     ['w_x', 'w_y', 'phi', 'res', 'index', 'class_idx'],
+                                     'constant', mask)
         return stim, constant_stim
 
 

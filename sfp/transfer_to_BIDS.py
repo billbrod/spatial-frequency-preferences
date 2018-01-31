@@ -23,7 +23,7 @@ import h5py
 sys.path.append(os.path.join(MRI_TOOLS_PATH, "BIDS"))
 sys.path.append(SFP_PATH)
 import prisma_to_BIDS
-from sfp import design_matrices
+from sfp import create_BIDS_tsv
 import warnings
 import glob
 
@@ -53,7 +53,7 @@ def wlsubj001_oct(base_dir, acadia_projects_dir):
         print("  Successfully moved over anatomical data")
     except IOError:
         warnings.warn("Anatomical data already found, skipping...")
-    design_matrices.create_all_BIDS_events_tsv(
+    create_BIDS_tsv.main(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Oct-09_wl_subj001_sess1.hdf5"),
         os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj001", "ses-pilot01", "func",
@@ -113,7 +113,7 @@ def wlsubj042_aug(base_dir, acadia_projects_dir):
         print("  Successfully moved over anatomical data")
     except IOError:
         warnings.warn("Anatomical data already found, skipping...")
-    design_matrices.create_all_BIDS_events_tsv(
+    create_BIDS_tsv.main(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Aug-23_wl_subj042_sess1.hdf5"),
         os.path.join(SFP_PATH, "data", "stimuli", "pilot00_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj042", "ses-pilot00", "func",
@@ -174,7 +174,7 @@ def wlsubj042_nov(base_dir, acadia_projects_dir):
         print("  Successfully moved over anatomical data")
     except IOError:
         warnings.warn("Anatomical data already found, skipping...")
-    design_matrices.create_all_BIDS_events_tsv(
+    create_BIDS_tsv.main(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042_sess0.hdf5"),
         os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj042", "ses-pilot01", "func",
@@ -235,7 +235,7 @@ def wlsubj045_nov(base_dir, acadia_projects_dir):
         print("  Successfully moved over anatomical data")
     except IOError:
         warnings.warn("Anatomical data already found, skipping...")
-    design_matrices.create_all_BIDS_events_tsv(
+    create_BIDS_tsv.main(
         os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj045_sess0.hdf5"),
         os.path.join(SFP_PATH, "data", "stimuli", "pilot01_unshuffled_stim_description.csv"),
         os.path.join(base_dir, "sub-wlsubj045", "ses-pilot01", "func",
