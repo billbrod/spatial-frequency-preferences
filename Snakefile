@@ -6,8 +6,8 @@ if not os.path.isdir(config["DATA_DIR"]):
     raise Exception("Cannot find the dataset at %s" % config["DATA_DIR"])
 if os.system("module list") == 0:
     # then we're on the cluster
-    shell.prefix("module purge; module load anaconda2/4.3.1; module load fsl/5.0.10; "
-                 "module load freesurfer/6.0.0; module load matlab/2017a; ")
+    shell.prefix("module purge; module load anaconda2/4.3.1; source activate sfp; "
+                 "module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2017a; ")
 
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01'],
