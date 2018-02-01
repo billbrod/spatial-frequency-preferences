@@ -162,7 +162,7 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
         TR_times = [TR * i for i in range(n_TRs)]
         time_from_TR = np.round(stim_times - TR_times)
         tsv_df['Onset time (TR)'] = np.where(time_from_TR == 0)[1]
-        design_mat = create_design_matrix(tsv_df, n_TRs, run_num)
+        design_mat = create_design_matrix(tsv_df, n_TRs)
         stim_lengths.append(stim)
         TR_lengths.append(TR)
         check_design_matrix(design_mat, run_num)
