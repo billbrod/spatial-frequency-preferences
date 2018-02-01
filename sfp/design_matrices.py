@@ -144,7 +144,10 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
             np.random.shuffle(save_labels)
         run_details_save_path = run_details_save_path.replace('.tsv', '_permuted.tsv')
     for run_num, save_num in zip(run_nums, save_labels):
-        tsv_df = pd.read_csv(layout.get(type='events', run=run_num).filename, sep='\t')
+        tsv_file = layout.get(type='events', run=run_num)
+        if len(tsv_file) != 1:
+            raise IOError("Need one tsv for run %s, but found %d!" % (run_num, len(tsv_file)))
+        tsv_df = pd.read_csv(tsv_file[0].filename, sep='\t')
         class_size = _discover_class_size(tsv_df.trial_type.values)
         stim = _find_stim_class_length(tsv_df.onset.values, class_size)
         tsv_df = tsv_df[::class_size]
