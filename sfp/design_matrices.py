@@ -157,7 +157,7 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
     assert ((np.array(TR_lengths) - TR_lengths[0]) == 0).all(), "You have different TR lengths!"
     with open(run_details_save_path, 'w') as f:
         run_details = {"stim_length": stim_lengths[0], 'TR_length': TR_lengths[0],
-                       'save_labels': save_labels, 'run_numbers': run_nums}
+                       'save_labels': list(save_labels), 'run_numbers': list(run_nums)}
         json.dump(run_details, f)
 
 
