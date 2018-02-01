@@ -8,8 +8,16 @@
 	"job_name": "{rule}.{wildcards}",
 	"cpus_per_task": 1,
 	"output": "{log}",
-	"error": "{log}",
+	"error": "{log}"
+    },
+    "preprocess":
+    {
+	"time": "00:30:00",
 	"mem": "{resources.mem}GB",
 	"cpus_per_task": "{resources.cpus_per_task}"
+    },
+    "report":
+    {
+	"mem": "1GB"
     }
 }
