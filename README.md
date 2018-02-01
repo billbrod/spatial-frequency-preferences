@@ -11,6 +11,7 @@ currently empty / unused.
 
 Matlab:
 
+ - Version at or more recent than 2016b (because we need `jsondecode`)
  - [GLMdenoise](https://github.com/kendrickkay/GLMdenoise/)
  
 Python: 

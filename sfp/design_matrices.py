@@ -89,7 +89,7 @@ def plot_design_matrix(design_matrix, title, save_path=None):
 
 
 def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False,
-                               save_path="data/MRI_first_level/run_%s_design_matrix.tsv"):
+                               save_path="data/MRI_first_level/run-%s_design_matrix.tsv"):
     """create and save design matrices for all runs
 
     input_path should be a path to a BIDS directory containing one scanning session. we will then
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument("--subject", "-s", default=None,
                         help=("Subject string. Optional, will fill in the save_path if specified"))
     parser.add_argument("--save_path",
-                        default="data/MRI_first_level/{subj}/run_s_design_matrix.tsv",
+                        default="data/MRI_first_level/{subj}/run-%s_design_matrix.tsv",
                         help=("Template path that we should save the resulting design matrices in."
                               "Must contain at least one string formatting signal (to indicate run"
                               "number) and must end in .tsv. Should probably also contain {subj}, "
