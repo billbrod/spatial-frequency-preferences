@@ -140,9 +140,9 @@ rule report:
         benchmarks = find_benchmarks,
         logs = find_logs
     output:
-        os.path.join(config['DATA_DIR'], 'code', "{step}_report.html")
+        os.path.join(config['DATA_DIR'], 'code', "{step}", "{step}_report.html")
     log:
-        os.path.join(config["DATA_DIR"], "code", "preprocessed", "report.log")
+        os.path.join(config["DATA_DIR"], "code", "{step}", "report.log")
     run:
         from snakemake.utils import report
         import pandas as pd
@@ -150,7 +150,7 @@ rule report:
         benchmarks = []
         for f in input.benchmarks:
             tmp = pd.read_csv(f, sep='\t')
-            tmp['file'] = os.path.split(f)[-1]
+            tmp['file'] = os.path.split(f)[-1].replace('_benchmark.txt', '')
             benchmarks.append(tmp)
         benchmarks = pd.concat(benchmarks)
         benchmarks = benchmarks.set_index('file').sort_index().style.render()
