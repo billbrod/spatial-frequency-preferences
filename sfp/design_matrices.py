@@ -1,6 +1,9 @@
 #!/usr/bin/python
 """functions to create the design matrices used in our first-level MRI analysis.
 """
+import matplotlib as mpl
+# we do this because sometimes we run this without an X-server, and this backend doesn't need one
+mpl.use('svg')
 import numpy as np
 import argparse
 import warnings
@@ -8,7 +11,7 @@ import nibabel as nib
 import pandas as pd
 import os
 import json
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 from bids.grabbids import BIDSLayout
 from collections import Counter
 
@@ -74,15 +77,14 @@ def check_design_matrix(design_matrix, run_num=None):
 def plot_design_matrix(design_matrix, title, save_path=None):
     """plot design matrix and, if save_path is set, save the resulting image
     """
-    fig = Figure()
-    ax = fig.add_subplot(111, aspect='auto')
-    ax = ax.imshow(design_matrix, 'gray')
+    ax = plt.imshow(design_matrix, 'gray', aspect='equal')
     ax.axes.grid(False)
-    ax.set_xlabel("Stimulus class")
-    ax.set_ylabel("TR")
-    ax.set_title(title)
+    plt.xlabel("Stimulus class")
+    plt.ylabel("TR")
+    plt.title(title)
     if save_path is not None:
-        fig.savefig(save_path)
+        ax.figure.savefig(save_path, bbox_inches='tight')
+
 
 def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False,
                                save_path="data/MRI_first_level/run_%s_design_matrix.tsv"):
