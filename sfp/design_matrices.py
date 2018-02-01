@@ -8,7 +8,7 @@ import nibabel as nib
 import pandas as pd
 import os
 import json
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from bids.grabbids import BIDSLayout
 from collections import Counter
 
@@ -74,13 +74,15 @@ def check_design_matrix(design_matrix, run_num=None):
 def plot_design_matrix(design_matrix, title, save_path=None):
     """plot design matrix and, if save_path is set, save the resulting image
     """
-    ax = plt.imshow(design_matrix, 'gray', aspect='auto')
+    fig = Figure()
+    ax = fig.add_subplot(111, aspect='auto')
+    ax = ax.imshow(design_matrix, 'gray')
     ax.axes.grid(False)
-    plt.xlabel("Stimulus class")
-    plt.ylabel("TR")
-    plt.title(title)
+    ax.set_xlabel("Stimulus class")
+    ax.set_ylabel("TR")
+    ax.set_title(title)
     if save_path is not None:
-        ax.figure.savefig(save_path)
+        fig.savefig(save_path)
 
 def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False,
                                save_path="data/MRI_first_level/run_%s_design_matrix.tsv"):
@@ -104,7 +106,7 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
     this is to double-check your results: your R2 values should be much lower when permuted,
     because you're basically breaking your hypothesized connection between the GLM model and brain
     activity.
-"""
+    """
     assert mat_type in ["stim_class", "all_visual"], "Don't know how to handle mat_type %s!" % mat_type
     layout = BIDSLayout(input_path)
     run_nums = layout.get_runs()
