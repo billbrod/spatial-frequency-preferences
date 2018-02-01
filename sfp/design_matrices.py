@@ -82,30 +82,8 @@ def plot_design_matrix(design_matrix, title, save_path=None):
     if save_path is not None:
         ax.figure.savefig(save_path)
 
-    # if only_stim_class:
-    #     # we only look at the class transitions
-    #     design_df = df[::class_size]
-    # else:
-    #     design_df = df
-    # # 5 indicates a backtick from the scanner
-    # TR_times = np.array([float(i[1]) for i in behavioral_results['run_%02d_button_presses' % run_num].value if '5' == i[0]])
-    # TR_times -= TR_times[0]
-    # if only_stim_class:
-    #     stim_times = design_df['Onset time (sec)'].values
-    #     stim_times = np.expand_dims(stim_times, 1)
-    #     stim_times = np.repeat(stim_times, len(TR_times), 1)
-    #     time_from_TR = np.round(stim_times - TR_times)
-    #     design_df['Onset time (TR)'] = np.where(time_from_TR == 0)[1]
-    #     # need to do this before dropping the blanks, or the times get messed up
-    #     stim, TR = find_lengths(design_df)
-    # else:
-    #     # the calculation I do doesn't work if we have the exemplars instead of just the stimulus
-    #     # classes, because it looks for integer values.
-    #     stim, TR = None, None
-
-
 def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False,
-                               save_path="data/MRI_first_level/run_%02d_design_matrix.tsv"):
+                               save_path="data/MRI_first_level/run_%s_design_matrix.tsv"):
     """create and save design matrices for all runs
 
     input_path should be a path to a BIDS directory containing one scanning session. we will then
