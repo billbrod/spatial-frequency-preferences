@@ -77,7 +77,9 @@ def check_design_matrix(design_matrix, run_num=None):
 def plot_design_matrix(design_matrix, title, save_path=None):
     """plot design matrix and, if save_path is set, save the resulting image
     """
-    ax = plt.imshow(design_matrix, 'gray', aspect='equal')
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111, aspect='equal')
+    ax.imshow(design_matrix, 'gray')
     ax.axes.grid(False)
     plt.xlabel("Stimulus class")
     plt.ylabel("TR")
