@@ -151,7 +151,10 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
         class_size = _discover_class_size(tsv_df.trial_type.values)
         stim = _find_stim_class_length(tsv_df.onset.values, class_size)
         tsv_df = tsv_df[::class_size]
-        nii = nib.load(layout.get(type='bold', run=run_num).filename)
+        nii_file = layout.get(type='bold', run=run_num)
+        if len(nii_file) != 1:
+            raise IOError("Need one nifti for run %s, but found %d!" % (run_num, len(nii_file)))
+        nii = nib.load(nii_file[0].filename)
         n_TRs = nii.shape[3]
         TR = layout.get_metadata(layout.get(type='bold', run=run_num).filename)['RepetitionTime']
         stim_times = tsv_df.onset.values
