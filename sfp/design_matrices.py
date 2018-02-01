@@ -146,7 +146,7 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
         check_design_matrix(design_mat, run_num)
         if mat_type == "all_visual":
             design_mat = design_mat.sum(1).reshape((design_mat.shape[0], 1))
-        plot_design_matrix(design_mat, "Design matrix for run %02d" % save_num,
+        plot_design_matrix(design_mat, "Design matrix for run %s" % save_num,
                            save_path.replace('.tsv', '.png') % save_num)
         np.savetxt(save_path % save_num, design_mat, '%d', '\t')
     assert ((np.array(stim_lengths) - stim_lengths[0]) == 0).all(), "You have different stim lengths!"
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     parser.add_argument("--subject", "-s", default=None,
                         help=("Subject string. Optional, will fill in the save_path if specified"))
     parser.add_argument("--save_path",
-                        default="data/MRI_first_level/{subj}/run_%02d_design_matrix.tsv",
+                        default="data/MRI_first_level/{subj}/run_s_design_matrix.tsv",
                         help=("Template path that we should save the resulting design matrices in."
                               "Must contain at least one string formatting signal (to indicate run"
                               "number) and must end in .tsv. Should probably also contain {subj}, "
