@@ -169,21 +169,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=("Create and save design matrices for all non-em"
                                                   "pty runs found in the behavioral results file"),
                                      formatter_class=CustomFormatter)
-    parser.add_argument("behavioral_results_path",
-                        help=("Path to the behavioral results that contains the timing of stimuli"
-                              " and scans"))
-    parser.add_argument("--unshuffled_stim_descriptions_path", "-d",
-                        default="data/stimuli/unshuffled_stim_description.csv",
-                        help=("Path to the unshuffled_stim_descriptions.csv file that contains the"
-                              "pandas Dataframe that specifies each stimulus's frequency"))
-    parser.add_argument("--subject", "-s", default=None,
-                        help=("Subject string. Optional, will fill in the save_path if specified"))
+    parser.add_argument("input_path",
+                        help=("path to a BIDS directory containing one scanning session. we will "
+                              "then construct a design matrix for each events.tsv file. all runs "
+                              "must have the same TR for GLMdenoise, so we'll through an exception"
+                              " if that's not the case."))
     parser.add_argument("--save_path",
-                        default="data/MRI_first_level/{subj}/run-%s_design_matrix.tsv",
+                        default="data/MRI_first_level/run-%s_design_matrix.tsv",
                         help=("Template path that we should save the resulting design matrices in."
                               "Must contain at least one string formatting signal (to indicate run"
-                              "number) and must end in .tsv. Should probably also contain {subj}, "
-                              "to specify the subject."))
+                              "number) and must end in .tsv."))
     parser.add_argument("--mat_type", default="stim_class",
                         help=("{'stim_class', 'all_visual'}. What design matrix to make. stim_class"
                               " has each stimulus class as a separate regressor and is our actual "
@@ -198,7 +193,4 @@ if __name__ == '__main__':
                               "when permuted, because you're basically breaking your hypothesized"
                               " connection between the GLM model and brain activity."))
     args = vars(parser.parse_args())
-    subj = args.pop('subject')
-    if subj is not None and '{subj}' in args['save_path']:
-        args['save_path'] = args['save_path'].format(subj=subj)
     create_all_design_matrices(**args)
