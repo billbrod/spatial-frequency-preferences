@@ -118,7 +118,7 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
     TR_lengths = []
     if not os.path.exists(os.path.dirname(save_path)):
         os.makedirs(os.path.dirname(save_path))
-    run_details_save_path = os.path.join(os.path.dirname(save_path), "run_details_%s.json" % mat_type)
+    run_details_save_path = save_path.replace('run-%s_design_matrix.tsv', 'params.json')
     save_labels = np.array(run_nums).copy()
     if permuted is True:
         if 'permuted' not in save_path:
