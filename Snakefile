@@ -12,17 +12,20 @@ if os.system("module list") == 0:
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01'],
             'sub-wlsubj045': ['ses-pilot01']}
+TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'sfp', ('sub-wlsubj042', 'ses-pilot00'): 'sfp',
+         ('sub-wlsubj042', 'ses-pilot01'): 'sfp', ('sub-wlsubj045', 'ses-pilot01'): 'sfp'}
 # every sub/ses pair that's not in here, has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
 wildcard_constraints:
     subject="sub-[a-z0-9]+",
     session="ses-[a-z0-9]+",
     run="run-[0-9]+",
-    filename='[a-zA-z0-9_]+\.[a-z.]+'
+    filename='[a-zA-z0-9_]+\.[a-z.]+',
+    task="task-[a-z0-9]+"
 
 rule preprocess_all:
     input:
-        [os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "timeseries_corrected_{run}.nii.gz").format(subject=sub, session=ses, run="run-%02d"%i) for sub in SUBJECTS for ses in SESSIONS[sub] for i in range(1, NRUNS.get((sub, ses), 12)+1)],
+        [os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz").format(subject=sub, session=ses, task=task, run="run-%02d"%i) for sub in SUBJECTS for ses in SESSIONS[sub] for task in TASKS[(sub, ses)]for i in range(1, NRUNS.get((sub, ses), 12)+1)],
 
 
 rule stimuli:
@@ -46,15 +49,15 @@ rule preprocess:
     input:
         os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", "{subject}"),
         data_dir = os.path.join(config["DATA_DIR"], "{subject}", "{session}"),
-        func_files = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}"+"_"+"{session}"+"_task-sfp_{run}_bold.nii"),
+        func_files = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}_{session}_{task}_{run}_bold.nii"),
         freesurfer_dir = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer"),
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "timeseries_corrected_{run}.nii.gz"),
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "session.json"),
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "sbref_reg_corrected.nii.gz"),
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "distort2anat_tkreg.dat"),
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "distortion_merged_corrected.nii.gz"),
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "distortion_merged_corrected_mean.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "{task}", "timeseries_corrected_{run}.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "{task}",  "session.json"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "{task}",  "sbref_reg_corrected.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "{task}", "distort2anat_tkreg.dat"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "{task}",  "distortion_merged_corrected.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "{task}",  "distortion_merged_corrected_mean.nii.gz"),
     resources:
         cpus_per_task = 10,
         mem = 48
@@ -77,7 +80,7 @@ rule preprocess:
 
 rule rearrange_preprocess_extras:
     input:
-        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, "run-{n:02d}", wildcards.filename), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))
+        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, "run-{n:02d}", wildcards,task, wildcards.filename), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{filename}")
     log:
@@ -108,14 +111,14 @@ rule rearrange_preprocess_extras:
 
 rule rearrange_preprocess:
     input:
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "timeseries_corrected_{run}.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{run}", "{task}", "timeseries_corrected_{run}.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "session.json"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "sbref_reg_corrected.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distort2anat_tkreg.dat"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distortion_merged_corrected.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distortion_merged_corrected_mean.nii.gz"),
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "timeseries_corrected_{run}.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
     log:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{run}_rearrange.log")
     run:
@@ -133,8 +136,8 @@ def get_permuted(wildcards):
 
 
 def get_design_inputs(wildcards):
-    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_task-sfp_run-{n:02d}_events.tsv")
-    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_task-sfp_run-{n:02d}_bold.nii")
+    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
+    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold.nii")
     return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
             'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
 
@@ -144,11 +147,11 @@ rule create_design_matrices:
         unpack(get_design_inputs),
         data_dir = os.path.join(config["DATA_DIR"], "{subject}", "{session}"),
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}")
+        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{task}")
     log:
         os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}.log")
     params:
-        save_path = lambda wildcards, output: os.path.join(output[0], wildcards.subject+"_"+wildcards.session+"_task-sfp_run-%s_design_matrix.tsv"),
+        save_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-%s_design_matrix.tsv"),
         permuted_flag = get_permuted,
         mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", "")
     shell:
