@@ -77,7 +77,7 @@ rule preprocess:
 
 rule rearrange_preprocess_extras:
     input:
-        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, "run-{run:02d}", wildcards.filename), run=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12+1)))
+        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, "run-{n:02d}", wildcards.filename), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{filename}")
     log:
@@ -125,15 +125,47 @@ rule rearrange_preprocess:
         os.removedirs(os.path.dirname(input[0]))
 
 
+def get_permuted(wildcards):
+    if "permuted" in wildcards.mat_type:
+        return "-p"
+    else:
+        return ""
+
+
+def get_design_inputs(wildcards):
+    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_task-sfp_run-{n:02d}_events.tsv")
+    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_task-sfp_run-{n:02d}_bold.nii")
+    return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+            'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
+
+
+rule create_design_matrices:
+    input:
+        unpack(get_design_inputs),
+        data_dir = os.path.join(config["DATA_DIR"], "{subject}", "{session}"),
+    output:
+        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}.log")
+    params:
+        save_path = lambda wildcards, output: os.path.join(output[0], wildcards.subject+"_"+wildcards.session+"_task-sfp_run-%s_design_matrix.tsv"),
+        permuted_flag = get_permuted,
+        mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", "")
+    shell:
+        "python sfp/design_matrices.py {input.data_dir} --mat_type {params.mat_type} --save_path "
+        "{params.save_path} {params.permuted_flag}"
+
+
 def find_benchmarks(wildcards):
-    (subjects, sessions, runs) = glob_wildcards(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{run}_benchmark.txt'))
-    # for some reason, subjects and sessions have an entry for each run, so we use set below to make sure we only get each unique
-    return expand(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{run}_benchmark.txt'), zip, subject=subjects, session=sessions, run=runs)
+    (subjects, sessions, everythingelse) = glob_wildcards(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{everythingelse}_benchmark.txt'))
+    # for some reason, subjects and sessions have an entry for each value of everythingelse, so we
+    # use zip below to make this work the way we want.
+    return expand(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{everythingelse}_benchmark.txt'), zip, subject=subjects, session=sessions, everythingelse=everythingelse)
 
 
 def find_logs(wildcards):
-    (subjects, sessions, runs) = glob_wildcards(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{run}.log'))
-    return expand(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{run}.log'), zip, subject=subjects, session=sessions, run=runs)
+    (subjects, sessions, everythingelse) = glob_wildcards(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{everythingelse}.log'))
+    return expand(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '{subject}_{session}_{everythingelse}.log'), zip, subject=subjects, session=sessions, everythingelse=everythingelse)
 
 rule report:
     input:
