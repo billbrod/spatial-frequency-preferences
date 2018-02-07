@@ -12,8 +12,8 @@ if os.system("module list") == 0:
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01'],
             'sub-wlsubj045': ['ses-pilot01']}
-TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'sfp', ('sub-wlsubj042', 'ses-pilot00'): 'sfp',
-         ('sub-wlsubj042', 'ses-pilot01'): 'sfp', ('sub-wlsubj045', 'ses-pilot01'): 'sfp'}
+TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp',
+         ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp'}
 # every sub/ses pair that's not in here, has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
 wildcard_constraints:
@@ -25,7 +25,7 @@ wildcard_constraints:
 
 rule preprocess_all:
     input:
-        [os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz").format(subject=sub, session=ses, task=task, run="run-%02d"%i) for sub in SUBJECTS for ses in SESSIONS[sub] for task in TASKS[(sub, ses)]for i in range(1, NRUNS.get((sub, ses), 12)+1)],
+        [os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], run="run-%02d"%i) for sub in SUBJECTS for ses in SESSIONS[sub] for i in range(1, NRUNS.get((sub, ses), 12)+1)],
 
 
 rule stimuli:
@@ -80,7 +80,7 @@ rule preprocess:
 
 rule rearrange_preprocess_extras:
     input:
-        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, "run-{n:02d}", wildcards,task, wildcards.filename), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))
+        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, "run-{n:02d}", "{task}", wildcards.filename), task=TASKS[(wildcards.subject, wildcards.session)], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{filename}")
     log:
@@ -147,11 +147,11 @@ rule create_design_matrices:
         unpack(get_design_inputs),
         data_dir = os.path.join(config["DATA_DIR"], "{subject}", "{session}"),
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{task}")
+        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json")
     log:
         os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}.log")
     params:
-        save_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-%s_design_matrix.tsv"),
+        save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%s_design_matrix.tsv'),
         permuted_flag = get_permuted,
         mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", "")
     shell:
