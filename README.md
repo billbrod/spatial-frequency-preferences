@@ -17,6 +17,18 @@ Matlab:
 Python: 
 
  - see `requirements.txt` file
+ - there's a bug in nibabel that prevents the writing out of 3d MGH
+   files,
+   see [this issue](https://github.com/nipy/nibabel/issues/594). until
+   the fix is implemented in the main branch, it can be handled by
+   commenting out the following lines of
+   `nibabel/freesurfer/mghformat.get_data_shape` (lines 320 and 321 in
+   version 2.2.1):
+   
+   ```
+   if int(dims[-1]) == 1:
+       dims = dims[:-1]
+   ```
  - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
    (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/))
 
