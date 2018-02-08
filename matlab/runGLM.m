@@ -1,4 +1,4 @@
-function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, fsPath, glmDenoisePath, seed, outputDir)
+function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, fsPath, glmDenoisePath, seed, outputDir, saveStem)
 % function runGLM(designMatPathTemplate, boldPathTemplate, runs, runDetailsPath, fsPath, glmDenoisePath, seed)
 % 
 % Loads in the design matrices and BOLD data, arranges them in proper
@@ -47,7 +47,16 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
 % 
 % <outputDir> path. Directory to save results in. Does not need to
 % exist
+% 
+% <saveStem> string, optional. If set, will prefix all of the results
+% saved in *this function* (so the various nifti outputs, not the ones
+% put out by GLMdenoisedata) with this string (outputDir
+% unchanged). useful for making the outputs BIDS-like.
 
+    if nargin < 10
+        saveStem = '';
+    end
+    
     addpath(genpath(fsPath));
     addpath(genpath(glmDenoisePath));
 
@@ -71,27 +80,22 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     [results, denoiseddata] = GLMdenoisedata(design, bold, runDetails.stim_length, runDetails.TR_length, [], [], struct('seed', seed), outputDir)
 
     boldTmp.vol = results.modelmd{2};
-    MRIwrite(boldTmp, fullfile(outputDir, 'modelmd.nii.gz'));
+    MRIwrite(boldTmp, fullfile(outputDir, strcat(saveStem, 'modelmd.nii.gz')));
 
     boldTmp.vol = results.modelse{2};
-    MRIwrite(boldTmp, fullfile(outputDir, 'modelse.nii.gz'));
+    MRIwrite(boldTmp, fullfile(outputDir, strcat(saveStem, 'modelse.nii.gz')));
 
     boldTmp.vol = results.R2;
-    MRIwrite(boldTmp, fullfile(outputDir, 'R2.nii.gz'));
+    MRIwrite(boldTmp, fullfile(outputDir, strcat(saveStem, 'R2.nii.gz')));
 
     boldTmp.vol = results.R2run;
-    MRIwrite(boldTmp, fullfile(outputDir, 'R2run.nii.gz'));
+    MRIwrite(boldTmp, fullfile(outputDir, strcat(saveStem, 'R2run.nii.gz')));
 
-    for ii=1:size(results.models{2}, 4)
-        boldTmp.vol = squeeze(results.models{2}(:, :, :, ii, :));
-        MRIwrite(boldTmp, fullfile(outputDir, sprintf('models_class_%02d.nii.gz', ii-1)));
-    end
+    display('Saved results (non-models)  niftis')
 
-    display('Saved result niftis');
-
-    save(fullfile(outputDir, 'results.mat'), '-struct', 'results', '-v7.3')
+    save(fullfile(outputDir, strcat(saveStem, 'results.mat')), '-struct', 'results', '-v7.3')
     display('Saved results.mat');
-    save(fullfile(outputDir, 'denoiseddata.mat'), 'denoiseddata', '-v7.3')
+    save(fullfile(outputDir, strcat(saveStem, 'denoiseddata.mat')), 'denoiseddata', '-v7.3')
     display('Saved denoiseddata.mat');
 
 end
