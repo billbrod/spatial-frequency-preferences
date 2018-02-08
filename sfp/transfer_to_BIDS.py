@@ -163,6 +163,20 @@ def wlsubj042_01(base_dir, acadia_projects_dir):
              os.path.join(SFP_PATH, "data", "stimuli", "constant_unshuffled.npy"))
 
 
+def wlsubj001_02(base_dir, acadia_projects_dir):
+    print("Moving wl_subj001's data from 20180207")
+    anat_dir = os.path.join(acadia_projects_dir, "Anatomy", "wl_subj001", "RAS", 'raw',
+                            "EK_2013_12_17_T1")
+    _BIDSify(base_dir, "wl_subj001", "20180207", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+             [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfpconstant", "02", 'j', 6, 5,
+             anat_dir, [2, 3, 4], "T1w",
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-07_sub-wlsubj001_sess0.hdf5"),
+             os.path.join(SFP_PATH, "data", "stimuli", "constant_unshuffled_stim_description.csv"),
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-07_sub-wlsubj001.md"),
+             glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj001_run*_idx.npy")),
+             os.path.join(SFP_PATH, "data", "stimuli", "constant_unshuffled.npy"))
+
+
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
                    raw_behavioral_glob_str="data/raw_behavioral/2017-Aug*.hdf5"):
     """renames the stimuli in hdf5 file from old_stim_name to new_stim_name
@@ -204,6 +218,8 @@ if __name__ == '__main__':
         wlsubj001_oct(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj001-01' in args['subject']:
         wlsubj001_01(args['base_dir'], args['acadia_projects_dir'])
+    if 'wl_subj001-02' in args['subject']:
+        wlsubj001_02(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj042-0' in args['subject']:
         wlsubj042_aug(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj042-1' in args['subject']:
