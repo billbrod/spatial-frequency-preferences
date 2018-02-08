@@ -86,6 +86,7 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path,
             design_df = design_df.reset_index().rename(
                 columns={'index': 'stim_file_index', 'class_idx': 'trial_type',
                          'Onset time (sec)': 'onset'})
+            design_df['trial_type'] = design_df['trial_type'].astype(int)
             design_df['duration'] = _find_timing_from_results(results, run_num)
             stim_path = results['run_%02d_stim_path' % run_num].value
             stim_path = stim_path.replace('data/stimuli/', '')
