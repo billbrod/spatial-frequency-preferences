@@ -19,5 +19,16 @@
     "report":
     {
 	"mem": "1GB"
+    },
+    "GLMdenoise":
+    {
+	"mem": "{resources.mem}GB",
+	"cpus_per_task": "{resources.cpus_per_task}"
+    },
+    "save_results_niftis":
+    {
+	"mem": "{resources.mem}GB",
+	"cpus_per_task": "{resources.cpus_per_task}"
     }
+
 }
