@@ -126,7 +126,8 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
         # this shuffles in place, ensuring that every value is moved:
         while len(np.where(save_labels == run_nums)[0]) != 0:
             np.random.shuffle(save_labels)
-        run_details_save_path = run_details_save_path.replace('.json', '_permuted.json')
+        if 'permuted' not in run_details_save_path:
+            run_details_save_path = run_details_save_path.replace('.json', '_permuted.json')
     for run_num, save_num in zip(run_nums, save_labels):
         tsv_file = layout.get(type='events', run=run_num)
         if len(tsv_file) != 1:
