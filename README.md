@@ -117,6 +117,30 @@ jobs you allow `snakemake` to simultaneously submit to the cluster and
 `cluster.json` is an included configuration file with some reasonable
 values for the cluster (feel free to change these as needed).
 
+# Eventual sharing goals
+
+I would like to make this as easy for others to reproduce as
+possible. To that end I'll eventually upload the (complete?) dataset
+to openneuro.org and provide people with two entry points. They can
+either
+
+1. Rerun my entire analysis by downloading just the
+   `derivatives/freesurfer` and subject directories, along with a
+   Docker or Singularity (haven't decided) container and then use the
+   Snakefile. Ideally this will be able to make use of parallelization
+   because otherwise it will take forever (~20 minutes to preprocess
+   each run, ~2 hours for each session's GLMdenoise). Can't make this
+   the default because of how long it would take to run linearly and
+   the matlab requirement (for GLMdenoise). (will also require FSL and
+   Freesurfer)
+2. Trust my analysis up until the outputs of
+   GLMdenoise_realigned. Download the data from that point and re-run
+   everything afterwards, which will be pure python and not take
+   nearly as long. This I can probably do using BinderHub (though I'll
+   need to double-check how long creating the various csv files
+   takes), and give people the option to take the outputs of the
+   `first_level_analysis` or trust mine.
+
 Project Organization
 ------------
 
