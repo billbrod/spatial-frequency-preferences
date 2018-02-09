@@ -150,7 +150,7 @@ def wlsubj001_01(base_dir, acadia_projects_dir):
 
 
 def wlsubj042_01(base_dir, acadia_projects_dir):
-    print("Moving wl_subj045's data from 20180201")
+    print("Moving wl_subj042's data from 20180201")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wl_subj042",
                             "20170713_PrismaPilot", "RAW")
     _BIDSify(base_dir, "wl_subj042", "20180201", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
@@ -175,6 +175,20 @@ def wlsubj001_02(base_dir, acadia_projects_dir):
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-07_sub-wlsubj001.md"),
              glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj001_run*_idx.npy")),
              os.path.join(SFP_PATH, "data", "stimuli", "constant_unshuffled.npy"))
+
+
+def wlsubj042_02(base_dir, acadia_projects_dir):
+    print("Moving wl_subj042's data from 20180209")
+    anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wl_subj042",
+                            "20170713_PrismaPilot", "RAW")
+    _BIDSify(base_dir, "wl_subj042", "20180209", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+             [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "02", 'j', 6, 5,
+             anat_dir, [15, 16], "T1w",
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-09_sub-wlsubj042_sess0.hdf5"),
+             os.path.join(SFP_PATH, "data", "stimuli", "unshuffled_stim_description.csv"),
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-09_sub-wlsubj042.md"),
+             glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj042_run*_idx.npy")),
+             os.path.join(SFP_PATH, "data", "stimuli", "unshuffled.npy"))
 
 
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
@@ -203,10 +217,12 @@ if __name__ == '__main__':
         description=("Move some subjects from prisma to (approximate) BIDS format"))
     parser.add_argument("subject", nargs='+', type=str,
                         help=("Which subjects / session to run. Must come from this list: wl_subj"
-                              "001 (pilot in Oct 2017), wl_subj001-01 (Jan 2018, after revising "
-                              "stimuli), wl_subj042-0 (pilot in Aug 2017), wl_subj042-1 (pilot in "
-                              "Nov 2017), wl_subj042-01 (Feb 2018, after revising stimuli), "
-                              "wl_subj045 (pilot in Nov 2017)"))
+                              "001 (pilot in Oct 2017), wl_subj001-01 (Jan 31, 2018, after revising"
+                              " stimuli, log-polar stimuli), wl_subj001-02 (Feb 7, 2018, with "
+                              "constant stimuli) wl_subj042-0 (pilot in Aug 2017), wl_subj042-1 ("
+                              "pilot in Nov 2017), wl_subj042-01 (Feb 1, 2018, after revising "
+                              "stimuli, constant stimuli), wl_subj042-02 (Feb 9, 2018 with log-"
+                              "polar stimuli), wl_subj045 (pilot in Nov 2017)"))
     parser.add_argument("--base_dir", default='..',
                         help=("Base directory for the BIDS project. If unset, will assume this is"
                               "being run from the code directory within the BIDS structure."))
@@ -226,5 +242,7 @@ if __name__ == '__main__':
         wlsubj042_nov(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj042-01' in args['subject']:
         wlsubj042_01(args['base_dir'], args['acadia_projects_dir'])
+    if 'wl_subj042-02' in args['subject']:
+        wlsubj042_02(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj045' in args['subject']:
         wlsubj045_nov(args['base_dir'], args['acadia_projects_dir'])

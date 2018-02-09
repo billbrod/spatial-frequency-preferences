@@ -16,12 +16,13 @@ else:
 
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
-            'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01'],
+            'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj045': ['ses-pilot01']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
-         ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant',
-         ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant',
-         ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp'}
+         ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
+         ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
+         ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant', ('sub-wlsubj042', 'ses-02'): 'task-sfp',
+         ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp'}
 # every sub/ses pair that's not in here, has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3}
@@ -43,25 +44,28 @@ rule GLMdenoise_all:
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
 rule GLMdenoise_sub001_pilot01:
     input:
-        dynamic([os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj001'] for ses in ['ses-pilot01']]),
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj001', session='ses-pilot01', task='task-sfp', mat_type='stim_class')),
 rule GLMdenoise_sub001_01:
     input:
-        dynamic([os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj001'] for ses in ['ses-01']]),
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj001', session='ses-01', task='task-sfp', mat_type='stim_class')),
 rule GLMdenoise_sub001_02:
     input:
-        dynamic([os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj001'] for ses in ['ses-02']]),
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj001', session='ses-02', task='task-sfpconstant', mat_type='stim_class')),
 rule GLMdenoise_sub042_pilot00:
     input:
-        dynamic([os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj042'] for ses in ['ses-pilot00']]),
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-pilot00', task='task-sfp', mat_type='stim_class')),
 rule GLMdenoise_sub042_pilot01:
     input:
-        dynamic([os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj042'] for ses in ['ses-pilot01']]),
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-pilot01', task='task-sfp', mat_type='stim_class')),
 rule GLMdenoise_sub042_01:
     input:
-        dynamic([os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj042'] for ses in ['ses-01']]),
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-01', task='task-sfpconstant', mat_type='stim_class')),
+rule GLMdenoise_sub042_02:
+    input:
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-02', task='task-sfp', mat_type='stim_class')),
 rule GLMdenoise_sub045_pilot01:
     input:
-        dynamic([os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj045'] for ses in ['ses-pilot01']]),
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-pilot01', task='task-sfp', mat_type='stim_class')),
 
 
 rule preprocess_all:
