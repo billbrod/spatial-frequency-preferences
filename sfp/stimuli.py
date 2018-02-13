@@ -168,7 +168,8 @@ def _fade_mask(mask, inner_number_of_fade_pixels, outer_number_of_fade_pixels, o
     return faded_mask
 
 
-def create_sf_maps_cpp(size, w_r=0, w_a=0, origin=None, scale_factor=1):
+def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', w_r=None, w_a=None,
+                       w_x=None, w_y=None):
     """Create maps of spatial frequency in cycles per pixel.
 
     returns four maps: the spatial frequency in the x direction (dx), the spatial frequency in the
@@ -178,9 +179,27 @@ def create_sf_maps_cpp(size, w_r=0, w_a=0, origin=None, scale_factor=1):
     corresponding log polar grating at that point. You will want to use dx and dy if you are going
     to plot approximations of the grating using sfp.utils.plot_grating_approximation (which you
     should use to convince yourself these values are correct)
+
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli to generate the spatial
+    frequency map for. This matters because we determine the spatial frequency maps analytically
+    and so *cannot* do so in a stimulus-driven manner. if 'logpolar', the log-polar gratings
+    created by log_polar_grating. if 'constant', the constant gratings created by
+    utils.create_sin_cpp (and gen_constant_stim_set). if 'pilot', the log-polar gratings created by
+    a former version of the log_polar_grating function, with alpha=50. If 'constant', then w_x and
+    w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
     """
     assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
     size = int(size)
+    if stim_type in ['logpolar', 'pilot']:
+        if w_r is None or w_a is None or w_x is not None or w_y is not None:
+            raise Exception("When stim_type is %s, w_r / w_a must be set and w_x / w_y must be"
+                            " None!" % stim_type)
+    elif stim_type == 'constant':
+        if w_r is not None or w_a is not None or w_x is None or w_y is None:
+            raise Exception("When stim_type is constant, w_x / w_y must be set and w_a / w_r must"
+                            " be None!")
+    else:
+        raise Exception("Don't know how to handle stim_type %s!" % stim_type)
     if origin is None:
         origin = ((size+1) / 2., (size+1) / 2.)
     # we do this in terms of x and y
@@ -201,18 +220,31 @@ def create_sf_maps_cpp(size, w_r=0, w_a=0, origin=None, scale_factor=1):
     # and y components). g(X_0) is the phase of the approximation and so not important here, but
     # that g'(X_0) is the local spatial frequency that we're interested in. Thus we take the
     # derivative of our log polar grating function with respect to x and y in order to get dx and
-    # dy, respectively (after some re-arranging and cleaning up)
-    dy = (y * w_r + w_a * x) / (x**2 + y**2)
-    dx = (x * w_r - w_a * y) / (x**2 + y**2)
-    # Since x, y are in pixels (and so run from ~0 to ~size/2), dx and dy need to be divided by
-    # 2*pi in order to get the frequency in cycles / pixel. This is analogous to the 1d case: if x
-    # runs from 0 to 1 and f(x) = cos(w * x), then the number of cycles in f(x) is w / 2*pi.
-    dy /= 2*np.pi
-    dx /= 2*np.pi
+    # dy, respectively (after some re-arranging and cleaning up). the logpolar and pilot stimuli
+    # have different dx / dy values because they were generated using different functions and the
+    # constant stimuli, by definition, have a constant spatial frequency every where in the image.
+    if stim_type == 'logpolar':
+        dy = (y * w_r + w_a * x) / (x**2 + y**2)
+        dx = (x * w_r - w_a * y) / (x**2 + y**2)
+    elif stim_type == 'pilot':
+        alpha = 50
+        dy = (2*y*(w_r/np.pi)) / ((x**2 + y**2 + alpha**2) * np.log(2)) + (w_a * x) / (x**2 + y**2)
+        dx = (2*x*(w_r/np.pi)) / ((x**2 + y**2 + alpha**2) * np.log(2)) - (w_a * y) / (x**2 + y**2)
+    elif stim_type == 'constant':
+        dy = w_y * np.ones((size, size))
+        dx = w_x * np.ones((size, size))
+    if stim_type in ['logpolar', 'pilot']:
+        # Since x, y are in pixels (and so run from ~0 to ~size/2), dx and dy need to be divided by
+        # 2*pi in order to get the frequency in cycles / pixel. This is analogous to the 1d case:
+        # if x runs from 0 to 1 and f(x) = cos(w * x), then the number of cycles in f(x) is w /
+        # 2*pi. (the values for the constant stimuli are given in cycles per pixel already)
+        dy /= 2*np.pi
+        dx /= 2*np.pi
     return dx, dy, np.sqrt(dx**2 + dy**2), np.arctan2(dy, dx)
 
 
-def create_sf_maps_cpd(size, max_visual_angle, w_r=0, w_a=0, origin=None, scale_factor=1):
+def create_sf_maps_cpd(size, max_visual_angle, origin=None, scale_factor=1, stim_type='logpolar',
+                       w_r=None, w_a=None, w_x=None, w_y=None):
     """Create map of the spatial frequency in cycles per degree of visual angle
 
     returns one map: the local spatial frequency (magnitude from create_sf_maps_cpp) in cycles per
@@ -224,7 +256,7 @@ def create_sf_maps_cpd(size, max_visual_angle, w_r=0, w_a=0, origin=None, scale_
     max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
     the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 24)
     """
-    _, _, mag, _ = create_sf_maps_cpp(size, w_r, w_a, origin, scale_factor)
+    _, _, mag, _ = create_sf_maps_cpp(size, origin, scale_factor, stim_type, w_r, w_a, w_x, w_y)
     return mag / (max_visual_angle / float(size))
 
 
@@ -244,7 +276,7 @@ def create_antialiasing_mask(size, w_r=0, w_a=0, origin=None, number_of_fade_pix
 
     returns both the faded_mask and the binary mask.
     """
-    _, _, mag, _ = create_sf_maps_cpp(size, w_r, w_a, origin, scale_factor)
+    _, _, mag, _ = create_sf_maps_cpp(size, origin, scale_factor, w_r=w_r, w_a=w_a)
     # the nyquist frequency is .5 cycle per pixel, but we make it a lower to give ourselves a
     # little fudge factor
     nyq_freq = .475
@@ -340,8 +372,8 @@ def check_stim_properties(size, origin, max_visual_angle, w_r=0, w_a=range(10),
     sf_df = []
     for i, (f_r, f_a) in enumerate(itertools.product(w_r, w_a)):
         fmask, mask = create_antialiasing_mask(size, f_r, f_a, origin, 0)
-        _, _, mag_cpp, _ = create_sf_maps_cpp(size, f_r, f_a, origin)
-        mag_cpd = create_sf_maps_cpd(size, max_visual_angle, f_r, f_a, origin)
+        _, _, mag_cpp, _ = create_sf_maps_cpp(size, origin, w_r=f_r, w_a=f_a)
+        mag_cpd = create_sf_maps_cpd(size, max_visual_angle, origin, w_r=f_r, w_a=f_a)
         data = {'mask_radius_pix': (~mask*rad).max(), 'w_r': f_r, 'w_a': f_a,
                 'freq_distance': np.sqrt(f_r**2 + f_a**2)}
         data['mask_radius_deg'] = data['mask_radius_pix'] / (rad.max() / np.sqrt(2*(max_visual_angle/2.)**2))
@@ -412,7 +444,7 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
 
     Note that this function should be run *last*, after you've determined your parameters and
     checked to make sure the aliasing is taken care of.
-f
+
     Parameters
     =============
 

@@ -10,11 +10,9 @@ import nibabel as nib
 import itertools
 import re
 from matplotlib import pyplot as plt
-import stimuli
+import stimuli as sfp_stimuli
 import pyPyrTools as ppt
 import utils
-import h5py
-import design_matrices
 
 
 def _load_mgz(path):
@@ -61,7 +59,7 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
         mgzs['%s-%s' % (var, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
 
     for hemi, res in itertools.product(['lh', 'rh'], results_names):
-        tmp = _load_mgz(results_template_path % (res, hemi))
+        tmp = _load_mgz(results_template_path % (hemi, res))
         res_name = os.path.split(res)[-1]
         if tmp.ndim == 1:
             mgzs['%s-%s' % (res_name, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
@@ -114,8 +112,8 @@ def _unfold_2d_mgz(mgz, value_name, variable_name, mgz_name, hemi=None):
     return tmp
 
 
-def _add_freq_metainfo(design_df):
-    """this function takes the design_df and adds some metainfo based on the stimulus frequency
+def _add_freq_metainfo(stim_df):
+    """this function takes the stim_df and adds some metainfo based on the stimulus frequency
 
     right now these are: stimulus_superclass (radial, circular, etc), freq_space_angle (the angle
     in our 2d frequency space) and freq_space_distance (distance from the origin in our 2d
@@ -126,7 +124,7 @@ def _add_freq_metainfo(design_df):
     # so we label them (this is inefficient but works). We also want to get some other identifying
     # values. We do this all at once because the major time cost comes from applying this to all
     # rows, not the computations themselves
-    def freq_identifier(x):
+    def freq_identifier_logpolar(x):
         if x.w_r == 0 and x.w_a != 0:
             sc = 'radial'
         elif x.w_r != 0 and x.w_a == 0:
@@ -137,21 +135,33 @@ def _add_freq_metainfo(design_df):
             sc = 'reverse spiral'
         else:
             sc = 'mixtures'
-        try:
-            ang = np.arctan(x.w_r / x.w_a)
-        except ZeroDivisionError:
-            ang = np.arctanh(x.w_a / x.w_r)
-        return sc, ang, np.sqrt(x.w_r**2 + x.w_a**2)
+        return sc, np.arctan2(x.w_a, x.w_r), np.sqrt(x.w_r**2 + x.w_a**2)
 
-    properties_list = design_df[['w_r', 'w_a']].apply(freq_identifier, 1)
+    def freq_identifier_constant(x):
+        if x.w_x == 0 and x.w_y != 0:
+            sc = 'horizontal'
+        elif x.w_x != 0 and x.w_y == 0:
+            sc = 'vertical'
+        elif x.w_x == x.w_y:
+            sc = 'forward diagonal'
+        elif x.w_x == -x.w_y:
+            sc = 'reverse diagonal'
+        else:
+            sc = 'off-diagonal'
+        return sc, np.arctan2(x.w_y, x.w_x), np.sqrt(x.w_x**2 + x.w_y**2)
+
+    try:
+        properties_list = stim_df[['w_r', 'w_a']].apply(freq_identifier_logpolar, 1)
+    except KeyError:
+        properties_list = stim_df[['w_x', 'w_y']].apply(freq_identifier_constant, 1)
     sc = pd.Series([i[0] for i in properties_list.values], properties_list.index)
     ang = pd.Series([i[1] for i in properties_list.values], properties_list.index)
     dist = pd.Series([i[2] for i in properties_list.values], properties_list.index)
 
-    design_df['stimulus_superclass'] = sc
-    design_df['freq_space_angle'] = ang
-    design_df['freq_space_distance'] = dist
-    return design_df
+    stim_df['stimulus_superclass'] = sc
+    stim_df['freq_space_angle'] = ang
+    stim_df['freq_space_distance'] = dist
+    return stim_df
 
 
 def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None):
@@ -190,7 +200,7 @@ def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None):
     return df
 
 
-def _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin=True, hemi_bin=True):
+def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin=True, hemi_bin=True):
     if not hemi_bin:
         df = {}
         for hemi in ['lh', 'rh']:
@@ -204,10 +214,10 @@ def _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin=Tr
         df = _setup_mgzs_for_df(mgzs, results_names, df_mode, None)
 
     # Add the stimulus frequency information
-    design_df = _add_freq_metainfo(design_df)
+    stim_df = _add_freq_metainfo(stim_df)
 
     df = df.set_index('stimulus_class')
-    df = df.join(design_df)
+    df = df.join(stim_df)
     df = df.reset_index().rename(columns={'index': 'stimulus_class'})
 
     if eccen_bin:
@@ -269,12 +279,13 @@ def find_ecc_range_in_degrees(stim, stim_rad_deg, mid_val=128):
     return Rmin / factor, Rmax / factor
 
 
-def calculate_stim_local_sf(stim, w_r, w_a=0, stim_rad_deg=12, eccen_bin=True, eccen_range=(1, 12),
-                            eccens=[], plot_flag=False):
+def calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg=12, eccen_bin=True,
+                            eccen_range=(1, 12), eccens=[], plot_flag=False, mid_val=128):
     """calculate the local spatial frequency for a specified stimulus and screen size
 
     NOTE: this assumes that the local spatial frequency does not depend on angle, only on
-    eccentricity. this is true for the log polar stimuli created for this experiment.
+    eccentricity. this is true for the log polar stimuli and the constant grating stimuli created
+    for this experiment.
 
     This works slightly differently if you are binning by eccentricity or not (i.e., depending on
     whether eccen_bin is True or False). If binning, then we take the annulus with inner edge i
@@ -286,22 +297,36 @@ def calculate_stim_local_sf(stim, w_r, w_a=0, stim_rad_deg=12, eccen_bin=True, e
     distance(-in-degrees)-from-origin map (made by rescaling the output of ppt.mkR()) for each
     value in eccens.
 
-    stim: 2d array of floats. an example stimuli. used to determine where the stimuli are masked
+    stim: 2d array of floats. an example stimulus. used to determine where the stimuli are masked
     and to mask the calculated spatial frequency in the same way.
 
-    w_r, w_a: ints or floats. the radial and angular components, respectively, of the stimulus's
-    spatial frequency
+    w_1, w_2: ints or floats. the first and second components of the stimulus's spatial
+    frequency. if stim_type is 'logarpolar' or 'pilot', this should be the radial and angular
+    components (in that order!); if stim_type is 'constant', this should be the x and y components
+    (in that order!)
 
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli were used in the session
+    we're analyzing. This matters because it changes the local spatial frequency and, since that is
+    determined analytically and not directly from the stimuli, we have no way of telling otherwise.
+    
     stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
 
     plot_flag: boolean, optional, default False. Whether to create a plot showing the local spatial
     frequency vs eccentricity for the specified stimulus
+
+    mid_val: int. the value of mid-grey in the stimuli, should be 127 (for pilot stimuli) or 128
+    (for actual stimuli)
     """
-    mag = stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2, w_r, w_a)
+    if stim_type in ['logpolar', 'pilot']:
+        mag = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2, stim_type=stim_type,
+                                             w_r=w_1, w_a=w_2)
+    elif stim_type == 'constant':
+        mag = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2, stim_type=stim_type,
+                                             w_x=w_1, w_y=w_2)
     R = ppt.mkR(stim.shape[0])
 
     # this limits the frequency maps to only where our stimulus has a grating.
-    mag = utils.mask_array_like_grating(stim, mag)
+    mag = utils.mask_array_like_grating(stim, mag, mid_val)
 
     # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
     # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of
@@ -335,37 +360,40 @@ def calculate_stim_local_sf(stim, w_r, w_a=0, stim_rad_deg=12, eccen_bin=True, e
     return pd.Series(eccen_local_freqs, eccen_idx)
 
 
-def _add_local_sf_to_df(df, eccen_bin, eccen_range, stimuli, stim_rad_deg=12):
+def _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_deg=12, mid_val=128):
     """Adds local spatial frequency information for all stimuli to the df
     """
-    freqs = df.drop_duplicates(['w_r', 'w_a'])[['w_r', 'w_a', 'stimulus_superclass']]
+    try:
+        freqs = df.drop_duplicates(['w_r', 'w_a'])[['w_r', 'w_a', 'stimulus_superclass']]
+        freq_labels = ['w_r', 'w_a']
+    except KeyError:
+        freqs = df.drop_duplicates(['w_x', 'w_y'])[['w_x', 'w_y', 'stimulus_superclass']]
+        freq_labels = ['w_x', 'w_y']
     sfs = []
 
-    for w_r, w_a, stim_class in freqs.values:
-        # we only need one stimulus, because all of them have the same masks, which is what we're
-        # interested in here
-        tmp = calculate_stim_local_sf(stimuli[0, :, :], w_r, w_a, stim_rad_deg, eccen_bin,
-                                      eccen_range, df.eccen.unique())
+    for w_1, w_2, stim_class in freqs.values:
+        tmp = calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg, eccen_bin,
+                                      eccen_range, df.eccen.unique(), mid_val=mid_val)
         tmp = pd.DataFrame(tmp, columns=['Local spatial frequency (cpd)'])
         tmp.index.name = 'eccen'
-        tmp['w_r'] = w_r
-        tmp['w_a'] = w_a
+        tmp[freq_labels[0]] = w_1
+        tmp[freq_labels[1]] = w_2
         tmp['stimulus_superclass'] = stim_class
         sfs.append(tmp)
 
     sfs = pd.concat(sfs)
-    sfs = sfs.reset_index()
-
-    sfs = sfs.set_index(['stimulus_superclass', 'w_a', 'w_r', 'eccen'])
-    df = df.set_index(['stimulus_superclass', 'w_a', 'w_r', 'eccen'])
+    sfs = sfs.reset_index().set_index(['stimulus_superclass', freq_labels[0], freq_labels[1], 'eccen'])
+    df = df.set_index(['stimulus_superclass', freq_labels[0], freq_labels[1], 'eccen'])
     df = df.join(sfs)
 
     return df.reset_index()
 
 
-def create_GLM_result_df(design_df, stimuli, benson_template_path, results_template_path,
-                         df_mode='summary', save_path=None, class_nums=xrange(52), vareas=[1],
-                         eccen_range=(1, 12), eccen_bin=True, hemi_bin=True, stim_rad_deg=12):
+def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
+         save_path=None, class_nums=xrange(52), vareas=[1], eccen_range=(1, 12), eccen_bin=True,
+         hemi_bin=True, stim_rad_deg=12, unshuffled_stim_path="../data/stimuli/unshuffled.npy",
+         unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv",
+         mid_val=128):
     """this loads in the realigned mgz files and creates a dataframe of their values
 
     This only returns those voxels that lie within visual areas outlined by the Benson14 varea mgz
@@ -374,10 +402,6 @@ def create_GLM_result_df(design_df, stimuli, benson_template_path, results_templ
     should be surfaces, not volumes. this will take a while to run, which is why it's recommended
     to provide save_path so the resulting dataframe can be saved.
 
-    design_df: output of create_design_df
-
-    stimuli: numpy array of unpermuted stimuli used in the experiment.
-
     benson_template_path: template path to the Benson14 mgz files, containing two string formatting
     symbols (%s; one for hemisphere, one for variable [angle, varea, eccen]),
     e.g. /mnt/Acadia/Freesurfer_subjects/wl_subj042/surf/%s.benson14_%s.mgz
@@ -385,11 +409,15 @@ def create_GLM_result_df(design_df, stimuli, benson_template_path, results_templ
     results_template_path: template path to the results mgz files (outputs of realign.py),
     containing two string formatting symbols (%s; one for hemisphere, one for results_names)
 
-    df_mode: 'summary' or 'full'. If 'summary', will load in the 'modelmd' and 'modelse' mgz files,
+    df_mode: {'summary', 'full'}. If 'summary', will load in the 'modelmd' and 'modelse' mgz files,
     using those calculated summary values. If 'full', will load in the 'models_class_##' mgz files,
     containing the info to calculate central tendency and spread directly. In both cases, 'R2' will
     also be loaded in. Assumes modelmd and modelse lie directly in results_template_path and that
     models_class_## files lie within the subfolder models_niftis
+
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli were used in the session
+    we're analyzing. This matters because it changes the local spatial frequency and, since that is
+    determined analytically and not directly from the stimuli, we have no way of telling otherwise.
 
     save_path: None or str. if str, will save the GLM_result_df at this location
 
@@ -410,11 +438,29 @@ def create_GLM_result_df(design_df, stimuli, benson_template_path, results_templ
     want, unless you also to examine differences between the two hemispheres.
 
     stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
+
+    unshuffled_stim_path: path to the unshuffled stimuli.
+
+    unshuffled_stim_descriptions_path: path to the unshuffled stimulus description csv, as saved
+    during the creation of the stimuli
+
+    mid_val: int. the value of mid-grey in the stimuli, should be 127 (for pilot stimuli) or 128
+    (for actual stimuli)
     """
+    # This contains the information on each stimulus, allowing us to determine whether some stimuli
+    # are part of the same class or a separate one.
+    stim_df = pd.read_csv(unshuffled_stim_descriptions_path)
+    stim_df = stim_df.dropna()
+    stim_df.class_idx = stim_df.class_idx.astype(int)
+    stim_df = stim_df.drop_duplicates('class_idx').set_index('class_idx')
+    stim_df = stim_df.rename(columns={'index': 'stimulus_index'})
+    # we only need one stimulus, because all of them have the same masks, which is what we're
+    # interested in here
+    stim = np.load(unshuffled_stim_path)[0, :, :]
     if df_mode == 'summary':
         results_names = ['modelse', 'modelmd']
     elif df_mode == 'full':
-        results_names = ['models_niftis/models_class_%02d' % i for i in class_nums]
+        results_names = ['models_class_%02d' % i for i in class_nums]
         if not eccen_bin:
             warnings.warn("Not binning by eccentricities while constructing the full DataFrame is "
                           "NOT recommended! This may fail because you run out of memory!")
@@ -439,50 +485,16 @@ def create_GLM_result_df(design_df, stimuli, benson_template_path, results_templ
 
     results_names = [os.path.split(i)[-1] for i in results_names]
 
-    df = _put_mgzs_dict_into_df(mgzs, design_df, results_names, df_mode, eccen_bin, hemi_bin)
+    df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin, hemi_bin)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
-    df = _round_freq_space_distance(df, core_dists)
-    df = _add_local_sf_to_df(df, eccen_bin, eccen_range, stimuli, stim_rad_deg)
+    if stim_type in ['logpolar', 'pilot']:
+        df = _round_freq_space_distance(df, core_dists)
+    df = _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_deg, mid_val)
 
     if save_path is not None:
         df.to_csv(save_path)
 
     return df
-
-
-# Make wrapper function that does above, loading in design_df and maybe grabbing it for different
-# results? and then combining them.
-def main(behavioral_results_path, benson_template_path, results_template_path, save_path,
-         df_mode='summary', class_nums=xrange(52), vareas=[1], eccen_range=(1, 12), eccen_bin=True,
-         hemi_bin=True, stim_rad_deg=12, unshuffled_stim_path="../data/stimuli/unshuffled.npy",
-         unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv"):
-    """wrapper function that loads in relevant bits of information and calls relevant functions
-
-    Ends up creating and saving the dataframe containing the first level results and so doesn't
-    return anything
-    """
-    # This file contains the button presses (which also show the TR onsets) and the order the
-    # stimuli were presented in (along with their timing)
-    behav_results = h5py.File(behavioral_results_path)
-    # This contains the information on each stimulus, allowing us to determine whether some stimuli
-    # are part of the same class or a separate one.
-    stim_df = pd.read_csv(unshuffled_stim_descriptions_path)
-    # Array full of the actual stimuli
-    stimuli = np.load(unshuffled_stim_path)
-
-    # for this, we just want any run, since they all contain the same classes and we don't care
-    # about their order
-    design_df, _, _ = design_matrices.create_design_df(behav_results, stim_df, 1)
-    design_df = design_df.reset_index(drop=True).sort_values(by="class_idx")
-    design_df = design_df[['w_r', 'w_a', 'class_idx', 'res']].set_index('class_idx')
-
-    stim_df = stim_df.set_index(['w_r', 'w_a'])
-    stim_df['class_idx'] = design_df.reset_index().set_index(['w_r', 'w_a'])['class_idx']
-    stim_df = stim_df.reset_index()
-
-    df = create_GLM_result_df(design_df, stimuli, benson_template_path, results_template_path,
-                              df_mode, save_path, class_nums, vareas, eccen_range, eccen_bin,
-                              hemi_bin, stim_rad_deg)
 
 
 if __name__ == '__main__':
@@ -496,10 +508,6 @@ if __name__ == '__main__':
     parser.add_argument("subject",
                         help=("Subject string. Will be used to generate the save path and will "
                               "also check benson_template_path to fill in there as well"))
-    parser.add_argument("behavioral_results_path",
-                        help=("Path to the behavioral results that contains the timing of stimuli"
-                              " and scans. Can contain {subj} or any environmental variable (in "
-                              "all caps, contained within curly brackets, e.g., {SUBJECTS_DIR})"))
     parser.add_argument("results_template_path",
                         help=("template path to the results mgz files (outputs of realign.py), "
                               "containing two string formatting symbols (one for hemisphere, "

@@ -3,6 +3,7 @@
 """
 
 import matplotlib
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
@@ -143,7 +144,7 @@ def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     this takes two arrays of the same size, grating and array_to_mask. masked should already be
     masked into an annulus, while array_to_mask should be unmasked. This then finds the inner and
     outer radii of that annulus and applies the same mask to array_to_mask. the value in the masked
-    part of masked should be mid_val (by default, 127, as you'd get when the grating runs from 0 to
+    part of masked should be mid_val (by default, 128, as you'd get when the grating runs from 0 to
     255; mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want
     to set array_to_mask to is val_to_set (same reasonable values as mid_val)
     """
@@ -231,7 +232,8 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
     return lines
 
 
-def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=None):
+def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=None,
+                   stim_type='logpolar'):
     """create a local 2d sin grating based on the gradients dx and dy
 
     this uses the gradients at location loc_x, loc_y to create a small grating to approximate a
@@ -240,6 +242,10 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=Non
     grating (like the one created by create_sin_cpp), in which case they can be left at 0
 
     dx and dy should be in cycles / pixel
+
+    stim_type: {'logpolar', 'pilot', 'constant'}. what type of stimuli we're creating an
+    approximation of (see stimuli.create_sf_maps_cpp for an explanation). used to determine how to
+    calculate the local phase.
     """
     size = dx.shape[0]
     x, y = np.meshgrid(np.array(range(1, size+1)) - loc_x,
@@ -256,10 +262,16 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=Non
 
     # the local phase is just the value of the actual grating at that point (see the explanation in
     # sfp.stimuli.create_sf_maps_cpp about why this works).
-    if w_r is None and w_a is None:
+    if stim_type == 'constant':
+        if w_r is not None or w_a is not None:
+            raise Exception("If stim_type is constant, w_r / w_a must be None!")
         local_phase = np.mod(w_x * local_x + w_y * local_y + phase, 2*np.pi)
-    else:
+    elif stim_type == 'logpolar':
         local_phase = np.mod(((w_r * np.log(2))/2.) * np.log2(local_x**2 + local_y**2) +
+                             w_a * np.arctan2(local_y, local_x) + phase, 2*np.pi)
+    elif stim_type == 'pilot':
+        alpha = 50
+        local_phase = np.mod((w_r / np.pi) * np.log2(local_x**2 + local_y**2 + alpha**2) +
                              w_a * np.arctan2(local_y, local_x) + phase, 2*np.pi)
     if w_x == 0 and w_y == 0:
         return 0
@@ -267,8 +279,24 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=Non
         return np.cos(w_x*x + w_y*y + local_phase)
 
 
-def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=None,
-                               w_a=None, origin=None, figsize=None, **kwargs):
+def _plot_and_save(grating, grating_type, savename, **kwargs):
+    figsize = kwargs.pop('figsize', (5, 5))
+    fig, axes = plt.subplots(1, 1, figsize=figsize)
+    im_plot(grating, ax=axes, **kwargs)
+    if grating_type == 'grating':
+        axes.set_title("Windowed view of actual grating")
+    elif grating_type == 'approx':
+        axes.set_title("Windowed view of linear approximation")
+    if savename is not None:
+        try:
+            fig.savefig(savename % grating_type)
+        except TypeError:
+            savename = os.path.splitext(savename)[0] + "_" + grating_type + os.path.splitext(savename)[1]
+            fig.savefig(savename)
+
+
+def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=None, w_a=None,
+                               origin=None, stim_type='logpolar', savename=None, **kwargs):
     """plot the "windowed approximation" of a grating
 
     note that this will not create the grating or its gradients (dx/dy), it only plots them. For
@@ -286,13 +314,18 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=Non
     num_windows: int, the number of windows in each direction that we'll use. as this gets larger,
     the approximation will look better and better (and this will take a longer time to run)
 
+    savename: str, optional. If set, will save plots. in order to make comparison easier, will save
+    two separate plots (one of the windowed grating, one of the linear approximation). if savename
+    does not include %s, will append _grating and _approx (respectively) to filename
+
     kwargs will be past to im_plot.
     """
     size = grating.shape[0]
     # we need to window the gradients dx and dy so they only have values where the grating does
     # (since they're derived analytically, they'll have values everywhere)
-    dx = mask_array_like_grating(grating, dx)
-    dy = mask_array_like_grating(grating, dy)
+    mid_val = {'pilot': 127}.get(stim_type, 128)
+    dx = mask_array_like_grating(grating, dx, mid_val)
+    dy = mask_array_like_grating(grating, dy, mid_val)
     mask_spacing = np.round(size / num_windows)
     # for this to work, the gratings must be non-overlapping
     mask_size = np.round(mask_spacing / 2) - 1
@@ -305,16 +338,11 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=Non
             mask = create_circle_mask(loc_x, loc_y, mask_size, size)
             masks += mask
             masked_grating += mask * grating
-            masked_approx += mask * local_grad_sin(dx, dy, loc_x, loc_y, w_r, w_a, phase, origin)
-    if w_r is not None and w_a is not None:
-        # in order to make the space between the masks black, that area should have the minimum
-        # value, -1. but for the above to all work, that area needs to be 0, so this corrects that.
-        masked_approx[~masks.astype(bool)] -= 1
-    if figsize is None:
-        figsize = (15, 10)
-    fig, axes = plt.subplots(1, 2, figsize=figsize)
-    im_plot(masked_grating, ax=axes[0], **kwargs)
-    axes[0].set_title("Windowed view of actual grating")
-    im_plot(masked_approx, ax=axes[1], **kwargs)
-    axes[1].set_title("Windowed view of linear approximation")
+            masked_approx += mask * local_grad_sin(dx, dy, loc_x, loc_y, w_r, w_a, phase, origin,
+                                                   stim_type)
+    # in order to make the space between the masks black, that area should have the minimum
+    # value, -1. but for the above to all work, that area needs to be 0, so this corrects that.
+    masked_approx[~masks.astype(bool)] -= 1
+    _plot_and_save(masked_grating, 'grating', savename, **kwargs)
+    _plot_and_save(masked_approx, 'approx', savename, **kwargs)
     return masked_grating, masked_approx
