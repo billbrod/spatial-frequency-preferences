@@ -32,8 +32,8 @@ function saveout(resultsPath, exampleBoldPath, outputDir, saveStem, fsPath)
     nii = MRIread(exampleBoldPath);
 
     for ii=1:size(models{2}, 4)
-        boldTmp.vol = squeeze(models{2}(:, :, :, ii, :));
-        MRIwrite(boldTmp, fullfile(outputDir, strcat(saveStem, sprintf('models_class_%02d.nii.gz', ii-1))));
+        nii.vol = squeeze(models{2}(:, :, :, ii, :));
+        MRIwrite(nii, fullfile(outputDir, strcat(saveStem, sprintf('models_class_%02d.nii.gz', ii-1))));
     end
     
     display('Saved result models niftis');
