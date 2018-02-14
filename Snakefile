@@ -23,8 +23,21 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
          ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant', ('sub-wlsubj042', 'ses-02'): 'task-sfp',
          ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp'}
-# every sub/ses pair that's not in here, has the full number of runs, 12
+# every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
+def get_stim_files(wildcards):
+    if 'pilot00' in wildcards.session:
+        stim_prefix = 'pilot00_'
+    elif 'pilot01' in wildcards.session:
+        stim_prefix = 'pilot01_'
+    else:
+        if 'constant' in wildcards.task:
+            stim_prefix = 'constant_'
+        else:
+            stim_prefix = ''
+    file_stem = os.path.join(config['DATA_DIR'], 'stimuli', stim_prefix+"unshuffled{rest}")
+    return {'stim': file_stem.format(rest='.npy'),
+            'desc_csv': file_stem.format(rest='_stim_description.csv')}
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3}
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40}
 wildcard_constraints:
@@ -33,7 +46,9 @@ wildcard_constraints:
     run="run-[0-9]+",
     filename_ext='[a-zA-Z0-9_]+\.[a-z.]+',
     filename='[a-zA-Z0-9_]+',
-    task="task-[a-z0-9]+"
+    task="task-[a-z0-9]+",
+    varea="[0-9-]+",
+    eccen="[0-9]+-[0-9]+"
 
 # For GLMdenoise, we need to break the all rule into several parts for the dynamic to work well
 rule GLMdenoise_all:
@@ -284,6 +299,65 @@ rule to_freesurfer:
     shell:
         "python {params.script_location} -v -s -o {params.output_dir} {input.tkreg} {input.in_file}"
         
+
+def get_first_level_analysis_input(wildcards):
+    # files = os.path.join("/mnt/HPC-scratch/sfp_OLD_FORMAT/wl_subj042/new_reoriented/results/stim_clas", "derivatives", "GLMdenoise_reoriented", "{hemi}.{filename}.mgz")
+    files = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise_reoriented", wildcards.mat_type, wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_{filename}.mgz")
+    input_dict = {}
+    if wildcards.df_mode == 'summary':
+        input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=['R2', 'modelmd', 'modelse'])
+    elif wildcards.df_mode == 'full':
+        if 'pilot' in wildcards.session:
+            class_num = range(52)
+        else:
+            class_num = range(48)
+        models_names = ['R2']+['models_class_%02d'%i for i in class_num]
+        input_dict['GLM_results'] = [files.format(hemi=h, filename=n) for h in ['lh', 'rh'] for n in models_names]
+    benson_names = ['angle', 'eccen', 'varea']
+    if wildcards.atlas_type == 'prior':
+        benson_prefix = 'benson14'
+    elif wildcards.atlas_type == 'posterior':
+        benson_prefix = 'inferred'
+        benson_names.append('sigma')
+    benson_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', wildcards.subject, 'surf', '{hemi}.'+benson_prefix+'_{filename}.mgz')
+    input_dict['benson_paths'] = expand(benson_temp, hemi=['lh', 'rh'], filename=benson_names)
+    return input_dict
+
+
+def get_binning(wildcards):
+    bin_str = ""
+    if "eccen_bin" in wildcards.binning:
+        bin_str += "--eccen_bin "
+    if "hemi_bin" in wildcards.binning:
+        bin_str += "--hemi_bin"
+    return bin_str
+
+
+rule first_level_analysis:
+    input:
+        unpack(get_first_level_analysis_input),
+        unpack(get_stim_files)
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv')
+    params:
+        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
+        save_dir = lambda wildcards, output: os.path.dirname(output[0]),
+        vareas = lambda wildcards: wildcards.vareas.split('-'),
+        eccen = lambda wildcards: wildcards.eccen.split('-'),
+        bin_str = get_binning,
+        results_template = lambda wildcards, input: input.GLM_results[0].replace('lh', '%s').replace('R2', '%s'),
+        benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
+        class_num = lambda wildcards: {'ses-pilot01':52, 'ses-pilot00': 52}.get(wildcards.session, 48)
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{df_mode}_v{vareas}_e{eccen}{binning}_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{df_mode}_v{vareas}_e{eccen}{binning}.log")
+    shell:
+        "python sfp/first_level_analysis.py --save_dir {params.save_dir} --vareas {params.vareas} "
+        "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} {params.bin_str} "
+        "--unshuffled_stim_descriptions_path {input.desc_csv} --unshuffled_stim_path {input.stim} "
+        "--save_stem {params.save_stem} --class_nums {params.class_num} {params.results_template} "
+        "{params.benson_template}"
 
 
 rule report:
