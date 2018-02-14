@@ -71,7 +71,6 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     design = cell(1, length(behavRuns));
     bold = cell(1, length(boldRuns));
     for ii=1:length(behavRuns)
-        load(sprintf(designMatPathTemplate, behavRuns(ii)));
         design{ii} = dlmread(sprintf(designMatPathTemplate, behavRuns(ii)), '\t');
         boldTmp = MRIread(sprintf(boldPathTemplate, boldRuns(ii)));
         bold{ii} = single(boldTmp.vol);
