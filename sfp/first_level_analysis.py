@@ -390,7 +390,7 @@ def _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_de
 
 
 def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
-         save_path=None, class_nums=xrange(52), vareas=[1], eccen_range=(1, 12), eccen_bin=True,
+         save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), eccen_bin=True,
          hemi_bin=True, stim_rad_deg=12, unshuffled_stim_path="../data/stimuli/unshuffled.npy",
          unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv",
          mid_val=128):
@@ -492,7 +492,7 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     df = _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_deg, mid_val)
 
     if save_path is not None:
-        df.to_csv(save_path)
+        df.to_csv(save_path, index=False)
 
     return df
 
@@ -505,22 +505,17 @@ if __name__ == '__main__':
                      "results for a given subject. Note that this can take a rather long time, "
                      "especially if you are not binning by eccentricity."),
         formatter_class=CustomFormatter)
-    parser.add_argument("subject",
-                        help=("Subject string. Will be used to generate the save path and will "
-                              "also check benson_template_path to fill in there as well"))
     parser.add_argument("results_template_path",
                         help=("template path to the results mgz files (outputs of realign.py), "
                               "containing two string formatting symbols (one for hemisphere, "
-                              "one specifying results type). Can contain {subj} or any environment"
+                              "one specifying results type). Can contain any environment"
                               "al variable (in all caps, contained within curly brackets, e.g., "
                               "{SUBJECTS_DIR})"))
-    parser.add_argument("--benson_template_path", "-b",
-                        default="{SUBJECTS_DIR}/{subj}/surf/%s.benson14_%s.mgz",
+    parser.add_argument("benson_template_path",
                         help=("template path to the Benson14 mgz files, containing two string "
                               "formatting symbols (one for hemisphere, one for variable [angle"
-                              ", varea, eccen]). By default will use your Freesurfer "
-                              "SUBJECTS_DIR (from your environmental variables) and the subject "
-                              "name."))
+                              ", varea, eccen]). Can contain any environmental variable (in all "
+                              "caps, contained within curly brackets, e.g., {SUBJECTS_DIR})"))
     parser.add_argument("--save_dir", default="data/MRI_first_level",
                         help=("directory to save the GLM result DataFrame in. The DataFrame will "
                               "be saved in a sub-directory (named for the subject) of this as a "
@@ -533,7 +528,7 @@ if __name__ == '__main__':
                               " cases, 'R2' will also be loaded in. Assumes modelmd and modelse "
                               "lie directly in results_template_path and that models_class_## "
                               "files lie within the subfolder models_niftis"))
-    parser.add_argument("--class_nums", "-c", nargs='+', default=xrange(52), type=int,
+    parser.add_argument("--class_nums", "-c", nargs='+', default=xrange(48), type=int,
                         help=("list of ints. if df_mode=='full', which classes to load in. If "
                               "df_mode=='summary', then this is ignored."))
     parser.add_argument("--vareas", "-v", nargs='+', default=[1], type=int,
@@ -543,12 +538,12 @@ if __name__ == '__main__':
     parser.add_argument("--eccen_range", "-r", nargs=2, default=(1, 12), type=int,
                         help=("2-tuple of ints or floats. What range of eccentricities to "
                               "include."))
-    parser.add_argument("--eccen_bin", action="store_false",
+    parser.add_argument("--eccen_bin", action="store_true",
                         help=("Whether to bin the eccentricities in integer"
                               "increments. HIGHLY RECOMMENDED to be True if df_mode=='full', "
                               "otherwise this will take much longer and the resulting DataFrame "
                               "will be absurdly large and unwieldy."))
-    parser.add_argument("--hemi_bin", action="store_false",
+    parser.add_argument("--hemi_bin", action="store_true",
                         help=("Does nothing if eccen_bin is False, but if "
                               "eccen_bin is True, average corresponding eccentricity ROIs across "
                               "the two hemispheres. Generally, this is what you want, unless you "
@@ -563,9 +558,12 @@ if __name__ == '__main__':
                         default="data/stimuli/unshuffled.npy",
                         help=("Path to the unshuffled.npy file that contains the numpy array with"
                               "the stimuli used in the experiment"))
+    parser.add_argument("--save_stem", default="",
+                        help=("String to prefix the filename of output csv with. Useful for making"
+                              " this BIDS-like"))
     args = vars(parser.parse_args())
-    subject = args.pop('subject')
     save_dir = args.pop('save_dir')
+    save_stem = args.pop('save_stem')
     save_dict = {'df_mode': args['df_mode'], 'vareas': '-'.join(str(i) for i in args['vareas']),
                  'eccen': '-'.join(str(i) for i in args['eccen_range'])}
     if args['eccen_bin']:
@@ -577,9 +575,9 @@ if __name__ == '__main__':
     else:
         save_dict['hemi_bin'] = ''
     save_name = "{df_mode}_v{vareas}_e{eccen}{eccen_bin}{hemi_bin}.csv".format(**save_dict)
-    args['save_path'] = os.path.join(save_dir, subject, save_name)
+    args['save_path'] = os.path.join(save_dir, save_stem+save_name)
+    if len(args['class_nums']) == 1:
+        args['class_nums'] = xrange(args['class_nums'])
     if not os.path.isdir(os.path.dirname(args['save_path'])):
         os.makedirs(os.path.dirname(args['save_path']))
-    for k in ['behavioral_results_path', 'results_template_path', 'benson_template_path']:
-        args[k] = args[k].format(subj=subject, **os.environ)
     main(**args)
