@@ -20,7 +20,8 @@ def _load_mgz(path):
     """
     # see http://pandas.pydata.org/pandas-docs/version/0.19.1/gotchas.html#byte-ordering-issues
     tmp = nib.load(path).get_data().byteswap().newbyteorder()
-    if tmp.ndim == 3:
+    # with my change to nibabel, all mgzs will have 4d, even if the data is basically 3d.
+    if tmp.ndim == 3 or tmp.shape[-1] == 1:
         return tmp.reshape(max(tmp.shape))
     elif tmp.ndim == 4:
         return tmp.reshape(max(tmp.shape), sorted(tmp.shape)[-2])
@@ -486,6 +487,7 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     results_names = [os.path.split(i)[-1] for i in results_names]
 
     df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin, hemi_bin)
+    df.varea = df.varea.astype(int)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     if stim_type in ['logpolar', 'pilot']:
         df = _round_freq_space_distance(df, core_dists)
@@ -516,6 +518,12 @@ if __name__ == '__main__':
                               "formatting symbols (one for hemisphere, one for variable [angle"
                               ", varea, eccen]). Can contain any environmental variable (in all "
                               "caps, contained within curly brackets, e.g., {SUBJECTS_DIR})"))
+    parser.add_argument("--stim_type", default='logpolar',
+                        help=("{'logpolar', 'constant', 'pilot'}. which type of stimuli were used "
+                              "in the session we're analyzing. This matters because it changes the"
+                              " local spatial frequency and, since that is determined analytically"
+                              " and not directly from the stimuli, we have no way of telling "
+                              "otherwise."))
     parser.add_argument("--save_dir", default="data/MRI_first_level",
                         help=("directory to save the GLM result DataFrame in. The DataFrame will "
                               "be saved in a sub-directory (named for the subject) of this as a "
@@ -528,8 +536,8 @@ if __name__ == '__main__':
                               " cases, 'R2' will also be loaded in. Assumes modelmd and modelse "
                               "lie directly in results_template_path and that models_class_## "
                               "files lie within the subfolder models_niftis"))
-    parser.add_argument("--class_nums", "-c", nargs='+', default=xrange(48), type=int,
-                        help=("list of ints. if df_mode=='full', which classes to load in. If "
+    parser.add_argument("--class_nums", "-c", default=48, type=int,
+                        help=("int. if df_mode=='full', will load classes in range(class_nums). If "
                               "df_mode=='summary', then this is ignored."))
     parser.add_argument("--vareas", "-v", nargs='+', default=[1], type=int,
                         help=("list of ints. Which visual areas to include. the Benson14 template "
@@ -576,8 +584,7 @@ if __name__ == '__main__':
         save_dict['hemi_bin'] = ''
     save_name = "{df_mode}_v{vareas}_e{eccen}{eccen_bin}{hemi_bin}.csv".format(**save_dict)
     args['save_path'] = os.path.join(save_dir, save_stem+save_name)
-    if len(args['class_nums']) == 1:
-        args['class_nums'] = xrange(args['class_nums'])
+    args['class_nums'] = xrange(args['class_nums'])
     if not os.path.isdir(os.path.dirname(args['save_path'])):
         os.makedirs(os.path.dirname(args['save_path']))
     main(**args)
