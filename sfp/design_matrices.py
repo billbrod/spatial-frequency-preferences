@@ -46,15 +46,15 @@ def _find_stim_class_length(value, class_size):
     return real_length * class_size
 
 
-def create_design_matrix(design_df, n_TRs):
+def create_design_matrix(tsv_df, n_TRs):
     """create and return the design matrix for a run
 
-    design_df: pandas DataFrame describing the design of the experiment and the stimulus classes
-    (created by create_design_df function)
+    tsv_df: pandas DataFrame describing the design of the experiment and the stimulus classes
+    (created by loading run's events.tsv file)
     """
     # because the values are 0-indexed
-    design_matrix = np.zeros((n_TRs, design_df.trial_type.max()+1))
-    for i, row in design_df.iterrows():
+    design_matrix = np.zeros((n_TRs, tsv_df.trial_type.max()+1))
+    for i, row in tsv_df.iterrows():
         row = row[['Onset time (TR)', 'trial_type']].astype(int)
         design_matrix[row['Onset time (TR)'], row['trial_type']] = 1
     return design_matrix
