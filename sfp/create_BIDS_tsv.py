@@ -74,24 +74,31 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path,
     save_path should contain some string formatting symbol (e.g., %s, %02d) that can indicate the
     run number and should end in .tsv
     """
-    results = h5py.File(behavioral_results_path)
+    if isinstance(behavioral_results_path, basestring):
+        behavioral_results_path = [behavioral_results_path]
+    results_files = [h5py.File(p) for p in behavioral_results_path]
     df = pd.read_csv(unshuffled_stim_descriptions_path)
     if not os.path.exists(os.path.dirname(save_path)) and os.path.dirname(save_path):
         os.makedirs(os.path.dirname(save_path))
-    run_num = 0
-    while "run_%02d_button_presses" % run_num in results.keys():
-        n_TRs = sum(['5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
-        if n_TRs > 0:
-            design_df = create_tsv_df(results, df, run_num)
-            design_df = design_df.reset_index().rename(
-                columns={'index': 'stim_file_index', 'class_idx': 'trial_type',
-                         'Onset time (sec)': 'onset'})
-            design_df['trial_type'] = design_df['trial_type'].astype(int)
-            design_df['duration'] = _find_timing_from_results(results, run_num)
-            stim_path = results['run_%02d_stim_path' % run_num].value
-            stim_path = stim_path.replace('data/stimuli/', '')
-            design_df['stim_file'] = stim_path
-            design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index']]
-            design_df['onset'] = design_df.onset.apply(lambda x: "%.03f" % x)
-            design_df.to_csv(save_path % (run_num+1), '\t', index=False)
-        run_num += 1
+    # we know that if the experiment went to completion, there would be 240 TRs
+    full_TRs = 240
+    save_num = 1
+    for results in results_files:
+        run_num = 0
+        while "run_%02d_button_presses" % run_num in results.keys():
+            n_TRs = sum(['5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
+            if n_TRs == full_TRs:
+                design_df = create_tsv_df(results, df, run_num)
+                design_df = design_df.reset_index().rename(
+                    columns={'index': 'stim_file_index', 'class_idx': 'trial_type',
+                             'Onset time (sec)': 'onset'})
+                design_df['trial_type'] = design_df['trial_type'].astype(int)
+                design_df['duration'] = _find_timing_from_results(results, run_num)
+                stim_path = results['run_%02d_stim_path' % run_num].value
+                stim_path = stim_path.replace('data/stimuli/', '')
+                design_df['stim_file'] = stim_path
+                design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index']]
+                design_df['onset'] = design_df.onset.apply(lambda x: "%.03f" % x)
+                design_df.to_csv(save_path % (save_num), '\t', index=False)
+                save_num += 1
+            run_num += 1
