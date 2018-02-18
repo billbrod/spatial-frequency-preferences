@@ -18,14 +18,13 @@ else:
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
-            'sub-wlsubj045': ['ses-pilot01']}
+            'sub-wlsubj045': ['ses-pilot01', 'ses-01']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
          ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant', ('sub-wlsubj042', 'ses-02'): 'task-sfp',
-         ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp'}
-ATLASES = {'sub-wlsubj001': ['prior', 'posterior'], 'sub-wlsubj042': ['prior', 'posterior'],
-           'sub-wlsubj045': ['posterior']}
+         ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp',
+         ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
 def get_stim_files(wildcards):
@@ -56,9 +55,13 @@ wildcard_constraints:
 
 rule first_level_all:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv').format(mat_type="stim_class", atlas_type=at, subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for at in ATLASES[sub] for ses in SESSIONS[sub] for dfm in ['summary', 'full']],
-        # these recreate the data we looked at for first year talk and VSS
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042'] for dfm in ['summary', 'full']]
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary', 'full']],
+
+
+rule VSS_abstract_data:
+    input:
+        # these recreate the data we looked at for first year talk and VSS abstract
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary', 'full']]
     
 # For GLMdenoise, we need to break the all rule into several parts for the dynamic to work well
 rule GLMdenoise_all:
@@ -91,6 +94,9 @@ rule GLMdenoise_sub042_02:
 rule GLMdenoise_sub045_pilot01:
     input:
         dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-pilot01', task='task-sfp', mat_type='stim_class')),
+rule GLMdenoise_sub045_01:
+    input:
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-01', task='task-sfpconstant', mat_type='stim_class')),
 
 
 rule preprocess_all:
@@ -311,12 +317,18 @@ rule to_freesurfer:
         
 
 def get_first_level_analysis_input(wildcards):
-    # files = os.path.join("/mnt/HPC-scratch/sfp_OLD_FORMAT/wl_subj042/new_reoriented/results/stim_clas", "derivatives", "GLMdenoise_reoriented", "{hemi}.{filename}.mgz")
     files = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise_reoriented", wildcards.mat_type, wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_{filename}.mgz")
     input_dict = {}
     input_dict['R2_files'] = expand(files, hemi=['lh', 'rh'], filename=['R2'])
     if wildcards.df_mode == 'summary':
         input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=['modelmd', 'modelse'])
+    elif wildcards.df_mode == 'full':
+        if 'pilot' in wildcards.session:
+            class_num = range(52)
+        else:
+            class_num = range(48)
+        models_names = ['models_class_%02d' % i for i in class_num]
+        input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=models_names)
     benson_names = ['angle', 'eccen', 'varea']
     if wildcards.atlas_type == 'prior':
         benson_prefix = 'benson14'
@@ -352,9 +364,6 @@ rule first_level_analysis:
     input:
         unpack(get_first_level_analysis_input),
         unpack(get_stim_files),
-        # this is technically only required if df_mode == 'full', but the dynamic keyword cannot be
-        # in an input function
-        models_classes=dynamic(expand(os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise_reoriented", "{{mat_type}}", "{{subject}}", "{{session}}", "{hemi}.{{subject}}_{{session}}_{{task}}_models_class_{{n}}.mgz"), hemi=['lh', 'rh']))
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv')
     resources:
