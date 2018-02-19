@@ -456,7 +456,7 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
     when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
     create circular and radial stimuli, just include 0 in w_a or w_r, respectively).
 
-    bytescale: boolean, default True. if True, calls smisc.bytescale(cmin=-ampl, cmax=ampl) on
+    bytescale: boolean, default True. if True, calls smisc.bytescale(cmin=-1, cmax=1) on
     image to rescale it to between 0 and 255, with dtype uint8. this is done because this is
     probably sufficient for displays and takes up much less space.
 
@@ -505,8 +505,8 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
         if 0 in [w_r, w_a] or 'spiral' in combo_stimuli_type:
             tmp_stimuli = log_polar_grating(size, w_r, w_a, p, A, origin)
             if bytescale:
-                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-A, cmax=A))
-                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-A, cmax=A))
+                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -514,8 +514,8 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
             tmp_stimuli = (log_polar_grating(size, w_r, 0, p, A, origin) +
                            log_polar_grating(size, 0, w_a, p, A, origin))
             if bytescale:
-                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-A, cmax=A))
-                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-A, cmax=A))
+                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -540,7 +540,7 @@ def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], orig
     create. Each entry in the list corresponds to one stimuli, which will use the specified (w_x,
     w_y). They sould be in cycles per pixel.
 
-    bytescale: boolean, default True. if True, calls smisc.bytescale(cmin=-ampl, cmax=ampl) on
+    bytescale: boolean, default True. if True, calls smisc.bytescale(cmin=-1, cmax=1) on
     image to rescale it to between 0 and 255, with dtype uint8. this is done because this is
     probably sufficient for displays and takes up much less space.
 
@@ -574,8 +574,8 @@ def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], orig
         else:
             tmp_stimuli = A * utils.create_sin_cpp(size, w_x, w_y, p, origin=origin)
             if bytescale:
-                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-A, cmax=A))
-                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-A, cmax=A))
+                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
