@@ -582,7 +582,7 @@ if __name__ == '__main__':
         save_dict['hemi_bin'] = '_hemi_bin'
     else:
         save_dict['hemi_bin'] = ''
-    save_name = "{df_mode}_v{vareas}_e{eccen}{eccen_bin}{hemi_bin}.csv".format(**save_dict)
+    save_name = "v{vareas}_e{eccen}{eccen_bin}{hemi_bin}_{df_mode}.csv".format(**save_dict)
     args['save_path'] = os.path.join(save_dir, save_stem+save_name)
     args['class_nums'] = xrange(args['class_nums'])
     if not os.path.isdir(os.path.dirname(args['save_path'])):
