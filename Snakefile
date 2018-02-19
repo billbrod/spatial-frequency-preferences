@@ -55,13 +55,13 @@ wildcard_constraints:
 
 rule first_level_all:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary', 'full']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary', 'full']],
 
 
 rule VSS_abstract_data:
     input:
         # these recreate the data we looked at for first year talk and VSS abstract
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary', 'full']]
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary', 'full']]
     
 # For GLMdenoise, we need to break the all rule into several parts for the dynamic to work well
 rule GLMdenoise_all:
@@ -365,7 +365,7 @@ rule first_level_analysis:
         unpack(get_first_level_analysis_input),
         unpack(get_stim_files),
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_{df_mode}_v{vareas}_e{eccen}{binning}.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv')
     resources:
         cpus_per_task = 1,
         mem = 10
@@ -380,9 +380,9 @@ rule first_level_analysis:
         class_num = lambda wildcards: {'ses-pilot01':52, 'ses-pilot00': 52}.get(wildcards.session, 48),
         stim_type = get_stim_type
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{df_mode}_v{vareas}_e{eccen}{binning}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{df_mode}_v{vareas}_e{eccen}{binning}.log")
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}.log")
     shell:
         "python sfp/first_level_analysis.py --save_dir {params.save_dir} --vareas {params.vareas} "
         "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} {params.bin_str} "
