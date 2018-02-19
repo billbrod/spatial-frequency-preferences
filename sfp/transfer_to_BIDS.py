@@ -59,8 +59,10 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
         os.path.join(base_dir, BIDS_subj, BIDS_ses, "func",
                      BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"))
     print("  Successfully moved over events tsv")
-    shutil.copy(behavioral_results_path,
-                os.path.join(source_dir, os.path.split(behavioral_results_path)[-1]))
+    if isinstance(behavioral_results_path, basestring):
+        behavioral_results_path = [behavioral_results_path]
+    for res in behavioral_results_path:
+        shutil.copy(res, os.path.join(source_dir, os.path.split(res)[-1]))
     print("  Successfully moved over behavioral data hdf5")
     shutil.copy(notes_path, os.path.join(source_dir, os.path.split(notes_path)[-1]))
     print("  Successfully moved over notes")
@@ -181,6 +183,7 @@ def wlsubj042_02(base_dir, acadia_projects_dir):
     print("Moving wl_subj042's data from 20180209")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wl_subj042",
                             "20170713_PrismaPilot", "RAW")
+    # number 24 is the incomplete run
     _BIDSify(base_dir, "wl_subj042", "20180209", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "02", 'j', 6, 5,
              anat_dir, [15, 16], "T1w",
@@ -189,6 +192,21 @@ def wlsubj042_02(base_dir, acadia_projects_dir):
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-09_sub-wlsubj042.md"),
              glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj042_run*_idx.npy")),
              os.path.join(SFP_PATH, "data", "stimuli", "unshuffled.npy"))
+
+
+def wlsubj045_01(base_dir, acadia_projects_dir):
+    print("Moving wl_subj045's data from 20180216")
+    anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wl_subj045",
+                            "20171031_Anatomy", "RAW")
+    _BIDSify(base_dir, "wl_subj045", "20180216", [8, 10, 12, 14, 16, 18, 20, 22, 26, 28, 30, 32],
+             [7, 9, 11, 13, 15, 17, 19, 21, 25, 27, 29, 31], "sfpconstant", "01", 'j', 6, 5,
+             anat_dir, [5, 6, 7], "T1w",
+             [os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-16_sub-wlsubj045_sess0.hdf5"),
+              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-16_sub-wlsubj045_sess1.hdf5")],
+             os.path.join(SFP_PATH, "data", "stimuli", "constant_unshuffled_stim_description.csv"),
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-16_sub-wlsubj045.md"),
+             glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj045_run*_idx.npy")),
+             os.path.join(SFP_PATH, "data", "stimuli", "constant_unshuffled.npy"))
 
 
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
@@ -222,7 +240,8 @@ if __name__ == '__main__':
                               "constant stimuli) wl_subj042-0 (pilot in Aug 2017), wl_subj042-1 ("
                               "pilot in Nov 2017), wl_subj042-01 (Feb 1, 2018, after revising "
                               "stimuli, constant stimuli), wl_subj042-02 (Feb 9, 2018 with log-"
-                              "polar stimuli), wl_subj045 (pilot in Nov 2017)"))
+                              "polar stimuli), wl_subj045 (pilot in Nov 2017), wl_subj045-01 (Feb "
+                              "16, 2018, after revising stimuli, constant stimuli)"))
     parser.add_argument("--base_dir", default='..',
                         help=("Base directory for the BIDS project. If unset, will assume this is"
                               "being run from the code directory within the BIDS structure."))
@@ -246,3 +265,5 @@ if __name__ == '__main__':
         wlsubj042_02(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj045' in args['subject']:
         wlsubj045_nov(args['base_dir'], args['acadia_projects_dir'])
+    if 'wl_subj045-01' in args['subject']:
+        wlsubj045_01(args['base_dir'], args['acadia_projects_dir'])
