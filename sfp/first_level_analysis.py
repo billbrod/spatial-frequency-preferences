@@ -222,7 +222,7 @@ def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin=True
     df = df.reset_index().rename(columns={'index': 'stimulus_class'})
 
     if eccen_bin:
-        df['eccen'] = df['eccen'].apply(lambda x: '%i-%i' % (np.floor(x), np.ceil(x)))
+        df['eccen'] = df['eccen'].apply(lambda x: '%02d-%02d' % (np.floor(x), np.ceil(x)))
     return df
 
 
@@ -340,7 +340,7 @@ def calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg=12, eccen_bi
         eccen_idx = []
         for i in range(*eccen_range):
             bin_masks.append((R > i) & (R < (i+1)))
-            eccen_idx.append('%s-%s' % (i, i+1))
+            eccen_idx.append('%02d-%02d' % (i, i+1))
 
         eccen_local_freqs = []
         eccens = []
