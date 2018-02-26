@@ -20,8 +20,7 @@ def _load_mgz(path):
     """
     # see http://pandas.pydata.org/pandas-docs/version/0.19.1/gotchas.html#byte-ordering-issues
     tmp = nib.load(path).get_data().byteswap().newbyteorder()
-    # with my change to nibabel, all mgzs will have 4d, even if the data is basically 3d.
-    if tmp.ndim == 3 or tmp.shape[-1] == 1:
+    if tmp.ndim == 3:
         return tmp.reshape(max(tmp.shape))
     elif tmp.ndim == 4:
         return tmp.reshape(max(tmp.shape), sorted(tmp.shape)[-2])
