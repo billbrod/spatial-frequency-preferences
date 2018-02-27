@@ -18,13 +18,13 @@ else:
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
-            'sub-wlsubj045': ['ses-pilot01', 'ses-01']}
+            'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
          ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant', ('sub-wlsubj042', 'ses-02'): 'task-sfp',
          ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp',
-         ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant'}
+         ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
 def get_stim_files(wildcards):
@@ -97,6 +97,9 @@ rule GLMdenoise_sub045_pilot01:
 rule GLMdenoise_sub045_01:
     input:
         dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-01', task='task-sfpconstant', mat_type='stim_class')),
+rule GLMdenoise_sub045_01:
+    input:
+        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-02', task='task-sfp', mat_type='stim_class')),
 
 
 rule preprocess_all:
