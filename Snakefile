@@ -97,7 +97,7 @@ rule GLMdenoise_sub045_pilot01:
 rule GLMdenoise_sub045_01:
     input:
         dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-01', task='task-sfpconstant', mat_type='stim_class')),
-rule GLMdenoise_sub045_01:
+rule GLMdenoise_sub045_02:
     input:
         dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-02', task='task-sfp', mat_type='stim_class')),
 
