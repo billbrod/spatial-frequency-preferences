@@ -29,6 +29,11 @@
     {
 	"mem": "{resources.mem}GB",
 	"cpus_per_task": "{resources.cpus_per_task}"
-    }
+    },
+    "first_level_analysis":
+    {
+	"mem": "{resources.mem}GB",
+	"cpus_per_task": "{resources.cpus_per_task}"
+    }    
 
 }
