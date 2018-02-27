@@ -27,6 +27,7 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
+N_CLASSES = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48}
 def get_stim_files(wildcards):
     if 'pilot00' in wildcards.session:
         stim_prefix = 'pilot00_'
@@ -62,44 +63,15 @@ rule VSS_abstract_data:
     input:
         # these recreate the data we looked at for first year talk and VSS abstract
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary', 'full']]
-    
-# For GLMdenoise, we need to break the all rule into several parts for the dynamic to work well
+
+
 rule GLMdenoise_all:
     input:
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
-rule GLMdenoise_sub001_pilot01:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj001', session='ses-pilot01', task='task-sfp', mat_type='stim_class')),
-rule GLMdenoise_sub001_01:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj001', session='ses-01', task='task-sfp', mat_type='stim_class')),
-rule GLMdenoise_sub001_02:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj001', session='ses-02', task='task-sfpconstant', mat_type='stim_class')),
-rule GLMdenoise_sub042_pilot00:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-pilot00', task='task-sfp', mat_type='stim_class')),
-rule GLMdenoise_sub042_pilot01:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-pilot01', task='task-sfp', mat_type='stim_class')),
-rule GLMdenoise_sub042_01:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-01', task='task-sfpconstant', mat_type='stim_class')),
-rule GLMdenoise_sub042_02:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj042', session='ses-02', task='task-sfp', mat_type='stim_class')),
-rule GLMdenoise_sub045_pilot01:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-pilot01', task='task-sfp', mat_type='stim_class')),
-rule GLMdenoise_sub045_01:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-01', task='task-sfpconstant', mat_type='stim_class')),
-rule GLMdenoise_sub045_02:
-    input:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{{n}}.nii.gz").format(subject='sub-wlsubj045', session='ses-02', task='task-sfp', mat_type='stim_class')),
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class', n=n) for sub in SUBJECTS for ses in SESSIONS[sub] for n in range(N_CLASSES[ses])],
 
 
 rule preprocess_all:
@@ -281,11 +253,12 @@ rule save_results_niftis:
         GLM_results = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat"),
         preproc_example_file = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_run-01_preproc.nii.gz")
     output:
-        dynamic(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n}.nii.gz"))
+        os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n}.nii.gz")
     params:
         freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab'),
         output_dir = lambda wildcards, output: os.path.dirname(output[0]),
-        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards)
+        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
+        saveN = lambda wildcards: int(wildcards.n)+1
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_benchmark.txt")
     log:
@@ -294,8 +267,8 @@ rule save_results_niftis:
         mem = 100,
         cpus_per_task = 1
     shell:
-        "cd matlab; matlab -nodesktop -nodisplay -r \"saveout('{input.GLM_results}', "
-        "'{input.preproc_example_file}', '{params.output_dir}', '{params.save_stem}', "
+        "cd matlab; matlab -nodesktop -nodisplay -r \"saveout({params.saveN}, '{input.GLM_results}'"
+        ", '{input.preproc_example_file}', '{params.output_dir}', '{params.save_stem}', "
         "'{params.freesurfer_matlab_dir}'); quit;\""
 
 
@@ -326,10 +299,7 @@ def get_first_level_analysis_input(wildcards):
     if wildcards.df_mode == 'summary':
         input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=['modelmd', 'modelse'])
     elif wildcards.df_mode == 'full':
-        if 'pilot' in wildcards.session:
-            class_num = range(52)
-        else:
-            class_num = range(48)
+        class_num = range(N_CLASSES[wildcards.session])
         models_names = ['models_class_%02d' % i for i in class_num]
         input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=models_names)
     benson_names = ['angle', 'eccen', 'varea']

@@ -1,11 +1,20 @@
-function saveout(resultsPath, exampleBoldPath, outputDir, saveStem, fsPath)
+function saveout(saveN, resultsPath, exampleBoldPath, outputDir, saveStem, fsPath)
 % function saveout(resultsPath, exampleBoldPath, saveTemplatePath, fsPath)
 % 
-% Saves out nifti versions of the models field from results. This
-% is 5d, with an amplitude per voxel per bootstrap per condition,
-% and each condition is saved into a separate nifti file.
+% Saves out nifti versions of one condition from the models field from
+% results.mat. models is 5d, with an amplitude per voxel per bootstrap
+% per condition, and we want each condition in a separate field. Note
+% that saving each condition in a separate call is inefficient (the
+% big overhead is in loading results.mat), but we do it this way
+% because it makes things easier for Snakemake and, since we massively
+% parallelize it, the loss of efficiency isn't too much of an
+% issue. Also note that we will use the outputs in python, so we
+% save the nifti as models_class_{n}, where n=saveN-1
 % 
 % requires Freesurfer
+% 
+% <saveN> integer or list of integers, which model number(s) to save
+% out.
 % 
 % <resultsPath> string, path to the results.mat file that
 % GLMdenoise puts out
@@ -31,9 +40,10 @@ function saveout(resultsPath, exampleBoldPath, outputDir, saveStem, fsPath)
 
     nii = MRIread(exampleBoldPath);
 
-    for ii=1:size(models{2}, 4)
-        nii.vol = squeeze(models{2}(:, :, :, ii, :));
-        MRIwrite(nii, fullfile(outputDir, strcat(saveStem, sprintf('models_class_%02d.nii.gz', ii-1))));
+    for ii=1:length(saveN)
+        n = saveN(ii);
+        nii.vol = squeeze(models{2}(:, :, :, n, :));
+        MRIwrite(nii, fullfile(outputDir, strcat(saveStem, sprintf('models_class_%02d.nii.gz', n-1))));
     end
     
     display('Saved result models niftis');
