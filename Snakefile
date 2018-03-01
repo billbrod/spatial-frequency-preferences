@@ -260,9 +260,9 @@ rule save_results_niftis:
         save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
         saveN = lambda wildcards: int(wildcards.n)+1
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_models_class_{n}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}.log")
+        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_models_class_{n}.log")
     resources:
         mem = 100,
         cpus_per_task = 1
