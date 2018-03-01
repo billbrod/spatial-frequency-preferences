@@ -8,6 +8,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 import pyPyrTools as ppt
+from bids.grabbids import BIDSLayout
+import pandas as pd
+import first_level_analysis
+import tuning_curves
+import warnings
 
 
 class MidpointNormalize(matplotlib.colors.Normalize):
@@ -165,11 +170,13 @@ def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     return array_to_mask
 
 
-def log_norm_pdf(x, a, mu, sigma):
-    """the pdf of the log normal distribution, with a scale factor
+def flat_hyperbola(x, a):
+    """hyperbola which is flat until 1 degree
     """
-    # the normalizing term isn't necessary, but we keep it here for propriety's sake
-    return a * (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
+    b = 1.
+    period = x*a
+    period[x < b] = a*b
+    return 1./period
 
 
 def fit_log_norm(x, y, **kwargs):
@@ -179,15 +186,22 @@ def fit_log_norm(x, y, **kwargs):
 
     x: string, column in data which contains the x values for this plot.
 
-    y: string, column in data which contains the x values for this plot.
+    y: string, column in data which contains the y values for this plot.
 
     kwargs must contain `data`, the DataFrame with data to plot.
     """
     data = kwargs.pop('data')
     plot_data = data.groupby(x)[y].mean()
 
-    popt, pcov = sp.optimize.curve_fit(log_norm_pdf, plot_data.index, plot_data.values)
-    plt.plot(plot_data.index, log_norm_pdf(plot_data.index, *popt), **kwargs)
+    try:
+        popt, pcov = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_data.index, plot_data.values)
+    except RuntimeError:
+        # since data is a Series, this is the best way to do this.
+        idx = [i for i in data.iloc[0].index if i not in [x, y]]
+        warnings.warn("The following was not well fit by a log Gaussian and so is"
+                      " skipped:\n%s" % data.iloc[0][idx])
+    else:
+        plt.plot(plot_data.index, tuning_curves.log_norm_pdf(plot_data.index, *popt), **kwargs)
 
 
 def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
@@ -216,18 +230,24 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
     data = kwargs.pop('data')
     if 'color' in kwargs:
         color = kwargs.pop('color')
-        kwargs['facecolor'] = color
     lines = []
     for boot in data.bootstrap_num.unique():
         plot_data = data.groupby(x)[[y, 'bootstrap_num']].apply(lambda x, j: x[x.bootstrap_num==j], boot)
         plot_idx = plot_data.index.get_level_values(x)
         plot_vals = plot_data[y].values
-        popt, _ = sp.optimize.curve_fit(log_norm_pdf, plot_idx, plot_vals)
-        lines.append(log_norm_pdf(plot_idx, *popt))
+        try:
+            popt, _ = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_idx, plot_vals)
+        except RuntimeError:
+            # since data is a Series, this is the best way to do this.
+            idx = [i for i in data.iloc[0].index if i not in [x, y]]
+            warnings.warn("The following bootstrap was not well fit by a log Gaussian and so is"
+                          " skipped:\n%s" % data.iloc[0][idx])
+        else:
+            lines.append(tuning_curves.log_norm_pdf(plot_idx, *popt))
     lines = np.array(lines)
     lines_mean = lines.mean(0)
     cis = np.percentile(lines, ci_vals, 0)
-    plt.fill_between(plot_idx, cis[0], cis[1], alpha=.2, **kwargs)
+    plt.fill_between(plot_idx, cis[0], cis[1], alpha=.2, facecolor=color, **kwargs)
     plt.plot(plot_idx, lines_mean, color=color, **kwargs)
     return lines
 
@@ -279,7 +299,7 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=Non
         return np.cos(w_x*x + w_y*y + local_phase)
 
 
-def _plot_and_save(grating, grating_type, savename, **kwargs):
+def _plot_and_save(grating, grating_type, save_path, **kwargs):
     figsize = kwargs.pop('figsize', (5, 5))
     fig, axes = plt.subplots(1, 1, figsize=figsize)
     im_plot(grating, ax=axes, **kwargs)
@@ -287,16 +307,16 @@ def _plot_and_save(grating, grating_type, savename, **kwargs):
         axes.set_title("Windowed view of actual grating")
     elif grating_type == 'approx':
         axes.set_title("Windowed view of linear approximation")
-    if savename is not None:
+    if save_path is not None:
         try:
-            fig.savefig(savename % grating_type)
+            fig.savefig(save_path % grating_type, bbox_inches='tight')
         except TypeError:
-            savename = os.path.splitext(savename)[0] + "_" + grating_type + os.path.splitext(savename)[1]
-            fig.savefig(savename)
+            save_path = os.path.splitext(save_path)[0] + "_" + grating_type + os.path.splitext(save_path)[1]
+            fig.savefig(save_path, bbox_inches='tight')
 
 
 def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=None, w_a=None,
-                               origin=None, stim_type='logpolar', savename=None, **kwargs):
+                               origin=None, stim_type='logpolar', save_path=None, **kwargs):
     """plot the "windowed approximation" of a grating
 
     note that this will not create the grating or its gradients (dx/dy), it only plots them. For
@@ -314,8 +334,8 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=Non
     num_windows: int, the number of windows in each direction that we'll use. as this gets larger,
     the approximation will look better and better (and this will take a longer time to run)
 
-    savename: str, optional. If set, will save plots. in order to make comparison easier, will save
-    two separate plots (one of the windowed grating, one of the linear approximation). if savename
+    save_path: str, optional. If set, will save plots. in order to make comparison easier, will save
+    two separate plots (one of the windowed grating, one of the linear approximation). if save_path
     does not include %s, will append _grating and _approx (respectively) to filename
 
     kwargs will be past to im_plot.
@@ -343,6 +363,121 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=Non
     # in order to make the space between the masks black, that area should have the minimum
     # value, -1. but for the above to all work, that area needs to be 0, so this corrects that.
     masked_approx[~masks.astype(bool)] -= 1
-    _plot_and_save(masked_grating, 'grating', savename, **kwargs)
-    _plot_and_save(masked_approx, 'approx', savename, **kwargs)
+    _plot_and_save(masked_grating, 'grating', save_path, **kwargs)
+    _plot_and_save(masked_approx, 'approx', save_path, **kwargs)
     return masked_grating, masked_approx
+
+
+def find_stim_idx(stim_df, **kwargs):
+    stim_df = stim_df.dropna()
+    stim_df.class_idx = stim_df.class_idx.astype(int)
+    stim_df = stim_df.rename(columns={'index': 'stimulus_index'})
+    stim_df = first_level_analysis._add_freq_metainfo(stim_df)
+    props = stim_df.copy()
+    key_order = ['stimulus_superclass', 'phi', 'freq_space_angle', 'freq_space_distance']
+    key_order += [k for k in kwargs.iterkeys() if k not in key_order]
+    for k in key_order:
+        v = kwargs.get(k, None)
+        if v is not None:
+            if isinstance(v, basestring):
+                val = v
+            else:
+                val = props.iloc[np.abs(props[k].values - v).argsort()[0]][k]
+            props = props[props[k] == val]
+    return props.index[0]
+
+
+def find_stim_for_first_level(filename, stim_dir):
+    if 'pilot00' in filename:
+        stim_type = 'pilot'
+        stim = np.load(os.path.join(stim_dir, 'pilot00_unshuffled.npy'))
+        stim_df = pd.read_csv(os.path.join(stim_dir, 'pilot00_unshuffled_stim_description.csv'))
+    elif 'pilot01' in filename:
+        stim_type = 'pilot'
+        stim = np.load(os.path.join(stim_dir, 'pilot01_unshuffled.npy'))
+        stim_df = pd.read_csv(os.path.join(stim_dir, 'pilot01_unshuffled_stim_description.csv'))
+    else:
+        if 'task-sfpconstant' in filename:
+            stim_type = 'constant'
+            stim = np.load(os.path.join(stim_dir, 'constant_unshuffled.npy'))
+            stim_df = pd.read_csv(os.path.join(stim_dir, 'constant_unshuffled_stim_description.csv'))
+        else:
+            stim_type = 'logpolar'
+            stim = np.load(os.path.join(stim_dir, 'unshuffled.npy'))
+            stim_df = pd.read_csv(os.path.join(stim_dir, 'unshuffled_stim_description.csv'))
+    return {'stim': stim, 'stim_df': stim_df, 'stim_type': stim_type}
+
+
+def load_data(subject, session=None, task=None, df_mode='full',
+              bids_dir='~/Data/spatial_frequency_preferences', **kwargs):
+    """load in the first level results, stimuli, and stimuli dataframe; return as a dict
+
+    this loads in first level results and assocaited stimuli and stimuli description dataframe
+    for one session.
+
+    you must specify the subject and either the session (in which case we'll load in that one) or
+    the task (in which case we ignore all pilot sessions and find the session that matches that
+    task).
+
+    df_mode determines whether we load in the full or summary dataframe.
+
+    kwargs should specify other first_level_analysis keywords that are specified on the save path:
+    vareas (list of ints), eccen (2-tuple of ints, the range of eccentricity considered), eccen_bin
+    (boolean), hemi_bin (boolean), atlas_type ({"prior", "posterior"}), and mat_type (string
+    specifying the type of design matrix).
+
+    bids_dir should be the path to the bids directory
+
+    if more than one file is found satisfying all constraints, then we'll throw an exception.
+    """
+    bids_dir = os.path.expanduser(bids_dir)
+    if 'derivatives' not in bids_dir:
+        bids_dir = os.path.join(bids_dir, 'derivatives')
+    if 'first_level_analysis' not in bids_dir:
+        bids_dir = os.path.join(bids_dir, 'first_level_analysis')
+    stim_dir = os.path.abspath(os.path.join(bids_dir, '..', '..', 'stimuli'))
+    layout = BIDSLayout(bids_dir)
+    if "sub-" in subject:
+        subject = subject.replace('sub-', '')
+    layout = BIDSLayout(bids_dir)
+    if session is not None:
+        if "ses-" in str(session):
+            session = session.replace("ses-", "")
+        files = layout.get("file", subject=subject, session=session, type=df_mode)
+    else:
+        if "task-" in task:
+            task = task.replace('task-', '')
+        # the bit in session is regex to return a string that doesn't start with pilot
+        files = layout.get("file", subject=subject, type=df_mode, session=r'^((?!pilot).+)')
+    for k, v in kwargs.iteritems():
+        if k == 'vareas':
+            if not isinstance(v, basestring):
+                val = '-'.join([str(i) for i in v])
+            else:
+                val = v
+        elif k == 'eccen':
+            if not isinstance(v, basestring):
+                val = '-'.join([str(i) for i in v])
+            else:
+                val = v
+        elif k == 'eccen_bin':
+            if v:
+                val = "eccen_bin"
+            else:
+                val = ""
+        elif k == 'hemi_bin':
+            if v:
+                val = "hemi_bin"
+            else:
+                val = ""
+        elif k in ['atlas_type', 'mat_type']:
+            val = v
+        else:
+            raise Exception("Don't know how to handle kwargs %s!" % k)
+        files = [f for f in files if val in f]
+    if len(files) != 1:
+        raise Exception("Cannot find unique first level results csv that satisfies all "
+                        "specifications! Matching files: %s" % files)
+    return_dict = {'df': pd.read_csv(files[0]), 'df_filename': files[0]}
+    return_dict.update(find_stim_for_first_level(files[0], stim_dir))
+    return return_dict

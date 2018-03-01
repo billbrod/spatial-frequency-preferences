@@ -364,6 +364,20 @@ rule first_level_analysis:
         "{params.stim_type} {params.results_template} {params.benson_template}"
 
 
+rule tuning_curves:
+    input:
+        os.path.join(config['DATA_DIR'], "derivatives", "first_level_analysis", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv")
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_benchmark.txt")
+    shell:
+        "python sfp/tuning_curves.py {input} {output}"
+
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, 'sub*_benchmark.txt')),
