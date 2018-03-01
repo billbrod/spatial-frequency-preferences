@@ -10,7 +10,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
-import scipy as sp
+from scipy import optimize
 import numpy as np
 
 
@@ -65,11 +65,12 @@ def log_norm_describe_full(a, mu, sigma):
     else:
         std = np.log2(np.sqrt(var))
         x = np.logspace(np.round(np.log2(mode) - std), np.round(np.log2(mode) + std),
-                        10000*np.round(std))
+                        np.abs(10000*np.round(std)), base=2)
     x, y = get_tuning_curve_xy(a, mu, sigma, x)
     half_max_idx = abs(y - (y.max() / 2.)).argsort()
     if (not (x[half_max_idx[0]] > mode and x[half_max_idx[1]] < mode) and
        not (x[half_max_idx[0]] < mode and x[half_max_idx[1]] > mode)):
+        print(a, mu, sigma)
         raise Exception("Something went wrong with bandwidth calculation! halfmax x values %s and"
                         " %s must lie on either side of max %s!" % (x[half_max_idx[0]],
                                                                     x[half_max_idx[1]], mode))
@@ -135,14 +136,14 @@ def main(df, save_path=None):
         values_to_fit = zip(g.frequency_value.values, g.amplitude_estimate.values)
         values_to_fit = zip(*sorted(values_to_fit, key=lambda pair: pair[0]))
         try:
-            popt, _ = sp.optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
+            popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                             maxfev=100000)
         except RuntimeError:
             fit_warning = True
             labels = zip(gb_columns, n)
             warnings.warn('Fit not great for:\n%s' % "\n".join([": ".join([str(j) for j in i])
                                                                for i in labels]))
-            popt, _ = sp.optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
+            popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                             maxfev=100000, ftol=1.5e-07, xtol=1.5e-07)
         # popt contains a, mu, and sigma, in that order
         mode, bandwidth, lhm, hhm, inf_warning, x, y = log_norm_describe_full(popt[0], popt[1],
@@ -180,7 +181,7 @@ if __name__ == '__main__':
     parser.add_argument("first_level_results_path",
                         help=("Path to the first level results dataframe containing the data to "
                               "fit."))
-    parser.add_argumnet("save_path",
+    parser.add_argument("save_path",
                         help=("Path to save the resulting tuning dataframe at. The problems report"
                               ", if created, will be at the same path, with '.csv' replaced by "
                               "'_problems.html"))
