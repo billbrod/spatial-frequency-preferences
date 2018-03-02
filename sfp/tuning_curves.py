@@ -58,13 +58,17 @@ def log_norm_describe_full(a, mu, sigma):
     var = (np.exp(sigma**2) - 1) * (np.exp(2*mu + sigma**2))
     inf_warning = False
     if np.isinf(var):
-        # if the peak of the curve would be at a *really* low value, the variance will be infinite
-        # (not really, but because of computational issues) and so we need to handle it separately.
-        x = np.logspace(-300, 100, 100000, base=2)
+        # if the peak of the curve would be at a *really* low or *really* high value, the variance
+        # will be infinite (not really, but because of computational issues) and so we need to
+        # handle it separately.
+        if np.log2(mode) < 0:
+            x = np.logspace(-300, 100, 100000, base=2)
+        else:
+            x = np.logspace(-100, 300, 100000, base=2)
         inf_warning = True
     else:
         std = np.log2(np.sqrt(var))
-        x = np.logspace(np.round(np.log2(mode) - std), np.round(np.log2(mode) + std),
+        x = np.logspace(np.round(np.log2(mode) - 5*std), np.round(np.log2(mode) + 5*std),
                         np.abs(10000*np.round(std)), base=2)
     x, y = get_tuning_curve_xy(a, mu, sigma, x)
     half_max_idx = abs(y - (y.max() / 2.)).argsort()
@@ -135,24 +139,30 @@ def main(df, save_path=None):
             continue
         values_to_fit = zip(g.frequency_value.values, g.amplitude_estimate.values)
         values_to_fit = zip(*sorted(values_to_fit, key=lambda pair: pair[0]))
-        try:
-            popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
-                                            maxfev=100000)
-        except RuntimeError:
-            fit_warning = True
-            labels = zip(gb_columns, n)
-            warnings.warn('Fit not great for:\n%s' % "\n".join([": ".join([str(j) for j in i])
-                                                               for i in labels]))
-            popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
-                                            maxfev=100000, ftol=1.5e-07, xtol=1.5e-07)
+        fit_success = False
+        maxfev = 100000
+        tol = 1.5e-08
+        while not fit_success:
+            try:
+                popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
+                                             maxfev=maxfev, ftol=tol, xtol=tol)
+                fit_success = True
+            except RuntimeError:
+                fit_warning = True
+                maxfev *= 10
+                tol /= 5
         # popt contains a, mu, and sigma, in that order
         mode, bandwidth, lhm, hhm, inf_warning, x, y = log_norm_describe_full(popt[0], popt[1],
                                                                               popt[2])
         tuning_df.append(g.assign(tuning_curve_amplitude=popt[0], tuning_curve_mu=popt[1],
                          tuning_curve_sigma=popt[2], tuning_curve_peak=mode,
                          tuning_curve_bandwidth=bandwidth, preferred_period=1./mode,
-                         high_half_max=hhm, low_half_max=lhm))
+                         high_half_max=hhm, low_half_max=lhm, fit_warning=fit_warning,
+                         inf_warning=inf_warning, tol=tol, maxfev=maxfev))
         if fit_warning:
+            labels = zip(gb_columns, n)
+            warnings.warn('Fit not great for:\n%s' % "\n".join([": ".join([str(j) for j in i])
+                                                               for i in labels]))
             fit_problems.append((pd.DataFrame(g[gb_columns].iloc[0]).T, (x, y),
                                  (g.frequency_value.values, g.amplitude_estimate.values)))
         if inf_warning:
