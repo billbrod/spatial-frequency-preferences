@@ -67,9 +67,9 @@ def log_norm_describe_full(a, mu, sigma):
             x = np.logspace(-100, 300, 100000, base=2)
         inf_warning = True
     else:
-        std = np.log2(np.sqrt(var))
-        x = np.logspace(np.round(np.log2(mode) - 5*std), np.round(np.log2(mode) + 5*std),
-                        np.abs(10000*np.round(std)), base=2)
+        std = np.abs(np.log2(np.sqrt(var)))
+        x = np.logspace(np.floor(np.log2(mode) - 5*std), np.ceil(np.log2(mode) + 5*std),
+                        np.abs(10000*np.ceil(std)), base=2)
     x, y = get_tuning_curve_xy(a, mu, sigma, x)
     half_max_idx = abs(y - (y.max() / 2.)).argsort()
     if (not (x[half_max_idx[0]] > mode and x[half_max_idx[1]] < mode) and
@@ -146,6 +146,7 @@ def main(df, save_path=None):
             try:
                 popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                              maxfev=maxfev, ftol=tol, xtol=tol,
+                                             p0=[1, np.log(np.mean(values_to_fit[0])), 1],
                                              bounds=([0, 2**(-10), 0], [np.inf, 2**20, np.inf]))
                 fit_success = True
             except RuntimeError:
