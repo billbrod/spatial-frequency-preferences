@@ -145,12 +145,13 @@ def main(df, save_path=None):
         while not fit_success:
             try:
                 popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
-                                             maxfev=maxfev, ftol=tol, xtol=tol)
+                                             maxfev=maxfev, ftol=tol, xtol=tol,
+                                             bounds=([0, 2**(-10), 0], [np.inf, 2**20, np.inf]))
                 fit_success = True
             except RuntimeError:
                 fit_warning = True
                 maxfev *= 10
-                tol /= 5
+                tol /= np.sqrt(10)
         # popt contains a, mu, and sigma, in that order
         mode, bandwidth, lhm, hhm, inf_warning, x, y = log_norm_describe_full(popt[0], popt[1],
                                                                               popt[2])
@@ -159,14 +160,17 @@ def main(df, save_path=None):
                          tuning_curve_bandwidth=bandwidth, preferred_period=1./mode,
                          high_half_max=hhm, low_half_max=lhm, fit_warning=fit_warning,
                          inf_warning=inf_warning, tol=tol, maxfev=maxfev))
+        warning_cols = gb_columns + ['tol', 'maxfev', 'tuning_curve_mu', 'tuning_curve_amplitude',
+                                     'tuning_curve_sigma', 'tuning_curve_peak',
+                                     'tuning_curve_bandwidth']
         if fit_warning:
             labels = zip(gb_columns, n)
             warnings.warn('Fit not great for:\n%s' % "\n".join([": ".join([str(j) for j in i])
                                                                for i in labels]))
-            fit_problems.append((pd.DataFrame(g[gb_columns].iloc[0]).T, (x, y),
+            fit_problems.append((pd.DataFrame(tuning_df[-1][warning_cols].iloc[0]).T, (x, y),
                                  (g.frequency_value.values, g.amplitude_estimate.values)))
         if inf_warning:
-            inf_problems.append((pd.DataFrame(g[gb_columns].iloc[0]).T, (x, y),
+            inf_problems.append((pd.DataFrame(tuning_df[-1][warning_cols].iloc[0]).T, (x, y),
                                  (g.frequency_value.values, g.amplitude_estimate.values)))
     tuning_df = pd.concat(tuning_df).reset_index(drop=True)
     if save_path is not None:
