@@ -144,10 +144,13 @@ def main(df, save_path=None):
         tol = 1.5e-08
         while not fit_success:
             try:
+                mu_guess = np.log(np.mean(values_to_fit[0]))
+                if mu_guess < 2**(-2):
+                    mu_guess = 1
                 popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                              maxfev=maxfev, ftol=tol, xtol=tol,
-                                             p0=[1, np.log(np.mean(values_to_fit[0])), 1],
-                                             bounds=([0, 2**(-10), 0], [np.inf, 2**20, np.inf]))
+                                             p0=[1, mu_guess, 1],
+                                             bounds=([0, 2**(-2), 0], [np.inf, 2**5, np.inf]))
                 fit_success = True
             except RuntimeError:
                 fit_warning = True
