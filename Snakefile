@@ -361,7 +361,8 @@ rule first_level_analysis:
         results_template = lambda wildcards, input: input.R2_files[0].replace('lh', '%s').replace('R2', '%s'),
         benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
         class_num = lambda wildcards: {'ses-pilot01':52, 'ses-pilot00': 52}.get(wildcards.session, 48),
-        stim_type = get_stim_type
+        stim_type = get_stim_type,
+        mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_benchmark.txt")
     log:
@@ -371,7 +372,8 @@ rule first_level_analysis:
         "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} {params.bin_str} "
         "--unshuffled_stim_descriptions_path {input.desc_csv} --unshuffled_stim_path {input.stim} "
         "--save_stem {params.save_stem} --class_nums {params.class_num} --stim_type "
-        "{params.stim_type} {params.results_template} {params.benson_template}"
+        "{params.stim_type} --mid_val {params.mid_val} {params.results_template} "
+        "{params.benson_template}"
 
 
 rule tuning_curves:
