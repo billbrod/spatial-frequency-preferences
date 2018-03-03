@@ -87,12 +87,12 @@ def _bin_mgzs_dict(mgzs, results_names, eccen_range, vareas, hemi_bin=True):
         for res in results_names + ['varea', 'angle', 'eccen']:
             res_name = os.path.split(res)[-1]
             tmp = mgzs['%s-%s' % (res_name, hemi)]
-            mgzs['%s-%s' % (res_name, hemi)] = np.array([tmp[m].mean(0) for m in masks])
+            mgzs['%s-%s' % (res_name, hemi)] = np.array([np.nanmean(tmp[m],0 ) for m in masks])
     if hemi_bin:
         mgzs_tmp = {}
         for res in results_names + ['varea', 'angle', 'eccen']:
             res_name = os.path.split(res)[-1]
-            mgzs_tmp[res_name] = np.mean([mgzs['%s-lh' % res_name], mgzs['%s-rh' % res_name]], 0)
+            mgzs_tmp[res_name] = np.nanmean([mgzs['%s-lh' % res_name], mgzs['%s-rh' % res_name]], 0)
         mgzs = mgzs_tmp
     return mgzs
 
@@ -568,6 +568,9 @@ if __name__ == '__main__':
     parser.add_argument("--save_stem", default="",
                         help=("String to prefix the filename of output csv with. Useful for making"
                               " this BIDS-like"))
+    parser.add_argument("--mid_val", default=128,
+                        help=("The value of mid-grey in the stimuli. Should be 127 for pilot "
+                              "stimuli, 128 for real experiment"))
     args = vars(parser.parse_args())
     save_dir = args.pop('save_dir')
     save_stem = args.pop('save_stem')
