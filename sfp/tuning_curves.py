@@ -14,17 +14,21 @@ from scipy import optimize
 import numpy as np
 
 
-def log_norm_pdf(x, a, mu, sigma):
+def log_norm_pdf(x, a, mode, sigma):
     """the pdf of the log normal distribution, with a scale factor
+
+    we parameterize this using the mode instead of mu because we place constraints on the mode
+    during optimization
     """
+    mu = np.log(mode) + sigma**2
     # the normalizing term isn't necessary, but we keep it here for propriety's sake
     return a * (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
 
 
-def get_tuning_curve_xy(a, mu, sigma, x=None):
+def get_tuning_curve_xy(a, mode, sigma, x=None):
     if x is None:
         x = np.logspace(-20, 20, 20000, base=2)
-    y = log_norm_pdf(x, a, mu, sigma)
+    y = log_norm_pdf(x, a, mode, sigma)
     return x, y
 
 
@@ -32,7 +36,7 @@ def get_tuning_curve_xy_from_df(df, x=None):
     """given a dataframe with one associated tuning curve, return x and y of that tuning curve
     """
     params = {'x': x}
-    for param, param_label in [('a', 'tuning_curve_amplitude'), ('mu', 'tuning_curve_mu'),
+    for param, param_label in [('a', 'tuning_curve_amplitude'), ('mode', 'tuning_curve_peak'),
                                ('sigma', 'tuning_curve_sigma')]:
         if df[param_label].nunique() > 1:
             raise Exception("Only one tuning curve can be described in df %s!" % df)
@@ -40,11 +44,11 @@ def get_tuning_curve_xy_from_df(df, x=None):
     return get_tuning_curve_xy(**params)
 
 
-def log_norm_describe_full(a, mu, sigma):
+def log_norm_describe_full(a, mode, sigma):
     """calculate and return many descriptions of the log normal distribution
 
-    returns the mode, bandwidth (in octaves), low and high half max values of log normal curve,
-    inf_warning, x and y.
+    returns the mu parameter, bandwidth (in octaves), low and high half max values of log normal
+    curve, inf_warning, x and y.
 
     inf_warning is a boolean which indicates whether we calculate the variance to be infinite. this
     happens when the mode is really small as the result of an overflow and so you should probably
@@ -52,7 +56,7 @@ def log_norm_describe_full(a, mu, sigma):
 
     x and y are arrays of floats so you can plot the tuning curve over a reasonable range.
     """
-    mode = np.exp(mu - sigma**2)
+    mu = np.log(mode) + sigma**2
     # we compute this because the std dev is always larger than the bandwidth, so we can use this
     # to make sure we grab the right patch of x values
     var = (np.exp(sigma**2) - 1) * (np.exp(2*mu + sigma**2))
@@ -70,24 +74,24 @@ def log_norm_describe_full(a, mu, sigma):
         std = np.abs(np.log2(np.sqrt(var)))
         x = np.logspace(np.floor(np.log2(mode) - 5*std), np.ceil(np.log2(mode) + 5*std),
                         np.abs(10000*np.ceil(std)), base=2)
-    x, y = get_tuning_curve_xy(a, mu, sigma, x)
+    x, y = get_tuning_curve_xy(a, mode, sigma, x)
     half_max_idx = abs(y - (y.max() / 2.)).argsort()
     if (not (x[half_max_idx[0]] > mode and x[half_max_idx[1]] < mode) and
        not (x[half_max_idx[0]] < mode and x[half_max_idx[1]] > mode)):
-        print(a, mu, sigma)
+        print(a, mode, sigma)
         raise Exception("Something went wrong with bandwidth calculation! halfmax x values %s and"
                         " %s must lie on either side of max %s!" % (x[half_max_idx[0]],
                                                                     x[half_max_idx[1]], mode))
     low_half_max = np.min(x[half_max_idx[:2]])
     high_half_max = np.max(x[half_max_idx[:2]])
     bandwidth = np.log2(high_half_max) - np.log2(low_half_max)
-    return mode, bandwidth, low_half_max, high_half_max, inf_warning, x, y
+    return mu, bandwidth, low_half_max, high_half_max, inf_warning, x, y
 
 
-def log_norm_describe(a, mu, sigma):
+def log_norm_describe(a, mode, sigma):
     """same as log_norm_describe_full, except we only return the mode and bandwidth
     """
-    m, bw, lhm, hhm, inf, x, y = log_norm_describe_full(a, mu, sigma)
+    m, bw, lhm, hhm, inf, x, y = log_norm_describe_full(a, mode, sigma)
     return m, bw
 
 
@@ -115,7 +119,8 @@ def create_problems_report(fit_problems, inf_problems, save_path):
         f.write(report_text)
 
 
-def main(df, save_path=None):
+# add bounds to the command line?
+def main(df, save_path=None, bounds=(2**(-2), 2**5)):
     """fit tuning curve to first level results dataframe
     """
     if 'bootstrap_num' in df.columns:
@@ -144,24 +149,24 @@ def main(df, save_path=None):
         tol = 1.5e-08
         while not fit_success:
             try:
-                mu_guess = np.log(np.mean(values_to_fit[0]))
-                if mu_guess < 2**(-2):
-                    mu_guess = 1
+                mode_guess = np.log(np.mean(values_to_fit[0]))
+                if mode_guess < bounds[0]:
+                    mode_guess = 1
                 popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                              maxfev=maxfev, ftol=tol, xtol=tol,
-                                             p0=[1, mu_guess, 1],
-                                             bounds=([0, 2**(-2), 0], [np.inf, 2**5, np.inf]))
+                                             p0=[1, mode_guess, 1],
+                                             bounds=([0, bounds[0], 0], [np.inf, bounds[1], np.inf]))
                 fit_success = True
             except RuntimeError:
                 fit_warning = True
                 maxfev *= 10
                 tol /= np.sqrt(10)
-        # popt contains a, mu, and sigma, in that order
-        mode, bandwidth, lhm, hhm, inf_warning, x, y = log_norm_describe_full(popt[0], popt[1],
-                                                                              popt[2])
-        tuning_df.append(g.assign(tuning_curve_amplitude=popt[0], tuning_curve_mu=popt[1],
-                         tuning_curve_sigma=popt[2], tuning_curve_peak=mode,
-                         tuning_curve_bandwidth=bandwidth, preferred_period=1./mode,
+        # popt contains a, mode, and sigma, in that order
+        mu, bandwidth, lhm, hhm, inf_warning, x, y = log_norm_describe_full(popt[0], popt[1],
+                                                                            popt[2])
+        tuning_df.append(g.assign(tuning_curve_amplitude=popt[0], tuning_curve_peak=popt[1],
+                         tuning_curve_sigma=popt[2], tuning_curve_mu=mu,
+                         tuning_curve_bandwidth=bandwidth, preferred_period=1./popt[1],
                          high_half_max=hhm, low_half_max=lhm, fit_warning=fit_warning,
                          inf_warning=inf_warning, tol=tol, maxfev=maxfev))
         warning_cols = gb_columns + ['tol', 'maxfev', 'tuning_curve_mu', 'tuning_curve_amplitude',
