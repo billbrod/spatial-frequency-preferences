@@ -568,7 +568,7 @@ if __name__ == '__main__':
     parser.add_argument("--save_stem", default="",
                         help=("String to prefix the filename of output csv with. Useful for making"
                               " this BIDS-like"))
-    parser.add_argument("--mid_val", default=128,
+    parser.add_argument("--mid_val", default=128, type=int,
                         help=("The value of mid-grey in the stimuli. Should be 127 for pilot "
                               "stimuli, 128 for real experiment"))
     args = vars(parser.parse_args())
