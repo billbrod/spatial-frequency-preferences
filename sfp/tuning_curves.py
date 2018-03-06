@@ -71,9 +71,11 @@ def log_norm_describe_full(a, mode, sigma):
             x = np.logspace(-100, 300, 100000, base=2)
         inf_warning = True
     else:
-        std = np.abs(np.log2(np.sqrt(var)))
-        x = np.logspace(np.floor(np.log2(mode) - 5*std), np.ceil(np.log2(mode) + 5*std),
-                        np.abs(10000*np.ceil(std)), base=2)
+        std = np.sqrt(var)
+        xmin, xmax = np.floor(np.log2(mode) - 5*std), np.ceil(np.log2(mode) + 5*std)
+        print(xmin, xmax)
+        x = np.logspace(xmin, xmax, 10000*(xmax - xmin), base=2)
+        print(x.min(), x.max())
     x, y = get_tuning_curve_xy(a, mode, sigma, x)
     half_max_idx = abs(y - (y.max() / 2.)).argsort()
     if (not (x[half_max_idx[0]] > mode and x[half_max_idx[1]] < mode) and
