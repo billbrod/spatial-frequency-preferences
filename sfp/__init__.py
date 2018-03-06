@@ -1,3 +1,4 @@
+import plotting
 import design_matrices
 import stimuli
 import first_level_analysis
