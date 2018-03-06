@@ -98,7 +98,7 @@ def log_norm_describe(a, mode, sigma):
 def create_problems_report(fit_problems, inf_problems, save_path):
     """create html report showing problem cases
     """
-    plots_save_path = os.path.join(save_path.replace('.csv', '') + "_report_plots", "plot%03d.svg")
+    plots_save_path = os.path.join(save_path.replace('.html', '') + "_report_plots", "plot%03d.svg")
     if not os.path.isdir(os.path.dirname(plots_save_path)):
         os.makedirs(os.path.dirname(plots_save_path))
     with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'report_templates.json')) as f:
@@ -120,7 +120,7 @@ def create_problems_report(fit_problems, inf_problems, save_path):
 
 
 # add bounds to the command line?
-def main(df, save_path=None, bounds=(2**(-2), 2**5)):
+def main(df, save_path=None, bounds=(2**(-5), 2**5)):
     """fit tuning curve to first level results dataframe
     """
     if 'bootstrap_num' in df.columns:
@@ -155,7 +155,7 @@ def main(df, save_path=None, bounds=(2**(-2), 2**5)):
                 popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                              maxfev=maxfev, ftol=tol, xtol=tol,
                                              p0=[1, mode_guess, 1],
-                                             bounds=([0, bounds[0], 0], [np.inf, bounds[1], np.inf]))
+                                             bounds=([0, bounds[0], 0], [np.inf, bounds[1], 10]))
                 fit_success = True
             except RuntimeError:
                 fit_warning = True
