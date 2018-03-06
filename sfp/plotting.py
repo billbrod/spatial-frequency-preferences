@@ -66,7 +66,7 @@ def stimuli_properties(df, save_path=None):
     titles = ['Frequency superclass', 'Frequency distance', "Frequency angle"]
     color_prop = ['stimulus_superclass', 'freq_space_distance', 'freq_space_angle']
     with sns.axes_style('white'):
-        fig, axes = sns.plt.subplots(1, 3, figsize=figsize)
+        fig, axes = plt.subplots(1, 3, figsize=figsize)
         for i, ax in enumerate(axes.flatten()):
             # zorder ensures that the lines are plotted before the points in the scatterplot
             ax.plot(xlim, [0, 0], 'k--', alpha=.5, zorder=1)
@@ -331,28 +331,37 @@ def plot_tuning_curve(**kwargs):
     plt.semilogx(x, y, basex=2, **kwargs)
 
 
-def check_tuning_curves(tuning_df, save_path_template):
+def check_tuning_curves(tuning_df, save_path_template, **kwargs):
     """create all the tuning curve plots
 
     this takes the dataframe containing the tuning curves and creates plots of all of them, so they
     can be visibly checked. note that this will take a while and create *many* plots, especially
     when run on the full dataframes. It is thus *not* meant to be run from a notebook and it will
     close the plots as it creates and saves them.
+
+    kwargs can contain columns in the tuning_df and values to limit them to.
     """
+    for k, v in kwargs.iteritems():
+        try:
+            tuning_df = tuning_df[tuning_df[k].isin(v)]
+        except TypeError:
+            tuning_df = tuning_df[tuning_df[k] == v]
     gb_cols = ['varea']
+    title_template = 'varea={}'
     if 'bootstrap_num' in tuning_df.columns:
         gb_cols += ['bootstrap_num']
+        title_template += ', bootstrap={:02d}'
     for n, g in tuning_df.groupby(gb_cols):
         f = sns.FacetGrid(g, row='eccen', col='stimulus_superclass', hue='frequency_type')
         f.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
         f.map_dataframe(plot_tuning_curve)
         f.add_legend()
         f.set_titles("eccen={row_name} | {col_name}")
-        if isinstance(n, basestring) or not hasattr(n, '__iter__'):
+        if len(gb_cols) == 1:
             # then there's only one value in n (and thus, in gb_cols)
-            suptitle = "%s=%s" % (gb_cols[0], n)
+            suptitle = title_template.format(n)
         else:
-            suptitle = ", ".join("%s=%s" % (i, j) for i, j in zip(gb_cols, n))
+            suptitle = title_template.format(*n)
         f.fig.suptitle(suptitle)
         plt.subplots_adjust(top=.95)
         f.savefig(save_path_template % (suptitle.replace(', ', '_')))
@@ -369,13 +378,34 @@ if __name__ == '__main__':
         )
     parser.add_argument("first_level_results_path", help="path to first level results dataframe")
     parser.add_argument("stim_dir", help="path to directory containing stimuli")
+    parser.add_argument("--plot_to_make", default=None, nargs='*',
+                        help=("Which plots to create. If none, will create all. Possible options: "
+                              "localsf (plotting.local_spatial_frequency), stim_prop (plotting."
+                              "stimuli_properties) or tuning_curves_check_varea={v}[_bootstrap"
+                              "={b:02d}] (plotting.check_tuning_curves)"))
     args = vars(parser.parse_args())
-    d = utils.create_data_dict(**args)
+    d = utils.create_data_dict(args['first_level_results_path'], args['stim_dir'])
     first_level_save_stem = d['df_filename'].replace('.csv', '')
     tuning_save_stem = d['tuning_df_filename'].replace('.csv', '')
-    local_spatial_frequency(d['df'], first_level_save_stem+"_localsf.svg")
-    stimuli_properties(d['df'], first_level_save_stem+"_stim_prop.svg")
-    check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg")
+    if args['plot_to_make'] is None:
+        local_spatial_frequency(d['df'], first_level_save_stem+"_localsf.svg")
+        stimuli_properties(d['df'], first_level_save_stem+"_stim_prop.svg")
+        check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg")
+    else:
+        for p in args['plot_to_make']:
+            if 'localsf' == p :
+                local_spatial_frequency(d['df'], first_level_save_stem+"_localsf.svg")
+            elif 'stim_prop' == p:
+                stimuli_properties(d['df'], first_level_save_stem+"_stim_prop.svg")
+            elif 'tuning_curves_check' in p:
+                p_kwargs = p.replace('tuning_curves_check_', '')
+                p_kwargs = dict(i.split('=') for i in p_kwargs.split('_'))
+                # we know both are ints
+                p_kwargs = dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in p_kwargs.iteritems())
+                check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg",
+                                    **p_kwargs)
+            else:
+                raise Exception("Don't know how to make plot %s!" % p)
     # if 'circular' in d['df'].stimulus_superclass.values:
     #     superclass_order = LOGPOLAR_SUPERCLASS_ORDER
     # else:
