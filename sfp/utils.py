@@ -408,9 +408,28 @@ def find_stim_for_first_level(filename, stim_dir):
     return {'stim': stim, 'stim_df': stim_df, 'stim_type': stim_type}
 
 
+def create_data_dict(first_level_results_path, stim_dir):
+    """given a first level results path, create the data dictionary
+
+    this data dictionary contains the first level results, the stimuli, the stimuli descriptive
+    dataframe, the tuning curves, the stimulus type, and the path to the first level results and
+    tuning curve dataframes
+    """
+    return_dict = {'df': pd.read_csv(first_level_results_path),
+                   'df_filename': first_level_results_path}
+    try:
+        tuning_df_path = first_level_results_path.replace('first_level_analysis', 'tuning_curves')
+        return_dict.update({'tuning_df': pd.read_csv(tuning_df_path),
+                            'tuning_df_filename': tuning_df_path})
+    except IOError:
+        warnings.warn("Unable to find matching tuning curve dataframe!")
+    return_dict.update(find_stim_for_first_level(first_level_results_path, stim_dir))
+    return return_dict
+
+
 def load_data(subject, session=None, task=None, df_mode='full',
               bids_dir='~/Data/spatial_frequency_preferences', **kwargs):
-    """load in the first level results, stimuli, and stimuli dataframe; return as a dict
+    """load in the first level results, stimuli, stimuli dataframe, and tuning_df; return as a dict
 
     this loads in first level results and assocaited stimuli and stimuli description dataframe
     for one session.
@@ -478,6 +497,4 @@ def load_data(subject, session=None, task=None, df_mode='full',
     if len(files) != 1:
         raise Exception("Cannot find unique first level results csv that satisfies all "
                         "specifications! Matching files: %s" % files)
-    return_dict = {'df': pd.read_csv(files[0]), 'df_filename': files[0]}
-    return_dict.update(find_stim_for_first_level(files[0], stim_dir))
-    return return_dict
+    return create_data_dict(files[0], stim_dir)
