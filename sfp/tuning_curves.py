@@ -64,15 +64,15 @@ def log_norm_describe_full(a, mode, sigma):
     if np.isinf(var):
         # if the peak of the curve would be at a *really* low or *really* high value, the variance
         # will be infinite (not really, but because of computational issues) and so we need to
-        # handle it separately.
+        # handle it separately. this really shouldn't happen anymore, since I've constrained the
+        # bounds of the mode
         if np.log2(mode) < 0:
             x = np.logspace(-300, 100, 100000, base=2)
         else:
             x = np.logspace(-100, 300, 100000, base=2)
         inf_warning = True
     else:
-        std = np.sqrt(var)
-        xmin, xmax = np.floor(np.log2(mode) - 5*std), np.ceil(np.log2(mode) + 5*std)
+        xmin, xmax = np.floor(np.log2(mode) - 5*sigma), np.ceil(np.log2(mode) + 5*sigma)
         x = np.logspace(xmin, xmax, 1000*(xmax - xmin), base=2)
     x, y = get_tuning_curve_xy(a, mode, sigma, x)
     half_max_idx = abs(y - (y.max() / 2.)).argsort()
@@ -98,7 +98,7 @@ def log_norm_describe(a, mode, sigma):
 def create_problems_report(fit_problems, inf_problems, save_path):
     """create html report showing problem cases
     """
-    plots_save_path = os.path.join(os.path.dirname(save_path), "report_plots", "plot%03d.svg")
+    plots_save_path = os.path.join(save_path.replace('.csv', '') + "_report_plots", "plot%03d.svg")
     if not os.path.isdir(os.path.dirname(plots_save_path)):
         os.makedirs(os.path.dirname(plots_save_path))
     with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'report_templates.json')) as f:
