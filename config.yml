@@ -1,3 +1,3 @@
-DATA_DIR: "/scratch/wfb229/spatial_frequency_preferences"
-MRI_TOOLS: "/home/wfb229/MRI_tools"
-FREESURFER_DIR: "/share/apps/freesurfer/6.0.0"
+DATA_DIR: "/mnt/HPC-scratch/spatial_frequency_preferences"
+MRI_TOOLS: "/home/billbrod/Documents/Winawer_lab_MRI_tools"
+FREESURFER_DIR: "/usr/local/freesurfer"

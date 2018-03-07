@@ -87,7 +87,7 @@ def _bin_mgzs_dict(mgzs, results_names, eccen_range, vareas, hemi_bin=True):
         for res in results_names + ['varea', 'angle', 'eccen']:
             res_name = os.path.split(res)[-1]
             tmp = mgzs['%s-%s' % (res_name, hemi)]
-            mgzs['%s-%s' % (res_name, hemi)] = np.array([np.nanmean(tmp[m],0 ) for m in masks])
+            mgzs['%s-%s' % (res_name, hemi)] = np.array([np.nanmean(tmp[m], 0) for m in masks])
     if hemi_bin:
         mgzs_tmp = {}
         for res in results_names + ['varea', 'angle', 'eccen']:
@@ -308,7 +308,7 @@ def calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg=12, eccen_bi
     stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli were used in the session
     we're analyzing. This matters because it changes the local spatial frequency and, since that is
     determined analytically and not directly from the stimuli, we have no way of telling otherwise.
-    
+
     stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
 
     plot_flag: boolean, optional, default False. Whether to create a plot showing the local spatial
