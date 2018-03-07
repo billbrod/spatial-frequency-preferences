@@ -408,17 +408,26 @@ def find_stim_for_first_level(filename, stim_dir):
     return {'stim': stim, 'stim_df': stim_df, 'stim_type': stim_type}
 
 
-def create_data_dict(first_level_results_path, stim_dir):
-    """given a first level results path, create the data dictionary
+def create_data_dict(dataframe_path, stim_dir):
+    """given a dataframe path, create the data dictionary
 
     this data dictionary contains the first level results, the stimuli, the stimuli descriptive
     dataframe, the tuning curves, the stimulus type, and the path to the first level results and
     tuning curve dataframes
+
+    dataframe path can be the path to either the tuning curves or first level analysis
+    dataframe. in either case, we'll then attempt to find the other one as well. there's a chance
+    that the tuning curves dataframe hasn't been created yet -- in that case, we raise a warning.
     """
+    if 'first_level_analysis' in dataframe_path:
+        first_level_results_path = dataframe_path
+        tuning_df_path = first_level_results_path.replace('first_level_analysis', 'tuning_curves')
+    else:
+        tuning_df_path = dataframe_path
+        first_level_results_path = tuning_df_path.replace('tuning_curves', 'first_level_analysis')
     return_dict = {'df': pd.read_csv(first_level_results_path),
                    'df_filename': first_level_results_path}
     try:
-        tuning_df_path = first_level_results_path.replace('first_level_analysis', 'tuning_curves')
         return_dict.update({'tuning_df': pd.read_csv(tuning_df_path),
                             'tuning_df_filename': tuning_df_path})
     except IOError:
