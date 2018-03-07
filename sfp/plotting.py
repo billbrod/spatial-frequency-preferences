@@ -22,6 +22,72 @@ CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'off-diagonal', 'ho
                              'reverse diagonal']
 
 
+class MidpointNormalize(mpl.colors.Normalize):
+    def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
+        self.midpoint = midpoint
+        mpl.colors.Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        # I'm ignoring masked values and all kinds of edge cases to make a
+        # simple example...
+        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
+        return np.ma.masked_array(np.interp(value, x, y))
+
+
+def im_plot(im, **kwargs):
+    try:
+        cmap = kwargs.pop('cmap')
+    except KeyError:
+        cmap = 'gray'
+    try:
+        ax = kwargs.pop('ax')
+        ax.imshow(im, cmap=cmap, **kwargs)
+    except KeyError:
+        ax = plt.imshow(im, cmap=cmap, **kwargs)
+    ax.axes.xaxis.set_visible(False)
+    ax.axes.yaxis.set_visible(False)
+
+
+def plot_median(x, y, **kwargs):
+    """plot line through center points, for use with seaborn's map_dataframe
+    """
+    data = kwargs.pop('data')
+    plot_data = data.groupby(x)[y].median()
+    plt.plot(plot_data.index, plot_data.values, **kwargs)
+
+
+def scatter_ci_col(x, y, ci, **kwargs):
+    """plot center points and specified CIs, for use with seaborn's map_dataframe
+
+    based on seaborn.linearmodels.scatterplot. CIs are taken from a column in this function.
+    """
+    data = kwargs.pop('data')
+    plot_data = data.groupby(x)[y].median()
+    plot_cis = data.groupby(x)[ci].median()
+    plt.scatter(plot_data.index, plot_data.values, **kwargs)
+    for (x, ci), y in zip(plot_cis.iteritems(), plot_data.values):
+        plt.plot([x, x], [y+ci, y-ci], **kwargs)
+
+
+def scatter_ci_dist(x, y, ci_vals=[16, 84], **kwargs):
+    """plot center points and specified CIs, for use with seaborn's map_dataframe
+
+    based on seaborn.linearmodels.scatterplot. CIs are taken from a distribution in this
+    function. Therefore, it's assumed that the values being passed to it are values from a
+    bootstrap distribution.
+
+    by default, this draws the 68% confidence interval. to change this, change the ci_vals
+    argument. for instance, if you only want to draw the median point, pass ci_vals=[50, 50] (this
+    is eqiuvalent to just calling plt.scatter)
+    """
+    data = kwargs.pop('data')
+    plot_data = data.groupby(x)[y].median()
+    plot_cis = data.groupby(x)[y].apply(np.percentile, ci_vals)
+    plt.scatter(plot_data.index, plot_data.values, **kwargs)
+    for x, (ci_low, ci_high) in plot_cis.iteritems():
+        plt.plot([x, x], [ci_low, ci_high], **kwargs)
+
+
 def stimuli_properties(df, save_path=None):
     """plot some summaries of the stimuli properties
 
@@ -63,8 +129,8 @@ def stimuli_properties(df, save_path=None):
         freq_names = ['w_x', 'w_y']
         ylim, xlim = [-.098, .118], [-.0157, .173]
         cmaps[0] = dict((i, j) for i, j in zip(CONSTANT_SUPERCLASS_ORDER, cmaps[0]))
-    norms = [None, None, utils.MidpointNormalize(df.freq_space_angle.min(),
-                                                 df.freq_space_angle.max(), midpoint=0)]
+    norms = [None, None, MidpointNormalize(df.freq_space_angle.min(),
+                                           df.freq_space_angle.max(), midpoint=0)]
     titles = ['Frequency superclass', 'Frequency distance', "Frequency angle"]
     color_prop = ['stimulus_superclass', 'freq_space_distance', 'freq_space_angle']
     with sns.axes_style('white'):
@@ -134,18 +200,47 @@ def local_spatial_frequency(df, save_path=None, **kwargs):
         g.fig.savefig(save_path, bbox_inches='tight')
 
 
-def im_plot(im, **kwargs):
-    try:
-        cmap = kwargs.pop('cmap')
-    except KeyError:
-        cmap = 'gray'
-    try:
-        ax = kwargs.pop('ax')
-        ax.imshow(im, cmap=cmap, **kwargs)
-    except KeyError:
-        ax = plt.imshow(im, cmap=cmap, **kwargs)
-    ax.axes.xaxis.set_visible(False)
-    ax.axes.yaxis.set_visible(False)
+def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 84],
+              save_path=None, **kwargs):
+    """plot the raw amplitude estimates, either with or without confidence intervals
+
+    if df is the summary dataframe, we'll use the amplitude_estimate_std_error column as the
+    confidence intervals (in this case, ci_vals is ignored). otherwise, we'll estimate them
+    directly from the bootstrapped data using np.percentile; in this case, ci_vals determines what
+    percentile to plot (by default, the 68% confidence interval)
+
+    x_col determines what to have on the x-axis 'freq_space_distance' or
+    'rounded_freq_space_distance' will probably work best. you can try 'freq_space_angle' or 'Local
+    spatial frequency (cpd)', but there's no guarantee those will plot well.
+
+    if median_only is True, will not plot confidence intervals.
+
+    kwargs will get passed to plt.scatter and plt.plot, via scatter_ci_dist / scatter_ci_col
+    """
+    if 'rounded_freq_space_distance' in df.columns:
+        col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
+    else:
+        col_order = [i for i in CONSTANT_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
+
+    g = sns.FacetGrid(df, hue='eccen', palette='Reds', size=5, row='varea',
+                      col='stimulus_superclass', col_order=col_order)
+    if 'amplitude_estimate_std_error' in df.columns:
+        g.map_dataframe(plot_median, x_col, 'amplitude_estimate_median')
+        if not median_only:
+            g.map_dataframe(scatter_ci_col, x_col, 'amplitude_estimate_median',
+                            'amplitude_estimate_std_error', **kwargs)
+    else:
+        g.map_dataframe(plot_median, x_col, 'amplitude_estimate')
+        if not median_only:
+            g.map_dataframe(scatter_ci_dist, x_col, 'amplitude_estimate', ci_vals=ci_vals,
+                            **kwargs)
+    for ax in g.axes.flatten():
+        ax.set_xscale('log', basex=2)
+    g.add_legend()
+    g.fig.suptitle("Amplitude estimates as a function of frequency")
+    plt.subplots_adjust(top=.9)
+    if save_path is not None:
+        g.fig.savefig(save_path, bbox_inches='tight')
 
 
 def _plot_grating_approx_and_save(grating, grating_type, save_path, **kwargs):
@@ -492,8 +587,9 @@ if __name__ == '__main__':
     parser.add_argument("--plot_to_make", default=None, nargs='*',
                         help=("Which plots to create. If none, will create all. Possible options: "
                               "localsf (plotting.local_spatial_frequency), stim_prop (plotting."
-                              "stimuli_properties) or tuning_curves_check_varea={v}[_bootstrap"
-                              "={b:02d}] (plotting.check_tuning_curves)"))
+                              "stimuli_properties), data (plotting.plot_data), or "
+                              "tuning_curves_check_varea={v}[_bootstrap={b:02d}] (plotting."
+                              "check_tuning_curves; requires tuning curve dataframe)"))
     args = vars(parser.parse_args())
     d = utils.create_data_dict(args['dataframe_path'], args['stim_dir'])
     first_level_save_stem = d['df_filename'].replace('.csv', '')
@@ -505,6 +601,7 @@ if __name__ == '__main__':
     if args['plot_to_make'] is None:
         local_spatial_frequency(d['df'], first_level_save_stem+"_localsf.svg")
         stimuli_properties(d['df'], first_level_save_stem+"_stim_prop.svg")
+        plot_data(d['df'], save_path=first_level_save_stem+'_data.svg')
         if tuning_df_present:
             check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg")
         else:
@@ -527,6 +624,8 @@ if __name__ == '__main__':
                 else:
                     raise Exception("Unable to create tuning curves plot because tuning curve df "
                                     "hasn't been created!")
+            elif 'data' == p:
+                plot_data(d['df'], save_path=first_level_save_stem+'_data.svg')
             else:
                 raise Exception("Don't know how to make plot %s!" % p)
     # if 'circular' in d['df'].stimulus_superclass.values:
