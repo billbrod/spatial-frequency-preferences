@@ -137,6 +137,9 @@ def main(df, save_path=None, bounds=(2**(-5), 2**5)):
     tuning_df = []
     fit_problems, inf_problems = [], []
     for n, g in gb:
+        # we want a sense of where this is, in order to figure out if it stalled out.
+        str_labels = ", ".join("%s: %s" % i for i in zip(gb_cols, n))
+        print("\nCreating tuning curves for: %s" % str_labels)
         fit_warning = False
         if 'mixtures' in n or 'off-diagonal' in n:
             # then these points all have the same frequency and so we can't fit a frequency tuning
@@ -173,9 +176,7 @@ def main(df, save_path=None, bounds=(2**(-5), 2**5)):
                                      'tuning_curve_sigma', 'tuning_curve_peak',
                                      'tuning_curve_bandwidth']
         if fit_warning:
-            labels = zip(gb_columns, n)
-            warnings.warn('Fit not great for:\n%s' % "\n".join([": ".join([str(j) for j in i])
-                                                               for i in labels]))
+            warnings.warn('Fit not great for:\n%s' % str_labels.replace(', ', '\n'))
             fit_problems.append((pd.DataFrame(tuning_df[-1][warning_cols].iloc[0]).T, (x, y),
                                  (g.frequency_value.values, g.amplitude_estimate.values)))
         if inf_warning:

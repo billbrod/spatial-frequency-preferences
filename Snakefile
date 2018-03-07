@@ -408,18 +408,19 @@ rule tuning_curves:
 
 rule plots:
     input:
-        first_level=os.path.join(config['DATA_DIR'], "derivatives", "first_level_analysis", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv"),
-        tuning_df=os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv"),
+        dataframe=os.path.join(config['DATA_DIR'], "derivatives", "{step}", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv")
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "{step}", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_{plot_name}.svg")
     params:
         stim_dir = os.path.join(config['DATA_DIR'], 'stimuli')
+    resources:
+        mem = 1
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_{plot_name}_benchmark.txt")
     log:
         os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_{plot_name}.log")
     shell:
-        "python sfp/plotting.py {input.first_level} {params.stim_dir} --plot_to_make "
+        "python sfp/plotting.py {input.dataframe} {params.stim_dir} --plot_to_make "
         "{wildcards.plot_name}"
 
 

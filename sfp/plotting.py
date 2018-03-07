@@ -6,6 +6,7 @@ import matplotlib as mpl
 mpl.use('svg')
 import argparse
 import utils
+import warnings
 import tuning_curves
 import stimuli as sfp_stimuli
 import first_level_analysis
@@ -376,7 +377,9 @@ if __name__ == '__main__':
         formatter_class=CustomFormatter,
         description=("Creates the descriptive plots for one first level results dataframe")
         )
-    parser.add_argument("first_level_results_path", help="path to first level results dataframe")
+    parser.add_argument("dataframe_path",
+                        help=("path to first level results or tuning curves dataframe. we'll "
+                              "attempt to find the other dataframe as well."))
     parser.add_argument("stim_dir", help="path to directory containing stimuli")
     parser.add_argument("--plot_to_make", default=None, nargs='*',
                         help=("Which plots to create. If none, will create all. Possible options: "
@@ -384,13 +387,21 @@ if __name__ == '__main__':
                               "stimuli_properties) or tuning_curves_check_varea={v}[_bootstrap"
                               "={b:02d}] (plotting.check_tuning_curves)"))
     args = vars(parser.parse_args())
-    d = utils.create_data_dict(args['first_level_results_path'], args['stim_dir'])
+    d = utils.create_data_dict(args['dataframe_path'], args['stim_dir'])
     first_level_save_stem = d['df_filename'].replace('.csv', '')
-    tuning_save_stem = d['tuning_df_filename'].replace('.csv', '')
+    if 'tuning_df' in d.keys():
+        tuning_save_stem = d['tuning_df_filename'].replace('.csv', '')
+        tuning_df_present = True
+    else:
+        tuning_df_present = False
     if args['plot_to_make'] is None:
         local_spatial_frequency(d['df'], first_level_save_stem+"_localsf.svg")
         stimuli_properties(d['df'], first_level_save_stem+"_stim_prop.svg")
-        check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg")
+        if tuning_df_present:
+            check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg")
+        else:
+            warnings.warn("Unable to create tuning curves plot because tuning curve df hasn't "
+                          "been created!")
     else:
         for p in args['plot_to_make']:
             if 'localsf' == p :
@@ -398,12 +409,16 @@ if __name__ == '__main__':
             elif 'stim_prop' == p:
                 stimuli_properties(d['df'], first_level_save_stem+"_stim_prop.svg")
             elif 'tuning_curves_check' in p:
-                p_kwargs = p.replace('tuning_curves_check_', '')
-                p_kwargs = dict(i.split('=') for i in p_kwargs.split('_'))
-                # we know both are ints
-                p_kwargs = dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in p_kwargs.iteritems())
-                check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg",
-                                    **p_kwargs)
+                if tuning_df_present:
+                    p_kwargs = p.replace('tuning_curves_check_', '')
+                    p_kwargs = dict(i.split('=') for i in p_kwargs.split('_'))
+                    # we know both are ints
+                    p_kwargs = dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in p_kwargs.iteritems())
+                    check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg",
+                                        **p_kwargs)
+                else:
+                    raise Exception("Unable to create tuning curves plot because tuning curve df "
+                                    "hasn't been created!")
             else:
                 raise Exception("Don't know how to make plot %s!" % p)
     # if 'circular' in d['df'].stimulus_superclass.values:
