@@ -72,43 +72,6 @@ def scatter_heat(x, y, c, **kwargs):
                 vmin=kwargs['vmin'], vmax=kwargs['vmax'])
 
 
-def im_plot(im, **kwargs):
-    try:
-        cmap = kwargs.pop('cmap')
-    except KeyError:
-        cmap = 'gray'
-    try:
-        ax = kwargs.pop('ax')
-        ax.imshow(im, cmap=cmap, **kwargs)
-    except KeyError:
-        ax = plt.imshow(im, cmap=cmap, **kwargs)
-    ax.axes.xaxis.set_visible(False)
-    ax.axes.yaxis.set_visible(False)
-
-
-def add_img_to_xaxis(fig, ax, img, rel_position, size=.1, **kwargs):
-    """add image to x-axis
-
-    after calling this, you probably want to make your x axis invisible:
-    `ax.xaxis.set_visible(False)` or things will look confusing
-
-    rel_position: float between 0 and 1, specifies where on the x axis you want to place the
-    image. You'll need to play arond with this, I don't have a good way of doing this automatically
-    (for instance, lining up with existing tick marks). This interacts with size. if you want the
-    left edge to line up with the beginning of the x-axis, this should be 0, but if you want the
-    right edge to line up with the end of the x-axis, this should be around 1-size
-
-    size: float between 0 and 1, size of image, relative to overall plot size. it appears that
-    around .1 or .2 is a good size.
-    """
-    xl, yl, xh, yh = np.array(ax.get_position()).ravel()
-    w = xh - xl
-
-    ax1 = fig.add_axes([xl + w*rel_position, yl-size, size, size])
-    ax1.axison = False
-    im_plot(img, ax=ax1, **kwargs)
-
-
 def create_sin_cpp(size, w_x, w_y, phase=0, origin=None):
     """create a full 2d sine wave, with frequency in cycles / pixel
     """
@@ -297,75 +260,6 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=Non
         return 0
     else:
         return np.cos(w_x*x + w_y*y + local_phase)
-
-
-def _plot_and_save(grating, grating_type, save_path, **kwargs):
-    figsize = kwargs.pop('figsize', (5, 5))
-    fig, axes = plt.subplots(1, 1, figsize=figsize)
-    im_plot(grating, ax=axes, **kwargs)
-    if grating_type == 'grating':
-        axes.set_title("Windowed view of actual grating")
-    elif grating_type == 'approx':
-        axes.set_title("Windowed view of linear approximation")
-    if save_path is not None:
-        try:
-            fig.savefig(save_path % grating_type, bbox_inches='tight')
-        except TypeError:
-            save_path = os.path.splitext(save_path)[0] + "_" + grating_type + os.path.splitext(save_path)[1]
-            fig.savefig(save_path, bbox_inches='tight')
-
-
-def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=None, w_a=None,
-                               origin=None, stim_type='logpolar', save_path=None, **kwargs):
-    """plot the "windowed approximation" of a grating
-
-    note that this will not create the grating or its gradients (dx/dy), it only plots them. For
-    this to work, dx and dy must be in cycles / pixel
-
-    this will work for either regular 2d gratings or the log polar gratings we use as stimuli,
-    though it will look slightly different depending on which you do. In the regular case, the
-    space between windows will be mid-gray, while for the log polar gratings, it will be
-    black. This allows for a creation of a neat illusion for some regular gratings (use
-    grating=sfp.utils.create_sin_cpp(1080, .005, .005) to see an example)!
-
-    if `grating` is one of our log polar gratings, then w_r and w_a also need to be set. if it's a
-    regular 2d grating, then they should both be None.
-
-    num_windows: int, the number of windows in each direction that we'll use. as this gets larger,
-    the approximation will look better and better (and this will take a longer time to run)
-
-    save_path: str, optional. If set, will save plots. in order to make comparison easier, will save
-    two separate plots (one of the windowed grating, one of the linear approximation). if save_path
-    does not include %s, will append _grating and _approx (respectively) to filename
-
-    kwargs will be past to im_plot.
-    """
-    size = grating.shape[0]
-    # we need to window the gradients dx and dy so they only have values where the grating does
-    # (since they're derived analytically, they'll have values everywhere)
-    mid_val = {'pilot': 127}.get(stim_type, 128)
-    dx = mask_array_like_grating(grating, dx, mid_val)
-    dy = mask_array_like_grating(grating, dy, mid_val)
-    mask_spacing = np.round(size / num_windows)
-    # for this to work, the gratings must be non-overlapping
-    mask_size = np.round(mask_spacing / 2) - 1
-    masked_grating = np.zeros((size, size))
-    masked_approx = np.zeros((size, size))
-    masks = np.zeros((size, size))
-    for i in range(mask_size, size, mask_spacing):
-        for j in range(mask_size, size, mask_spacing):
-            loc_x, loc_y = i, j
-            mask = create_circle_mask(loc_x, loc_y, mask_size, size)
-            masks += mask
-            masked_grating += mask * grating
-            masked_approx += mask * local_grad_sin(dx, dy, loc_x, loc_y, w_r, w_a, phase, origin,
-                                                   stim_type)
-    # in order to make the space between the masks black, that area should have the minimum
-    # value, -1. but for the above to all work, that area needs to be 0, so this corrects that.
-    masked_approx[~masks.astype(bool)] -= 1
-    _plot_and_save(masked_grating, 'grating', save_path, **kwargs)
-    _plot_and_save(masked_approx, 'approx', save_path, **kwargs)
-    return masked_grating, masked_approx
 
 
 def find_stim_idx(stim_df, **kwargs):
