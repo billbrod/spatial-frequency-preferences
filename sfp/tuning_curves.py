@@ -41,7 +41,7 @@ def get_tuning_curve_xy_from_df(df, x=None, norm=False):
     for param, param_label in [('a', 'tuning_curve_amplitude'), ('mode', 'tuning_curve_peak'),
                                ('sigma', 'tuning_curve_sigma')]:
         if df[param_label].nunique() > 1:
-            raise Exception("Only one tuning curve can be described in df %s!" % df)
+            raise Exception("Only one tuning curve can be described in df \n%s!" % df)
         params[param] = df[param_label].unique()[0]
     return get_tuning_curve_xy(norm=norm, **params)
 
@@ -122,7 +122,7 @@ def create_problems_report(fit_problems, inf_problems, save_path):
 
 
 # add bounds to the command line?
-def main(df, save_path=None, bounds=(2**(-5), 2**5)):
+def main(df, save_path=None, bounds=(2**(-5), 2**11)):
     """fit tuning curve to first level results dataframe
     """
     if 'bootstrap_num' in df.columns:
