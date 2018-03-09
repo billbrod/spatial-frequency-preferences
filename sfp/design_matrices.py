@@ -29,14 +29,15 @@ def _discover_class_size(values):
     return class_size
 
 
-def _find_stim_class_length(value, class_size):
+def _find_stim_class_length(value, class_size, blanks_have_been_dropped=True):
     """helper function to find the length of one stimulus class / trial type, in seconds
     """
     lengths = (value[1:] - value[:-1]).astype(float)
     counts = Counter(np.round(lengths, 1))
     real_length = counts.most_common()[0][0]
     counts.pop(real_length)
-    counts.pop(real_length + class_size * real_length)
+    if blanks_have_been_dropped:
+        counts.pop(real_length + class_size * real_length)
     for i in counts.keys():
         if (np.abs(i - real_length)/real_length > .005):
             perc_diff = (np.abs(lengths - real_length) / real_length) * 100
@@ -60,15 +61,23 @@ def create_design_matrix(tsv_df, n_TRs):
     return design_matrix
 
 
-def check_design_matrix(design_matrix, run_num=None):
+def check_design_matrix(design_matrix, run_num=None, model_blanks=False):
     """quick soundness test to double-check design matrices
 
     this just checks to make sure that each event happens exactly once and that each TR has 0 or 1
     events.
     """
-    if not (design_matrix.sum(0) == 1).all():
-        raise Exception("There's a problem with the design matrix%s, at least one event doesn't"
-                        " show up once!" % {None: ''}.get(run_num, " for run %s" % run_num))
+    if not model_blanks:
+        if not (design_matrix.sum(0) == 1).all():
+            raise Exception("There's a problem with the design matrix%s, at least one event doesn't"
+                            " show up once!" % {None: ''}.get(run_num, " for run %s" % run_num))
+    else:
+        if not (design_matrix.sum(0)[:-1] == 1).all():
+            raise Exception("There's a problem with the design matrix%s, at least one non-blank "
+                            "event doesn't show up once!" % {None: ''}.get(run_num, " for run %s" % run_num))
+        if design_matrix.sum(0)[-1] != model_blanks:
+            raise Exception("There's a problem with the design matrix%s, the blank event doesn't "
+                            "show up the correct number of times!" % {None: ''}.get(run_num, " for run %s" % run_num))
     if not ((design_matrix.sum(1) == 0) + (design_matrix.sum(1) == 1)).all():
         raise Exception("There's a problem with the design matrix%s, at least one TR doesn't have"
                         " 0 or 1 events!" % {None: ''}.get(run_num, " for run %s" % run_num))
@@ -99,19 +108,29 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
     save_path should contain some string formatting symbol (e.g., %s, %02d) that can indicate the
     run number and should end in .tsv
 
-    mat_type: {"stim_class", "all_visual"}. What design matrix to make. stim_class has each
-    stimulus class as a separate regressor and is our actual design matrix for the
-    experiment. all_visual has every stimulus class combined into regressor (so that that
-    regressors represents whenever anything is on the screen) and is used to check that things are
-    working as expected, since every voxel in the visual cortex should then show increased
-    activation relative to baseline.
+    mat_type: {"stim_class", "all_visual", "stim_class_N_blanks"}. What design matrix to
+    make. stim_class has each stimulus class as a separate regressor and is our actual design
+    matrix for the experiment. all_visual has every stimulus class combined into regressor (so that
+    that regressors represents whenever anything is on the screen) and is used to check that things
+    are working as expected, since every voxel in the visual cortex should then show increased
+    activation relative to baseline. stim_class_N_blanks (where N is an integer in format %02d
+    between 1 and 10, inclusive) is the same as stimulus class, except we also model N of the
+    blanks in a separate class. This class will have the highest trial type / model class number
+    (so if there are 52 classes without blanks, the blanks will be in class 53).
 
     permuted: boolean, default False. Whether to permute the run labels or not. The reason to do
     this is to double-check your results: your R2 values should be much lower when permuted,
     because you're basically breaking your hypothesized connection between the GLM model and brain
     activity.
     """
-    assert mat_type in ["stim_class", "all_visual"], "Don't know how to handle mat_type %s!" % mat_type
+    if mat_type in ['stim_class', 'all_visual']:
+        model_blanks = False
+    elif 'stim_class' in mat_type and '_blanks' in mat_type:
+        model_blanks = int(mat_type.replace('stim_class_', '').replace('_blanks', ''))
+        if model_blanks == 0 or model_blanks > 10:
+            raise Exception("for mat_type stim_class_N_blanks, N must lie between 1 and 10, inclusive!")
+    else:
+        raise Exception("Don't know how to handle mat_type %s!" % mat_type)
     layout = BIDSLayout(input_path)
     run_nums = layout.get_runs()
     stim_lengths = []
@@ -132,10 +151,23 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
         tsv_file = layout.get(type='events', run=run_num)
         if len(tsv_file) != 1:
             raise IOError("Need one tsv for run %s, but found %d!" % (run_num, len(tsv_file)))
-        tsv_df = pd.read_csv(tsv_file[0].filename, sep='\t')
+        # by default, pandas interprets empty fields as NaNs. We have some empty strings in the
+        # "notes" column, which we want to interpret as empty strings
+        tsv_df = pd.read_csv(tsv_file[0].filename, sep='\t', na_filter=False)
         class_size = _discover_class_size(tsv_df.trial_type.values)
-        stim = _find_stim_class_length(tsv_df.onset.values, class_size)
+        # We let _find_stim_class_length know that no blanks have been dropped, so even the blank
+        # trials are included (and thus the time between all onsets in the tsv should be the same)
+        stim_lengths.append(_find_stim_class_length(tsv_df.onset.values, class_size, False))
         tsv_df = tsv_df[::class_size]
+        # the note field is either empty or contains the string "blank trial", so we definitely
+        # want to grab the indices of the non-blank trials, as they're always included
+        idx = tsv_df[tsv_df.note == ""].index
+        if model_blanks:
+            # this grabs a sub-sample of the blank trials
+            blank_idx = tsv_df[tsv_df.note == 'blank trial'].sample(model_blanks).index
+            # and adds it to the index we're using, making sure it's in the right order
+            idx = idx.append(blank_idx).sort_values()
+        tsv_df = tsv_df.loc[idx]
         nii_file = layout.get(type='bold', run=run_num)
         if len(nii_file) != 1:
             raise IOError("Need one nifti for run %s, but found %d!" % (run_num, len(nii_file)))
@@ -148,13 +180,12 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
         time_from_TR = np.round(stim_times - TR_times)
         tsv_df['Onset time (TR)'] = np.where(time_from_TR == 0)[1]
         design_mat = create_design_matrix(tsv_df, n_TRs)
-        stim_lengths.append(stim)
         TR_lengths.append(TR)
-        check_design_matrix(design_mat, run_num)
+        check_design_matrix(design_mat, run_num, model_blanks)
         if mat_type == "all_visual":
             design_mat = design_mat.sum(1).reshape((design_mat.shape[0], 1))
         plot_design_matrix(design_mat, "Design matrix for run %s" % save_num,
-                           save_path.replace('.tsv', '.png') % save_num)
+                           save_path.replace('.tsv', '.svg') % save_num)
         np.savetxt(save_path % save_num, design_mat, '%d', '\t')
     assert ((np.array(stim_lengths) - stim_lengths[0]) == 0).all(), "You have different stim lengths!"
     assert ((np.array(TR_lengths) - TR_lengths[0]) == 0).all(), "You have different TR lengths!"
@@ -181,13 +212,19 @@ if __name__ == '__main__':
                               "Must contain at least one string formatting signal (to indicate run"
                               "number) and must end in .tsv."))
     parser.add_argument("--mat_type", default="stim_class",
-                        help=("{'stim_class', 'all_visual'}. What design matrix to make. stim_class"
-                              " has each stimulus class as a separate regressor and is our actual "
-                              "design matrix for the experiment. all_visual has every stimulus "
-                              "class combined into regressor (so that that regressors represents "
-                              "whenever anything is on the screen) and is used to check that things"
-                              " are working as expected, since every voxel in the visual cortex "
-                              "should then show increased activation relative to baseline."))
+                        help=("{'stim_class', 'all_visual', 'stim_class_N_blanks'}. What design "
+                              "matrix to make. stim_class has each stimulus class as a separate "
+                              "regressor and is our actual design matrix for the experiment. "
+                              "all_visual has every stimulus class combined into regressor (so that" 
+                              "that regressors represents whenever anything is on the screen) and "
+                              "is used to check that things are working as expected, since every "
+                              "voxel in the visual cortex should then show increased activation "
+                              "relative to baseline. stim_class_N_blanks (where N is an integer in"
+                              " format %02d between 1 and 10, inclusive) is the same as stimulus "
+                              "class, except we also model N of the blanks in a separate class. "
+                              "This class will have the highest trial type / model class number ("
+                              "so if there are 52 classes without blanks, the blanks will be in "
+                              "class 53)."))
     parser.add_argument("--permuted", '-p', action="store_true",
                         help=("Whether to permute the run labels or not. The reason to do this is"
                               " to double-check your results: your R2 values should be much lower "

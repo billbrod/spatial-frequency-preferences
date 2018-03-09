@@ -379,7 +379,7 @@ rule first_level_analysis:
         bin_str = get_binning,
         results_template = lambda wildcards, input: input.R2_files[0].replace('lh', '%s').replace('R2', '%s'),
         benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
-        class_num = lambda wildcards: {'ses-pilot01':52, 'ses-pilot00': 52}.get(wildcards.session, 48),
+        class_num = lambda wildcards: N_CLASSES[wildcards.session],
         stim_type = get_stim_type,
         mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
     benchmark:
