@@ -25,14 +25,16 @@ def log_norm_pdf(x, a, mode, sigma):
     return a * (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
 
 
-def get_tuning_curve_xy(a, mode, sigma, x=None):
+def get_tuning_curve_xy(a, mode, sigma, x=None, norm=False):
     if x is None:
         x = np.logspace(-20, 20, 20000, base=2)
     y = log_norm_pdf(x, a, mode, sigma)
+    if norm:
+        y /= y.max()
     return x, y
 
 
-def get_tuning_curve_xy_from_df(df, x=None):
+def get_tuning_curve_xy_from_df(df, x=None, norm=False):
     """given a dataframe with one associated tuning curve, return x and y of that tuning curve
     """
     params = {'x': x}
@@ -41,7 +43,7 @@ def get_tuning_curve_xy_from_df(df, x=None):
         if df[param_label].nunique() > 1:
             raise Exception("Only one tuning curve can be described in df %s!" % df)
         params[param] = df[param_label].unique()[0]
-    return get_tuning_curve_xy(**params)
+    return get_tuning_curve_xy(norm=norm, **params)
 
 
 def log_norm_describe_full(a, mode, sigma):
