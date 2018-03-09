@@ -48,12 +48,15 @@ def im_plot(im, **kwargs):
     ax.axes.yaxis.set_visible(False)
 
 
-def plot_median(x, y, **kwargs):
-    """plot line through center points, for use with seaborn's map_dataframe
+def plot_median(x, y, plot_func=plt.plot, **kwargs):
+    """plot the median points, for use with seaborn's map_dataframe
+
+    plot_func specifies what plotting function to call on the median points (e.g., plt.plot,
+    plt.scatter)
     """
     data = kwargs.pop('data')
     plot_data = data.groupby(x)[y].median()
-    plt.plot(plot_data.index, plot_data.values, **kwargs)
+    plot_func(plot_data.index, plot_data.values, **kwargs)
 
 
 def scatter_ci_col(x, y, ci, **kwargs):
@@ -530,10 +533,36 @@ def peak_spatial_frequency(df, id_vars=['stimulus_superclass']):
     return peak_df
 
 
-def plot_tuning_curve(**kwargs):
+def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
     data = kwargs.pop('data')
-    x, y = tuning_curves.get_tuning_curve_xy_from_df(data)
-    plt.semilogx(x, y, basex=2, **kwargs)
+    color = kwargs.pop('color')
+    if 'bootstrap_num' in data.columns:
+        xs, ys = [], []
+        for n, g in data.groupby('bootstrap_num'):
+            x, y = tuning_curves.get_tuning_curve_xy_from_df(g, norm=norm)
+            xs.append(x)
+            ys.append(y)
+        xs = np.array(xs)
+        if (xs != xs[0]).any():
+            raise Exception("Somehow we got different xs for the tuning curves of some "
+                            "bootstraps!")
+        ys = np.array(ys)
+        y_median = np.median(ys, 0)
+        y_cis = np.percentile(ys, ci_vals, 0)
+        plt.fill_between(xs[0], y_cis[0], y_cis[1], alpha=.2, facecolor=color)
+        plt.semilogx(xs[0], y_median, basex=2, color=color, **kwargs)
+    else:
+        x, y = tuning_curves.get_tuning_curve_xy_from_df(data, norm=norm)
+        plt.semilogx(x, y, basex=2, color=color, **kwargs)
+
+
+def _restrict_df(df, **kwargs):
+    for k, v in kwargs.iteritems():
+        try:
+            df = df[df[k].isin(v)]
+        except TypeError:
+            df = df[df[k] == v]
+    return df
 
 
 def check_tuning_curves(tuning_df, save_path_template, **kwargs):
@@ -546,18 +575,15 @@ def check_tuning_curves(tuning_df, save_path_template, **kwargs):
 
     kwargs can contain columns in the tuning_df and values to limit them to.
     """
-    for k, v in kwargs.iteritems():
-        try:
-            tuning_df = tuning_df[tuning_df[k].isin(v)]
-        except TypeError:
-            tuning_df = tuning_df[tuning_df[k] == v]
+    tuning_df = _restrict_df(tuning_df, **kwargs)
     gb_cols = ['varea']
     title_template = 'varea={}'
     if 'bootstrap_num' in tuning_df.columns:
         gb_cols += ['bootstrap_num']
         title_template += ', bootstrap={:02d}'
     for n, g in tuning_df.groupby(gb_cols):
-        f = sns.FacetGrid(g, row='eccen', col='stimulus_superclass', hue='frequency_type')
+        f = sns.FacetGrid(g, row='eccen', col='stimulus_superclass', hue='frequency_type',
+                          xlim=(2**-5, 2**10))
         f.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
         f.map_dataframe(plot_tuning_curve)
         f.add_legend()
@@ -571,6 +597,58 @@ def check_tuning_curves(tuning_df, save_path_template, **kwargs):
         plt.subplots_adjust(top=.95)
         f.savefig(save_path_template % (suptitle.replace(', ', '_')))
         plt.close(f.fig)
+
+
+def check_hypotheses(tuning_df, save_path_template=None, norm=False, ci_vals=[16, 84],
+                     plot_data=True, **kwargs):
+    tuning_df = _restrict_df(tuning_df, **kwargs)
+    gb_cols = ['varea']
+    title_template = 'varea={}'
+    col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER+CONSTANT_SUPERCLASS_ORDER if i in tuning_df.stimulus_superclass.unique()]
+    for n, g in tuning_df.groupby(gb_cols):
+        f = sns.FacetGrid(tuning_df, hue='eccen', palette='Reds', size=5, row='frequency_type',
+                          col='stimulus_superclass', col_order=col_order)
+        if plot_data:
+            f.map_dataframe(plot_median, 'frequency_value', 'amplitude_estimate',
+                            plot_func=plt.scatter)
+        f.map_dataframe(plot_tuning_curve, norm=norm, ci_vals=ci_vals)
+        for ax in f.axes.flatten():
+            ax.set_xscale('log', basex=2)
+            ax.set_xlim((2**-5, 2**10))
+            if norm:
+                ax.set_ylim((0, 1.2))
+        f.add_legend()
+        suptitle = title_template.format(n)
+        f.fig.suptitle("Median amplitude estimates with tuning curves, %s" % suptitle)
+        sns.plt.subplots_adjust(top=.93)
+        f.set_titles("{row_name} | {col_name}")
+        if save_path_template is not None:
+            f.fig.savefig(save_path_template % suptitle, bbox_inches='tight')
+
+
+def check_hypotheses_with_data(tuning_df, save_path_template=None, ci_vals=[16, 84], **kwargs):
+    check_hypotheses(tuning_df, save_path_template, False, ci_vals, True, **kwargs)
+
+
+def check_hypotheses_normalized(tuning_df, save_path_template=None, ci_vals=[16, 84], **kwargs):
+    check_hypotheses(tuning_df, save_path_template, True, ci_vals, False, **kwargs)
+
+
+def _parse_save_path_for_kwargs(save_path):
+    kwargs = dict(i.split('=') for i in save_path.split('_'))
+    # we know all are ints
+    return dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in kwargs.iteritems())
+
+
+def tuning_params(tuning_df, save_path=None, **kwargs):
+    tuning_df = _restrict_df(tuning_df, **kwargs)
+    tuning_df = tuning_df[['frequency_type', 'tuning_curve_amplitude', 'tuning_curve_sigma', 'tuning_curve_mu', 'tuning_curve_peak', 'tuning_curve_bandwidth']]
+    tuning_df['tuning_curve_peak'] = np.log2(tuning_df.tuning_curve_peak)
+    g = sns.PairGrid(tuning_df, hue='frequency_type', aspect=1)
+    g.map_offdiag(plt.scatter)
+    g.map_diag(sns.distplot)
+    if save_path is not None:
+        g.fig.savefig(save_path)
 
 
 if __name__ == '__main__':
@@ -587,9 +665,12 @@ if __name__ == '__main__':
     parser.add_argument("--plot_to_make", default=None, nargs='*',
                         help=("Which plots to create. If none, will create all. Possible options: "
                               "localsf (plotting.local_spatial_frequency), stim_prop (plotting."
-                              "stimuli_properties), data (plotting.plot_data), or "
+                              "stimuli_properties), data (plotting.plot_data), "
                               "tuning_curves_check_varea={v}[_bootstrap={b:02d}] (plotting."
-                              "check_tuning_curves; requires tuning curve dataframe)"))
+                              "check_tuning_curves; requires tuning curve dataframe), "
+                              "hypotheses_data_varea={v} (plotting.check_hypotheses_with_data; "
+                              "requires tuning curve dataframe), or tuning_params "
+                              "(plotting.tuning_params; requires tuning curve dataframe)"))
     args = vars(parser.parse_args())
     d = utils.create_data_dict(args['dataframe_path'], args['stim_dir'])
     first_level_save_stem = d['df_filename'].replace('.csv', '')
@@ -604,9 +685,11 @@ if __name__ == '__main__':
         plot_data(d['df'], save_path=first_level_save_stem+'_data.svg')
         if tuning_df_present:
             check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg")
+            check_hypotheses_with_data(d['tuning_df'], tuning_save_stem+"_hypotheses_data_%s.svg")
+            tuning_params(d['tuning_df'], tuning_save_stem+"_tuning_params.svg")
         else:
-            warnings.warn("Unable to create tuning curves plot because tuning curve df hasn't "
-                          "been created!")
+            warnings.warn("Unable to create tuning curves, hypotheses check, or tuning param plots"
+                          " because tuning curve df hasn't been created!")
     else:
         for p in args['plot_to_make']:
             if 'localsf' == p:
@@ -615,10 +698,7 @@ if __name__ == '__main__':
                 stimuli_properties(d['df'], first_level_save_stem+"_stim_prop.svg")
             elif 'tuning_curves_check' in p:
                 if tuning_df_present:
-                    p_kwargs = p.replace('tuning_curves_check_', '')
-                    p_kwargs = dict(i.split('=') for i in p_kwargs.split('_'))
-                    # we know both are ints
-                    p_kwargs = dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in p_kwargs.iteritems())
+                    p_kwargs = _parse_save_path_for_kwargs(p.replace('tuning_curves_check_', ''))
                     check_tuning_curves(d['tuning_df'], tuning_save_stem+"_tuning_curves_check_%s.svg",
                                         **p_kwargs)
                 else:
@@ -626,6 +706,20 @@ if __name__ == '__main__':
                                     "hasn't been created!")
             elif 'data' == p:
                 plot_data(d['df'], save_path=first_level_save_stem+'_data.svg')
+            elif 'hypotheses_data' in p:
+                if tuning_df_present:
+                    p_kwargs = _parse_save_path_for_kwargs(p.replace('hypotheses_data_', ''))
+                    check_hypotheses_with_data(d['tuning_df'], tuning_save_stem+"_hypotheses_data_%s.svg",
+                                               **p_kwargs)
+                else:
+                    raise Exception("Unable to create hypotheses check with data plot because "
+                                    "tuning curve df hasn't been created!")
+            elif 'tuning_params' == p:
+                if tuning_df_present:
+                    tuning_params(d['tuning_df'], tuning_save_stem+"_tuning_params.svg")
+                else:
+                    raise Exception("Unable to create tuning params plot because "
+                                    "tuning curve df hasn't been created!")
             else:
                 raise Exception("Don't know how to make plot %s!" % p)
     # if 'circular' in d['df'].stimulus_superclass.values:
