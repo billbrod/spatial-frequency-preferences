@@ -22,7 +22,9 @@ def log_norm_pdf(x, a, mode, sigma):
     """
     mu = np.log(mode) + sigma**2
     # the normalizing term isn't necessary, but we keep it here for propriety's sake
-    return a * (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
+    pdf = (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
+    pdf /= pdf.max()
+    return a * pdf
 
 
 def get_tuning_curve_xy(a, mode, sigma, x=None, norm=False):
@@ -122,7 +124,8 @@ def create_problems_report(fit_problems, inf_problems, save_path):
 
 
 # add bounds to the command line?
-def main(df, save_path=None, bounds=(2**(-5), 2**11)):
+def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
+         sigma_bounds=(0, 10)):
     """fit tuning curve to first level results dataframe
     """
     if 'bootstrap_num' in df.columns:
@@ -140,7 +143,7 @@ def main(df, save_path=None, bounds=(2**(-5), 2**11)):
     fit_problems, inf_problems = [], []
     for n, g in gb:
         # we want a sense of where this is, in order to figure out if it stalled out.
-        str_labels = ", ".join("%s: %s" % i for i in zip(gb_cols, n))
+        str_labels = ", ".join("%s: %s" % i for i in zip(gb_columns, n))
         print("\nCreating tuning curves for: %s" % str_labels)
         fit_warning = False
         if 'mixtures' in n or 'off-diagonal' in n:
@@ -155,12 +158,12 @@ def main(df, save_path=None, bounds=(2**(-5), 2**11)):
         while not fit_success:
             try:
                 mode_guess = np.log(np.mean(values_to_fit[0]))
-                if mode_guess < bounds[0]:
+                if mode_guess < mode_bounds[0]:
                     mode_guess = 1
                 popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                              maxfev=maxfev, ftol=tol, xtol=tol,
                                              p0=[1, mode_guess, 1],
-                                             bounds=([0, bounds[0], 0], [np.inf, bounds[1], 10]))
+                                             bounds=zip(ampl_bounds, mode_bounds, sigma_bounds))
                 fit_success = True
             except RuntimeError:
                 fit_warning = True
