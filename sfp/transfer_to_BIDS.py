@@ -36,6 +36,10 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
     source_dir = os.path.join(base_dir, "sourcedata", wl_subject_name, prisma_session)
     BIDS_ses = "ses-" + session_label
     BIDS_task = "task-" + task_label
+    if 'pilot' in session_label:
+        full_TRs = 256
+    else:
+        full_TRs = 240
     try:
         prisma_to_BIDS.copy_func(source_dir, base_dir, epis, sbrefs, task_label, PEdim,
                                  session_label)
@@ -55,9 +59,10 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
         print("  Successfully moved over anatomical data")
     except IOError:
         warnings.warn("Anatomical data already found, skipping...")
-    create_BIDS_tsv.main(behavioral_results_path, unshuffled_stim_description_path,
+    create_BIDS_tsv.main(
+        behavioral_results_path, unshuffled_stim_description_path,
         os.path.join(base_dir, BIDS_subj, BIDS_ses, "func",
-                     BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"))
+                     BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"), full_TRs)
     print("  Successfully moved over events tsv")
     if isinstance(behavioral_results_path, basestring):
         behavioral_results_path = [behavioral_results_path]
