@@ -127,6 +127,10 @@ def create_problems_report(fit_problems, inf_problems, save_path):
 def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
          sigma_bounds=(0, 10)):
     """fit tuning curve to first level results dataframe
+
+    note that your mode_bounds are stimuli dependent. for the log-normal stimuli (for either the
+    pilot or regular stimuli), the default value above works well. for the constant stimuli,
+    (2**(-15), 2**8) seems to work
     """
     if 'bootstrap_num' in df.columns:
         additional_cols = ['bootstrap_num']
@@ -134,7 +138,7 @@ def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
         additional_cols = []
         df = df.rename(columns={'amplitude_estimate_median': 'amplitude_estimate'})
     melt_cols = ['varea', 'eccen', 'amplitude_estimate', 'stimulus_superclass',
-                 'freq_space_angle'] + additional_cols
+                 'freq_space_angle', 'baseline'] + additional_cols
     df = df[['freq_space_distance', 'Local spatial frequency (cpd)'] + melt_cols]
     df = pd.melt(df, melt_cols, var_name='frequency_type', value_name='frequency_value')
     gb_columns = ['varea', 'eccen', 'stimulus_superclass', 'frequency_type'] + additional_cols
@@ -146,7 +150,7 @@ def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
         str_labels = ", ".join("%s: %s" % i for i in zip(gb_columns, n))
         print("\nCreating tuning curves for: %s" % str_labels)
         fit_warning = False
-        if 'mixtures' in n or 'off-diagonal' in n:
+        if 'mixtures' in n or 'off-diagonal' in n or 'baseline' in n:
             # then these points all have the same frequency and so we can't fit a frequency tuning
             # curve to them
             continue
@@ -176,7 +180,8 @@ def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
                          tuning_curve_sigma=popt[2], tuning_curve_mu=mu,
                          tuning_curve_bandwidth=bandwidth, preferred_period=1./popt[1],
                          high_half_max=hhm, low_half_max=lhm, fit_warning=fit_warning,
-                         inf_warning=inf_warning, tol=tol, maxfev=maxfev))
+                         inf_warning=inf_warning, tol=tol, maxfev=maxfev,
+                         mode_bound_lower=mode_bounds[0], mode_bound_upper=mode_bounds[1]))
         warning_cols = gb_columns + ['tol', 'maxfev', 'tuning_curve_mu', 'tuning_curve_amplitude',
                                      'tuning_curve_sigma', 'tuning_curve_peak',
                                      'tuning_curve_bandwidth']
@@ -216,4 +221,9 @@ if __name__ == '__main__':
                               "'_problems.html"))
     args = vars(parser.parse_args())
     df = pd.read_csv(args.pop('first_level_results_path'))
-    main(df, args['save_path'])
+    # bounds should be task-dependent
+    if 'task-sfp' in args['save_path'].split('_'):
+        bounds = (2**(-5), 2**11)
+    elif 'task-sfpconstant' in args['save_path'].split('_'):
+        bounds = (2**(-15), 2**8)
+    main(df, args['save_path'], mode_bounds=bounds)

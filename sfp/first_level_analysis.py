@@ -394,6 +394,20 @@ def _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_de
     return df.reset_index()
 
 
+def _add_baseline(df):
+    if 'baseline' not in df.stimulus_superclass.unique():
+        return df.assign(baseline=0)
+    else:
+        new_df = []
+        for n, g in df.groupby(['varea', 'eccen']):
+            try:
+                baseline = g[g.stimulus_superclass == 'baseline'].amplitude_estimate.median()
+            except AttributeError:
+                baseline = g[g.stimulus_superclass == 'baseline'].amplitude_estimate_median.median()
+            new_df.append(g.assign(baseline=baseline))
+        return pd.concat(new_df)
+
+
 def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
          save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), eccen_bin=True,
          hemi_bin=True, stim_rad_deg=12, unshuffled_stim_path="../data/stimuli/unshuffled.npy",
@@ -496,6 +510,7 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     if stim_type in ['logpolar', 'pilot']:
         df = _round_freq_space_distance(df, core_dists)
     df = _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_deg, mid_val)
+    df = _add_baseline(df)
 
     if save_path is not None:
         df.to_csv(save_path, index=False)
