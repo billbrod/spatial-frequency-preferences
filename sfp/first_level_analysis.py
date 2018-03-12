@@ -125,7 +125,9 @@ def _add_freq_metainfo(stim_df):
     # values. We do this all at once because the major time cost comes from applying this to all
     # rows, not the computations themselves
     def freq_identifier_logpolar(x):
-        if x.w_r == 0 and x.w_a != 0:
+        if x.w_r == 0 and x.w_a == 0:
+            sc = 'baseline'
+        elif x.w_r == 0 and x.w_a != 0:
             sc = 'radial'
         elif x.w_r != 0 and x.w_a == 0:
             sc = 'circular'
@@ -138,7 +140,9 @@ def _add_freq_metainfo(stim_df):
         return sc, np.arctan2(x.w_a, x.w_r), np.sqrt(x.w_r**2 + x.w_a**2)
 
     def freq_identifier_constant(x):
-        if x.w_x == 0 and x.w_y != 0:
+        if x.w_x == 0 and x.w_y == 0:
+            sc = 'baseline'
+        elif x.w_x == 0 and x.w_y != 0:
             sc = 'horizontal'
         elif x.w_x != 0 and x.w_y == 0:
             sc = 'vertical'
@@ -151,8 +155,10 @@ def _add_freq_metainfo(stim_df):
         return sc, np.arctan2(x.w_y, x.w_x), np.sqrt(x.w_x**2 + x.w_y**2)
 
     try:
+        stim_df.loc[(stim_df['w_r'].isnull()) & (stim_df['w_a'].isnull()), ['w_r', 'w_a']] = (0, 0)
         properties_list = stim_df[['w_r', 'w_a']].apply(freq_identifier_logpolar, 1)
     except KeyError:
+        stim_df.loc[(stim_df['w_x'].isnull()) & (stim_df['w_y'].isnull()), ['w_x', 'w_y']] = (0, 0)
         properties_list = stim_df[['w_x', 'w_y']].apply(freq_identifier_constant, 1)
     sc = pd.Series([i[0] for i in properties_list.values], properties_list.index)
     ang = pd.Series([i[1] for i in properties_list.values], properties_list.index)
@@ -213,12 +219,11 @@ def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin=True
     else:
         df = _setup_mgzs_for_df(mgzs, results_names, df_mode, None)
 
-    # Add the stimulus frequency information
-    stim_df = _add_freq_metainfo(stim_df)
-
     df = df.set_index('stimulus_class')
     df = df.join(stim_df)
     df = df.reset_index().rename(columns={'index': 'stimulus_class'})
+    # Add the stimulus frequency information
+    df = _add_freq_metainfo(df)
 
     if eccen_bin:
         df['eccen'] = df['eccen'].apply(lambda x: '%02d-%02d' % (np.floor(x), np.ceil(x)))
