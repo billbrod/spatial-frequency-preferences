@@ -27,7 +27,14 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
-N_CLASSES = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48}
+def get_n_classes(session, mat_type):
+    if mat_type == 'all_visual':
+        return 1
+    else:
+        n = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48}[session]
+        if 'blanks' in mat_type:
+            n += 1
+        return n
 def get_stim_files(wildcards):
     if 'pilot00' in wildcards.session:
         stim_prefix = 'pilot00_'
@@ -55,11 +62,26 @@ wildcard_constraints:
     df_mode="summary|full"
 
 
+rule plots_modeling_blanks:
+    input:
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3]],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']]
+
+
 rule plots_all:
     input:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_full_tuning_curves_check_varea={v}_bootstrap={b:02d}.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v, b=b) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3] for b in range(100)],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3]],
 
@@ -79,6 +101,7 @@ rule plots_VSS_abstract:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_full_tuning_curves_check_varea=1_bootstrap={b:02d}.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin', b=b) for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for b in range(100)],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']]
 
@@ -100,7 +123,7 @@ rule GLMdenoise_all:
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class', n=n) for sub in SUBJECTS for ses in SESSIONS[sub] for n in range(N_CLASSES[ses])],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class', n=n) for sub in SUBJECTS for ses in SESSIONS[sub] for n in range(get_n_classes(ses, 'stim_class'))],
 
 
 rule preprocess_all:
@@ -130,7 +153,6 @@ rule stimuli_idx:
 rule preprocess:
     input:
         os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", "{subject}"),
-        data_dir = os.path.join(config["DATA_DIR"], "{subject}", "{session}"),
         func_files = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}_{session}_{task}_{run}_bold.nii"),
         freesurfer_data = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer"),
     output:
@@ -144,7 +166,8 @@ rule preprocess:
         cpus_per_task = 10,
         mem = 48
     params:
-        plugin = "MultiProc",        
+        plugin = "MultiProc",
+        data_dir = lambda wildcards: os.path.join(config['DATA_DIR'], wildcards.subject, wildcards.session),
         working_dir = lambda wildcards: "/scratch/wfb229/preprocess/%s_%s_%s" % (wildcards.subject, wildcards.session, wildcards.run),
         plugin_args = lambda wildcards, resources: ",".join("%s:%s" % (k,v) for k,v in {'n_procs': resources.cpus_per_task, 'memory_gb': resources.mem}.items()),
         epi_num = lambda wildcards: int(wildcards.run.replace('run-', '')),
@@ -154,7 +177,7 @@ rule preprocess:
     log:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}.log")
     shell:
-        "python {params.script_location} -datadir {input.data_dir} -working_dir "
+        "python {params.script_location} -datadir {params.data_dir} -working_dir "
         "{params.working_dir} -plugin {params.plugin} -dir_structure bids -plugin_args "
         "{params.plugin_args} -epis {params.epi_num} -bids_derivative_name "
         "preprocessed_{wildcards.run}_{wildcards.task}"
@@ -328,7 +351,7 @@ def get_first_level_analysis_input(wildcards):
     if wildcards.df_mode == 'summary':
         input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=['modelmd', 'modelse'])
     elif wildcards.df_mode == 'full':
-        class_num = range(N_CLASSES[wildcards.session])
+        class_num = range(get_n_classes(wildcards.session, wildcards.mat_type))
         models_names = ['models_class_%02d' % i for i in class_num]
         input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=models_names)
     benson_names = ['angle', 'eccen', 'varea']
@@ -379,7 +402,7 @@ rule first_level_analysis:
         bin_str = get_binning,
         results_template = lambda wildcards, input: input.R2_files[0].replace('lh', '%s').replace('R2', '%s'),
         benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
-        class_num = lambda wildcards: N_CLASSES[wildcards.session],
+        class_num = lambda wildcards: get_n_classes(wildcards.session, wildcards.mat_type),
         stim_type = get_stim_type,
         mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
     benchmark:
