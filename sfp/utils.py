@@ -344,7 +344,7 @@ def load_data(subject, session=None, task=None, df_mode='full',
             val = v
         else:
             raise Exception("Don't know how to handle kwargs %s!" % k)
-        files = [f for f in files if val in f]
+        files = [f for f in files if val in f.split(os.sep)]
     if len(files) != 1:
         raise Exception("Cannot find unique first level results csv that satisfies all "
                         "specifications! Matching files: %s" % files)
