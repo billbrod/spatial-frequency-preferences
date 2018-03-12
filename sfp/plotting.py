@@ -59,6 +59,14 @@ def plot_median(x, y, plot_func=plt.plot, **kwargs):
     plot_func(plot_data.index, plot_data.values, **kwargs)
 
 
+def plot_ci(x, y, ci_vals=[16, 84], **kwargs):
+    """fill between the specified CIs, for use with seaborn's map_dataframe
+    """
+    data = kwargs.pop('data')
+    plot_data = data.groupby(x)[y].apply(np.percentile, ci_vals)
+    plt.fill_between(plot_data.index, plot_data.values, **kwargs)
+
+
 def scatter_ci_col(x, y, ci, **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
@@ -225,8 +233,8 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     else:
         col_order = [i for i in CONSTANT_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
 
-    g = sns.FacetGrid(df, hue='eccen', palette='Reds', size=5, row='varea',
-                      col='stimulus_superclass', col_order=col_order)
+    g = sns.FacetGrid(df, hue='eccen', palette='Reds', size=5, row='varea', col_order=col_order,
+                      hue_order=sorted(df.eccen.unique()), col='stimulus_superclass')
     if 'amplitude_estimate_std_error' in df.columns:
         g.map_dataframe(plot_median, x_col, 'amplitude_estimate_median')
         if not median_only:
@@ -237,6 +245,7 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
         if not median_only:
             g.map_dataframe(scatter_ci_dist, x_col, 'amplitude_estimate', ci_vals=ci_vals,
                             **kwargs)
+    g.map_dataframe(plot_median, x_col, 'baseline', linestyle='--')
     for ax in g.axes.flatten():
         ax.set_xscale('log', basex=2)
     g.add_legend()
@@ -581,11 +590,13 @@ def check_tuning_curves(tuning_df, save_path_template, **kwargs):
     if 'bootstrap_num' in tuning_df.columns:
         gb_cols += ['bootstrap_num']
         title_template += ', bootstrap={:02d}'
+    mode_bounds = (tuning_df.mode_bound_lower.unique()[0], tuning_df.mode_bound_upper.unique()[0])
     for n, g in tuning_df.groupby(gb_cols):
         f = sns.FacetGrid(g, row='eccen', col='stimulus_superclass', hue='frequency_type',
-                          xlim=(2**-5, 2**10))
+                          xlim=mode_bounds, aspect=.7, size=5)
         f.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
         f.map_dataframe(plot_tuning_curve)
+        f.map_dataframe(plot_median, 'frequency_value', 'baseline', linestyle='--')
         f.add_legend()
         f.set_titles("eccen={row_name} | {col_name}")
         if len(gb_cols) == 1:
@@ -604,7 +615,8 @@ def check_hypotheses(tuning_df, save_path_template=None, norm=False, ci_vals=[16
     tuning_df = _restrict_df(tuning_df, **kwargs)
     gb_cols = ['varea']
     title_template = 'varea={}'
-    col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER+CONSTANT_SUPERCLASS_ORDER if i in tuning_df.stimulus_superclass.unique()]
+    col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER+CONSTANT_SUPERCLASS_ORDER
+                 if i in tuning_df.stimulus_superclass.unique()]
     for n, g in tuning_df.groupby(gb_cols):
         f = sns.FacetGrid(tuning_df, hue='eccen', palette='Reds', size=5, row='frequency_type',
                           col='stimulus_superclass', col_order=col_order)
@@ -647,6 +659,7 @@ def tuning_params(tuning_df, save_path=None, **kwargs):
     g = sns.PairGrid(tuning_df, hue='frequency_type', aspect=1)
     g.map_offdiag(plt.scatter)
     g.map_diag(sns.distplot)
+    g.add_legend()
     if save_path is not None:
         g.fig.savefig(save_path)
 
