@@ -119,6 +119,8 @@ def stimuli_properties(df, save_path=None):
         df = df.drop_duplicates('class_idx').set_index('class_idx')
         df = df.rename(columns={'index': 'stimulus_index'})
         df = first_level_analysis._add_freq_metainfo(df)
+    if 'baseline' in df.stimulus_superclass.unique():
+        df = df[df.stimulus_superclass != 'baseline']
     figsize = (19, 5)
     cmaps = [sns.color_palette(n_colors=5), sns.cubehelix_palette(as_cmap=True),
              sns.diverging_palette(10, 220, as_cmap=True)]
