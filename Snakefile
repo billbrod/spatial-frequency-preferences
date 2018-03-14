@@ -449,6 +449,37 @@ rule plots:
         "{wildcards.plot_name}"
 
 
+def get_tuning_curves(wildcards):
+    if wildcards.atlas_type == 'prior':
+        subjects = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
+        sessions = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot01'],
+                    'sub-wlsubj045': ['ses-pilot01']}
+        varea = '1'
+        eccen = '2-8'
+    else:
+        subjects = SUBJECTS
+        sessions = SESSIONS
+        varea = '1-2-3'
+        eccen = '1-12'
+    binning = '_eccen_bin_hemi_bin'
+    return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary.csv').format(mat_type=wildcards.mat_type, atlas_type=wildcards.atlas_type, subject=sub, session=ses, task=TASKS[(sub, ses)], vareas=varea, eccen=eccen, binning=binning) for sub in subjects for ses in sessions[sub]]
+
+
+rule tuning_curves_summary:
+    input:
+        get_tuning_curves
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "tuning_curves_summary.csv")
+    params:
+        input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_summary_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_summary.log")
+    shell:
+        "python sfp/summarize_tuning_curves.py {params.input_dir} {output}"
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, 'sub*_benchmark.txt')),
