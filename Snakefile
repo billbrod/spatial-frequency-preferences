@@ -454,22 +454,17 @@ def get_tuning_curves(wildcards):
         subjects = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
         sessions = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot01'],
                     'sub-wlsubj045': ['ses-pilot01']}
-        varea = '1'
-        eccen = '2-8'
     else:
         subjects = SUBJECTS
         sessions = SESSIONS
-        varea = '1-2-3'
-        eccen = '1-12'
-    binning = '_eccen_bin_hemi_bin'
-    return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary.csv').format(mat_type=wildcards.mat_type, atlas_type=wildcards.atlas_type, subject=sub, session=ses, task=TASKS[(sub, ses)], vareas=varea, eccen=eccen, binning=binning) for sub in subjects for ses in sessions[sub]]
+    return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary.csv').format(mat_type=wildcards.mat_type, atlas_type=wildcards.atlas_type, subject=sub, session=ses, task=TASKS[(sub, ses)], vareas=wildcards.vareas, eccen=wildcards.eccen, binning=wildcards.binning) for sub in subjects for ses in sessions[sub]]
 
 
 rule tuning_curves_summary:
     input:
         get_tuning_curves
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "tuning_curves_summary.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}{binning}_tuning_curves_summary.csv")
     params:
         input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
     benchmark:
