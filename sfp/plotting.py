@@ -648,15 +648,10 @@ def check_hypotheses_normalized(tuning_df, save_path_template=None, ci_vals=[16,
     check_hypotheses(tuning_df, save_path_template, True, ci_vals, False, **kwargs)
 
 
-def _parse_save_path_for_kwargs(save_path):
-    kwargs = dict(i.split('=') for i in save_path.split('_'))
-    # we know all are ints
-    return dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in kwargs.iteritems())
-
-
 def tuning_params(tuning_df, save_path=None, **kwargs):
     tuning_df = _restrict_df(tuning_df, **kwargs)
-    tuning_df = tuning_df[['frequency_type', 'tuning_curve_amplitude', 'tuning_curve_sigma', 'tuning_curve_mu', 'tuning_curve_peak', 'tuning_curve_bandwidth']]
+    tuning_df = tuning_df[['frequency_type', 'tuning_curve_amplitude', 'tuning_curve_sigma',
+                           'tuning_curve_mu', 'tuning_curve_peak', 'tuning_curve_bandwidth']]
     tuning_df['tuning_curve_peak'] = np.log2(tuning_df.tuning_curve_peak)
     g = sns.PairGrid(tuning_df, hue='frequency_type', aspect=1)
     g.map_offdiag(plt.scatter)
@@ -664,6 +659,12 @@ def tuning_params(tuning_df, save_path=None, **kwargs):
     g.add_legend()
     if save_path is not None:
         g.fig.savefig(save_path)
+
+
+def _parse_save_path_for_kwargs(save_path):
+    kwargs = dict(i.split('=') for i in save_path.split('_'))
+    # we know all are ints
+    return dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in kwargs.iteritems())
 
 
 if __name__ == '__main__':
