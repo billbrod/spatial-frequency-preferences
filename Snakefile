@@ -16,6 +16,7 @@ else:
 
 
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
+ALL_SESSIONS = ['ses-pilot01', 'ses-01', 'ses-02']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02']}
@@ -52,14 +53,62 @@ SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3}
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40}
 wildcard_constraints:
     subject="sub-[a-z0-9]+",
+    subjects="(sub-[a-z0-9]+,?)+",
     session="ses-[a-z0-9]+",
+    sessions="(ses-[a-z0-9]+,?)+",
     run="run-[0-9]+",
     filename_ext='[a-zA-Z0-9_]+\.[a-z.]+',
     filename='[a-zA-Z0-9_]+',
     task="task-[a-z0-9]+",
-    varea="[0-9-]+",
+    tasks="(task-[a-z0-9]+,?)+",
+    vareas="[0-9-]+",
+    plot_varea="[0-9-]+",
     eccen="[0-9]+-[0-9]+",
-    df_mode="summary|full"
+    eccen_range="[0-9]+-[0-9]+",
+    df_mode="summary|full",
+    plot_func="[a-z]+",
+    col="[a-z-]+",
+    row="[a-z-]+",
+    hue="[a-z-]+",
+    y="[a-z-]+",
+
+
+rule summary_plots_all:
+    input:
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'posterior',
+                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions=ses,
+                                         tasks=task, plot_varea=v, eccen_range="1-12", row='frequency-type',
+                                         col='subject', hue='stimulus-superclass', y=y)
+         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth'] for v in [1, 2, 3]
+         for task in ['task-sfp', 'task-sfpconstant'] for ses in ['ses-01,ses-02', 'pilot01']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'posterior',
+                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions=ses,
+                                         tasks=task, plot_varea='1-2-3', eccen_range="1-12", row='varea',
+                                         col='subject', hue='stimulus-superclass', y='preferred-period')
+         for task in ['task-sfp', 'task-sfpconstant'] for ses in ['ses-01,ses-02', 'pilot01']]
+
+
+rule summary_plots_VSS_abstract:
+    input:
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'prior',
+                      "v1_e2-8_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                      "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                      "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
+                                         sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
+                                         row='frequency-type', col='subject',
+                                         hue='stimulus-superclass', y=y)
+         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth']],
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'prior',
+                     "v1_e2-8_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                     "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                     "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
+                                        sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
+                                        row='frequency-type', col='subject',
+                                        hue='stimulus-superclass', y='preferred-period')
 
 
 rule plots_modeling_blanks:
@@ -74,6 +123,36 @@ rule plots_modeling_blanks:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']]
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'posterior',
+                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions=ses,
+                                         tasks=task, plot_varea=v, eccen_range="1-12", row='frequency-type',
+                                         col='subject', hue='stimulus-superclass', y=y)
+         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth'] for v in [1, 2, 3]
+         for task in ['task-sfp', 'task-sfpconstant'] for ses in ['ses-01,ses-02', 'pilot01']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'posterior',
+                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions=ses,
+                                         tasks=task, plot_varea='1-2-3', eccen_range="1-12", row='varea',
+                                         col='subject', hue='stimulus-superclass', y='preferred-period')
+         for task in ['task-sfp', 'task-sfpconstant'] for ses in ['ses-01,ses-02', 'pilot01']]
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'prior',
+                      "v1_e2-8_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                      "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                      "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
+                                         sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
+                                         row='frequency-type', col='subject',
+                                         hue='stimulus-superclass', y=y)
+         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth']],
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'prior',
+                     "v1_e2-8_eccen_bin_hemi_bin_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                     "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
+                     "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
+                                        sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
+                                        row='frequency-type', col='subject',
+                                        hue='stimulus-superclass', y='preferred-period')
 
 
 rule plots_all:
@@ -473,6 +552,38 @@ rule tuning_curves_summary:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_summary.log")
     shell:
         "python sfp/summarize_tuning_curves.py {params.input_dir} {output}"
+
+
+rule tuning_curves_summary_plot:
+    input:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}{binning}_tuning_curves_summary.csv")
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', '{mat_type}', '{atlas_type}',
+                     "v{vareas}_e{eccen}{binning}_tuning_curve_summary_plot_{subjects}_{sessions}_"
+                     "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}"
+                     "_{y}.svg")
+    params:
+        col = lambda wildcards: wildcards.col.replace("-", '_'),
+        row = lambda wildcards: wildcards.row.replace("-", '_'),
+        hue = lambda wildcards: wildcards.hue.replace("-", '_'),
+        y = lambda wildcards: wildcards.y.replace("-", '_'),
+        plot_varea = lambda wildcards: wildcards.plot_varea.split('-'),
+        eccen_range = lambda wildcards: wildcards.eccen_range.split('-'),
+        subjects = lambda wildcards: wildcards.subjects.split(','),
+        tasks = lambda wildcards: wildcards.tasks.split(','),
+        sessions = lambda wildcards: wildcards.sessions.split(','),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
+                     "{atlas_type}_{subjects}_{sessions}_{tasks}_v{plot_varea}_e{eccen_range}_"
+                     "row={row}_col={col}_hue={hue}_{plot_func}_{y}_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
+                     "{atlas_type}_{subjects}_{sessions}_{tasks}_v{plot_varea}_e{eccen_range}_"
+                     "row={row}_col={col}_hue={hue}_{plot_func}_{y}.log")
+    shell:
+        "python sfp/summary_plots.py {input} --col {params.col} --row {params.row} --hue"
+        " {params.hue} --y {params.y} --varea {params.plot_varea} --eccen_range {params.eccen_range}"
+        " --subject {params.subjects} --task {params.tasks} --session {params.sessions}"
 
 
 rule report:

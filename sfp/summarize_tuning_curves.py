@@ -40,7 +40,6 @@ def main(root_dir, save_path=None, **kwargs):
         tmp_df = tmp_df.drop_duplicates(['varea', 'eccen', 'stimulus_superclass', 'frequency_type'])
         tmp_df = tmp_df.assign(**info_dict)
         tmp_df['eccen'] = tmp_df.eccen.apply(lambda x: np.mean([float(i) for i in x.split('-')]))
-        tmp_df['tuning_curve_peak_octaves'] = np.log2(tmp_df.tuning_curve_peak)
         df.append(tmp_df)
     df = pd.concat(df).reset_index(drop=True)
     if save_path is not None:
@@ -54,7 +53,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=("Load in the tuning curve dataframes found underneath the root directory and"
                      " save their important parameters in the specified save_path. Currently, "
-                     "we only do this for summary.csv dataframes"))
+                     "we only do this for summary.csv dataframes"),
+        formatter_class=CustomFormatter)
     parser.add_argument("root_dir",
                         help="Root of directory tree that we'll find everything underneath")
     parser.add_argument("save_path", help="Path to save resulting consolidated dataframe at")
