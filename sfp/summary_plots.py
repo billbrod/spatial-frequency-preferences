@@ -14,7 +14,7 @@ import seaborn as sns
 import pandas as pd
 
 
-SAVE_TEMPLATE = ("tuning_curve_summary_plot_{mat_type}_{atlas_type}_{subject}_{session}_{task}_{s"
+SAVE_TEMPLATE = ("tuning_curves_summary_plot_{mat_type}_{atlas_type}_{subject}_{session}_{task}_{s"
                  "timulus_superclass}_v{varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_"
                  "func}_{y}.svg")
 
