@@ -640,10 +640,10 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     y. The stimuli we want for our experiment then lie along the x-axis, the y-axis, the + and -
     45-degree angle lines (that is, x=y and x=-y, y>0 for both), and the arc that connects all of
     them. For those stimuli that lie along straight lines / axes, they'll have frequencies from
-    2^(2.5) to 2^(7.5) (distance from the radius) in half-octave increments, while the arc will lie
-    half-way between the two extremes, with radius 2^(7.5-2.5)=32. We don't use the actual
-    half-octave increments, because non-integer frequencies cause obvious breaks (especially in the
-    spirals), so we round all frequencies to the nearest integer.
+    2^(2.5) to 2^(7) (distance from the radius) in half-octave increments, while the arc will lie
+    approximately half-way between the two extremes, with radius 2^(7.5-2.5)=32. We don't use the
+    actual half-octave increments, because non-integer frequencies cause obvious breaks (especially
+    in the spirals), so we round all frequencies to the nearest integer.
 
     there will be 8 different phases equally spaced from 0 to 2 pi: np.array(range(8))/8.*2*np.pi
 

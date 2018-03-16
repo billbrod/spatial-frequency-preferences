@@ -31,7 +31,15 @@ def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num, drop
     # Because we want to skip the first one and drop the last nblanks * 2 (since for each stimuli
     # we have two entries: one for on, one for off). Finally, we only grab every other because we
     # only want the on timing
-    timing = timing[1:-behavioral_results['run_%02d_nblanks' % run_num].value*2:2]
+    try:
+        # in this case, it's the initial way we ran the experiment, where we had no (additional)
+        # blanks at the beginning of the run, only at the end, and so the field was just nblanks
+        timing = timing[1:-behavioral_results['run_%02d_nblanks' % run_num].value*2:2]
+    except KeyError:
+        # in this case, it's the later way we ran the experiment, where we had(additional) blanks
+        # at the beginning and end of the run
+        timing = timing[behavioral_results['run_%02d_init_nblanks' % run_num].value*2+1:
+                        -behavioral_results['run_%02d_final_nblanks' % run_num].value*2:2]
     # Now we get rid of the first TR
     initial_TR_time = float(behavioral_results['run_%02d_button_presses' % run_num].value[0][1])
     timing = [float(i[2]) - initial_TR_time for i in timing]
@@ -59,7 +67,7 @@ def _find_timing_from_results(results, run_num):
     times = (timing[timing.event_type == 'off'].sort_values('stimulus').timing.values -
              timing[timing.event_type == 'on'].sort_values('stimulus').timing.values)
     times = np.round(times, 2)
-    assert times.max() - times.min() < .040, "Stimulus timing differs by more than 40 msecs!"
+    assert times.max() - times.min() < .050, "Stimulus timing differs by more than 40 msecs!"
     warnings.warn("Stimulus timing varies by up to %.03f seconds!" % (times.max() - times.min()))
     return Counter(times).most_common(1)[0][0]
 
