@@ -91,6 +91,43 @@ arguments to set the paths yourself.
 format it came off the scanner into the BIDS structure. As such, you
 will not need it.
 
+# Changes to experiment / stimuli
+
+Things that have been constant: stimuli are presented 300 msec on, 200
+msec off, with a stream of digits at fixation to use for a 1-back
+distractor task. 10 blank "classes" (4 seconds in length) are randomly
+interspersed on each run. 12 runs are gathered (or attempted to, first
+two sessions ran out of time because of on-the-fly bug-fixing).
+
+1. ses-pilot00 (git commit b88434d6af8cdc92fb741c99954fae05af02f651,
+   Aug 23, 2017): negative spiral stimuli had `w_r < 0`, digits for
+   the distractor task were shown every stimulus (500 msec). Only
+   sub-wlsubj042 scanned using this protocol. Parameters `w_r` and
+   `w_a` ran from `2^2.5` to `2^7.5`, with values every half-octave
+   (rounded to the nearest integer), for each of the four main
+   stimulus classes. 
+2. ses-pilot01 (git commit 2ab9d11c8ba077f53997dea5e525c53ef9c0dd64,
+   Oct 9, 2017): negative spiral stimuli switched to have `w_a < 0`,
+   digits are now shown every other stimulus (every
+   second). sub-wlsubj001, sub-wlsubj042, and sub-wlsubj045 all
+   scanned using this protocol.
+3. ses-01, ses-02 (experiment git commit
+   3f0920aee0f4f8f198c0f258b63482afbe47e3de, git commit
+   aa661f8f0093a7e444fc60796a48d82006679596 for creation of local
+   spatial frequency maps for all stimulus types): `w_r` and `w_a` now
+   run from `2^2.5` to `2^7` in half-octave steps; this allows us to
+   get an extra half-degree closer to the fovea. Also adds constant
+   stimuli (spatial frequency constant across the whole image) to
+   serve as a sanity check. The two sessions include one with the
+   log-polar stimuli, one with the constant (these are referred to ask
+   task-sfp and task-sfpconstant, respectively). The stimuli no longer
+   have an alpha value and the calculation of their spatial frequency
+   is correct (and is correct for the pilot stimuli as well).
+4. ses-03 (git commit 69558708537c4d1a82617b05f6e39b4f2c8d7d9a): adds
+   16 seconds of blank time at the beginning of each run (to improve
+   estimation of baseline) and an extra 8 seconds at the end of each
+   run. Still task-sfp.
+
 # Snakemake
 
 A Snakefile is included with this project to enable the use
