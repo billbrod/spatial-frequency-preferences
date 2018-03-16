@@ -1,7 +1,11 @@
 #!/usr/bin/python
 """functions to run first-level MRI analyses
 """
+import matplotlib as mpl
+# we do this because sometimes we run this without an X-server, and this backend doesn't need one
+mpl.use('svg')
 import argparse
+import seaborn as sns
 import pandas as pd
 import numpy as np
 import os
@@ -499,6 +503,12 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     else:
         raise Exception("Unable to find the Benson visual areas template! Check your "
                         "benson_template_path!")
+    if save_path is not None:
+        fig, axes = sns.plt.subplots(1, 2, figsize=(10, 5))
+        for ax, hemi in zip(axes, ['lh', 'rh']):
+            sns.distplot(mgzs['R2-%s' % hemi], ax=ax)
+            ax.set_title("R2 for %s" % hemi)
+        fig.savefig(save_path.replace('.csv', '_R2.svg'))
     if eccen_bin:
         mgzs = _bin_mgzs_dict(mgzs, results_names+['R2'], eccen_range, vareas, hemi_bin)
 
