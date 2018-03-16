@@ -20,8 +20,9 @@ from scipy import misc as smisc
 
 def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_length=200,
                 fixation_type='digit', fix_button_prob=1/6., fix_dot_length_range=(1, 3),
-                final_blank_sec_length=8, size=[1920, 1080], monitor='CBI-prisma-projector',
-                units='pix', fullscr=True, screen=1, color=127, colorSpace='rgb255',  **monitor_kwargs):
+                final_blank_sec_length=16, init_blank_sec_length=16, size=[1920, 1080],
+                monitor='CBI-prisma-projector', units='pix', fullscr=True, screen=1, color=128,
+                colorSpace='rgb255',  **monitor_kwargs):
     """set the various experiment parameters
     """
     stimuli = np.load(stim_path)
@@ -45,17 +46,27 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
     expt_params['non_blank_stimuli_num'] = stimuli.shape[0]
     # In order to get the right amount of blank time at the end of the run, we insert an
     # appropriate amount of blank stimuli.
-    nblanks = final_blank_sec_length / ((on_msec_length + off_msec_length) / 1000.)
-    if nblanks != int(nblanks):
+    final_nblanks = final_blank_sec_length / ((on_msec_length + off_msec_length) / 1000.)
+    if final_nblanks != int(final_nblanks):
         raise Exception("Because of your timing (final_blank_sec_length, on_msec_length, and "
                         "off_msec_length), I can't show blanks for the final %.02f seconds. "
                         "final_blank_sec_length must be a multiple of on_msec_length+"
                         "off_msec_length!" % final_blank_sec_length)
-    nblanks = int(nblanks)
-    stimuli = np.concatenate([stimuli, smisc.bytescale(np.zeros((nblanks, stimuli.shape[1],
-                                                                 stimuli.shape[2])),
-                                                       cmin=-1, cmax=1)])
-    expt_params['nblanks'] = nblanks
+    final_nblanks = int(final_nblanks)
+    final_blanks = smisc.bytescale(np.zeros((final_nblanks, stimuli.shape[1], stimuli.shape[2])),
+                                   cmin=-1, cmax=1)
+    init_nblanks = init_blank_sec_length / ((on_msec_length + off_msec_length) / 1000.)
+    if init_nblanks != int(init_nblanks):
+        raise Exception("Because of your timing (init_blank_sec_length, on_msec_length, and "
+                        "off_msec_length), I can't show blanks for the initial %.02f seconds. "
+                        "init_blank_sec_length must be a multiple of on_msec_length+"
+                        "off_msec_length!" % init_blank_sec_length)
+    init_nblanks = int(init_nblanks)
+    init_blanks = smisc.bytescale(np.zeros((init_nblanks, stimuli.shape[1], stimuli.shape[2])),
+                                  cmin=-1, cmax=1)
+    stimuli = np.concatenate([init_blanks, stimuli, final_blanks])
+    expt_params['final_nblanks'] = final_nblanks
+    expt_params['init_nblanks'] = init_nblanks
 
     if fixation_type == 'dot':
         # we need enough colors for each stimuli ON and OFF
@@ -101,9 +112,9 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
 
 
 def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_length=200,
-        final_blank_sec_length=8, fixation_type="digit", fix_pix_size=10, fix_deg_size=None,
-        fix_button_prob=1/6., fix_dot_length_range=(1, 3), max_visual_angle=28, save_frames=None,
-        **monitor_kwargs):
+        final_blank_sec_length=16, init_blank_sec_length=16, fixation_type="digit",
+        fix_pix_size=10, fix_deg_size=None, fix_button_prob=1/6., fix_dot_length_range=(1, 3),
+        max_visual_angle=24, save_frames=None, **monitor_kwargs):
     """run one run of the experiment
 
     stim_path specifies the path of the unshuffled experiment stimuli, while idx_path specifies the
@@ -155,7 +166,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     fix_deg_size: int, float or None. the size of the fixation dot or digits, in degrees of visual
     angle. If this is None, then fix_pix_size will be used, otherwise this will be used (converted
     into pixels based on monitor_kwargs['size'], default 1080x1080, and max_visual_angle, default
-    28)
+    24)
 
     fix_button_prob: float. the probability that the fixation digit will repeat or the fixation dot
     will change color (will never repeat more than once in a row). For fixation digit, this
@@ -176,7 +187,8 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     """
     stimuli, idx, expt_params, monitor_kwargs = _set_params(
         stim_path, idx_path, session_length, on_msec_length, off_msec_length, fixation_type,
-        fix_button_prob, fix_dot_length_range, final_blank_sec_length, **monitor_kwargs)
+        fix_button_prob, fix_dot_length_range, final_blank_sec_length, init_blank_sec_length,
+        **monitor_kwargs)
 
     win = visual.Window(**monitor_kwargs)
     win.mouseVisible = False

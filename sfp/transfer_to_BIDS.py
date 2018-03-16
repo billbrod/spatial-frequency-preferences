@@ -38,7 +38,7 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
     BIDS_task = "task-" + task_label
     if 'pilot' in session_label:
         full_TRs = 256
-    else:
+    elif session_label in ['ses-01', 'ses-02']:
         full_TRs = 240
     try:
         prisma_to_BIDS.copy_func(source_dir, base_dir, epis, sbrefs, task_label, PEdim,
