@@ -49,8 +49,9 @@ def get_stim_files(wildcards):
     file_stem = os.path.join(config['DATA_DIR'], 'stimuli', stim_prefix+"unshuffled{rest}")
     return {'stim': file_stem.format(rest='.npy'),
             'desc_csv': file_stem.format(rest='_stim_description.csv')}
-SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3}
-SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40}
+SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
+             'sub-wlsubj014': 5}
+SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50}
 wildcard_constraints:
     subject="sub-[a-z0-9]+",
     subjects="(sub-[a-z0-9]+,?)+",
