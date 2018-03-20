@@ -16,19 +16,8 @@ Matlab:
  
 Python: 
 
+ - 2.7.12
  - see `requirements.txt` file
- - there's a bug in nibabel that prevents the writing out of 3d MGH
-   files,
-   see [this issue](https://github.com/nipy/nibabel/issues/594). until
-   the fix is implemented in the main branch, it can be handled by
-   commenting out the following lines of
-   `nibabel/freesurfer/mghformat.get_data_shape` (lines 320 and 321 in
-   version 2.2.1):
-   
-   ```
-   if int(dims[-1]) == 1:
-       dims = dims[:-1]
-   ```
  - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
    (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/))
 
@@ -52,9 +41,9 @@ for now, the following the analysis steps:
    the index.
 2. Run the experiment and gather fMRI data (`python sfp/experiment
    data/stimuli/unshuffled.npy 12 subject_name`). Each run will last 4
-   minutes (48 stimulus classes and 10 blank trials, each for 4
-   seconds, gives you 3 minutes 52 seconds, and then each run ends
-   with 8 seconds of blank screen).
+   minutes 24 seconds (48 stimulus classes and 10 blank trials, each
+   for 4 seconds, gives you 3 minutes 52 seconds, and then each run
+   starts and ends with 16 seconds of blank screen).
 3. Pre-process your fMRI data
    (using
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
@@ -126,7 +115,7 @@ two sessions ran out of time because of on-the-fly bug-fixing).
 4. ses-03 (git commit 69558708537c4d1a82617b05f6e39b4f2c8d7d9a): adds
    16 seconds of blank time at the beginning of each run (to improve
    estimation of baseline) and an extra 8 seconds at the end of each
-   run. Still task-sfp.
+   run. Still task-sfp (only log-polar stimuli).
 
 # Snakemake
 
