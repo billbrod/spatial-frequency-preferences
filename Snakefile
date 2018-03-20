@@ -75,11 +75,11 @@ wildcard_constraints:
 
 rule GLMdenoise_all_visual:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject='sub-wlsubj042', session=ses, task=TASKS[('sub-wlsubj042', ses)], mat_type='all_visual') for ses in SESSIONS['sub-wlsubj042']],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject='sub-wlsubj042', session=ses, task=TASKS[('sub-wlsubj042', ses)], mat_type='all_visual') for ses in SESSIONS['sub-wlsubj042']],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject='sub-wlsubj042', session=ses, task=TASKS[('sub-wlsubj042', ses)], mat_type='all_visual') for ses in SESSIONS['sub-wlsubj042']],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject='sub-wlsubj042', session=ses, task=TASKS[('sub-wlsubj042', ses)], mat_type='all_visual') for ses in SESSIONS['sub-wlsubj042']],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n:02d}.nii.gz").format(subject='sub-wlsubj042', session=ses, task=TASKS[('sub-wlsubj042', ses)], mat_type='all_visual', n=n) for ses in SESSIONS['sub-wlsubj042'] for n in range(get_n_classes(ses, 'all_visual'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n:02d}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual', n=n) for sub in SUBJECTS for ses in SESSIONS[sub] for n in range(get_n_classes(ses, 'all_visual'))],
 
 rule summary_plots_all:
     input:
@@ -383,7 +383,7 @@ rule GLMdenoise:
     input:
         preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.nii.gz"), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
-        GLMdenoise_path = os.path.join(os.path.expanduser('~'), 'matlab-toolboxes', 'GLMdenoise')
+        GLMdenoise_path = config['GLMDENOISE_PATH']
     output:
         GLM_results_md = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz"),
         GLM_results_se = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz"),
