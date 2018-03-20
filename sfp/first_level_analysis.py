@@ -504,7 +504,7 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
         raise Exception("Unable to find the Benson visual areas template! Check your "
                         "benson_template_path!")
     if save_path is not None:
-        fig, axes = sns.plt.subplots(1, 2, figsize=(10, 5))
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
         for ax, hemi in zip(axes, ['lh', 'rh']):
             sns.distplot(mgzs['R2-%s' % hemi], ax=ax)
             ax.set_title("R2 for %s" % hemi)
@@ -614,6 +614,8 @@ if __name__ == '__main__':
         save_dict['hemi_bin'] = '_hemi_bin'
     else:
         save_dict['hemi_bin'] = ''
+    if not args['hemi_bin'] and not args['eccen_bin']:
+        save_dict['eccen_bin'] = '_no_bin'
     save_name = "v{vareas}_e{eccen}{eccen_bin}{hemi_bin}_{df_mode}.csv".format(**save_dict)
     args['save_path'] = os.path.join(save_dir, save_stem+save_name)
     args['class_nums'] = xrange(args['class_nums'])
