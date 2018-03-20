@@ -228,6 +228,19 @@ def wlsubj045_02(base_dir, acadia_projects_dir):
              os.path.join(SFP_PATH, "data", "stimuli", "unshuffled.npy"))
 
 
+def wlsubj014_03(base_dir, acadia_projects_dir):
+    print("Moving wl_subj014's data from 20180320")
+    anat_dir = os.path.join(acadia_projects_dir, "Anatomy", "wl_subj014", "Raw")
+    _BIDSify(base_dir, "wl_subj014", "20180320", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+             [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "03", 'j', 6, 5,
+             anat_dir, [3, 4], "T1w",
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Mar-20_sub-wlsubj014_sess0.hdf5"),
+             os.path.join(SFP_PATH, "data", "stimuli", "unshuffled_stim_description.csv"),
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Mar-20_sub-wlsubj014.md"),
+             glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj014_run*_idx.npy")),
+             os.path.join(SFP_PATH, "data", "stimuli", "unshuffled.npy"))
+
+
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
                    raw_behavioral_glob_str="data/raw_behavioral/2017-Aug*.hdf5"):
     """renames the stimuli in hdf5 file from old_stim_name to new_stim_name
@@ -261,7 +274,9 @@ if __name__ == '__main__':
                               "stimuli, constant stimuli), wl_subj042-02 (Feb 9, 2018 with log-"
                               "polar stimuli), wl_subj045 (pilot in Nov 2017), wl_subj045-01 (Feb "
                               "16, 2018, after revising stimuli, constant stimuli), wl_subj045-02"
-                              " (Feb 27, 2018, after revising stimuli, log-polar stimuli)"))
+                              " (Feb 27, 2018, after revising stimuli, log-polar stimuli), "
+                              "wl_subj014-03 (Mar 20, 2018, after revising stimuli, log-polar "
+                              "stimuli, with extra time added before and after run)"))
     parser.add_argument("--base_dir", default='..',
                         help=("Base directory for the BIDS project. If unset, will assume this is"
                               "being run from the code directory within the BIDS structure."))
@@ -289,3 +304,5 @@ if __name__ == '__main__':
         wlsubj045_01(args['base_dir'], args['acadia_projects_dir'])
     if 'wl_subj045-02' in args['subject']:
         wlsubj045_02(args['base_dir'], args['acadia_projects_dir'])
+    if 'wl_subj014-03' in args['subject']:
+        wlsubj014_03(args['base_dir'], args['acadia_projects_dir'])
