@@ -36,10 +36,12 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
     source_dir = os.path.join(base_dir, "sourcedata", wl_subject_name, prisma_session)
     BIDS_ses = "ses-" + session_label
     BIDS_task = "task-" + task_label
-    if 'pilot' in session_label:
+    if 'pilot' in BIDS_ses:
         full_TRs = 256
-    elif session_label in ['ses-01', 'ses-02']:
+    elif BIDS_ses in ['ses-01', 'ses-02']:
         full_TRs = 240
+    elif BIDS_ses in ['ses-03']:
+        full_TRs = 264
     try:
         prisma_to_BIDS.copy_func(source_dir, base_dir, epis, sbrefs, task_label, PEdim,
                                  session_label)
