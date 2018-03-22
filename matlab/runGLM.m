@@ -1,4 +1,4 @@
-function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, fsPath, glmDenoisePath, seed, outputDir, saveStem)
+function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, runDetailsPath, fsPath, glmDenoisePath, seed, outputDir, saveStem, hrfJSONpath)
 % function runGLM(designMatPathTemplate, boldPathTemplate, runs, runDetailsPath, fsPath, glmDenoisePath, seed)
 % 
 % Loads in the design matrices and BOLD data, arranges them in proper
@@ -52,9 +52,24 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
 % saved in *this function* (so the various nifti outputs, not the ones
 % put out by GLMdenoisedata) with this string (outputDir
 % unchanged). useful for making the outputs BIDS-like.
+% 
+% <hrfJSONpath> string, optional. If set, should be a path to a json file
+% containing the hrf (with variable name `hrf`, like the one saved by
+% this script), in which case, we'll use that hrf instead of
+% optimizing for it. If unset, we'll optimize for the hrf.
 
     if nargin < 10
         saveStem = '';
+    end
+    if nargin < 11
+        hrfType = 'optimize';
+        hrf = [];
+    else
+        hrfType = 'assume';
+        fid = fopen(hrfJSONpath);
+        hrfJSON = jsondecode(char(fread(fid, inf)'));
+        fclose(fid);
+        hrf = hrfJSON.hrf;
     end
     
     addpath(genpath(fsPath));
@@ -76,7 +91,7 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
         bold{ii} = single(boldTmp.vol);
     end
 
-    [results, denoiseddata] = GLMdenoisedata(design, bold, runDetails.stim_length, runDetails.TR_length, [], [], struct('seed', seed), outputDir)
+    [results, denoiseddata] = GLMdenoisedata(design, bold, runDetails.stim_length, runDetails.TR_length, hrfType, hrf, struct('seed', seed), outputDir)
 
     boldTmp.vol = results.modelmd{2};
     MRIwrite(boldTmp, fullfile(outputDir, strcat(saveStem, 'modelmd.nii.gz')));
@@ -97,4 +112,10 @@ function runGLM(designMatPathTemplate, boldPathTemplate, behavRuns, boldRuns, ru
     save(fullfile(outputDir, strcat(saveStem, 'denoiseddata.mat')), 'denoiseddata', '-v7.3')
     display('Saved denoiseddata.mat');
 
+    tosave.hrf = results.modelmd{1};
+    tosave.R2 = median(results.pcR2final(results.pcvoxels));
+    fid = fopen(fullfile(outputDir, strcat(saveStem, 'hrf.json')), 'w');
+    fprintf(fid, jsonencode(tosave));
+    fclose(fid);
+    display('Saved HRF info')
 end

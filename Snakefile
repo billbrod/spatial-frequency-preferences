@@ -15,24 +15,26 @@ else:
     shell.prefix("export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 
 
-SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
-ALL_SESSIONS = ['ses-pilot01', 'ses-01', 'ses-02']
+SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj014']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
-            'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02']}
+            'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02'],
+            'sub-wlsubj014': ['ses-03']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
          ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant', ('sub-wlsubj042', 'ses-02'): 'task-sfp',
          ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp',
-         ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp'}
+         ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp',
+         ('sub-wlsubj014', 'ses-03'): 'task-sfp'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
 def get_n_classes(session, mat_type):
     if mat_type == 'all_visual':
         return 1
     else:
-        n = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48}[session]
+        n = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48,
+             'ses-03': 48}[session]
         if 'blanks' in mat_type:
             n += 1
         return n
@@ -72,6 +74,24 @@ wildcard_constraints:
     row="[a-z-]+",
     hue="[a-z-]+",
     y="[a-z-]+",
+
+#  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
+#  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
+#  GLMdenoise's is "{mat_type}"; if {mat_type} is unconstrained, obviously GLMdenoise could also
+#  match that folder). if something could be interpreted as GLMdenoise_fixed_hrf, we want it to be
+#  interpreted that way (because we'll never have a mat_type that includes "fixed_hrf"). However,
+#  we don't want to constrain what mat_type matches because we want to be able to treat the output
+#  folder created by GLMdenoise_fixed_hrf the same as the output folder created by GLMdenoise for
+#  the purpose of later calls.
+ruleorder: GLMdenoise_fixed_hrf > GLMdenoise
+
+
+rule GLMdenoise_subj014:
+    input:
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
 
 
 rule GLMdenoise_all_visual:
@@ -135,17 +155,17 @@ rule summary_plots_VSS_abstract:
 
 rule plots_modeling_blanks:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class_5_blanks", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3]],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class_5_blanks", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'posterior',
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3]],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
                       "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
                       "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
                       "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-01,ses-02',
@@ -153,27 +173,27 @@ rule plots_modeling_blanks:
                                          col='subject', hue='stimulus-superclass', y=y)
          for y in ['tuning-curve-peak', 'tuning-curve-bandwidth', 'baseline'] for v in [1, 2, 3]
          for task in ['task-sfp', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'posterior',
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
                       "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
                       "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
                       "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-01,ses-02',
                                          tasks=task, plot_varea='1-2-3', eccen_range="1-12", row='varea',
                                          col='subject', hue='stimulus-superclass', y='preferred-period')
          for task in ['task-sfp', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'posterior',
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
                       "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
                       "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
                       "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-pilot01',
                                          tasks='task-sfp', plot_varea=v, eccen_range="1-12", row='frequency-type',
                                          col='subject', hue='stimulus-superclass', y=y)
          for y in ['tuning-curve-peak', 'tuning-curve-bandwidth', 'baseline'] for v in [1, 2, 3]],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'posterior',
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-pilot01',
                                         tasks='task-sfp', plot_varea='1-2-3', eccen_range="1-12", row='varea',
                                         col='subject', hue='stimulus-superclass', y='preferred-period'),
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'prior',
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'prior',
                       "v1_e2-8_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
                       "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
                       "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
@@ -181,7 +201,7 @@ rule plots_modeling_blanks:
                                          row='frequency-type', col='subject',
                                          hue='stimulus-superclass', y=y)
          for y in ['tuning-curve-peak', 'tuning-curve-bandwidth', 'baseline']],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_5_blanks', 'prior',
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'prior',
                      "v1_e2-8_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
                      "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
                      "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
@@ -267,8 +287,7 @@ rule stimuli_idx:
 rule preprocess:
     input:
         os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", "{subject}"),
-        func_files = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}_{session}_{task}_{run}_bold.nii"),
-        freesurfer_data = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer"),
+        func_files = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}_{session}_{task}_{run}_bold.nii")
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "session.json"),
@@ -291,10 +310,13 @@ rule preprocess:
     log:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}.log")
     shell:
+        # we want to remove the working directory afterwards because it's big and contains many
+        # files. it means that re-runs will take slightly longer, but since I was starting to run
+        # into the number of files quota on the cluster, it's worth it.
         "python {params.script_location} -datadir {params.data_dir} -working_dir "
         "{params.working_dir} -plugin {params.plugin} -dir_structure bids -plugin_args "
         "{params.plugin_args} -epis {params.epi_num} -bids_derivative_name "
-        "preprocessed_{wildcards.run}_{wildcards.task}"
+        "preprocessed_{wildcards.run}_{wildcards.task}; rm -rf {params.working_dir};"
 
 
 rule rearrange_preprocess_extras:
@@ -364,7 +386,6 @@ def get_design_inputs(wildcards):
 rule create_design_matrices:
     input:
         unpack(get_design_inputs),
-        data_dir = os.path.join(config["DATA_DIR"], "{subject}", "{session}"),
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json")
     log:
@@ -374,9 +395,10 @@ rule create_design_matrices:
     params:
         save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%s_design_matrix.tsv'),
         permuted_flag = get_permuted,
-        mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", "")
+        mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", ""),
+        data_dir = lambda wildcards: os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session),
     shell:
-        "python sfp/design_matrices.py {input.data_dir} --mat_type {params.mat_type} --save_path "
+        "python sfp/design_matrices.py {params.data_dir} --mat_type {params.mat_type} --save_path "
         "{params.save_path} {params.permuted_flag}"
 
 
@@ -384,14 +406,14 @@ rule GLMdenoise:
     input:
         preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.nii.gz"), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
-        GLMdenoise_path = config['GLMDENOISE_PATH']
     output:
         GLM_results_md = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz"),
         GLM_results_se = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz"),
         GLM_results_r2 = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz"),
         GLM_results_r2run = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz"),
         GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
-        GLM_results_detrended = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_denoiseddata.mat"))
+        GLM_results_detrended = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_denoiseddata.mat")),
+        GLM_results_hrf = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_hrf.json")
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_benchmark.txt")
     log:
@@ -403,15 +425,52 @@ rule GLMdenoise:
         preproc_file_template = lambda wildcards, input: input.preproc_files[0].replace('run-01', 'run-%02d'),
         runs = lambda wildcards: ",".join(str(i) for i in range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         seed = lambda wildcards: SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session],
-        freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab')
+        freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab'),
+        GLMdenoise_path = config['GLMDENOISE_PATH']
     resources:
         cpus_per_task = 1,
         mem = 100
     shell:
         "cd matlab; matlab -nodesktop -nodisplay -r \"runGLM('{params.design_matrix_template}', "
         "'{params.preproc_file_template}', [{params.runs}], [{params.runs}], '{input.params_file}',"
-        "'{params.freesurfer_matlab_dir}', '{input.GLMdenoise_path}', {params.seed}, "
+        "'{params.freesurfer_matlab_dir}', '{params.GLMdenoise_path}', {params.seed}, "
         "'{params.output_dir}', '{params.save_stem}'); quit;\""
+
+
+rule GLMdenoise_fixed_hrf:
+    input:
+        input_hrf = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{input_mat}",  "{subject}", "{session}", "{subject}_{session}_{task}_hrf.json"),
+        preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.nii.gz"), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+        params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
+    output:
+        GLM_results_md = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz"),
+        GLM_results_se = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz"),
+        GLM_results_r2 = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz"),
+        GLM_results_r2run = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz"),
+        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
+        GLM_results_detrended = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_denoiseddata.mat")),
+        GLM_results_hrf = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_hrf.json"))
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}.log")
+    params:
+        output_dir = lambda wildcards, output: os.path.dirname(output.GLM_results_md),
+        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
+        design_matrix_template = lambda wildcards, input: input.params_file.replace('params.json', 'run-%02d_design_matrix.tsv'),
+        preproc_file_template = lambda wildcards, input: input.preproc_files[0].replace('run-01', 'run-%02d'),
+        runs = lambda wildcards: ",".join(str(i) for i in range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+        seed = lambda wildcards: SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session],
+        freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab'),
+        GLMdenoise_path = config['GLMDENOISE_PATH']
+    resources:
+        cpus_per_task = 1,
+        mem = 100
+    shell:
+        "cd matlab; matlab -nodesktop -nodisplay -r \"runGLM('{params.design_matrix_template}', "
+        "'{params.preproc_file_template}', [{params.runs}], [{params.runs}], '{input.params_file}',"
+        "'{params.freesurfer_matlab_dir}', '{params.GLMdenoise_path}', {params.seed}, "
+        "'{params.output_dir}', '{params.save_stem}', '{input.input_hrf}'); quit;\""
 
 
 rule save_results_niftis:
@@ -442,7 +501,6 @@ rule to_freesurfer:
     input:
         in_file = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_{filename}.nii.gz"),
         tkreg = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distort2anat_tkreg.dat"),
-        freesurfer_data = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer"),
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_{filename}.nii.gz"),
         os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "lh.{subject}_{session}_{task}_{filename}.mgz"),
