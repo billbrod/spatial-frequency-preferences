@@ -465,7 +465,7 @@ rule GLMdenoise_fixed_hrf:
         GLMdenoise_path = config['GLMDENOISE_PATH']
     resources:
         cpus_per_task = 1,
-        mem = 100
+        mem = 150
     shell:
         "cd matlab; matlab -nodesktop -nodisplay -r \"runGLM('{params.design_matrix_template}', "
         "'{params.preproc_file_template}', [{params.runs}], [{params.runs}], '{input.params_file}',"
