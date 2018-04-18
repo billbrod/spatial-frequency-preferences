@@ -506,8 +506,11 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     if save_path is not None:
         fig, axes = plt.subplots(1, 2, figsize=(10, 5))
         for ax, hemi in zip(axes, ['lh', 'rh']):
-            sns.distplot(mgzs['R2-%s' % hemi], ax=ax)
-            ax.set_title("R2 for %s" % hemi)
+            plot_data = mgzs['R2-%s' % hemi]
+            num_nans = sum(np.isnan(plot_data))
+            plot_data = plot_data[~np.isnan(plot_data)]
+            sns.distplot(plot_data, ax=ax)
+            ax.set_title("R2 for %s, data originally contained %s NaNs" % (hemi, num_nans))
         fig.savefig(save_path.replace('.csv', '_R2.svg'))
     if eccen_bin:
         mgzs = _bin_mgzs_dict(mgzs, results_names+['R2'], eccen_range, vareas, hemi_bin)
