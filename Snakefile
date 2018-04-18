@@ -15,8 +15,9 @@ else:
     shell.prefix("export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 
 
-SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj014']
+SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj014']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
+            'sub-wlsubj004': ['ses-03'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj014': ['ses-03']}
@@ -26,7 +27,8 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant', ('sub-wlsubj042', 'ses-02'): 'task-sfp',
          ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp',
          ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp',
-         ('sub-wlsubj014', 'ses-03'): 'task-sfp'}
+         ('sub-wlsubj014', 'ses-03'): 'task-sfp',
+         ('sub-wlsubj004', 'ses-03'): 'task-sfp'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
 def get_n_classes(session, mat_type):
@@ -52,7 +54,7 @@ def get_stim_files(wildcards):
     return {'stim': file_stem.format(rest='.npy'),
             'desc_csv': file_stem.format(rest='_stim_description.csv')}
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
-             'sub-wlsubj014': 5}
+             'sub-wlsubj014': 5, 'sub-wlsubj004': 6}
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50}
 wildcard_constraints:
     subject="sub-[a-z0-9]+",
@@ -85,14 +87,7 @@ wildcard_constraints:
 #  the purpose of later calls.
 ruleorder: GLMdenoise_fixed_hrf > GLMdenoise
 
-
-rule GLMdenoise_subj014:
-    input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in ['sub-wlsubj014'] for ses in SESSIONS[sub]],
-
+# all: plots_all plots_modeling_blanks plots_VSS_abstract summary_plots_all summary_plots_VSS_abstract
 
 rule GLMdenoise_all_visual:
     input:
