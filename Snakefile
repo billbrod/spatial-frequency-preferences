@@ -606,7 +606,7 @@ rule plots:
     params:
         stim_dir = os.path.join(config['DATA_DIR'], 'stimuli')
     resources:
-        mem = 1
+        mem = 2
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_{plot_name}_benchmark.txt")
     log:
