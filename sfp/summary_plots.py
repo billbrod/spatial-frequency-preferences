@@ -28,11 +28,20 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
     stimulus_superclass, and will limit which data we show to only those whose values for that
     field match the specified value(s).
 
+    plot_func: function to call with FacetGrid.map (or, if it's plot_median, plot_ci,
+    scatter_ci_col, scatter_ci_dist, with FacetGrid.map_dataframe). Can be a single function or a
+    list of functions.
+
     any kwarg arguments that don't correspond to columns of summary_df will be passed to
     sns.FacetGrid (if FacetGrid's constructor accepts it as an argument) or plot_func. note this
     means FacetGrid gets priority. If you have a kwarg that you want to pass to plot_func and it
     also gets accepted by FacetGrid (e.g., hue) then append '_plot' after its name (e.g.,
     hue_plot='stimulus_superclass')
+
+    if plot_func is a list of functions, each of the kwargs discussed above can be either a single
+    value or a list of values, in which case each of those values will be passed (in order) to the
+    corresponding function. if one of the values is None, that kwarg will not be passed to that
+    function.
     """
     for k, v in kwargs.copy().iteritems():
         if k in summary_df.columns:
@@ -47,7 +56,10 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
             kwargs.pop(k)
     summary_df = summary_df[(summary_df.eccen > eccen_range[0]) &
                             (summary_df.eccen < eccen_range[1])]
-    plot_func_kwargs = {}
+    if not hasattr(plot_func, '__iter__'):
+        plot_func = [plot_func]
+    joint_plot_func_kwargs = {}
+    separate_plot_func_kwargs = [dict() for i in plot_func]
     additional_plot_args = []
     for k in set(kwargs.keys()) - set(inspect.getargspec(sns.FacetGrid.__init__)[0]):
         if k.endswith('_plot'):
@@ -58,23 +70,46 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
                 if hue == additional_plot_args[-1]:
                     hue = None
             else:
-                plot_func_kwargs[k.replace('_plot', '')] = kwargs.pop(k)
+                v = kwargs.pop(k)
+                if isinstance(v, list):
+                    for i, vi in enumerate(v):
+                        if vi is not None:
+                            separate_plot_func_kwargs[i][k.replace('_plot', '')] = vi
+                else:
+                    joint_plot_func_kwargs[k.replace('_plot', '')] = v
         else:
-            plot_func_kwargs[k] = kwargs.pop(k)
+            v = kwargs.pop(k)
+            if isinstance(v, list):
+                for i, vi in enumerate(v):
+                    if vi is not None:
+                        separate_plot_func_kwargs[i][k] = vi
+            else:
+                joint_plot_func_kwargs[k] = v
     if 'ylim' not in kwargs.keys():
         if y in ['preferred_period', 'tuning_curve_bandwidth']:
             kwargs['ylim'] = (0, 10)
     with sns.axes_style('whitegrid'):
         g = sns.FacetGrid(summary_df, row, col, hue, aspect=1, size=5, sharey=sharey,
                           sharex=sharex, **kwargs)
-        g.map(plot_func, x, y, *additional_plot_args, **plot_func_kwargs)
-        if col == 'varea':
-            titles = "{row_name} | V{col_name}"
-        elif row == 'varea':
-            titles = "V{row_name} | {col_name}"
-        else:
+        for i, pf in enumerate(plot_func):
+            tmp_kwargs = joint_plot_func_kwargs.copy()
+            tmp_kwargs.update(separate_plot_func_kwargs[i])
+            if pf.__name__ in ['plot_median', 'plot_ci', 'scatter_ci_col', 'scatter_ci_dist']:
+                # these functions require map_dataframe, since they need some extra info
+                g.map_dataframe(pf, x, y, *additional_plot_args, **tmp_kwargs)
+            else:
+                g.map(pf, x, y, *additional_plot_args, **tmp_kwargs)
+        if row is not None or col is not None:
             titles = "{row_name} | {col_name}"
-        g.set_titles(titles)
+            if col == 'varea':
+                titles = titles.replace("{col_name}", "V{col_name}")
+            elif row == 'varea':
+                titles = titles.replace("{row_name}", "V{row_name}")
+            if row is None:
+                titles = titles.replace("{row_name} | ", "")
+            elif col is None:
+                titles = titles.replace(" | {col_name}", "")
+            g.set_titles(titles)
         g.add_legend()
         if save_path is not None:
             g.fig.savefig(save_path)
