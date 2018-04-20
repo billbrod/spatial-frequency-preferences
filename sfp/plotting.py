@@ -63,8 +63,10 @@ def plot_ci(x, y, ci_vals=[16, 84], **kwargs):
     """fill between the specified CIs, for use with seaborn's map_dataframe
     """
     data = kwargs.pop('data')
+    alpha = kwargs.pop('alpha', .2)
     plot_data = data.groupby(x)[y].apply(np.percentile, ci_vals)
-    plt.fill_between(plot_data.index, plot_data.values, **kwargs)
+    plot_values = np.vstack(plot_data.values)
+    plt.fill_between(plot_data.index, plot_values[:, 0], plot_values[:, 1], alpha=alpha, **kwargs)
 
 
 def scatter_ci_col(x, y, ci, **kwargs):
@@ -89,7 +91,7 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], **kwargs):
 
     by default, this draws the 68% confidence interval. to change this, change the ci_vals
     argument. for instance, if you only want to draw the median point, pass ci_vals=[50, 50] (this
-    is eqiuvalent to just calling plt.scatter)
+    is equivalent to just calling plt.scatter)
     """
     data = kwargs.pop('data')
     plot_data = data.groupby(x)[y].median()
@@ -620,7 +622,7 @@ def check_hypotheses(tuning_df, save_path_template=None, norm=False, ci_vals=[16
     col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER+CONSTANT_SUPERCLASS_ORDER
                  if i in tuning_df.stimulus_superclass.unique()]
     for n, g in tuning_df.groupby(gb_cols):
-        f = sns.FacetGrid(tuning_df, hue='eccen', palette='Reds', size=5, row='frequency_type',
+        f = sns.FacetGrid(g, hue='eccen', palette='Reds', size=5, row='frequency_type',
                           col='stimulus_superclass', col_order=col_order)
         if plot_data:
             f.map_dataframe(plot_median, 'frequency_value', 'amplitude_estimate',

@@ -29,6 +29,7 @@ def main(root_dir, save_path=None, **kwargs):
     walker = os.walk(root_dir)
     csv_paths = [os.path.join(root, f) for root, _, files in walker for f in files if 'csv' in f]
     df = []
+    duplicate_check_cols = ['varea', 'eccen', 'stimulus_superclass', 'frequency_type']
     for p in csv_paths:
         info_dict = re.search(PATH_TEMPLATE, p).groupdict()
         # the [True] here ensures that if limit_kwargs is empty, there will be one True and thus
@@ -37,7 +38,10 @@ def main(root_dir, save_path=None, **kwargs):
         if not np.all(in_limit_kwargs):
             continue
         tmp_df = pd.read_csv(p)
-        tmp_df = tmp_df.drop_duplicates(['varea', 'eccen', 'stimulus_superclass', 'frequency_type'])
+        if 'bootstrap_num' in tmp_df.columns:
+            tmp_df = tmp_df.drop_duplicates(duplicate_check_cols + ['bootstrap_num'])
+        else:
+            tmp_df = tmp_df.drop_duplicates(duplicate_check_cols)
         tmp_df = tmp_df.assign(**info_dict)
         tmp_df['eccen'] = tmp_df.eccen.apply(lambda x: np.mean([float(i) for i in x.split('-')]))
         df.append(tmp_df)
