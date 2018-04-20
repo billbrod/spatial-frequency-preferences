@@ -62,5 +62,7 @@ if __name__ == '__main__':
     parser.add_argument("root_dir",
                         help="Root of directory tree that we'll find everything underneath")
     parser.add_argument("save_path", help="Path to save resulting consolidated dataframe at")
+    parser.add_argument("df_mode", help="{summary | full}. Whether to gather the summary or full"
+                                        " tuning curve dataframes.")
     args = vars(parser.parse_args())
-    main(df_mode='summary', **args)
+    main(**args)
