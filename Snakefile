@@ -624,22 +624,32 @@ def get_tuning_curves(wildcards):
     else:
         subjects = SUBJECTS
         sessions = SESSIONS
-    return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary.csv').format(mat_type=wildcards.mat_type, atlas_type=wildcards.atlas_type, subject=sub, session=ses, task=TASKS[(sub, ses)], vareas=wildcards.vareas, eccen=wildcards.eccen, binning=wildcards.binning) for sub in subjects for ses in sessions[sub]]
+    return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}',
+                         '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_'
+                         'v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type=wildcards.mat_type,
+                                                                             atlas_type=wildcards.atlas_type,
+                                                                             subject=sub, session=ses,
+                                                                             task=TASKS[(sub, ses)],
+                                                                             vareas=wildcards.vareas,
+                                                                             eccen=wildcards.eccen,
+                                                                             binning=wildcards.binning,
+                                                                             df_mode=wildcards.df_mode)
+            for sub in subjects for ses in sessions[sub]]
 
 
 rule tuning_curves_summary:
     input:
         get_tuning_curves
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}{binning}_tuning_curves_summary.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}{binning}_tuning_curves_{df_mode}.csv")
     params:
         input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_summary_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_summary.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{df_mode}.log")
     shell:
-        "python sfp/summarize_tuning_curves.py {params.input_dir} {output}"
+        "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode}"
 
 
 rule tuning_curves_summary_plot:
