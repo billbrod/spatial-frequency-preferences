@@ -435,8 +435,8 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     df_mode: {'summary', 'full'}. If 'summary', will load in the 'modelmd' and 'modelse' mgz files,
     using those calculated summary values. If 'full', will load in the 'models_class_##' mgz files,
     containing the info to calculate central tendency and spread directly. In both cases, 'R2' will
-    also be loaded in. Assumes modelmd and modelse lie directly in results_template_path and that
-    models_class_## files lie within the subfolder models_niftis
+    also be loaded in. Assumes modelmd, modelse, and models_class_## lie directly in
+    results_template_path
 
     stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli were used in the session
     we're analyzing. This matters because it changes the local spatial frequency and, since that is
