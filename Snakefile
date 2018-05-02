@@ -76,6 +76,7 @@ wildcard_constraints:
     row="[a-z-]+",
     hue="[a-z-]+",
     y="[a-z-]+",
+    binning="_[a-z_]+bin",
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
