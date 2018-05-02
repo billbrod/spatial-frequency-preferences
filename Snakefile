@@ -570,6 +570,7 @@ rule first_level_analysis:
         bin_str = get_binning,
         results_template = lambda wildcards, input: input.R2_files[0].replace('lh', '%s').replace('R2', '%s'),
         benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
+        benson_names = lambda wildcards, input: [i.split('_')[-1].replace('.mgz', '') for i in input.benson_paths if 'lh' in i],
         class_num = lambda wildcards: get_n_classes(wildcards.session, wildcards.mat_type),
         stim_type = get_stim_type,
         mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
@@ -582,8 +583,9 @@ rule first_level_analysis:
         "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} {params.bin_str} "
         "--unshuffled_stim_descriptions_path {input.desc_csv} --unshuffled_stim_path {input.stim} "
         "--save_stem {params.save_stem} --class_nums {params.class_num} --stim_type "
-        "{params.stim_type} --mid_val {params.mid_val} {params.results_template} "
-        "{params.benson_template}"
+        "{params.stim_type} --mid_val {params.mid_val} --benson_template_names "
+        "{params.benson_names} --results_template_path {params.results_template} "
+        "--benson_template_path {params.benson_template}"
 
 
 rule tuning_curves:

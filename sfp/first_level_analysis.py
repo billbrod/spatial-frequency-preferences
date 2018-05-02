@@ -31,8 +31,7 @@ def _load_mgz(path):
 
 
 def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results_names, vareas,
-                            eccen_range, benson_template_names={'varea': 'varea', 'angle': 'angle',
-                                                                'eccen': 'eccen'}):
+                            eccen_range, benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
     """load in the mgzs, put in a dictionary, and return that dictionary
 
     vareas: list of ints. which visual areas (as defined in the Benson visual area template) to
@@ -41,25 +40,24 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
     eccen_range: 2-tuple of ints or floats. What range of eccentricities to include (as specified
     in the Benson eccentricity template).
 
-    benson_template_names: dictionary between the labels we use for the different Benson templates
-    (varea, angle, eccen) and the ones that are actually found in the filename. Doing this because
-    the names for the Benson templates are different depending on when they're run (and so differ
-    for different subjects).
+    benson_template_names: list of labels that specify which output files to get from the Benson
+    retinotopy. The complete list is the default, ['varea', 'angle', 'sigma', 'eccen']. For this
+    analysis to work, must contain 'varea' and 'eccen'.
     """
-    if sorted(benson_template_names.keys()) != ['angle', 'eccen', 'varea']:
-        raise Exception("The keys of benson_template_names MUST be angle, eccen, and varea!")
+    if 'varea' not in benson_template_names or 'eccen' not in benson_template_names:
+        raise Exception("Need Benson retinotopy files 'eccen' and 'varea'!")
     mgzs = {}
 
     varea_mask = {}
     eccen_mask = {}
     for hemi in ['lh', 'rh']:
-        varea_mask[hemi] = _load_mgz(benson_template_path % (hemi, benson_template_names['varea']))
+        varea_mask[hemi] = _load_mgz(benson_template_path % (hemi, 'varea'))
         varea_mask[hemi] = np.isin(varea_mask[hemi], vareas)
-        eccen_mask[hemi] = _load_mgz(benson_template_path % (hemi, benson_template_names['eccen']))
+        eccen_mask[hemi] = _load_mgz(benson_template_path % (hemi, 'eccen'))
         eccen_mask[hemi] = (eccen_mask[hemi] > eccen_range[0]) & (eccen_mask[hemi] < eccen_range[1])
 
-    for hemi, var in itertools.product(['lh', 'rh'], ['varea', 'angle', 'eccen']):
-        tmp = _load_mgz(benson_template_path % (hemi, benson_template_names[var]))
+    for hemi, var in itertools.product(['lh', 'rh'], benson_template_names):
+        tmp = _load_mgz(benson_template_path % (hemi, var))
         mgzs['%s-%s' % (var, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
 
     for hemi, res in itertools.product(['lh', 'rh'], results_names):
@@ -74,7 +72,8 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
     return mgzs
 
 
-def _bin_mgzs_dict(mgzs, results_names, eccen_range, vareas, hemi_bin=True):
+def _bin_mgzs_dict(mgzs, results_names, eccen_range, vareas, hemi_bin=True,
+                   benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
     """bins by eccentricity and, optionally, hemisphere (if hemi_bin is true)
 
     vareas: list of ints. which visual areas (as defined in the Benson visual area template) to
@@ -82,19 +81,23 @@ def _bin_mgzs_dict(mgzs, results_names, eccen_range, vareas, hemi_bin=True):
 
     eccen_range: 2-tuple of ints or floats. What range of eccentricities to include (as specified
     in the Benson eccentricity template).
+
+    benson_template_names: list of labels that specify which output files we loaded from the Benson
+    retinotopy. The complete list is the default, ['varea', 'angle', 'sigma', 'eccen']. For this
+    analysis to work, must contain 'varea' and 'eccen'.
     """
     for hemi in ['lh', 'rh']:
         masks = []
         for area in vareas:
             for i in range(*eccen_range):
                 masks.append((mgzs['eccen-%s' % hemi] > i) & (mgzs['eccen-%s' % hemi] < i+1) & (mgzs['varea-%s' % hemi] == area))
-        for res in results_names + ['varea', 'angle', 'eccen']:
+        for res in results_names + benson_template_names:
             res_name = os.path.split(res)[-1]
             tmp = mgzs['%s-%s' % (res_name, hemi)]
             mgzs['%s-%s' % (res_name, hemi)] = np.array([np.nanmean(tmp[m], 0) for m in masks])
     if hemi_bin:
         mgzs_tmp = {}
-        for res in results_names + ['varea', 'angle', 'eccen']:
+        for res in results_names + benson_template_names:
             res_name = os.path.split(res)[-1]
             mgzs_tmp[res_name] = np.nanmean([mgzs['%s-lh' % res_name], mgzs['%s-rh' % res_name]], 0)
         mgzs = mgzs_tmp
@@ -174,7 +177,8 @@ def _add_freq_metainfo(stim_df):
     return stim_df
 
 
-def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None):
+def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None,
+                       benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
     df = None
     if hemi is None:
         mgz_key = '%s'
@@ -201,7 +205,7 @@ def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None):
                 df = pd.concat([df, tmp])
 
     df = df.set_index('voxel')
-    for brain_name in ['varea', 'eccen', 'angle', 'R2']:
+    for brain_name in benson_template_names + ['R2']:
         tmp = pd.DataFrame(mgzs[mgz_key % brain_name])
         tmp.index.rename('voxel', True)
         df[brain_name] = tmp[0]
@@ -210,18 +214,19 @@ def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None):
     return df
 
 
-def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin=True, hemi_bin=True):
+def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin=True, hemi_bin=True,
+                           benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
     if not hemi_bin:
         df = {}
         for hemi in ['lh', 'rh']:
-            df[hemi] = _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi)
+            df[hemi] = _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi, benson_template_names)
 
         # because python 0-indexes, the minimum voxel number is 0. thus if we were to just add the
         # max, the min in the right hemi would be the same as the max in the left hemi
         df['rh'].voxel = df['rh'].voxel + df['lh'].voxel.max()+1
         df = pd.concat(df).reset_index(0, drop=True)
     else:
-        df = _setup_mgzs_for_df(mgzs, results_names, df_mode, None)
+        df = _setup_mgzs_for_df(mgzs, results_names, df_mode, None, benson_template_names)
 
     df = df.set_index('stimulus_class')
     df = df.join(stim_df)
@@ -414,7 +419,8 @@ def _add_baseline(df):
 
 def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
          save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), eccen_bin=True,
-         hemi_bin=True, stim_rad_deg=12, unshuffled_stim_path="../data/stimuli/unshuffled.npy",
+         hemi_bin=True, stim_rad_deg=12, benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
+         unshuffled_stim_path="../data/stimuli/unshuffled.npy",
          unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv",
          mid_val=128):
     """this loads in the realigned mgz files and creates a dataframe of their values
@@ -426,7 +432,7 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     to provide save_path so the resulting dataframe can be saved.
 
     benson_template_path: template path to the Benson14 mgz files, containing two string formatting
-    symbols (%s; one for hemisphere, one for variable [angle, varea, eccen]),
+    symbols (%s; one for hemisphere, one for variable [angle, varea, eccen, sigma]),
     e.g. /mnt/Acadia/Freesurfer_subjects/wl_subj042/surf/%s.benson14_%s.mgz
 
     results_template_path: template path to the results mgz files (outputs of realign.py),
@@ -462,6 +468,10 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
 
     stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
 
+    benson_template_names: list of labels that specify which output files to get from the Benson
+    retinotopy. The complete list is the default, ['varea', 'angle', 'sigma', 'eccen']. For this
+    analysis to work, must contain 'varea' and 'eccen'.
+
     unshuffled_stim_path: path to the unshuffled stimuli.
 
     unshuffled_stim_descriptions_path: path to the unshuffled stimulus description csv, as saved
@@ -493,16 +503,13 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
         warnings.warn("You set eccen_bin to False but hemi_bin to True. I can only bin across "
                       "hemispheres if also binning eccentricities!")
         hemi_bin = False
-    if os.path.isfile(benson_template_path % ('lh', 'varea')):
-        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
-                                       results_names+['R2'], vareas, eccen_range)
-    elif os.path.isfile(benson_template_path % ('lh', 'areas')):
-        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
-                                       results_names+['R2'], vareas, eccen_range,
-                                       {'varea': 'areas', 'angle': 'angle', 'eccen': 'eccen'})
-    else:
+    if not os.path.isfile(benson_template_path % ('lh', 'varea')):
         raise Exception("Unable to find the Benson visual areas template! Check your "
                         "benson_template_path!")
+    else:
+        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
+                                       results_names+['R2'], vareas, eccen_range,
+                                       benson_template_names)
     if save_path is not None:
         fig, axes = plt.subplots(1, 2, figsize=(10, 5))
         for ax, hemi in zip(axes, ['lh', 'rh']):
@@ -513,11 +520,13 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
             ax.set_title("R2 for %s, data originally contained %s NaNs" % (hemi, num_nans))
         fig.savefig(save_path.replace('.csv', '_R2.svg'))
     if eccen_bin:
-        mgzs = _bin_mgzs_dict(mgzs, results_names+['R2'], eccen_range, vareas, hemi_bin)
+        mgzs = _bin_mgzs_dict(mgzs, results_names+['R2'], eccen_range, vareas, hemi_bin,
+                              benson_template_names)
 
     results_names = [os.path.split(i)[-1] for i in results_names]
 
-    df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin, hemi_bin)
+    df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin, hemi_bin,
+                                benson_template_names)
     df.varea = df.varea.astype(int)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     if stim_type in ['logpolar', 'pilot']:
@@ -539,13 +548,13 @@ if __name__ == '__main__':
                      "results for a given subject. Note that this can take a rather long time, "
                      "especially if you are not binning by eccentricity."),
         formatter_class=CustomFormatter)
-    parser.add_argument("results_template_path",
+    parser.add_argument("--results_template_path", required=True,
                         help=("template path to the results mgz files (outputs of realign.py), "
                               "containing two string formatting symbols (one for hemisphere, "
                               "one specifying results type). Can contain any environment"
                               "al variable (in all caps, contained within curly brackets, e.g., "
                               "{SUBJECTS_DIR})"))
-    parser.add_argument("benson_template_path",
+    parser.add_argument("--benson_template_path", required=True,
                         help=("template path to the Benson14 mgz files, containing two string "
                               "formatting symbols (one for hemisphere, one for variable [angle"
                               ", varea, eccen]). Can contain any environmental variable (in all "
@@ -590,6 +599,11 @@ if __name__ == '__main__':
                               "also to examine differences between the two hemispheres."))
     parser.add_argument("--stim_rad_deg", default=12, type=float,
                         help="float, the radius of the stimulus, in degrees of visual angle")
+    parser.add_argument("--benson_template_names", nargs='+',
+                        default=['varea', 'angle', 'eccen', 'sigma'],
+                        help=("list of labels that specify which output files to get from the "
+                              "Benson retinotopy. For this analysis to work, must contain 'varea'"
+                              " and 'eccen'. Note that some subjects might not have sigma."))
     parser.add_argument("--unshuffled_stim_descriptions_path", "-d",
                         default="data/stimuli/unshuffled_stim_description.csv",
                         help=("Path to the unshuffled_stim_descriptions.csv file that contains the"
