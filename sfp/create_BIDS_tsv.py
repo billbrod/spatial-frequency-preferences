@@ -9,7 +9,7 @@ from collections import Counter
 import os
 
 
-def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num, drop_blanks=True):
+def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num):
     """create and return the df with info for BIDS tsv for a run
 
     behavioral_results: h5py File (not the path) containing behavioral results
@@ -18,12 +18,9 @@ def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num, drop
 
     run_num: int, which run (as used in behavioral_results) to examine
 
-    drop_blanks: boolean, whether to drop the blank stimuli. You want to do this when creating the
-    design matrix for GLMdenoise.
-
     returns the design dataframe
     """
-    df = unshuffled_stim_description.set_index('index')
+    df = unshuffled_stim_description.set_index('index')[['index', 'class_idx']]
     if len(df) != len(behavioral_results['run_%02d_shuffled_indices' % run_num]):
         raise Exception("Behavioral results and stimulus description csv have different numbers of stimuli!")
     df = df.reindex(behavioral_results['run_%02d_shuffled_indices' % run_num].value)
@@ -45,10 +42,9 @@ def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num, drop
     timing = [float(i[2]) - initial_TR_time for i in timing]
     # and add to our dataframe
     df['Onset time (sec)'] = timing
-    if drop_blanks:
-        # Our blanks show up as having nan values, and we don't want to model them in our GLM, so we
-        # drop them
-        df = df.dropna()
+    button_presses = behavioral_results['run_%02d_button_presses' % run_num].value.astype(float)
+    button_presses = button_presses[button_presses[:, 0] != 5]
+    button_presses[:, 1] -= initial_TR_time
     return df
 
 
@@ -73,7 +69,7 @@ def _find_timing_from_results(results, run_num):
 
 
 def main(behavioral_results_path, unshuffled_stim_descriptions_path,
-         save_path='data/MRI_first_level/run_%02d_events.tsv', full_TRs=240):
+         save_path='data/MRI_first_level/run_%02d_events.tsv', full_TRs=264):
     """create and save BIDS events tsvs for all runs.
 
     we do this for all non-empty runs in the h5py File found at behavioral_results_path
@@ -96,7 +92,7 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path,
         while "run_%02d_button_presses" % run_num in results.keys():
             n_TRs = sum(['5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
             if n_TRs == full_TRs:
-                design_df = create_tsv_df(results, df, run_num, drop_blanks=False)
+                design_df = create_tsv_df(results, df, run_num)
                 design_df = design_df.reset_index().rename(
                     columns={'index': 'stim_file_index', 'class_idx': 'trial_type',
                              'Onset time (sec)': 'onset'})
@@ -108,7 +104,7 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path,
                 design_df['stim_file'] = stim_path
                 design_df['note'] = ""
                 design_df.loc[design_df.trial_type == design_df.trial_type.max(), 'note'] = "blank trial"
-                design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index', 'note']]
+                # design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index', 'note']]
                 design_df['onset'] = design_df.onset.apply(lambda x: "%.03f" % x)
                 design_df.to_csv(save_path % (save_num), '\t', index=False)
                 save_num += 1
