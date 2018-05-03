@@ -16,6 +16,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy as sp
+from sklearn import linear_model
+import pyPyrTools as ppt
 
 LOGPOLAR_SUPERCLASS_ORDER = ['circular', 'forward spiral', 'mixtures', 'radial', 'reverse spiral']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'off-diagonal', 'horizontal',
@@ -32,6 +34,49 @@ class MidpointNormalize(mpl.colors.Normalize):
         # simple example...
         x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
         return np.ma.masked_array(np.interp(value, x, y))
+
+
+def myLogFormat(y, pos):
+    """formatter that only shows the required number of decimal points
+
+    this is for use with log-scaled axes, and so assumes that everything greater than 1 is an
+    integer and so has no decimal points
+
+    to use (or equivalently, with `axis.xaxis`):
+    ```
+    from matplotlib import ticker
+    axis.yaxis.set_major_formatter(ticker.FuncFormatter(myLogFormat))
+    ```
+
+    modified from https://stackoverflow.com/a/33213196/4659293
+    """
+    # Find the number of decimal places required
+    if y < 1:
+        # because the string representation of a float always starts "0."
+        decimalplaces = len(str(y)) - 2
+    else:
+        decimalplaces = 0
+    # Insert that number into a format string
+    formatstring = '{{:.{:1d}f}}'.format(decimalplaces)
+    # Return the formatted tick label
+    return formatstring.format(y)
+
+
+def _jitter_data(data, jitter):
+    """optionally jitter data some amount
+
+    jitter can be None / False (in which case no jittering is done), a number (in which case we add
+    uniform noise with a min of -jitter, max of jitter), or True (in which case we do the uniform
+    thing with min/max of -.1/.1)
+
+    based on seaborn.linearmodels._RegressionPlotter.scatter_data
+    """
+    if jitter is None or jitter is False:
+        return data
+    else:
+        if jitter is True:
+            jitter = .1
+        return data + np.random.uniform(-jitter, jitter, len(data))
 
 
 def im_plot(im, **kwargs):
@@ -82,7 +127,7 @@ def scatter_ci_col(x, y, ci, **kwargs):
         plt.plot([x, x], [y+ci, y-ci], **kwargs)
 
 
-def scatter_ci_dist(x, y, ci_vals=[16, 84], **kwargs):
+def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
     based on seaborn.linearmodels.scatterplot. CIs are taken from a distribution in this
@@ -96,9 +141,32 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], **kwargs):
     data = kwargs.pop('data')
     plot_data = data.groupby(x)[y].median()
     plot_cis = data.groupby(x)[y].apply(np.percentile, ci_vals)
-    plt.scatter(plot_data.index, plot_data.values, **kwargs)
-    for x, (ci_low, ci_high) in plot_cis.iteritems():
+    x_data = _jitter_data(plot_data.index, x_jitter)
+    plt.scatter(x_data, plot_data.values, **kwargs)
+    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.iteritems()):
         plt.plot([x, x], [ci_low, ci_high], **kwargs)
+
+
+def plot_median_fit(x, y, model=linear_model.LinearRegression(), x_vals=None, **kwargs):
+    """plot a model fit to the median points, for use with seaborn's map_dataframe
+
+    we first find the median values of y when grouped by x and then fit model to them and plot
+    *only* the model's predictions (thus you'll need to call another function if you want to see
+    the actual data). we don't cross-validate or do anything fancy.
+
+    model should be an (already-initialized) class that has a fit (which accepts X and y) and a
+    predict method (which accepts X; for instance, anything from sklearn). It should expect X to be
+    2d; we reshape our 1d data to be 2d (since this is what the sklearn models expect)
+    """
+    data = kwargs.pop('data')
+    if 'exclude' in kwargs['label']:
+        # we don't plot anything with exclude in the label
+        return
+    plot_data = data.groupby(x)[y].median()
+    model.fit(plot_data.index.values.reshape(-1, 1), plot_data.values)
+    if x_vals is None:
+        x_vals = plot_data.index
+    plt.plot(x_vals, model.predict(np.array(x_vals).reshape(-1, 1)), **kwargs)
 
 
 def stimuli_properties(df, save_path=None):
@@ -237,8 +305,12 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     else:
         col_order = [i for i in CONSTANT_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
 
+    ylim = kwargs.pop('ylim', None)
+    xlim = kwargs.pop('xlim', None)
+    aspect = kwargs.pop('aspect', 1)
     g = sns.FacetGrid(df, hue='eccen', palette='Reds', size=5, row='varea', col_order=col_order,
-                      hue_order=sorted(df.eccen.unique()), col='stimulus_superclass')
+                      hue_order=sorted(df.eccen.unique()), col='stimulus_superclass', ylim=ylim,
+                      xlim=xlim, aspect=aspect)
     if 'amplitude_estimate_std_error' in df.columns:
         g.map_dataframe(plot_median, x_col, 'amplitude_estimate_median')
         if not median_only:
@@ -257,6 +329,7 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     plt.subplots_adjust(top=.9)
     if save_path is not None:
         g.fig.savefig(save_path, bbox_inches='tight')
+    return g
 
 
 def _plot_grating_approx_and_save(grating, grating_type, save_path, **kwargs):
@@ -661,6 +734,55 @@ def tuning_params(tuning_df, save_path=None, **kwargs):
     g.add_legend()
     if save_path is not None:
         g.fig.savefig(save_path)
+
+
+def period_summary_plot(radial_coeff, circular_coeff, RF_coeff=.16917155, n_windows=3, size=1080,
+                        max_visual_angle=24, save_path=None):
+    """make plot that shows the optimal number of periods per receptive field
+
+    this works by using the coefficients of the linear fits (with zero intercept) relating
+    eccentricity to the period of the optimal grating stimulus (from measurements for both circular
+    and radial stimuli) and to V1 receptive field size. We show the views of the circular stimuli
+    along the vertical axis and the views of the radial along the horizontal axis.
+
+    n_windows: int, the number of windows on each side of the origin to show
+    """
+    # these values were found analytically, by comparing the analytical spatial frequency magnitude
+    # (as returned by stimuli.create_sf_maps_cpd; this is sqrt(w_r**2 + w_a**2)/r) with the optimal
+    # spatial frequency as a function of eccentricity (1/(circular_coeff * r)), which gives us that
+    # 1/circular_coeff = sqrt(w_r**2 + w_a**2). We then need to multiply the circular_coeff by
+    # 2*pi, since w_r / w_a are divided by 2*pi before returning them (similarly, for
+    # radial_coeff). We here are only producing circular and radial stimuli, so we set w_a / w_r
+    # (respectively) to 0. we also round these to the nearest integer because we want them to not
+    # have noticeable seams
+    opt_w_r = np.round((2 * np.pi) / circular_coeff)
+    opt_w_a = np.round((2 * np.pi) / radial_coeff)
+    opt_circular_stim = sfp_stimuli.log_polar_grating(size, w_r=opt_w_r)
+    opt_radial_stim = sfp_stimuli.log_polar_grating(size, w_a=opt_w_a)
+    windowed_plot = np.zeros((size, size))
+    R = ppt.mkR(size) * (float(max_visual_angle) / size)
+    ecc_to_pix = RF_coeff * (float(size) / max_visual_angle)
+    masks = np.zeros((size, size))
+    half_size = int(size / 2)
+    for loc in range(half_size, size, int(half_size / (n_windows+2)))[1:]:
+        # we do x and y separately because there's a chance a rounding issue will mean they differ
+        # slightly
+        for loc_y, loc_x in [(loc, half_size), (half_size, loc), (size-loc, half_size),
+                             (half_size, size-loc)]:
+            ecc = R[loc_y, loc_x]
+            # ecc * ecc_to_pix gives you the diameter, but we want the radius
+            mask = utils.create_circle_mask(loc_x, loc_y, (ecc * ecc_to_pix) / 2, size)
+            masks += mask
+            if loc_y == half_size:
+                windowed_plot += mask * opt_radial_stim
+            else:
+                windowed_plot += mask * opt_circular_stim
+    windowed_plot[~masks.astype(bool)] += 1
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    im_plot(windowed_plot, ax=ax)
+    if save_path is not None:
+        fig.savefig(save_path)
+    return windowed_plot
 
 
 def _parse_save_path_for_kwargs(save_path):
