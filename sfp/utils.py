@@ -57,24 +57,25 @@ def create_circle_mask(x, y, rad, size):
 def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     """mask array_to_mask the way that masked has been masked
 
-    this takes two arrays of the same size, grating and array_to_mask. masked should already be
-    masked into an annulus, while array_to_mask should be unmasked. This then finds the inner and
-    outer radii of that annulus and applies the same mask to array_to_mask. the value in the masked
-    part of masked should be mid_val (by default, 128, as you'd get when the grating runs from 0 to
-    255; mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want
-    to set array_to_mask to is val_to_set (same reasonable values as mid_val)
+    this takes two square arrays, grating and array_to_mask. masked should already be masked into
+    an annulus, while array_to_mask should be unmasked. This then finds the inner and outer radii
+    of that annulus and applies the same mask to array_to_mask. the value in the masked part of
+    masked should be mid_val (by default, 128, as you'd get when the grating runs from 0 to 255;
+    mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want to
+    set array_to_mask to is val_to_set (same reasonable values as mid_val)
     """
-    R = ppt.mkR(masked.shape)
+    R = ppt.mkR(masked.shape) / float(masked.shape[0])
+    R_masking = ppt.mkR(array_to_mask.shape) / float(array_to_mask.shape[0])
     x, y = np.where(masked != mid_val)
     Rmin = R[x, y].min()
     try:
-        array_to_mask[R < Rmin] = val_to_set
+        array_to_mask[R_masking < Rmin] = val_to_set
     except IndexError:
         # then there is no R<Rmin
         pass
     Rmax = R[x, y].max()
     try:
-        array_to_mask[R > Rmax] = val_to_set
+        array_to_mask[R_masking > Rmax] = val_to_set
     except IndexError:
         # then there is no R>Rmax
         pass
