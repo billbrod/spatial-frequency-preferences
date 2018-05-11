@@ -320,31 +320,35 @@ def load_data(subject, session=None, task=None, df_mode='full',
         # the bit in session is regex to return a string that doesn't start with pilot
         files = layout.get("file", subject=subject, type=df_mode, session=r'^((?!pilot).+)')
     for k, v in kwargs.iteritems():
-        if k == 'vareas':
-            if not isinstance(v, basestring):
-                val = '-'.join([str(i) for i in v])
-            else:
-                val = v
-        elif k == 'eccen':
-            if not isinstance(v, basestring):
-                val = '-'.join([str(i) for i in v])
-            else:
-                val = v
-        elif k == 'eccen_bin':
-            if v:
-                val = "eccen_bin"
-            else:
-                val = ""
-        elif k == 'hemi_bin':
-            if v:
-                val = "hemi_bin"
-            else:
-                val = ""
-        elif k in ['atlas_type', 'mat_type']:
+        # we need to treat atlas_type and mat_type, which will show up as a folder in the path,
+        # separately from the others, which will just show in the filename of the csv
+        if k in ['atlas_type', 'mat_type']:
             val = v
+            files = [f for f in files if val in f.split(os.sep)]
         else:
-            raise Exception("Don't know how to handle kwargs %s!" % k)
-        files = [f for f in files if val in f.split(os.sep)]
+            if k == 'vareas':
+                if not isinstance(v, basestring):
+                    val = '-'.join([str(i) for i in v])
+                else:
+                    val = v
+            elif k == 'eccen':
+                if not isinstance(v, basestring):
+                    val = '-'.join([str(i) for i in v])
+                else:
+                    val = v
+            elif k == 'eccen_bin':
+                if v:
+                    val = "eccen_bin"
+                else:
+                    val = ""
+            elif k == 'hemi_bin':
+                if v:
+                    val = "hemi_bin"
+                else:
+                    val = ""
+            else:
+                raise Exception("Don't know how to handle kwargs %s!" % k)
+            files = [f for f in files if val in os.path.split(f)[-1]]
     if len(files) != 1:
         raise Exception("Cannot find unique first level results csv that satisfies all "
                         "specifications! Matching files: %s" % files)
