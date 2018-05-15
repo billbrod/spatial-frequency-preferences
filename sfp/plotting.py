@@ -737,8 +737,8 @@ def tuning_params(tuning_df, save_path=None, **kwargs):
 
 
 def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
-                        model=linear_model.LinearRegression(), n_windows=3, size=1080,
-                        max_visual_angle=24, save_path=None):
+                        model=linear_model.LinearRegression(), n_windows=4, size=1080,
+                        max_visual_angle=24, plot_view='full', save_path=None):
     """make plot that shows the optimal number of periods per receptive field
 
     df: dataframe containing the summarized preferred periods. should contain three columns:
@@ -756,6 +756,8 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     is 4 * stddev, or the diameter of two standard deviations.
 
     n_windows: int, the number of windows on each side of the origin to show
+
+    plot_view: {'full', 'quarter'}. whether to plot a full or quarter view.
     """
     # these values were found analytically, by comparing the analytical spatial frequency magnitude
     # (as returned by stimuli.create_sf_maps_cpd; this is sqrt(w_r**2 + w_a**2)/r) with the optimal
@@ -778,35 +780,41 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     R = ppt.mkR(size) * (float(max_visual_angle) / size)
     ecc_to_pix = pRF_size_slope * (float(size) / max_visual_angle) + pRF_size_offset
     masks = np.zeros((size, size))
-    half_size = int(size / 2)
-    for loc in range(half_size, size, int(half_size / (n_windows+2)))[1:]:
-        diag_value = (loc - half_size) / np.sqrt(2)
+    meridian = int(size / 2)
+    view_range = range(meridian, size, int(meridian / (n_windows+1)))[1:]
+    for loc in view_range:
         # we do x and y separately because there's a chance a rounding issue will mean they differ
         # slightly
-        for loc_y, loc_x in [(loc, half_size), (half_size, loc), (size-loc, half_size),
-                             (half_size, size-loc), (half_size+diag_value, half_size+diag_value),
-                             (half_size+diag_value, half_size-diag_value),
-                             (half_size-diag_value, half_size-diag_value),
-                             (half_size-diag_value, half_size+diag_value)]:
+        if plot_view == 'full':
+            diag_value_1 = (loc - meridian) * np.sin(np.pi / 4)
+            diag_value_2 = (loc - meridian) * -np.sin(np.pi / 4)
+            window_locs = [(loc, meridian, 'circular'), (meridian, loc, 'radial'),
+                           (size-loc, meridian, 'circular'), (meridian, size-loc, 'radial'),
+                           (meridian+diag_value_1, meridian+diag_value_1, 'forward spiral'),
+                           (meridian+diag_value_1, meridian+diag_value_2, 'reverse spiral'),
+                           (meridian+diag_value_2, meridian+diag_value_2, 'forward spiral'),
+                           (meridian+diag_value_2, meridian+diag_value_1, 'reverse spiral')]
+        elif plot_view == 'quarter':
+            diag_value_1 = (loc - meridian) * np.sin(np.pi / 6)
+            diag_value_2 = (loc - meridian) * np.sin(np.pi / 3)
+            window_locs = [(size-loc, meridian, 'circular'), (meridian, loc, 'radial'),
+                           (meridian-diag_value_1, meridian+diag_value_2, 'forward spiral'),
+                           (meridian-diag_value_2, meridian+diag_value_1, 'reverse spiral')]
+        for loc_y, loc_x, stim_class in window_locs:
             loc_x, loc_y = int(loc_x), int(loc_y)
             ecc = R[loc_y, loc_x]
             # ecc * ecc_to_pix gives you the diameter, but we want the radius
             mask = utils.create_circle_mask(loc_x, loc_y, (ecc * ecc_to_pix) / 2, size)
             masks += mask
-            if loc_y == half_size:
-                opt_w = get_logpolar_freq(df.loc['radial'].coeff, df.loc['radial'].intercept, ecc)
+            opt_w = get_logpolar_freq(df.loc[stim_class].coeff, df.loc[stim_class].intercept, ecc)
+            if stim_class == 'radial':
                 windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_a=opt_w)
-            elif loc_x == half_size:
-                opt_w = get_logpolar_freq(df.loc['circular'].coeff, df.loc['circular'].intercept, ecc)
+            elif stim_class == 'circular':
                 windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w)
-            elif loc_x == loc_y:
-                opt_w = get_logpolar_freq(df.loc['forward spiral'].coeff,
-                                          df.loc['forward spiral'].intercept, ecc)
+            elif stim_class == 'forward spiral':
                 opt_w = np.round(opt_w / np.sqrt(2))
                 windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=opt_w)
-            else:
-                opt_w = get_logpolar_freq(df.loc['reverse spiral'].coeff,
-                                          df.loc['reverse spiral'].intercept, ecc)
+            elif stim_class == 'reverse spiral':
                 opt_w = np.round(opt_w / np.sqrt(2))
                 windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=-opt_w)
     windowed_plot[~masks.astype(bool)] += 1
