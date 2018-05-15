@@ -736,14 +736,24 @@ def tuning_params(tuning_df, save_path=None, **kwargs):
         g.fig.savefig(save_path)
 
 
-def period_summary_plot(radial_coeff, circular_coeff, RF_coeff=.16917155, n_windows=3, size=1080,
+def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
+                        model=linear_model.LinearRegression(), n_windows=3, size=1080,
                         max_visual_angle=24, save_path=None):
     """make plot that shows the optimal number of periods per receptive field
 
+    df: dataframe containing the summarized preferred periods. should contain three columns:
+    stimulus_superclass, eccen, and preferred_period. will fit model separately to each
+    stimulus_superclass (by default, linear regression, fitting the intercept) and then, at each
+    eccentricity, show the appropriate period (from the fitted line). because we allow the
+    intercept to be non-zero
+    
     this works by using the coefficients of the linear fits (with zero intercept) relating
     eccentricity to the period of the optimal grating stimulus (from measurements for both circular
     and radial stimuli) and to V1 receptive field size. We show the views of the circular stimuli
     along the vertical axis and the views of the radial along the horizontal axis.
+
+    pRF_size_slope should be for the diameter of what you want to display. for example, the default
+    is 4 * stddev, or the diameter of two standard deviations.
 
     n_windows: int, the number of windows on each side of the origin to show
     """
@@ -751,32 +761,54 @@ def period_summary_plot(radial_coeff, circular_coeff, RF_coeff=.16917155, n_wind
     # (as returned by stimuli.create_sf_maps_cpd; this is sqrt(w_r**2 + w_a**2)/r) with the optimal
     # spatial frequency as a function of eccentricity (1/(circular_coeff * r)), which gives us that
     # 1/circular_coeff = sqrt(w_r**2 + w_a**2). We then need to multiply the circular_coeff by
-    # 2*pi, since w_r / w_a are divided by 2*pi before returning them (similarly, for
-    # radial_coeff). We here are only producing circular and radial stimuli, so we set w_a / w_r
+    # 2*pi, since w_r and w_a are divided by 2*pi before returning them (similarly, for
+    # radial_coeff). We here are only producing circular and radial stimuli, so we set w_a or w_r
     # (respectively) to 0. we also round these to the nearest integer because we want them to not
     # have noticeable seams
-    opt_w_r = np.round((2 * np.pi) / circular_coeff)
-    opt_w_a = np.round((2 * np.pi) / radial_coeff)
-    opt_circular_stim = sfp_stimuli.log_polar_grating(size, w_r=opt_w_r)
-    opt_radial_stim = sfp_stimuli.log_polar_grating(size, w_a=opt_w_a)
+    def get_logpolar_freq(slope, intercept, ecc):
+        coeff = (slope*ecc + intercept) / ecc
+        return np.round((2 * np.pi) / coeff)
+    def fit_model(data, model=linear_model.LinearRegression()):
+        x = data.eccen.values
+        y = data.preferred_period.values
+        model.fit(x.reshape(-1, 1), y)
+        return pd.Series({'coeff': model.coef_[0], 'intercept': model.intercept_})
+    df = df.groupby('stimulus_superclass').apply(fit_model)
     windowed_plot = np.zeros((size, size))
     R = ppt.mkR(size) * (float(max_visual_angle) / size)
-    ecc_to_pix = RF_coeff * (float(size) / max_visual_angle)
+    ecc_to_pix = pRF_size_slope * (float(size) / max_visual_angle) + pRF_size_offset
     masks = np.zeros((size, size))
     half_size = int(size / 2)
     for loc in range(half_size, size, int(half_size / (n_windows+2)))[1:]:
+        diag_value = (loc - half_size) / np.sqrt(2)
         # we do x and y separately because there's a chance a rounding issue will mean they differ
         # slightly
         for loc_y, loc_x in [(loc, half_size), (half_size, loc), (size-loc, half_size),
-                             (half_size, size-loc)]:
+                             (half_size, size-loc), (half_size+diag_value, half_size+diag_value),
+                             (half_size+diag_value, half_size-diag_value),
+                             (half_size-diag_value, half_size-diag_value),
+                             (half_size-diag_value, half_size+diag_value)]:
+            loc_x, loc_y = int(loc_x), int(loc_y)
             ecc = R[loc_y, loc_x]
             # ecc * ecc_to_pix gives you the diameter, but we want the radius
             mask = utils.create_circle_mask(loc_x, loc_y, (ecc * ecc_to_pix) / 2, size)
             masks += mask
             if loc_y == half_size:
-                windowed_plot += mask * opt_radial_stim
+                opt_w = get_logpolar_freq(df.loc['radial'].coeff, df.loc['radial'].intercept, ecc)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_a=opt_w)
+            elif loc_x == half_size:
+                opt_w = get_logpolar_freq(df.loc['circular'].coeff, df.loc['circular'].intercept, ecc)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w)
+            elif loc_x == loc_y:
+                opt_w = get_logpolar_freq(df.loc['forward spiral'].coeff,
+                                          df.loc['forward spiral'].intercept, ecc)
+                opt_w = np.round(opt_w / np.sqrt(2))
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=opt_w)
             else:
-                windowed_plot += mask * opt_circular_stim
+                opt_w = get_logpolar_freq(df.loc['reverse spiral'].coeff,
+                                          df.loc['reverse spiral'].intercept, ecc)
+                opt_w = np.round(opt_w / np.sqrt(2))
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=-opt_w)
     windowed_plot[~masks.astype(bool)] += 1
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     im_plot(windowed_plot, ax=ax)
