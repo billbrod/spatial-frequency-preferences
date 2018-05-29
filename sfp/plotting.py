@@ -738,7 +738,8 @@ def tuning_params(tuning_df, save_path=None, **kwargs):
 
 def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
                         model=linear_model.LinearRegression(), n_windows=4, size=1080,
-                        max_visual_angle=24, plot_view='full', save_path=None):
+                        max_visual_angle=24, plot_view='full', center_spot_rad=2,
+                        stimulus_superclass=None, save_path=None):
     """make plot that shows the optimal number of periods per receptive field
 
     df: dataframe containing the summarized preferred periods. should contain three columns:
@@ -746,7 +747,7 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     stimulus_superclass (by default, linear regression, fitting the intercept) and then, at each
     eccentricity, show the appropriate period (from the fitted line). because we allow the
     intercept to be non-zero
-    
+
     this works by using the coefficients of the linear fits (with zero intercept) relating
     eccentricity to the period of the optimal grating stimulus (from measurements for both circular
     and radial stimuli) and to V1 receptive field size. We show the views of the circular stimuli
@@ -757,7 +758,13 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
 
     n_windows: int, the number of windows on each side of the origin to show
 
-    plot_view: {'full', 'quarter'}. whether to plot a full or quarter view.
+    plot_view: {'full', 'quarter', 'aligned'}. whether to plot a full, quarter, or aligned view. if
+    aligned, can only plot one stimulus superclass and will do always do so along the horizontal
+    meridian (for combining by hand afterwards).
+
+    stimulus_superclass: which stimulus superclasses to plot. if None, will plot all that are in
+    the dataframe. note that we don't re-adjust spacing to make it look good for fewer than 4
+    superclasses, so that's on you.
     """
     # these values were found analytically, by comparing the analytical spatial frequency magnitude
     # (as returned by stimuli.create_sf_maps_cpd; this is sqrt(w_r**2 + w_a**2)/r) with the optimal
@@ -770,17 +777,37 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     def get_logpolar_freq(slope, intercept, ecc):
         coeff = (slope*ecc + intercept) / ecc
         return np.round((2 * np.pi) / coeff)
+
     def fit_model(data, model=linear_model.LinearRegression()):
         x = data.eccen.values
         y = data.preferred_period.values
         model.fit(x.reshape(-1, 1), y)
         return pd.Series({'coeff': model.coef_[0], 'intercept': model.intercept_})
+
+    def logpolar_solve_for_global_phase(x, y, w_r, w_a, local_phase=0):
+        origin = ((size+1) / 2., (size+1) / 2.)
+        x_orig, y_orig = np.meshgrid(np.array(range(1, size+1))-origin[0],
+                                     np.array(range(1, size+1))-origin[1])
+        local_x = x_orig[y, x]
+        local_y = y_orig[y, x]
+        return np.mod(local_phase - (((w_r*np.log(2))/2.)*np.log2(local_x**2+local_y**2) +
+                                     w_a*np.arctan2(local_y, local_x)), 2*np.pi)
+
+    if stimulus_superclass is None:
+        stimulus_superclass = df.stimulus_superclass.unique()
+    if plot_view == 'aligned' and len(stimulus_superclass) != 1:
+        raise Exception("Can only plot aligned view if plotting 1 stimulus_superclass")
     df = df.groupby('stimulus_superclass').apply(fit_model)
     windowed_plot = np.zeros((size, size))
     R = ppt.mkR(size) * (float(max_visual_angle) / size)
     ecc_to_pix = pRF_size_slope * (float(size) / max_visual_angle) + pRF_size_offset
     masks = np.zeros((size, size))
     meridian = int(size / 2)
+    # we put this into masks so it doesn't get adjusted at the end and we set it to -1 so it
+    # appears black.
+    masks[meridian-center_spot_rad:meridian+center_spot_rad,
+          meridian-center_spot_rad:meridian+center_spot_rad] = 1
+    windowed_plot[masks.astype(bool)] = -1
     view_range = range(meridian, size, int(meridian / (n_windows+1)))[1:]
     for loc in view_range:
         # we do x and y separately because there's a chance a rounding issue will mean they differ
@@ -800,7 +827,11 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
             window_locs = [(size-loc, meridian, 'circular'), (meridian, loc, 'radial'),
                            (meridian-diag_value_1, meridian+diag_value_2, 'forward spiral'),
                            (meridian-diag_value_2, meridian+diag_value_1, 'reverse spiral')]
+        elif plot_view == 'aligned':
+            window_locs = [(meridian, loc, stimulus_superclass[0])]
         for loc_y, loc_x, stim_class in window_locs:
+            if stim_class not in stimulus_superclass:
+                continue
             loc_x, loc_y = int(loc_x), int(loc_y)
             ecc = R[loc_y, loc_x]
             # ecc * ecc_to_pix gives you the diameter, but we want the radius
@@ -808,15 +839,21 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
             masks += mask
             opt_w = get_logpolar_freq(df.loc[stim_class].coeff, df.loc[stim_class].intercept, ecc)
             if stim_class == 'radial':
-                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_a=opt_w)
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, 0, opt_w)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_a=opt_w, phi=phase)
             elif stim_class == 'circular':
-                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w)
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, opt_w, 0)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, phi=phase)
             elif stim_class == 'forward spiral':
                 opt_w = np.round(opt_w / np.sqrt(2))
-                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=opt_w)
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, opt_w, opt_w)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=opt_w,
+                                                                      phi=phase)
             elif stim_class == 'reverse spiral':
                 opt_w = np.round(opt_w / np.sqrt(2))
-                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=-opt_w)
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, opt_w, -opt_w)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=-opt_w,
+                                                                      phi=phase)
     windowed_plot[~masks.astype(bool)] += 1
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     im_plot(windowed_plot, ax=ax)
