@@ -248,6 +248,7 @@ def stimuli_properties(df, save_path=None):
     sns.despine()
     if save_path is not None:
         fig.savefig(save_path, bbox_inches='tight')
+    return fig
 
 
 def local_spatial_frequency(df, save_path=None, **kwargs):
@@ -281,6 +282,7 @@ def local_spatial_frequency(df, save_path=None, **kwargs):
                        fontsize=15)
     if save_path is not None:
         g.fig.savefig(save_path, bbox_inches='tight')
+    return g
 
 
 def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 84],
@@ -489,134 +491,6 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
     plt.tight_layout()
     if save_path is not None:
         fig.savefig(save_path)
-
-
-def compare_hypotheses(df, size=4, aspect=2, save_path=None):
-    """make plots to compare hypotheses
-    """
-    if 'rounded_freq_space_distance' in df.columns:
-        col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
-    else:
-        col_order = [i for i in CONSTANT_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
-
-    if 'bootstrap_num' in df.columns:
-        df = df[['eccen', 'amplitude_estimate', 'freq_space_distance', 'Local spatial frequency (cpd)',
-                 'bootstrap_num', 'stimulus_superclass']]
-        df = pd.melt(df, ['eccen', 'amplitude_estimate', 'bootstrap_num', 'stimulus_superclass'],
-                     var_name='Frequency')
-        log_norm_func = utils.fit_log_norm_ci
-        plot_kwargs = {'ci_vals': [16, 84]}
-    else:
-        df = df[['eccen', 'amplitude_estimate_median', 'freq_space_distance',
-                 'Local spatial frequency (cpd)', 'stimulus_superclass']]
-        df = pd.melt(df, ['eccen', 'amplitude_estimate_median', 'stimulus_superclass'],
-                     var_name='Frequency')
-        df = df.rename(columns={'amplitude_estimate_median': 'amplitude_estimate'})
-        log_norm_func = utils.fit_log_norm
-        plot_kwargs = {}
-
-    with sns.axes_style('white'):
-        g = sns.FacetGrid(df, hue='eccen', row='Frequency', palette='Reds', sharex=False,
-                          col='stimulus_superclass', aspect=aspect, col_order=col_order, size=size,
-                          row_order=['Local spatial frequency (cpd)', 'freq_space_distance'])
-        g.map_dataframe(log_norm_func, 'value', 'amplitude_estimate', **plot_kwargs)
-        # we use this so we can just plot the mean value (it plays nicely with FacetGrid)
-        g.map(sns.regplot, 'value', 'amplitude_estimate', x_estimator=np.mean, fit_reg=False, ci=0)
-        xmin = 2**np.floor(np.log2(df.groupby('Frequency').value.min()))
-        xmax = 2**np.ceil(np.log2(df.groupby('Frequency').value.max()))
-        for i, (ax, (n, _)) in enumerate(zip(g.axes.flatten(), df.groupby(['Frequency', 'stimulus_superclass']))):
-            if i < df.stimulus_superclass.nunique():
-                ax.set_title('Response as function of local spatial frequency (cycles / degree) | '
-                             'stimulus_superclass = %s' % n[1])
-            else:
-                ax.set_title('Response as function of stimulus | stimulus_superclass = %s' % n[1])
-                
-            ax.set_xlim([xmin[n[0]], xmax[n[0]]])
-            ax.set_xscale('log', basex=2)
-            ax.set_ylabel("Response amplitude estimate")
-        legend_data = {}
-        legend_order = []
-        for k in sorted(g._legend_data.keys()):
-            new_name = "%i-%i" % (int(k.split('-')[0]), int(k.split('-')[1]))
-            legend_data[new_name] = g._legend_data[k]
-            legend_order.append(new_name)
-        g.add_legend(legend_data, "Eccentricity (degrees)", legend_order)
-        g.set_xlabels('Frequency')
-    if save_path is not None:
-        g.fig.savefig(save_path, bbox_inches='tight')
-    return g
-
-
-# NEED TO GET FIGURE TITLE SIZES BETTER AND FIGURE OUT RELIABLE WAY TO PLACE IMAGES WITH DIFFERENT
-# NUMBERS OF COLUMNS
-def compare_hypotheses_talk(df, axis_imgs, axis_img_locs=[(.025, .05), .6], save_path=None,
-                            **kwargs):
-    """make talk version of compare hypotheses plot
-
-    axis_imgs: the specified images to plot on the x-axis. The images will be masked to place on
-    the x-axis of the local frequency plot and will be used unmodified on the stimulus space plot.
-
-    axis_img_locs: list made up of 2-tuples and floats. the relative positions of the images on the
-    x axis. should have one entry for each image in axis_imgs. if a 2-tuple, the first is the
-    position in the local frequency plot, the second in the stimulus space plot. if a float, same
-    position will be used for both. will be passed to utils.add_img_to_xaxis as the rel_position
-    arg.
-
-    returns the FacetGrid containing the plot
-    """
-    # this arbitrary bit of code makes a well-sized mask
-    mask = utils.create_circle_mask(750, 350, 10*1080/(2*2*12), 1080)
-    windowed_axis_imgs = [mask * s + ~mask.astype(bool)*127 for s in axis_imgs]
-    with sns.plotting_context('poster'):
-        g = compare_hypotheses(df, 5)
-        plt.subplots_adjust(hspace=.6)
-        for i, ax in enumerate(g.axes.flatten()):
-            img_idx = {True: 0, False: 1}.get(i < df.stimulus_superclass.nunique())
-            for pos, img in zip(axis_img_locs, [windowed_axis_imgs, axis_imgs][img_idx]):
-                try:
-                    add_img_to_xaxis(g.fig, ax, img, pos[img_idx], vmin=0, vmax=255, size=.15)
-                except TypeError:
-                    add_img_to_xaxis(g.fig, ax, img, pos, vmin=0, vmax=255, size=.15)
-            ax.xaxis.set_visible(False)
-    if save_path is not None:
-        g.fig.savefig(save_path, bbox_inches='tight')
-    return g
-
-
-def get_tuning_curve_properties(df, id_vars=['stimulus_superclass', 'eccen', 'bootstrap_num']):
-    """fits log normal tuning curves to data, returns peak and bandwidth
-    """
-    new_df = []
-    for i, (n, g) in enumerate(df.groupby(id_vars)):
-        # there are two possibilities: either g only contains one amplitude estimate for each
-        # spatial frequency or it contains several (which means that id_vars didn't restrict it
-        # down too far). the following guarantees that we have one value per local spatial
-        # frequency, leaving it unchanged if that's already the case
-        data = g.groupby('Local spatial frequency (cpd)')['amplitude_estimate'].mean()
-        popt, _ = sp.optimize.curve_fit(utils.log_norm_pdf, data.index, data.values)
-        # popt contains a, mu, and sigma, in that order
-        mode, var = utils.log_norm_describe(popt[1], popt[2])
-        df_data = dict((k, v) for k, v in zip(id_vars, n))
-        df_data.update({'peak': mode, 'bandwidth': var})
-        # we want to change eccentricity to a number
-        if 'eccen' in df_data:
-            df_data['eccen'] = np.mean([float(i) for i in df_data['eccen'].split('-')])
-        new_df.append(pd.DataFrame(df_data, index=[i]))
-    return pd.concat(new_df)
-
-
-def peak_spatial_frequency(df, id_vars=['stimulus_superclass']):
-    """create peak spatial frequency plot
-    """
-    df = df[['stimulus_superclass', 'eccen', 'Local spatial frequency (cpd)',
-             'amplitude_estimate', 'bootstrap_num']]
-    df = get_tuning_curve_properties(df, id_vars + ['eccen'])
-    peak_df = []
-    for i, (n, g) in enumerate(df.groupby(id_vars)):
-        peak_a, _ = sp.optimize.curve_fit(utils.flat_hyperbola, g.eccen.values, g.peak.values)
-        peak_df.append(g.assign(peak_hyperbola_param=peak_a[0]))
-    peak_df = pd.concat(peak_df)
-    return peak_df
 
 
 def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
