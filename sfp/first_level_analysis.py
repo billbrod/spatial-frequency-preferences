@@ -332,11 +332,11 @@ def calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg=12, eccen_bi
     (for actual stimuli)
     """
     if stim_type in ['logpolar', 'pilot']:
-        mag = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2, stim_type=stim_type,
-                                             w_r=w_1, w_a=w_2)
+        _, _, mag, _ = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2,
+                                                      stim_type=stim_type, w_r=w_1, w_a=w_2)
     elif stim_type == 'constant':
-        mag = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2, stim_type=stim_type,
-                                             w_x=w_1, w_y=w_2)
+        _, _, mag, _ = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2,
+                                                      stim_type=stim_type, w_x=w_1, w_y=w_2)
     R = ppt.mkR(stim.shape[0])
 
     # this limits the frequency maps to only where our stimulus has a grating.
