@@ -533,17 +533,6 @@ def get_first_level_analysis_input(wildcards):
     return input_dict
 
 
-def get_binning(wildcards):
-    bin_str = ""
-    if "eccen_bin" in wildcards.binning:
-        bin_str += "--eccen_bin "
-    if "hemi_bin" in wildcards.binning:
-        bin_str += "--hemi_bin"
-    if not bin_str:
-        warnings.warn("We are NOT binning anything! Note this can take a while.")
-    return bin_str
-
-
 def get_stim_type(wildcards):
     if 'pilot' in wildcards.session:
         return 'pilot'
@@ -567,7 +556,6 @@ rule first_level_analysis:
         save_dir = lambda wildcards, output: os.path.dirname(output[0]),
         vareas = lambda wildcards: wildcards.vareas.split('-'),
         eccen = lambda wildcards: wildcards.eccen.split('-'),
-        bin_str = get_binning,
         results_template = lambda wildcards, input: input.R2_files[0].replace('lh', '%s').replace('R2', '%s'),
         benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
         benson_names = lambda wildcards, input: [i.split('_')[-1].replace('.mgz', '') for i in input.benson_paths if 'lh' in i],
@@ -580,7 +568,7 @@ rule first_level_analysis:
         os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}.log")
     shell:
         "python sfp/first_level_analysis.py --save_dir {params.save_dir} --vareas {params.vareas} "
-        "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} {params.bin_str} "
+        "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} "
         "--unshuffled_stim_descriptions_path {input.desc_csv} --unshuffled_stim_path {input.stim} "
         "--save_stem {params.save_stem} --class_nums {params.class_num} --stim_type "
         "{params.stim_type} --mid_val {params.mid_val} --benson_template_names "

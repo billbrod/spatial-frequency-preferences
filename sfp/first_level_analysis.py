@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""functions to run first-level MRI analyses
+"""arranges results mgzs into a dataframe for further analyses
 """
 import matplotlib as mpl
 # we do this because sometimes we run this without an X-server, and this backend doesn't need one
@@ -79,38 +79,6 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
         k, v = _arrange_helper(hemi, var, results_template_path, varea_mask, eccen_mask)
         mgzs[k] = v
 
-    return mgzs
-
-
-def _bin_mgzs_dict(mgzs, results_names, eccen_range, vareas, hemi_bin=True,
-                   benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
-    """bins by eccentricity and, optionally, hemisphere (if hemi_bin is true)
-
-    vareas: list of ints. which visual areas (as defined in the Benson visual area template) to
-    include. all others will be discarded.
-
-    eccen_range: 2-tuple of ints or floats. What range of eccentricities to include (as specified
-    in the Benson eccentricity template).
-
-    benson_template_names: list of labels that specify which output files we loaded from the Benson
-    retinotopy. The complete list is the default, ['varea', 'angle', 'sigma', 'eccen']. For this
-    analysis to work, must contain 'varea' and 'eccen'.
-    """
-    for hemi in ['lh', 'rh']:
-        masks = []
-        for area in vareas:
-            for i in range(*eccen_range):
-                masks.append((mgzs['eccen-%s' % hemi] > i) & (mgzs['eccen-%s' % hemi] < i+1) & (mgzs['varea-%s' % hemi] == area))
-        for res in results_names + benson_template_names:
-            res_name = os.path.split(res)[-1]
-            tmp = mgzs['%s-%s' % (res_name, hemi)]
-            mgzs['%s-%s' % (res_name, hemi)] = np.array([np.nanmean(tmp[m], 0) for m in masks])
-    if hemi_bin:
-        mgzs_tmp = {}
-        for res in results_names + benson_template_names:
-            res_name = os.path.split(res)[-1]
-            mgzs_tmp[res_name] = np.nanmean([mgzs['%s-lh' % res_name], mgzs['%s-rh' % res_name]], 0)
-        mgzs = mgzs_tmp
     return mgzs
 
 
@@ -224,19 +192,16 @@ def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None,
     return df
 
 
-def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin=True, hemi_bin=True,
+def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode,
                            benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
-    if not hemi_bin:
-        df = {}
-        for hemi in ['lh', 'rh']:
-            df[hemi] = _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi, benson_template_names)
+    df = {}
+    for hemi in ['lh', 'rh']:
+        df[hemi] = _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi, benson_template_names)
 
-        # because python 0-indexes, the minimum voxel number is 0. thus if we were to just add the
-        # max, the min in the right hemi would be the same as the max in the left hemi
-        df['rh'].voxel = df['rh'].voxel + df['lh'].voxel.max()+1
-        df = pd.concat(df).reset_index(0, drop=True)
-    else:
-        df = _setup_mgzs_for_df(mgzs, results_names, df_mode, None, benson_template_names)
+    # because python 0-indexes, the minimum voxel number is 0. thus if we were to just add the
+    # max, the min in the right hemi would be the same as the max in the left hemi
+    df['rh'].voxel = df['rh'].voxel + df['lh'].voxel.max()+1
+    df = pd.concat(df).reset_index(0, drop=True)
 
     df = df.set_index('stimulus_class')
     df = df.join(stim_df)
@@ -244,8 +209,6 @@ def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin=True
     # Add the stimulus frequency information
     df = _add_freq_metainfo(df)
 
-    if eccen_bin:
-        df['eccen'] = df['eccen'].apply(lambda x: '%02d-%02d' % (np.floor(x), np.ceil(x)))
     return df
 
 
@@ -303,26 +266,12 @@ def find_ecc_range_in_degrees(stim, stim_rad_deg, mid_val=128):
     return Rmin / factor, Rmax / factor
 
 
-def calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg=12, eccen_bin=True,
-                            eccen_range=(1, 12), eccens=[], plot_flag=False, mid_val=128):
+def calculate_stim_local_sf(stim, w_1, w_2, stim_type, eccens, angles, stim_rad_deg=12,
+                            plot_flag=False, mid_val=128):
     """calculate the local spatial frequency for a specified stimulus and screen size
 
-    NOTE: this assumes that the local spatial frequency does not depend on angle, only on
-    eccentricity. this is true for the log polar stimuli and the constant grating stimuli created
-    for this experiment.
-
-    This works slightly differently if you are binning by eccentricity or not (i.e., depending on
-    whether eccen_bin is True or False). If binning, then we take the annulus with inner edge i
-    degrees from the origin and outer edge i+1 degrees (where i runs from eccen_range[0] to
-    eccen_range[1]-1) and average together the local spatial frequency found there.
-
-    If not binning, eccen_range is ignored, and eccens must be specified. We then look for the
-    spatial frequency at the closest eccentricity value we have in the
-    distance(-in-degrees)-from-origin map (made by rescaling the output of ppt.mkR()) for each
-    value in eccens.
-
     stim: 2d array of floats. an example stimulus. used to determine where the stimuli are masked
-    and to mask the calculated spatial frequency in the same way.
+    (and thus where the spatial frequency is zero).
 
     w_1, w_2: ints or floats. the first and second components of the stimulus's spatial
     frequency. if stim_type is 'logarpolar' or 'pilot', this should be the radial and angular
@@ -333,6 +282,9 @@ def calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg=12, eccen_bi
     we're analyzing. This matters because it changes the local spatial frequency and, since that is
     determined analytically and not directly from the stimuli, we have no way of telling otherwise.
 
+    eccens, angles: lists of floats. these are the eccentricities and angles we want to find
+    local spatial frequency for.
+
     stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
 
     plot_flag: boolean, optional, default False. Whether to create a plot showing the local spatial
@@ -341,50 +293,35 @@ def calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg=12, eccen_bi
     mid_val: int. the value of mid-grey in the stimuli, should be 127 (for pilot stimuli) or 128
     (for actual stimuli)
     """
-    if stim_type in ['logpolar', 'pilot']:
-        _, _, mag, _ = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2,
-                                                      stim_type=stim_type, w_r=w_1, w_a=w_2)
-    elif stim_type == 'constant':
-        _, _, mag, _ = sfp_stimuli.create_sf_maps_cpd(stim.shape[0], stim_rad_deg*2,
-                                                      stim_type=stim_type, w_x=w_1, w_y=w_2)
-    R = ppt.mkR(stim.shape[0])
-
-    # this limits the frequency maps to only where our stimulus has a grating.
-    mag = utils.mask_array_like_grating(stim, mag, mid_val)
-
-    # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
-    # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of
-    # the screen, because R starts from the center and goes to the edge
-    R = R/(R.max()/np.sqrt(2*stim_rad_deg**2))
-
-    if eccen_bin:
-        # create masks that look at each degree
-        bin_masks = []
-        eccen_idx = []
-        for i in range(*eccen_range):
-            bin_masks.append((R > i) & (R < (i+1)))
-            eccen_idx.append('%02d-%02d' % (i, i+1))
-
-        eccen_local_freqs = []
-        eccens = []
-        for m in bin_masks:
-            eccens.append(R[m].mean())
-            eccen_local_freqs.append(mag[m].mean())
-    else:
-        eccen_idx = eccens
-        eccen_local_freqs = [mag.flatten()[abs(R - e).argmin()] for e in eccens]
+    eccen_min, eccen_max = find_ecc_range_in_degrees(stim, stim_rad_deg, mid_val)
+    eccen_local_freqs = []
+    for i, (e, a) in enumerate(zip(eccens, angles)):
+        if stim_type in ['logpolar', 'pilot']:
+            dx, dy, mag, direc = sfp_stimuli.sf_cpd(stim.shape[0], stim_rad_deg*2, e, a,
+                                                    stim_type=stim_type, w_r=w_1, w_a=w_2)
+            dr, da = sfp_stimuli.sf_origin_polar_cpd(stim.shape[0], stim_rad_deg*2, e, a,
+                                                     stim_type=stim_type, w_r=w_1, w_a=w_2)
+        elif stim_type == 'constant':
+            dx, dy, mag, direc = sfp_stimuli.sf_cpd(stim.shape[0], stim_rad_deg*2, e, a,
+                                                    stim_type=stim_type, w_x=w_1, w_y=w_2)
+            dr, da = sfp_stimuli.sf_origin_polar_cpd(stim.shape[0], stim_rad_deg*2, e, a,
+                                                     stim_type=stim_type, w_x=w_1, w_y=w_2)
+        eccen_local_freqs.append(pd.DataFrame(
+            {'local_w_x': dx, 'local_w_y': dy, 'local_w_r': dr, 'local_w_a': da, 'eccen': e,
+             'angle': a, 'local_sf_magnitude': mag, 'local_sf_direction': direc}, [i]))
+    eccen_local_freqs = pd.concat(eccen_local_freqs)
 
     if plot_flag:
-        plt.plot(eccens, eccen_local_freqs)
+        plt.plot(eccen_local_freqs['eccen'], eccen_local_freqs['local_sf_magnitude'])
         ax = plt.gca()
         ax.set_title('Spatial frequency vs eccentricity')
         ax.set_xlabel('Eccentricity (degrees)')
         ax.set_ylabel('Local spatial frequency (cpd)')
 
-    return pd.Series(eccen_local_freqs, eccen_idx)
+    return eccen_local_freqs
 
 
-def _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_deg=12, mid_val=128):
+def _add_local_sf_to_df(df, stim, stim_type, stim_rad_deg=12, mid_val=128):
     """Adds local spatial frequency information for all stimuli to the df
     """
     try:
@@ -396,18 +333,16 @@ def _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_de
     sfs = []
 
     for w_1, w_2, stim_class in freqs.values:
-        tmp = calculate_stim_local_sf(stim, w_1, w_2, stim_type, stim_rad_deg, eccen_bin,
-                                      eccen_range, df.eccen.unique(), mid_val=mid_val)
-        tmp = pd.DataFrame(tmp, columns=['Local spatial frequency (cpd)'])
-        tmp.index.name = 'eccen'
+        tmp = calculate_stim_local_sf(stim, w_1, w_2, stim_type, df.eccen.values, df.angle.values,
+                                      stim_rad_deg, mid_val=mid_val)
         tmp[freq_labels[0]] = w_1
         tmp[freq_labels[1]] = w_2
         tmp['stimulus_superclass'] = stim_class
         sfs.append(tmp)
 
     sfs = pd.concat(sfs)
-    sfs = sfs.reset_index().set_index(['stimulus_superclass', freq_labels[0], freq_labels[1], 'eccen'])
-    df = df.set_index(['stimulus_superclass', freq_labels[0], freq_labels[1], 'eccen'])
+    sfs = sfs.set_index(['stimulus_superclass', freq_labels[0], freq_labels[1], 'eccen', 'angle'])
+    df = df.set_index(['stimulus_superclass', freq_labels[0], freq_labels[1], 'eccen', 'angle'])
     df = df.join(sfs)
 
     return df.reset_index()
@@ -427,9 +362,29 @@ def _add_baseline(df):
         return pd.concat(new_df)
 
 
+def _transform_angle(x):
+    """transform angle from Benson14 convention to our convention
+
+    The Benson atlases' convention for angle in visual field is: zero is the upper vertical
+    meridian, angle is in degrees, the left and right hemisphere both run from 0 to 180 from the
+    upper to lower meridian (so they increase as you go clockwise and counter-clockwise,
+    respectively). For our calculations, we need the following convention: zero is the right
+    horizontal meridian, angle is in radians (and lie between 0 and 2*pi, rather than -pi and pi),
+    angle increases as you go clockwise, and each angle is unique (refers to one point on the
+    visual field; we don't have the same number in the left and right hemispheres)
+    """
+    ang = x.angle
+    if x.hemi == 'rh':
+        # we want to remap the right hemisphere angles to negative. Noah says this is the
+        # convention, but I have seen positive values there, so maybe it changed at one point.
+        if ang > 0:
+            ang = -ang
+    return np.mod(np.radians(ang - 90), 2*np.pi)
+
+
 def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
-         save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), eccen_bin=True,
-         hemi_bin=True, stim_rad_deg=12, benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
+         save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
+         benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
          unshuffled_stim_path="../data/stimuli/unshuffled.npy",
          unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv",
          mid_val=128):
@@ -468,14 +423,6 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
 
     eccen_range: 2-tuple of ints or floats. What range of eccentricities to include.
 
-    eccen_bin: boolean, default True. Whether to bin the eccentricities in integer
-    increments. HIGHLY RECOMMENDED to be True if df_mode=='full', otherwise this will take much
-    longer and the resulting DataFrame will be absurdly large and unwieldy.
-
-    hemi_bin: boolean, default True. Does nothing if eccen_bin is False, but if eccen_bin is True,
-    average corresponding eccentricity ROIs across the two hemispheres. Generally, this is what you
-    want, unless you also to examine differences between the two hemispheres.
-
     stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
 
     benson_template_names: list of labels that specify which output files to get from the Benson
@@ -504,15 +451,8 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
         results_names = ['modelse', 'modelmd']
     elif df_mode == 'full':
         results_names = ['models_class_%02d' % i for i in class_nums]
-        if not eccen_bin:
-            warnings.warn("Not binning by eccentricities while constructing the full DataFrame is "
-                          "NOT recommended! This may fail because you run out of memory!")
     else:
         raise Exception("Don't know how to construct df with df_mode %s!" % df_mode)
-    if hemi_bin and not eccen_bin:
-        warnings.warn("You set eccen_bin to False but hemi_bin to True. I can only bin across "
-                      "hemispheres if also binning eccentricities!")
-        hemi_bin = False
     if not os.path.isfile(benson_template_path % ('lh', 'varea')):
         raise Exception("Unable to find the Benson visual areas template! Check your "
                         "benson_template_path!")
@@ -529,19 +469,16 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
             sns.distplot(plot_data, ax=ax)
             ax.set_title("R2 for %s, data originally contained %s NaNs" % (hemi, num_nans))
         fig.savefig(save_path.replace('.csv', '_R2.svg'))
-    if eccen_bin:
-        mgzs = _bin_mgzs_dict(mgzs, results_names+['R2'], eccen_range, vareas, hemi_bin,
-                              benson_template_names)
 
     results_names = [os.path.split(i)[-1] for i in results_names]
 
-    df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, eccen_bin, hemi_bin,
-                                benson_template_names)
+    df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, benson_template_names)
     df.varea = df.varea.astype(int)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     if stim_type in ['logpolar', 'pilot']:
         df = _round_freq_space_distance(df, core_dists)
-    df = _add_local_sf_to_df(df, eccen_bin, eccen_range, stim, stim_type, stim_rad_deg, mid_val)
+    df['angle'] = df.apply(_transform_angle, 1)
+    df = _add_local_sf_to_df(df, stim, stim_type, stim_rad_deg, mid_val)
     df = _add_baseline(df)
 
     if save_path is not None:
@@ -597,16 +534,6 @@ if __name__ == '__main__':
     parser.add_argument("--eccen_range", "-r", nargs=2, default=(1, 12), type=int,
                         help=("2-tuple of ints or floats. What range of eccentricities to "
                               "include."))
-    parser.add_argument("--eccen_bin", action="store_true",
-                        help=("Whether to bin the eccentricities in integer"
-                              "increments. HIGHLY RECOMMENDED to be True if df_mode=='full', "
-                              "otherwise this will take much longer and the resulting DataFrame "
-                              "will be absurdly large and unwieldy."))
-    parser.add_argument("--hemi_bin", action="store_true",
-                        help=("Does nothing if eccen_bin is False, but if "
-                              "eccen_bin is True, average corresponding eccentricity ROIs across "
-                              "the two hemispheres. Generally, this is what you want, unless you "
-                              "also to examine differences between the two hemispheres."))
     parser.add_argument("--stim_rad_deg", default=12, type=float,
                         help="float, the radius of the stimulus, in degrees of visual angle")
     parser.add_argument("--benson_template_names", nargs='+',
@@ -633,17 +560,7 @@ if __name__ == '__main__':
     save_stem = args.pop('save_stem')
     save_dict = {'df_mode': args['df_mode'], 'vareas': '-'.join(str(i) for i in args['vareas']),
                  'eccen': '-'.join(str(i) for i in args['eccen_range'])}
-    if args['eccen_bin']:
-        save_dict['eccen_bin'] = '_eccen_bin'
-    else:
-        save_dict['eccen_bin'] = ''
-    if args['hemi_bin']:
-        save_dict['hemi_bin'] = '_hemi_bin'
-    else:
-        save_dict['hemi_bin'] = ''
-    if not args['hemi_bin'] and not args['eccen_bin']:
-        save_dict['eccen_bin'] = '_no_bin'
-    save_name = "v{vareas}_e{eccen}{eccen_bin}{hemi_bin}_{df_mode}.csv".format(**save_dict)
+    save_name = "v{vareas}_e{eccen}_{df_mode}.csv".format(**save_dict)
     args['save_path'] = os.path.join(save_dir, save_stem+save_name)
     args['class_nums'] = xrange(args['class_nums'])
     if not os.path.isdir(os.path.dirname(args['save_path'])):
