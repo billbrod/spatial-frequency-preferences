@@ -23,9 +23,9 @@ def log_polar_grating(size, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_fact
     Examples
     ============
 
-    circular: `log_polar_grating(512, 4, 10)`
+    radial: `log_polar_grating(512, 4, 10)`
 
-    radial: `log_polar_grating(512, 4, w_a=10)`
+    angular: `log_polar_grating(512, 4, w_a=10)`
 
     spiral: `log_polar_grating(512, 4, 10, 10)`
 
@@ -435,9 +435,7 @@ def create_antialiasing_mask(size, w_r=0, w_a=0, origin=None, number_of_fade_pix
     Because of how our stimuli are created, they have higher spatial frequency at the origin
     (probably center of the image) than at the edge of the image. This makes it a little harder to
     determine where aliasing will happen. for the specified arguments, this will create the mask
-    that will hide the aliasing of the grating(s) with these arguments. *NOTE* that this means they
-    must have the same of all these arguments: a circular grating with this specified w_r and w_a=0
-    and a radial one with this w_a and w_r=0 need two different masks.
+    that will hide the aliasing of the grating(s) with these arguments.
 
     the mask will not be strictly binary, there will a `number_of_fade_pixels` where it transitions
     from 0 to 1. this transition is half of a cosine.
@@ -622,7 +620,7 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
 
     combo_stimuli_type: list with possible elements {'spiral', 'plaid'}. type of stimuli to create
     when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
-    create circular and radial stimuli, just include 0 in w_a or w_r, respectively).
+    create radial and angular stimuli, just include 0 in w_a or w_r, respectively).
 
     bytescale: boolean, default True. if True, calls smisc.bytescale(cmin=-1, cmax=1) on
     image to rescale it to between 0 and 255, with dtype uint8. this is done because this is
@@ -755,9 +753,9 @@ def _gen_freqs(base_freqs, round_flag=True):
 
     base frequencies are the distance from the center of frequency space.
     """
-    # circular / vertical, where w_r/w_x=0
+    # radial / vertical, where w_r/w_x=0
     freqs = [(0, f) for f in base_freqs]
-    # radial / horizontal, where w_a/w_y=0
+    # angular / horizontal, where w_a/w_y=0
     freqs.extend([(f, 0) for f in base_freqs])
     # spirals / diagonals, where w_a/w_y=w_r/w_x or -w_a/-w_y=w_r/w_x
     freqs.extend([(f*np.sin(np.pi/4), f*np.sin(np.pi/4)) for f in base_freqs])

@@ -132,7 +132,7 @@ def _unfold_2d_mgz(mgz, value_name, variable_name, mgz_name, hemi=None):
 def _add_freq_metainfo(stim_df):
     """this function takes the stim_df and adds some metainfo based on the stimulus frequency
 
-    right now these are: stimulus_superclass (radial, circular, etc), freq_space_angle (the angle
+    right now these are: stimulus_superclass (angular, radial, etc), freq_space_angle (the angle
     in our 2d frequency space) and freq_space_distance (distance from the origin in our 2d
     frequency space)
     """
@@ -145,9 +145,9 @@ def _add_freq_metainfo(stim_df):
         if x.w_r == 0 and x.w_a == 0:
             sc = 'baseline'
         elif x.w_r == 0 and x.w_a != 0:
-            sc = 'radial'
+            sc = 'angular'
         elif x.w_r != 0 and x.w_a == 0:
-            sc = 'circular'
+            sc = 'radial'
         elif x.w_r == x.w_a:
             sc = 'forward spiral'
         elif x.w_r == -x.w_a:
@@ -160,9 +160,9 @@ def _add_freq_metainfo(stim_df):
         if x.w_x == 0 and x.w_y == 0:
             sc = 'baseline'
         elif x.w_x == 0 and x.w_y != 0:
-            sc = 'horizontal'
-        elif x.w_x != 0 and x.w_y == 0:
             sc = 'vertical'
+        elif x.w_x != 0 and x.w_y == 0:
+            sc = 'horizontal'
         elif x.w_x == x.w_y:
             sc = 'forward diagonal'
         elif x.w_x == -x.w_y:

@@ -19,7 +19,7 @@ import scipy as sp
 from sklearn import linear_model
 import pyPyrTools as ppt
 
-LOGPOLAR_SUPERCLASS_ORDER = ['circular', 'forward spiral', 'mixtures', 'radial', 'reverse spiral']
+LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'mixtures', 'angular', 'reverse spiral']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'off-diagonal', 'horizontal',
                              'reverse diagonal']
 
@@ -173,7 +173,7 @@ def stimuli_properties(df, save_path=None):
     """plot some summaries of the stimuli properties
 
     this plots three pieces stimulus properties as a function of their position in frequency space
-    (either w_x / w_y or w_r / w_a): superclass (circular, radial, etc / horizontal, vertical,
+    (either w_x / w_y or w_r / w_a): superclass (radial, angular, etc / horizontal, vertical,
     etc), distance from the origin in frequency space, and angle in the frequency space. these
     various properties of the stimuli will be used to summarize results later on and so are
     important to have a handle on.
@@ -623,9 +623,9 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     intercept to be non-zero
 
     this works by using the coefficients of the linear fits (with zero intercept) relating
-    eccentricity to the period of the optimal grating stimulus (from measurements for both circular
-    and radial stimuli) and to V1 receptive field size. We show the views of the circular stimuli
-    along the vertical axis and the views of the radial along the horizontal axis.
+    eccentricity to the period of the optimal grating stimulus (from measurements for both radial
+    and angular stimuli) and to V1 receptive field size. We show the views of the radial stimuli
+    along the vertical axis and the views of the angular along the horizontal axis.
 
     pRF_size_slope should be for the diameter of what you want to display. for example, the default
     is 4 * stddev, or the diameter of two standard deviations.
@@ -640,14 +640,6 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     the dataframe. note that we don't re-adjust spacing to make it look good for fewer than 4
     superclasses, so that's on you.
     """
-    # these values were found analytically, by comparing the analytical spatial frequency magnitude
-    # (as returned by stimuli.create_sf_maps_cpd; this is sqrt(w_r**2 + w_a**2)/r) with the optimal
-    # spatial frequency as a function of eccentricity (1/(circular_coeff * r)), which gives us that
-    # 1/circular_coeff = sqrt(w_r**2 + w_a**2). We then need to multiply the circular_coeff by
-    # 2*pi, since w_r and w_a are divided by 2*pi before returning them (similarly, for
-    # radial_coeff). We here are only producing circular and radial stimuli, so we set w_a or w_r
-    # (respectively) to 0. we also round these to the nearest integer because we want them to not
-    # have noticeable seams
     def get_logpolar_freq(slope, intercept, ecc):
         coeff = (slope*ecc + intercept) / ecc
         return np.round((2 * np.pi) / coeff)
@@ -689,8 +681,8 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
         if plot_view == 'full':
             diag_value_1 = (loc - meridian) * np.sin(np.pi / 4)
             diag_value_2 = (loc - meridian) * -np.sin(np.pi / 4)
-            window_locs = [(loc, meridian, 'circular'), (meridian, loc, 'radial'),
-                           (size-loc, meridian, 'circular'), (meridian, size-loc, 'radial'),
+            window_locs = [(loc, meridian, 'radial'), (meridian, loc, 'angular'),
+                           (size-loc, meridian, 'radial'), (meridian, size-loc, 'angular'),
                            (meridian+diag_value_1, meridian+diag_value_1, 'forward spiral'),
                            (meridian+diag_value_1, meridian+diag_value_2, 'reverse spiral'),
                            (meridian+diag_value_2, meridian+diag_value_2, 'forward spiral'),
@@ -698,7 +690,7 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
         elif plot_view == 'quarter':
             diag_value_1 = (loc - meridian) * np.sin(np.pi / 6)
             diag_value_2 = (loc - meridian) * np.sin(np.pi / 3)
-            window_locs = [(size-loc, meridian, 'circular'), (meridian, loc, 'radial'),
+            window_locs = [(size-loc, meridian, 'radial'), (meridian, loc, 'angular'),
                            (meridian-diag_value_1, meridian+diag_value_2, 'forward spiral'),
                            (meridian-diag_value_2, meridian+diag_value_1, 'reverse spiral')]
         elif plot_view == 'aligned':
@@ -712,10 +704,10 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
             mask = utils.create_circle_mask(loc_x, loc_y, (ecc * ecc_to_pix) / 2, size)
             masks += mask
             opt_w = get_logpolar_freq(df.loc[stim_class].coeff, df.loc[stim_class].intercept, ecc)
-            if stim_class == 'radial':
+            if stim_class == 'angular':
                 phase = logpolar_solve_for_global_phase(loc_x, loc_y, 0, opt_w)
                 windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_a=opt_w, phi=phase)
-            elif stim_class == 'circular':
+            elif stim_class == 'radial':
                 phase = logpolar_solve_for_global_phase(loc_x, loc_y, opt_w, 0)
                 windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, phi=phase)
             elif stim_class == 'forward spiral':
@@ -813,11 +805,3 @@ if __name__ == '__main__':
                                     "tuning curve df hasn't been created!")
             else:
                 raise Exception("Don't know how to make plot %s!" % p)
-    # if 'circular' in d['df'].stimulus_superclass.values:
-    #     superclass_order = LOGPOLAR_SUPERCLASS_ORDER
-    # else:
-    #     superclass_order = CONSTANT_SUPERCLASS_ORDER
-    # for n in superclass_order:
-    #     df = d['df']
-    #     df = df[(df.stimulus_superclass == n) & (df.varea == 1)]
-    #     compare_hypotheses(df, save_path=save_stem+"_tuning_curves_%s.svg" % n)
