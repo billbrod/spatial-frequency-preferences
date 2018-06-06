@@ -57,24 +57,25 @@ def create_circle_mask(x, y, rad, size):
 def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     """mask array_to_mask the way that masked has been masked
 
-    this takes two arrays of the same size, grating and array_to_mask. masked should already be
-    masked into an annulus, while array_to_mask should be unmasked. This then finds the inner and
-    outer radii of that annulus and applies the same mask to array_to_mask. the value in the masked
-    part of masked should be mid_val (by default, 128, as you'd get when the grating runs from 0 to
-    255; mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want
-    to set array_to_mask to is val_to_set (same reasonable values as mid_val)
+    this takes two square arrays, grating and array_to_mask. masked should already be masked into
+    an annulus, while array_to_mask should be unmasked. This then finds the inner and outer radii
+    of that annulus and applies the same mask to array_to_mask. the value in the masked part of
+    masked should be mid_val (by default, 128, as you'd get when the grating runs from 0 to 255;
+    mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want to
+    set array_to_mask to is val_to_set (same reasonable values as mid_val)
     """
-    R = ppt.mkR(masked.shape)
+    R = ppt.mkR(masked.shape) / float(masked.shape[0])
+    R_masking = ppt.mkR(array_to_mask.shape) / float(array_to_mask.shape[0])
     x, y = np.where(masked != mid_val)
     Rmin = R[x, y].min()
     try:
-        array_to_mask[R < Rmin] = val_to_set
+        array_to_mask[R_masking < Rmin] = val_to_set
     except IndexError:
         # then there is no R<Rmin
         pass
     Rmax = R[x, y].max()
     try:
-        array_to_mask[R > Rmax] = val_to_set
+        array_to_mask[R_masking > Rmax] = val_to_set
     except IndexError:
         # then there is no R>Rmax
         pass
@@ -320,31 +321,35 @@ def load_data(subject, session=None, task=None, df_mode='full',
         # the bit in session is regex to return a string that doesn't start with pilot
         files = layout.get("file", subject=subject, type=df_mode, session=r'^((?!pilot).+)')
     for k, v in kwargs.iteritems():
-        if k == 'vareas':
-            if not isinstance(v, basestring):
-                val = '-'.join([str(i) for i in v])
-            else:
-                val = v
-        elif k == 'eccen':
-            if not isinstance(v, basestring):
-                val = '-'.join([str(i) for i in v])
-            else:
-                val = v
-        elif k == 'eccen_bin':
-            if v:
-                val = "eccen_bin"
-            else:
-                val = ""
-        elif k == 'hemi_bin':
-            if v:
-                val = "hemi_bin"
-            else:
-                val = ""
-        elif k in ['atlas_type', 'mat_type']:
+        # we need to treat atlas_type and mat_type, which will show up as a folder in the path,
+        # separately from the others, which will just show in the filename of the csv
+        if k in ['atlas_type', 'mat_type']:
             val = v
+            files = [f for f in files if val in f.split(os.sep)]
         else:
-            raise Exception("Don't know how to handle kwargs %s!" % k)
-        files = [f for f in files if val in f.split(os.sep)]
+            if k == 'vareas':
+                if not isinstance(v, basestring):
+                    val = '-'.join([str(i) for i in v])
+                else:
+                    val = v
+            elif k == 'eccen':
+                if not isinstance(v, basestring):
+                    val = '-'.join([str(i) for i in v])
+                else:
+                    val = v
+            elif k == 'eccen_bin':
+                if v:
+                    val = "eccen_bin"
+                else:
+                    val = ""
+            elif k == 'hemi_bin':
+                if v:
+                    val = "hemi_bin"
+                else:
+                    val = ""
+            else:
+                raise Exception("Don't know how to handle kwargs %s!" % k)
+            files = [f for f in files if val in os.path.split(f)[-1]]
     if len(files) != 1:
         raise Exception("Cannot find unique first level results csv that satisfies all "
                         "specifications! Matching files: %s" % files)

@@ -168,28 +168,12 @@ def _fade_mask(mask, inner_number_of_fade_pixels, outer_number_of_fade_pixels, o
     return faded_mask
 
 
-def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', w_r=None, w_a=None,
-                       w_x=None, w_y=None):
-    """Create maps of spatial frequency in cycles per pixel.
+def _calc_sf_analytically(x, y, stim_type='logpolar', w_r=None, w_a=None, w_x=None, w_y=None):
+    """helper function that calculates spatial frequency (in cpp)
 
-    returns four maps: the spatial frequency in the x direction (dx), the spatial frequency in the
-    y direction (dy), the magnitude (sqrt(dx**2 + dy**2)) and the direction (arctan2(dy, dx))
-
-    In most cases, you want the magnitude, as this is the local spatial frequency of the
-    corresponding log polar grating at that point. You will want to use dx and dy if you are going
-    to plot approximations of the grating using sfp.utils.plot_grating_approximation (which you
-    should use to convince yourself these values are correct)
-
-    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli to generate the spatial
-    frequency map for. This matters because we determine the spatial frequency maps analytically
-    and so *cannot* do so in a stimulus-driven manner. if 'logpolar', the log-polar gratings
-    created by log_polar_grating. if 'constant', the constant gratings created by
-    utils.create_sin_cpp (and gen_constant_stim_set). if 'pilot', the log-polar gratings created by
-    a former version of the log_polar_grating function, with alpha=50. If 'constant', then w_x and
-    w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
+    this should NOT be called directly. it is the function that gets called by `sf_cpp` and
+    `create_sf_maps_cpp`.
     """
-    assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
-    size = int(size)
     if stim_type in ['logpolar', 'pilot']:
         if w_r is None or w_a is None or w_x is not None or w_y is not None:
             raise Exception("When stim_type is %s, w_r / w_a must be set and w_x / w_y must be"
@@ -200,19 +184,6 @@ def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', 
                             " be None!")
     else:
         raise Exception("Don't know how to handle stim_type %s!" % stim_type)
-    if origin is None:
-        origin = ((size+1) / 2., (size+1) / 2.)
-    # we do this in terms of x and y
-    x, y = np.divide(np.meshgrid(np.array(range(1, size+1)) - origin[0],
-                                 np.array(range(1, size+1)) - origin[1]),
-                     scale_factor)
-    # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
-    # distance 0 and that means we'll have a divide by zero coming up. this little hack avoids that
-    # issue.
-    if 0 in x:
-        x += 1e-12
-    if 0 in y:
-        y += 1e-12
     # we want to approximate the spatial frequency of our log polar gratings. We can do that using
     # the first two terms of the Taylor series. Since our gratings are of the form cos(g(X)) (where
     # X contains both x and y values), then to approximate them at location X_0, we'll use
@@ -231,8 +202,13 @@ def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', 
         dy = (2*y*(w_r/np.pi)) / ((x**2 + y**2 + alpha**2) * np.log(2)) + (w_a * x) / (x**2 + y**2)
         dx = (2*x*(w_r/np.pi)) / ((x**2 + y**2 + alpha**2) * np.log(2)) - (w_a * y) / (x**2 + y**2)
     elif stim_type == 'constant':
-        dy = w_y * np.ones((size, size))
-        dx = w_x * np.ones((size, size))
+        try:
+            size = x.shape
+            dy = w_y * np.ones((size, size))
+            dx = w_x * np.ones((size, size))
+        except SyntaxError:
+            dy = w_y
+            dx = w_x
     if stim_type in ['logpolar', 'pilot']:
         # Since x, y are in pixels (and so run from ~0 to ~size/2), dx and dy need to be divided by
         # 2*pi in order to get the frequency in cycles / pixel. This is analogous to the 1d case:
@@ -240,15 +216,176 @@ def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', 
         # 2*pi. (the values for the constant stimuli are given in cycles per pixel already)
         dy /= 2*np.pi
         dx /= 2*np.pi
-    return dx, dy, np.sqrt(dx**2 + dy**2), np.arctan2(dy, dx)
+    # I want this to lie between 0 and 2*pi, because otherwise it's confusing
+    direction = np.mod(np.arctan2(dy, dx), 2*np.pi)
+    return dx, dy, np.sqrt(dx**2 + dy**2), direction
+
+
+def sf_cpp(eccen, angle, stim_type='logpolar', w_r=None, w_a=None, w_x=None, w_y=None):
+    """calculate the spatial frequency in cycles per pixel.
+
+    this function returns spatial frequency values; it returns values that give the spatial
+    frequency at the point specified by x, y (if you instead want a map showing the spatial
+    frequency everywhere in the specified stimulus, use `create_sf_maps_cpp`). returns four values:
+    the spatial frequency in the x direction (dx), the spatial frequency in the y direction (dy),
+    the magnitude (sqrt(dx**2 + dy**2)) and the direction (arctan2(dy, dx))
+
+    In most cases, you want the magnitude, as this is the local spatial frequency of the specified
+    grating at that point.
+
+    NOTE: for this to work, the zero for the angle you're passing in must correspond to the right
+    horizontal meridian, angle should lie between 0 and 2*pi, and you should move clockwise as
+    angle increases. This is all so it corresponds to the values for the direction of the spatial
+    frequency.
+
+    eccen, angle: floats. The location you want to find the spatial frequency for, in polar
+    coordinates. eccen should be in pixels, NOT degrees. angle should be in radians.
+
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli to generate the spatial
+    frequency map for. This matters because we determine the spatial frequency maps analytically
+    and so *cannot* do so in a stimulus-driven manner. if 'logpolar', the log-polar gratings
+    created by log_polar_grating. if 'constant', the constant gratings created by
+    utils.create_sin_cpp (and gen_constant_stim_set). if 'pilot', the log-polar gratings created by
+    a former version of the log_polar_grating function, with alpha=50. If 'constant', then w_x and
+    w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
+    """
+    x = eccen * np.cos(angle)
+    y = eccen * np.sin(angle)
+    if x == 0:
+        x += 1e-12
+    if y == 0:
+        y += 1e-12
+    return _calc_sf_analytically(x, y, stim_type, w_r, w_a, w_x, w_y)
+
+
+def sf_cpd(size, max_visual_angle, eccen, angle, stim_type='logpolar', w_r=None, w_a=None,
+           w_x=None, w_y=None):
+    """calculate the spatial frequency in cycles per degree.
+
+    this function returns spatial frequency values; it returns values that give the spatial
+    frequency at the point specified by x, y (if you instead want a map showing the spatial
+    frequency everywhere in the specified stimulus, use `create_sf_maps_cpp`). returns four values:
+    the spatial frequency in the x direction (dx), the spatial frequency in the y direction (dy),
+    the magnitude (sqrt(dx**2 + dy**2)) and the direction (arctan2(dy, dx))
+
+    In most cases, you want the magnitude, as this is the local spatial frequency of the specified
+    grating at that point.
+
+    NOTE: for this to work, the zero for the angle you're passing in must correspond to the right
+    horizontal meridian, angle should lie between 0 and 2*pi, and you should move clockwise as
+    angle increases. This is all so it corresponds to the values for the direction of the spatial
+    frequency.
+
+    max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
+    the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 24)
+
+    eccen, angle: floats. The location you want to find the spatial frequency for, in polar
+    coordinates. eccen should be in degrees (NOT pixels). angle should be in radians.
+
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli to generate the spatial
+    frequency map for. This matters because we determine the spatial frequency maps analytically
+    and so *cannot* do so in a stimulus-driven manner. if 'logpolar', the log-polar gratings
+    created by log_polar_grating. if 'constant', the constant gratings created by
+    utils.create_sin_cpp (and gen_constant_stim_set). if 'pilot', the log-polar gratings created by
+    a former version of the log_polar_grating function, with alpha=50. If 'constant', then w_x and
+    w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
+    """
+    conversion_factor = max_visual_angle / float(size)
+    # this is in degrees, so we divide it by deg/pix to get the eccen in pix
+    eccen /= conversion_factor
+    dx, dy, magnitude, direction = sf_cpp(eccen, angle, stim_type, w_r, w_a, w_x, w_y)
+    # these are all in cyc/pix, so we divide them by deg/pix to get them in cyc/deg
+    dx /= conversion_factor
+    dy /= conversion_factor
+    magnitude /= conversion_factor
+    return dx, dy, magnitude, direction
+
+
+def sf_origin_polar_cpd(size, max_visual_angle, eccen, angle, stim_type='logpolar', w_r=None,
+                        w_a=None, w_x=None, w_y=None):
+    """calculate the local origin-referenced polar spatial frequency (radial/angular) in cpd
+
+    returns the local spatial frequency with respect to the radial and angular directions.
+
+    NOTE: for this to work, the zero for the angle you're passing in must correspond to the right
+    horizontal meridian, angle should lie between 0 and 2*pi, and you should move clockwise as
+    angle increases. This is all so it corresponds to the values for the direction of the spatial
+    frequency.
+
+    max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
+    the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 24)
+
+    eccen, angle: floats. The location you want to find the spatial frequency for, in polar
+    coordinates. eccen should be in degrees (NOT pixels). angle should be in radians.
+
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli to generate the spatial
+    frequency map for. This matters because we determine the spatial frequency maps analytically
+    and so *cannot* do so in a stimulus-driven manner. if 'logpolar', the log-polar gratings
+    created by log_polar_grating. if 'constant', the constant gratings created by
+    utils.create_sin_cpp (and gen_constant_stim_set). if 'pilot', the log-polar gratings created by
+    a former version of the log_polar_grating function, with alpha=50. If 'constant', then w_x and
+    w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
+    """
+    _, _, mag, direc = sf_cpd(size, max_visual_angle, eccen, angle, stim_type, w_r, w_a, w_x, w_y)
+    new_angle = direc - angle
+    dr = mag * np.cos(new_angle)
+    da = mag * np.sin(new_angle)
+    return dr, da
+
+
+def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', w_r=None, w_a=None,
+                       w_x=None, w_y=None):
+    """Create maps of spatial frequency in cycles per pixel.
+
+    this function creates spatial frequency maps; that is, it returns images that show the spatial
+    frequency everywhere in the specified stimulus (if you instead want the spatial frequency at a
+    specific point, use `sf_cpp`). returns four maps: the spatial frequency in the x direction
+    (dx), the spatial frequency in the y direction (dy), the magnitude (sqrt(dx**2 + dy**2)) and
+    the direction (arctan2(dy, dx))
+
+    In most cases, you want the magnitude, as this is the local spatial frequency of the
+    corresponding log polar grating at that point. You will want to use dx and dy if you are going
+    to plot approximations of the grating using sfp.utils.plot_grating_approximation (which you
+    should use to convince yourself these values are correct)
+
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli to generate the spatial
+    frequency map for. This matters because we determine the spatial frequency maps analytically
+    and so *cannot* do so in a stimulus-driven manner. if 'logpolar', the log-polar gratings
+    created by log_polar_grating. if 'constant', the constant gratings created by
+    utils.create_sin_cpp (and gen_constant_stim_set). if 'pilot', the log-polar gratings created by
+    a former version of the log_polar_grating function, with alpha=50. If 'constant', then w_x and
+    w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
+    """
+    assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
+    size = int(size)
+    if origin is None:
+        origin = ((size+1) / 2., (size+1) / 2.)
+    # we do this in terms of x and y
+    x, y = np.divide(np.meshgrid(np.array(range(1, size+1)) - origin[0],
+                                 np.array(range(1, size+1)) - origin[1]),
+                     scale_factor)
+    # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
+    # distance 0 and that means we'll have a divide by zero coming up. this little hack avoids that
+    # issue.
+    if 0 in x:
+        x += 1e-12
+    if 0 in y:
+        y += 1e-12
+    return _calc_sf_analytically(x, y, stim_type, w_r, w_a, w_x, w_y)
 
 
 def create_sf_maps_cpd(size, max_visual_angle, origin=None, scale_factor=1, stim_type='logpolar',
                        w_r=None, w_a=None, w_x=None, w_y=None):
     """Create map of the spatial frequency in cycles per degree of visual angle
 
-    returns one map: the local spatial frequency (magnitude from create_sf_maps_cpp) in cycles per
-    degree
+    this function creates spatial frequency maps; that is, it returns images that show the spatial
+    frequency everywhere in the specified stimulus (if you instead want the spatial frequency at a
+    specific point, use `sf_cpp`). returns four maps: the spatial frequency in the x direction
+    (dx), the spatial frequency in the y direction (dy), the magnitude (sqrt(dx**2 + dy**2)) and
+    the direction (arctan2(dy, dx))
+
+    In most cases, you want the magnitude, as this is the local spatial frequency of the
+    corresponding log polar grating at that point
 
     Parameters
     ============
@@ -256,8 +393,39 @@ def create_sf_maps_cpd(size, max_visual_angle, origin=None, scale_factor=1, stim
     max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
     the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 24)
     """
-    _, _, mag, _ = create_sf_maps_cpp(size, origin, scale_factor, stim_type, w_r, w_a, w_x, w_y)
-    return mag / (max_visual_angle / float(size))
+    conversion_factor = max_visual_angle / float(size)
+    dx, dy, mag, direc = create_sf_maps_cpp(size, origin, scale_factor, stim_type, w_r, w_a, w_x,
+                                            w_y)
+    dx /= conversion_factor
+    dy /= conversion_factor
+    mag /= conversion_factor
+    return dx, dy, mag, direc
+
+
+def create_sf_origin_polar_maps_cpd(size, max_visual_angle, origin=None, scale_factor=1,
+                                    stim_type='logpolar', w_r=None, w_a=None, w_x=None, w_y=None):
+    """create map of the origin-referenced polar spatial frequency (radial/angular) in cpd
+
+    returns maps of the spatial frequency with respect to the radial and angular directions.
+
+    max_visual_angle: int, the visual angle (in degrees) corresponding to the largest dimension of
+    the full image (on NYU CBI's prisma scanner and the set up the Winawer lab uses, this is 24)
+
+    stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli to generate the spatial
+    frequency map for. This matters because we determine the spatial frequency maps analytically
+    and so *cannot* do so in a stimulus-driven manner. if 'logpolar', the log-polar gratings
+    created by log_polar_grating. if 'constant', the constant gratings created by
+    utils.create_sin_cpp (and gen_constant_stim_set). if 'pilot', the log-polar gratings created by
+    a former version of the log_polar_grating function, with alpha=50. If 'constant', then w_x and
+    w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
+    """
+    _, _, mag, direc = create_sf_maps_cpd(size, max_visual_angle, origin, scale_factor, stim_type,
+                                          w_r, w_a, w_x, w_y)
+    angle = ppt.mkAngle(size, origin=origin)
+    new_angle = direc - angle
+    dr = mag * np.cos(new_angle)
+    da = mag * np.sin(new_angle)
+    return dr, da
 
 
 def create_antialiasing_mask(size, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
@@ -373,7 +541,7 @@ def check_stim_properties(size, origin, max_visual_angle, w_r=0, w_a=range(10),
     for i, (f_r, f_a) in enumerate(itertools.product(w_r, w_a)):
         fmask, mask = create_antialiasing_mask(size, f_r, f_a, origin, 0)
         _, _, mag_cpp, _ = create_sf_maps_cpp(size, origin, w_r=f_r, w_a=f_a)
-        mag_cpd = create_sf_maps_cpd(size, max_visual_angle, origin, w_r=f_r, w_a=f_a)
+        _, _, mag_cpd, _ = create_sf_maps_cpd(size, max_visual_angle, origin, w_r=f_r, w_a=f_a)
         data = {'mask_radius_pix': (~mask*rad).max(), 'w_r': f_r, 'w_a': f_a,
                 'freq_distance': np.sqrt(f_r**2 + f_a**2)}
         data['mask_radius_deg'] = data['mask_radius_pix'] / (rad.max() / np.sqrt(2*(max_visual_angle/2.)**2))

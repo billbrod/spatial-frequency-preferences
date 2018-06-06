@@ -16,6 +16,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy as sp
+from sklearn import linear_model
+import pyPyrTools as ppt
 
 LOGPOLAR_SUPERCLASS_ORDER = ['circular', 'forward spiral', 'mixtures', 'radial', 'reverse spiral']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'off-diagonal', 'horizontal',
@@ -32,6 +34,49 @@ class MidpointNormalize(mpl.colors.Normalize):
         # simple example...
         x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
         return np.ma.masked_array(np.interp(value, x, y))
+
+
+def myLogFormat(y, pos):
+    """formatter that only shows the required number of decimal points
+
+    this is for use with log-scaled axes, and so assumes that everything greater than 1 is an
+    integer and so has no decimal points
+
+    to use (or equivalently, with `axis.xaxis`):
+    ```
+    from matplotlib import ticker
+    axis.yaxis.set_major_formatter(ticker.FuncFormatter(myLogFormat))
+    ```
+
+    modified from https://stackoverflow.com/a/33213196/4659293
+    """
+    # Find the number of decimal places required
+    if y < 1:
+        # because the string representation of a float always starts "0."
+        decimalplaces = len(str(y)) - 2
+    else:
+        decimalplaces = 0
+    # Insert that number into a format string
+    formatstring = '{{:.{:1d}f}}'.format(decimalplaces)
+    # Return the formatted tick label
+    return formatstring.format(y)
+
+
+def _jitter_data(data, jitter):
+    """optionally jitter data some amount
+
+    jitter can be None / False (in which case no jittering is done), a number (in which case we add
+    uniform noise with a min of -jitter, max of jitter), or True (in which case we do the uniform
+    thing with min/max of -.1/.1)
+
+    based on seaborn.linearmodels._RegressionPlotter.scatter_data
+    """
+    if jitter is None or jitter is False:
+        return data
+    else:
+        if jitter is True:
+            jitter = .1
+        return data + np.random.uniform(-jitter, jitter, len(data))
 
 
 def im_plot(im, **kwargs):
@@ -82,7 +127,7 @@ def scatter_ci_col(x, y, ci, **kwargs):
         plt.plot([x, x], [y+ci, y-ci], **kwargs)
 
 
-def scatter_ci_dist(x, y, ci_vals=[16, 84], **kwargs):
+def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
     based on seaborn.linearmodels.scatterplot. CIs are taken from a distribution in this
@@ -96,9 +141,32 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], **kwargs):
     data = kwargs.pop('data')
     plot_data = data.groupby(x)[y].median()
     plot_cis = data.groupby(x)[y].apply(np.percentile, ci_vals)
-    plt.scatter(plot_data.index, plot_data.values, **kwargs)
-    for x, (ci_low, ci_high) in plot_cis.iteritems():
+    x_data = _jitter_data(plot_data.index, x_jitter)
+    plt.scatter(x_data, plot_data.values, **kwargs)
+    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.iteritems()):
         plt.plot([x, x], [ci_low, ci_high], **kwargs)
+
+
+def plot_median_fit(x, y, model=linear_model.LinearRegression(), x_vals=None, **kwargs):
+    """plot a model fit to the median points, for use with seaborn's map_dataframe
+
+    we first find the median values of y when grouped by x and then fit model to them and plot
+    *only* the model's predictions (thus you'll need to call another function if you want to see
+    the actual data). we don't cross-validate or do anything fancy.
+
+    model should be an (already-initialized) class that has a fit (which accepts X and y) and a
+    predict method (which accepts X; for instance, anything from sklearn). It should expect X to be
+    2d; we reshape our 1d data to be 2d (since this is what the sklearn models expect)
+    """
+    data = kwargs.pop('data')
+    if 'exclude' in kwargs['label']:
+        # we don't plot anything with exclude in the label
+        return
+    plot_data = data.groupby(x)[y].median()
+    model.fit(plot_data.index.values.reshape(-1, 1), plot_data.values)
+    if x_vals is None:
+        x_vals = plot_data.index
+    plt.plot(x_vals, model.predict(np.array(x_vals).reshape(-1, 1)), **kwargs)
 
 
 def stimuli_properties(df, save_path=None):
@@ -180,6 +248,7 @@ def stimuli_properties(df, save_path=None):
     sns.despine()
     if save_path is not None:
         fig.savefig(save_path, bbox_inches='tight')
+    return fig
 
 
 def local_spatial_frequency(df, save_path=None, **kwargs):
@@ -213,6 +282,7 @@ def local_spatial_frequency(df, save_path=None, **kwargs):
                        fontsize=15)
     if save_path is not None:
         g.fig.savefig(save_path, bbox_inches='tight')
+    return g
 
 
 def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 84],
@@ -237,8 +307,12 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     else:
         col_order = [i for i in CONSTANT_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
 
+    ylim = kwargs.pop('ylim', None)
+    xlim = kwargs.pop('xlim', None)
+    aspect = kwargs.pop('aspect', 1)
     g = sns.FacetGrid(df, hue='eccen', palette='Reds', size=5, row='varea', col_order=col_order,
-                      hue_order=sorted(df.eccen.unique()), col='stimulus_superclass')
+                      hue_order=sorted(df.eccen.unique()), col='stimulus_superclass', ylim=ylim,
+                      xlim=xlim, aspect=aspect)
     if 'amplitude_estimate_std_error' in df.columns:
         g.map_dataframe(plot_median, x_col, 'amplitude_estimate_median')
         if not median_only:
@@ -257,6 +331,7 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     plt.subplots_adjust(top=.9)
     if save_path is not None:
         g.fig.savefig(save_path, bbox_inches='tight')
+    return g
 
 
 def _plot_grating_approx_and_save(grating, grating_type, save_path, **kwargs):
@@ -418,134 +493,6 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
         fig.savefig(save_path)
 
 
-def compare_hypotheses(df, size=4, aspect=2, save_path=None):
-    """make plots to compare hypotheses
-    """
-    if 'rounded_freq_space_distance' in df.columns:
-        col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
-    else:
-        col_order = [i for i in CONSTANT_SUPERCLASS_ORDER if i in df.stimulus_superclass.unique()]
-
-    if 'bootstrap_num' in df.columns:
-        df = df[['eccen', 'amplitude_estimate', 'freq_space_distance', 'Local spatial frequency (cpd)',
-                 'bootstrap_num', 'stimulus_superclass']]
-        df = pd.melt(df, ['eccen', 'amplitude_estimate', 'bootstrap_num', 'stimulus_superclass'],
-                     var_name='Frequency')
-        log_norm_func = utils.fit_log_norm_ci
-        plot_kwargs = {'ci_vals': [16, 84]}
-    else:
-        df = df[['eccen', 'amplitude_estimate_median', 'freq_space_distance',
-                 'Local spatial frequency (cpd)', 'stimulus_superclass']]
-        df = pd.melt(df, ['eccen', 'amplitude_estimate_median', 'stimulus_superclass'],
-                     var_name='Frequency')
-        df = df.rename(columns={'amplitude_estimate_median': 'amplitude_estimate'})
-        log_norm_func = utils.fit_log_norm
-        plot_kwargs = {}
-
-    with sns.axes_style('white'):
-        g = sns.FacetGrid(df, hue='eccen', row='Frequency', palette='Reds', sharex=False,
-                          col='stimulus_superclass', aspect=aspect, col_order=col_order, size=size,
-                          row_order=['Local spatial frequency (cpd)', 'freq_space_distance'])
-        g.map_dataframe(log_norm_func, 'value', 'amplitude_estimate', **plot_kwargs)
-        # we use this so we can just plot the mean value (it plays nicely with FacetGrid)
-        g.map(sns.regplot, 'value', 'amplitude_estimate', x_estimator=np.mean, fit_reg=False, ci=0)
-        xmin = 2**np.floor(np.log2(df.groupby('Frequency').value.min()))
-        xmax = 2**np.ceil(np.log2(df.groupby('Frequency').value.max()))
-        for i, (ax, (n, _)) in enumerate(zip(g.axes.flatten(), df.groupby(['Frequency', 'stimulus_superclass']))):
-            if i < df.stimulus_superclass.nunique():
-                ax.set_title('Response as function of local spatial frequency (cycles / degree) | '
-                             'stimulus_superclass = %s' % n[1])
-            else:
-                ax.set_title('Response as function of stimulus | stimulus_superclass = %s' % n[1])
-                
-            ax.set_xlim([xmin[n[0]], xmax[n[0]]])
-            ax.set_xscale('log', basex=2)
-            ax.set_ylabel("Response amplitude estimate")
-        legend_data = {}
-        legend_order = []
-        for k in sorted(g._legend_data.keys()):
-            new_name = "%i-%i" % (int(k.split('-')[0]), int(k.split('-')[1]))
-            legend_data[new_name] = g._legend_data[k]
-            legend_order.append(new_name)
-        g.add_legend(legend_data, "Eccentricity (degrees)", legend_order)
-        g.set_xlabels('Frequency')
-    if save_path is not None:
-        g.fig.savefig(save_path, bbox_inches='tight')
-    return g
-
-
-# NEED TO GET FIGURE TITLE SIZES BETTER AND FIGURE OUT RELIABLE WAY TO PLACE IMAGES WITH DIFFERENT
-# NUMBERS OF COLUMNS
-def compare_hypotheses_talk(df, axis_imgs, axis_img_locs=[(.025, .05), .6], save_path=None,
-                            **kwargs):
-    """make talk version of compare hypotheses plot
-
-    axis_imgs: the specified images to plot on the x-axis. The images will be masked to place on
-    the x-axis of the local frequency plot and will be used unmodified on the stimulus space plot.
-
-    axis_img_locs: list made up of 2-tuples and floats. the relative positions of the images on the
-    x axis. should have one entry for each image in axis_imgs. if a 2-tuple, the first is the
-    position in the local frequency plot, the second in the stimulus space plot. if a float, same
-    position will be used for both. will be passed to utils.add_img_to_xaxis as the rel_position
-    arg.
-
-    returns the FacetGrid containing the plot
-    """
-    # this arbitrary bit of code makes a well-sized mask
-    mask = utils.create_circle_mask(750, 350, 10*1080/(2*2*12), 1080)
-    windowed_axis_imgs = [mask * s + ~mask.astype(bool)*127 for s in axis_imgs]
-    with sns.plotting_context('poster'):
-        g = compare_hypotheses(df, 5)
-        plt.subplots_adjust(hspace=.6)
-        for i, ax in enumerate(g.axes.flatten()):
-            img_idx = {True: 0, False: 1}.get(i < df.stimulus_superclass.nunique())
-            for pos, img in zip(axis_img_locs, [windowed_axis_imgs, axis_imgs][img_idx]):
-                try:
-                    add_img_to_xaxis(g.fig, ax, img, pos[img_idx], vmin=0, vmax=255, size=.15)
-                except TypeError:
-                    add_img_to_xaxis(g.fig, ax, img, pos, vmin=0, vmax=255, size=.15)
-            ax.xaxis.set_visible(False)
-    if save_path is not None:
-        g.fig.savefig(save_path, bbox_inches='tight')
-    return g
-
-
-def get_tuning_curve_properties(df, id_vars=['stimulus_superclass', 'eccen', 'bootstrap_num']):
-    """fits log normal tuning curves to data, returns peak and bandwidth
-    """
-    new_df = []
-    for i, (n, g) in enumerate(df.groupby(id_vars)):
-        # there are two possibilities: either g only contains one amplitude estimate for each
-        # spatial frequency or it contains several (which means that id_vars didn't restrict it
-        # down too far). the following guarantees that we have one value per local spatial
-        # frequency, leaving it unchanged if that's already the case
-        data = g.groupby('Local spatial frequency (cpd)')['amplitude_estimate'].mean()
-        popt, _ = sp.optimize.curve_fit(utils.log_norm_pdf, data.index, data.values)
-        # popt contains a, mu, and sigma, in that order
-        mode, var = utils.log_norm_describe(popt[1], popt[2])
-        df_data = dict((k, v) for k, v in zip(id_vars, n))
-        df_data.update({'peak': mode, 'bandwidth': var})
-        # we want to change eccentricity to a number
-        if 'eccen' in df_data:
-            df_data['eccen'] = np.mean([float(i) for i in df_data['eccen'].split('-')])
-        new_df.append(pd.DataFrame(df_data, index=[i]))
-    return pd.concat(new_df)
-
-
-def peak_spatial_frequency(df, id_vars=['stimulus_superclass']):
-    """create peak spatial frequency plot
-    """
-    df = df[['stimulus_superclass', 'eccen', 'Local spatial frequency (cpd)',
-             'amplitude_estimate', 'bootstrap_num']]
-    df = get_tuning_curve_properties(df, id_vars + ['eccen'])
-    peak_df = []
-    for i, (n, g) in enumerate(df.groupby(id_vars)):
-        peak_a, _ = sp.optimize.curve_fit(utils.flat_hyperbola, g.eccen.values, g.peak.values)
-        peak_df.append(g.assign(peak_hyperbola_param=peak_a[0]))
-    peak_df = pd.concat(peak_df)
-    return peak_df
-
-
 def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
     data = kwargs.pop('data')
     color = kwargs.pop('color')
@@ -661,6 +608,132 @@ def tuning_params(tuning_df, save_path=None, **kwargs):
     g.add_legend()
     if save_path is not None:
         g.fig.savefig(save_path)
+
+
+def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
+                        model=linear_model.LinearRegression(), n_windows=4, size=1080,
+                        max_visual_angle=24, plot_view='full', center_spot_rad=2,
+                        stimulus_superclass=None, save_path=None):
+    """make plot that shows the optimal number of periods per receptive field
+
+    df: dataframe containing the summarized preferred periods. should contain three columns:
+    stimulus_superclass, eccen, and preferred_period. will fit model separately to each
+    stimulus_superclass (by default, linear regression, fitting the intercept) and then, at each
+    eccentricity, show the appropriate period (from the fitted line). because we allow the
+    intercept to be non-zero
+
+    this works by using the coefficients of the linear fits (with zero intercept) relating
+    eccentricity to the period of the optimal grating stimulus (from measurements for both circular
+    and radial stimuli) and to V1 receptive field size. We show the views of the circular stimuli
+    along the vertical axis and the views of the radial along the horizontal axis.
+
+    pRF_size_slope should be for the diameter of what you want to display. for example, the default
+    is 4 * stddev, or the diameter of two standard deviations.
+
+    n_windows: int, the number of windows on each side of the origin to show
+
+    plot_view: {'full', 'quarter', 'aligned'}. whether to plot a full, quarter, or aligned view. if
+    aligned, can only plot one stimulus superclass and will do always do so along the horizontal
+    meridian (for combining by hand afterwards).
+
+    stimulus_superclass: which stimulus superclasses to plot. if None, will plot all that are in
+    the dataframe. note that we don't re-adjust spacing to make it look good for fewer than 4
+    superclasses, so that's on you.
+    """
+    # these values were found analytically, by comparing the analytical spatial frequency magnitude
+    # (as returned by stimuli.create_sf_maps_cpd; this is sqrt(w_r**2 + w_a**2)/r) with the optimal
+    # spatial frequency as a function of eccentricity (1/(circular_coeff * r)), which gives us that
+    # 1/circular_coeff = sqrt(w_r**2 + w_a**2). We then need to multiply the circular_coeff by
+    # 2*pi, since w_r and w_a are divided by 2*pi before returning them (similarly, for
+    # radial_coeff). We here are only producing circular and radial stimuli, so we set w_a or w_r
+    # (respectively) to 0. we also round these to the nearest integer because we want them to not
+    # have noticeable seams
+    def get_logpolar_freq(slope, intercept, ecc):
+        coeff = (slope*ecc + intercept) / ecc
+        return np.round((2 * np.pi) / coeff)
+
+    def fit_model(data, model=linear_model.LinearRegression()):
+        x = data.eccen.values
+        y = data.preferred_period.values
+        model.fit(x.reshape(-1, 1), y)
+        return pd.Series({'coeff': model.coef_[0], 'intercept': model.intercept_})
+
+    def logpolar_solve_for_global_phase(x, y, w_r, w_a, local_phase=0):
+        origin = ((size+1) / 2., (size+1) / 2.)
+        x_orig, y_orig = np.meshgrid(np.array(range(1, size+1))-origin[0],
+                                     np.array(range(1, size+1))-origin[1])
+        local_x = x_orig[y, x]
+        local_y = y_orig[y, x]
+        return np.mod(local_phase - (((w_r*np.log(2))/2.)*np.log2(local_x**2+local_y**2) +
+                                     w_a*np.arctan2(local_y, local_x)), 2*np.pi)
+
+    if stimulus_superclass is None:
+        stimulus_superclass = df.stimulus_superclass.unique()
+    if plot_view == 'aligned' and len(stimulus_superclass) != 1:
+        raise Exception("Can only plot aligned view if plotting 1 stimulus_superclass")
+    df = df.groupby('stimulus_superclass').apply(fit_model)
+    windowed_plot = np.zeros((size, size))
+    R = ppt.mkR(size) * (float(max_visual_angle) / size)
+    ecc_to_pix = pRF_size_slope * (float(size) / max_visual_angle) + pRF_size_offset
+    masks = np.zeros((size, size))
+    meridian = int(size / 2)
+    # we put this into masks so it doesn't get adjusted at the end and we set it to -1 so it
+    # appears black.
+    masks[meridian-center_spot_rad:meridian+center_spot_rad,
+          meridian-center_spot_rad:meridian+center_spot_rad] = 1
+    windowed_plot[masks.astype(bool)] = -1
+    view_range = range(meridian, size, int(meridian / (n_windows+1)))[1:]
+    for loc in view_range:
+        # we do x and y separately because there's a chance a rounding issue will mean they differ
+        # slightly
+        if plot_view == 'full':
+            diag_value_1 = (loc - meridian) * np.sin(np.pi / 4)
+            diag_value_2 = (loc - meridian) * -np.sin(np.pi / 4)
+            window_locs = [(loc, meridian, 'circular'), (meridian, loc, 'radial'),
+                           (size-loc, meridian, 'circular'), (meridian, size-loc, 'radial'),
+                           (meridian+diag_value_1, meridian+diag_value_1, 'forward spiral'),
+                           (meridian+diag_value_1, meridian+diag_value_2, 'reverse spiral'),
+                           (meridian+diag_value_2, meridian+diag_value_2, 'forward spiral'),
+                           (meridian+diag_value_2, meridian+diag_value_1, 'reverse spiral')]
+        elif plot_view == 'quarter':
+            diag_value_1 = (loc - meridian) * np.sin(np.pi / 6)
+            diag_value_2 = (loc - meridian) * np.sin(np.pi / 3)
+            window_locs = [(size-loc, meridian, 'circular'), (meridian, loc, 'radial'),
+                           (meridian-diag_value_1, meridian+diag_value_2, 'forward spiral'),
+                           (meridian-diag_value_2, meridian+diag_value_1, 'reverse spiral')]
+        elif plot_view == 'aligned':
+            window_locs = [(meridian, loc, stimulus_superclass[0])]
+        for loc_y, loc_x, stim_class in window_locs:
+            if stim_class not in stimulus_superclass:
+                continue
+            loc_x, loc_y = int(loc_x), int(loc_y)
+            ecc = R[loc_y, loc_x]
+            # ecc * ecc_to_pix gives you the diameter, but we want the radius
+            mask = utils.create_circle_mask(loc_x, loc_y, (ecc * ecc_to_pix) / 2, size)
+            masks += mask
+            opt_w = get_logpolar_freq(df.loc[stim_class].coeff, df.loc[stim_class].intercept, ecc)
+            if stim_class == 'radial':
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, 0, opt_w)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_a=opt_w, phi=phase)
+            elif stim_class == 'circular':
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, opt_w, 0)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, phi=phase)
+            elif stim_class == 'forward spiral':
+                opt_w = np.round(opt_w / np.sqrt(2))
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, opt_w, opt_w)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=opt_w,
+                                                                      phi=phase)
+            elif stim_class == 'reverse spiral':
+                opt_w = np.round(opt_w / np.sqrt(2))
+                phase = logpolar_solve_for_global_phase(loc_x, loc_y, opt_w, -opt_w)
+                windowed_plot += mask * sfp_stimuli.log_polar_grating(size, w_r=opt_w, w_a=-opt_w,
+                                                                      phi=phase)
+    windowed_plot[~masks.astype(bool)] += 1
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    im_plot(windowed_plot, ax=ax)
+    if save_path is not None:
+        fig.savefig(save_path)
+    return windowed_plot
 
 
 def _parse_save_path_for_kwargs(save_path):
