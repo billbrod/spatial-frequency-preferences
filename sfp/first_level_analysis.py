@@ -30,6 +30,21 @@ def _load_mgz(path):
         return tmp.reshape(max(tmp.shape), sorted(tmp.shape)[-2])
 
 
+def _arrange_helper(hemi, name, template, varea_mask, eccen_mask):
+    """this small helper function is just to be called in a generator by _arrange_mgzs_into_dict
+    """
+    tmp = _load_mgz(template % (hemi, name))
+    if tmp.ndim == 1:
+        tmp =  tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
+    elif tmp.ndim == 2:
+        tmp = tmp[(varea_mask[hemi]) & (eccen_mask[hemi]), :]
+    if os.sep in name:
+        res_name = os.path.split(name)[-1]
+    else:
+        res_name = name
+    return "%s-%s" % (res_name, hemi), tmp
+
+
 def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results_names, vareas,
                             eccen_range, benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
     """load in the mgzs, put in a dictionary, and return that dictionary
@@ -57,17 +72,12 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
         eccen_mask[hemi] = (eccen_mask[hemi] > eccen_range[0]) & (eccen_mask[hemi] < eccen_range[1])
 
     for hemi, var in itertools.product(['lh', 'rh'], benson_template_names):
-        tmp = _load_mgz(benson_template_path % (hemi, var))
-        mgzs['%s-%s' % (var, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
+        k, v = _arrange_helper(hemi, var, benson_template_path, varea_mask, eccen_mask)
+        mgzs[k] = v
 
-    for hemi, res in itertools.product(['lh', 'rh'], results_names):
-        tmp = _load_mgz(results_template_path % (hemi, res))
-        res_name = os.path.split(res)[-1]
-        if tmp.ndim == 1:
-            mgzs['%s-%s' % (res_name, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
-        # some will be 2d, not 1d (since they start with 4 dimensions)
-        elif tmp.ndim == 2:
-            mgzs['%s-%s' % (res_name, hemi)] = tmp[(varea_mask[hemi]) & (eccen_mask[hemi]), :]
+    for hemi, var in itertools.product(['lh', 'rh'], results_names):
+        k, v = _arrange_helper(hemi, var, results_template_path, varea_mask, eccen_mask)
+        mgzs[k] = v
 
     return mgzs
 
