@@ -32,13 +32,15 @@ use of Python, Matlab, and command-line tools. The notebooks folder
 contains several Jupyter notebooks which (hopefully) walk through the
 logic of the experiment and analysis.
 
-Eventually, the Snakefile will be updated to include all the steps, but
-for now, the following the analysis steps:
+The Snakefile can perform all of the analysis steps (i.e., from 3 on),
+making sure that all the requirements are met. The following is an
+overview:
 
 1. Create the stimuli (`python sfp/stimuli.py subject_name -c
    -i`). After you run this the first time (and thus create the
    unshuffled stimuli), you probably only need the `-i` flag to create
-   the index.
+   the index. This can also be done using the `stimuli` and
+   `stimuli_idx` rules in the Snakefile.
 2. Run the experiment and gather fMRI data (`python sfp/experiment
    data/stimuli/unshuffled.npy 12 subject_name`). Each run will last 4
    minutes 24 seconds (48 stimulus classes and 10 blank trials, each
@@ -46,15 +48,25 @@ for now, the following the analysis steps:
    starts and ends with 16 seconds of blank screen).
 3. Pre-process your fMRI data
    (using
-   [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools))
+   [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)). This
+   is accomplished by the `preprocess`, `rearrange_preprocess_extras`,
+   and `rearrange_preprocess` rules in the Snakefile.
 4. Create design matrices for each run (`python sfp/design_matrices.py
    -s subject_name behavioral_results_path`). The `behavioral_results`
    h5py file is created when the experiment is run and the
    `unshuffled_stim_descriptions` csv file is created when the stimuli
-   are created (you can probably trust the default for its path).
-5. Run GLMdenoise (`runGLM.m`)
-6. Align to freesurfer anatomy (`sfp.realign`)
-7. Construct tuning curves
+   are created (you can probably trust the default for its path). This
+   is done by the `create_design_matrices` rule
+5. Run GLMdenoise (`runGLM.m`) and save out the nifti outputs, done by
+   the `GLMdenoise` and `save_results_niftis` rules.
+6. Align to freesurfer anatomy and get into the mgz format, done by
+   the `to_freesurfer` rule, which uses the `to_freesurfer.py` script
+   found in
+   the
+   [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
+7. Arrange the outputs into a pandas dataframe for ease of further
+   analysis. This is done using the `first_level_analysis` rule.
+8. Construct tuning curves, using the `tuning_curves` rule.
     - Note that for this to work, I currently require Noah Benson's
       retinotopy templates. These can be created by running
       this
@@ -65,6 +77,8 @@ for now, the following the analysis steps:
       eccentricity of its population receptive field in the visual
       field and what is it visual area?), so we could pretty easily
       extend this to use other sources for that.
+9. Collect tuning curves across subjects and scanning sessions, to
+   compare. This is done using the `tuning_curves_summary` rule.
 
 Note that several of these steps (preprocessing and running
 GLMdenoise) should be run on a cluster and will take way too long or
