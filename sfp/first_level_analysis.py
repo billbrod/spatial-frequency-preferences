@@ -332,9 +332,12 @@ def _add_local_sf_to_df(df, stim, stim_type, stim_rad_deg=12, mid_val=128):
         freq_labels = ['w_x', 'w_y']
     sfs = []
 
+    # this gets us the unique pairs of (eccen, angle). It will also include a column that gives the
+    # number of times each pair exists in the dataframe, but we ignore that.
+    df_eccens_angles = df.groupby(['eccen', 'angle']).size().reset_index()
     for w_1, w_2, stim_class in freqs.values:
-        tmp = calculate_stim_local_sf(stim, w_1, w_2, stim_type, df.eccen.values, df.angle.values,
-                                      stim_rad_deg, mid_val=mid_val)
+        tmp = calculate_stim_local_sf(stim, w_1, w_2, stim_type, df_eccens_angles.eccen.values,
+                                      df_eccens_angles.angle.values, stim_rad_deg, mid_val=mid_val)
         tmp[freq_labels[0]] = w_1
         tmp[freq_labels[1]] = w_2
         tmp['stimulus_superclass'] = stim_class

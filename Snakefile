@@ -547,10 +547,10 @@ rule first_level_analysis:
         unpack(get_first_level_analysis_input),
         unpack(get_stim_files),
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
     resources:
         cpus_per_task = 1,
-        mem = 10
+        mem = lambda wildcards: {'full': 30, 'summary': 10}[wildcards.df_mode]
     params:
         save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
         save_dir = lambda wildcards, output: os.path.dirname(output[0]),
@@ -563,9 +563,9 @@ rule first_level_analysis:
         stim_type = get_stim_type,
         mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}.log")
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}.log")
     shell:
         "python sfp/first_level_analysis.py --save_dir {params.save_dir} --vareas {params.vareas} "
         "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} "

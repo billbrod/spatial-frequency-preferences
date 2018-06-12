@@ -12,3 +12,4 @@ pyPyrTools
 h5py
 nibabel
 psychopy
+scikit-learn
