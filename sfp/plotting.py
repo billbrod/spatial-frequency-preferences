@@ -275,7 +275,7 @@ def local_spatial_frequency(df, save_path=None, **kwargs):
     with sns.axes_style('white'):
         g = sns.FacetGrid(df, hue=hue_label, col='stimulus_superclass', palette='Reds', col_wrap=3,
                           col_order=col_order)
-        g.map(mini_plot, 'eccen', 'Local spatial frequency (cpd)', **kwargs)
+        g.map(mini_plot, 'eccen', 'local_sf_magnitude', **kwargs)
         g.add_legend()
         plt.subplots_adjust(top=.9)
         g.fig.suptitle("Local spatial frequencies across eccentricities for all stimuli",

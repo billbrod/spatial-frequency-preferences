@@ -56,8 +56,7 @@ if __name__ == '__main__':
         pass
     parser = argparse.ArgumentParser(
         description=("Load in the tuning curve dataframes found underneath the root directory and"
-                     " save their important parameters in the specified save_path. Currently, "
-                     "we only do this for summary.csv dataframes"),
+                     " save their important parameters in the specified save_path."),
         formatter_class=CustomFormatter)
     parser.add_argument("root_dir",
                         help="Root of directory tree that we'll find everything underneath")

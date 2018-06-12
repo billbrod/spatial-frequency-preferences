@@ -31,6 +31,7 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj004', 'ses-03'): 'task-sfp'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
+VAREAS = [1, 2, 3]
 def get_n_classes(session, mat_type):
     if mat_type == 'all_visual':
         return 1
@@ -76,7 +77,7 @@ wildcard_constraints:
     row="[a-z-]+",
     hue="[a-z-]+",
     y="[a-z-]+",
-    binning="_[a-z_]+bin",
+    binning="[a-z_]+bin",
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -98,153 +99,46 @@ rule GLMdenoise_all_visual:
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n:02d}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual', n=n) for sub in SUBJECTS for ses in SESSIONS[sub] for n in range(get_n_classes(ses, 'all_visual'))],
 
-rule summary_plots_all:
-    input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'posterior',
-                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-01,ses-02',
-                                         tasks=task, plot_varea=v, eccen_range="1-12", row='frequency-type',
-                                         col='subject', hue='stimulus-superclass', y=y)
-         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth'] for v in [1, 2, 3]
-         for task in ['task-sfp', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'posterior',
-                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-01,ses-02',
-                                         tasks=task, plot_varea='1-2-3', eccen_range="1-12", row='varea',
-                                         col='subject', hue='stimulus-superclass', y='preferred-period')
-         for task in ['task-sfp', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'posterior',
-                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-pilot01',
-                                         tasks='task-sfp', plot_varea=v, eccen_range="1-12", row='frequency-type',
-                                         col='subject', hue='stimulus-superclass', y=y)
-         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth'] for v in [1, 2, 3]],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'posterior',
-                     "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                     "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                     "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-pilot01',
-                                        tasks='task-sfp', plot_varea='1-2-3', eccen_range="1-12", row='varea',
-                                        col='subject', hue='stimulus-superclass', y='preferred-period')
-
-
-rule summary_plots_VSS_abstract:
-    input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'prior',
-                      "v1_e2-8_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
-                                         sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
-                                         row='frequency-type', col='subject',
-                                         hue='stimulus-superclass', y=y)
-         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth']],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class', 'prior',
-                     "v1_e2-8_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                     "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                     "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
-                                        sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
-                                        row='frequency-type', col='subject',
-                                        hue='stimulus-superclass', y='preferred-period')
-
 
 rule plots_modeling_blanks:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3]],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
-                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-01,ses-02',
-                                         tasks=task, plot_varea=v, eccen_range="1-12", row='frequency-type',
-                                         col='subject', hue='stimulus-superclass', y=y)
-         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth', 'baseline'] for v in [1, 2, 3]
-         for task in ['task-sfp', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
-                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-01,ses-02',
-                                         tasks=task, plot_varea='1-2-3', eccen_range="1-12", row='varea',
-                                         col='subject', hue='stimulus-superclass', y='preferred-period')
-         for task in ['task-sfp', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
-                      "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-pilot01',
-                                         tasks='task-sfp', plot_varea=v, eccen_range="1-12", row='frequency-type',
-                                         col='subject', hue='stimulus-superclass', y=y)
-         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth', 'baseline'] for v in [1, 2, 3]],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'posterior',
-                     "v1-2-3_e1-12_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                     "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                     "_{y}.svg").format(subjects=",".join(SUBJECTS), sessions='ses-pilot01',
-                                        tasks='task-sfp', plot_varea='1-2-3', eccen_range="1-12", row='varea',
-                                        col='subject', hue='stimulus-superclass', y='preferred-period'),
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'prior',
-                      "v1_e2-8_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                      "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                      "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
-                                         sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
-                                         row='frequency-type', col='subject',
-                                         hue='stimulus-superclass', y=y)
-         for y in ['tuning-curve-peak', 'tuning-curve-bandwidth', 'baseline']],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', 'stim_class_10_blanks_fixed_hrf_stim_class', 'prior',
-                     "v1_e2-8_eccen_bin_hemi_bin_tuning_curves_summary_plot_{subjects}_{sessions}_"
-                     "{tasks}_v1_e{eccen_range}_row={row}_col={col}_hue={hue}_plot"
-                     "_{y}.svg").format(subjects="sub-wlsubj001,sub-wlsubj042,sub-wlsubj045",
-                                        sessions='ses-pilot01', tasks='task-sfp', eccen_range="2-8",
-                                        row='frequency-type', col='subject',
-                                        hue='stimulus-superclass', y='preferred-period')
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_data.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class_10_blanks_fixed_hrf_stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas=v, eccen='1-12', binning='_eccen_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in VAREAS],
 
 
 rule plots_all:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_full_tuning_curves_check_varea={v}_bootstrap={b:02d}.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v, b=b) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3] for b in range(100)],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in [1, 2, 3]],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_data.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary'] for v in VAREAS],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_full_tuning_curves_check_varea={v}_bootstrap={b:02d}.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas=v, eccen='1-12', binning='_eccen_bin', v=v, b=b) for sub in SUBJECTS for ses in SESSIONS[sub] for v in VAREAS for b in range(100)],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_summary_tuning_curves_check_varea={v}.svg').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], vareas=v, eccen='1-12', binning='_eccen_bin', v=v) for sub in SUBJECTS for ses in SESSIONS[sub] for v in VAREAS],
 
 
 rule tuning_curves_all:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary', 'full']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary', 'full'] for v in VAREAS],
 
 
 rule first_level_all:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas='1-2-3', eccen='1-12', binning='_eccen_bin_hemi_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary', 'full']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='posterior', subject=sub, session=ses, task=TASKS[(sub, ses)], df_mode=dfm, vareas=v, eccen='1-12', binning='_eccen_bin') for sub in SUBJECTS for ses in SESSIONS[sub] for dfm in ['summary', 'full'] for v in VAREAS],
 
 
 rule plots_VSS_abstract:
+    # these recreate the data examined for the first year talk and the VSS abstract, when I was
+    # using the "prior" atlas
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_data.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_full_tuning_curves_check_varea=1_bootstrap={b:02d}.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin', b=b) for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for b in range(100)],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']]
-
-
-rule tuning_curves_VSS_abstract:
-    input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary', 'full']]
-
-
-rule VSS_abstract_data:
-    input:
-        # these recreate the data we looked at for first year talk and VSS abstract
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin_hemi_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary', 'full']]
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_localsf.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_stim_prop.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_data.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_tuning_params.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], df_mode=dfm, vareas='1', eccen='2-8', binning='_eccen_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for dfm in ['summary']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_full_tuning_curves_check_varea=1_bootstrap={b:02d}.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin', b=b) for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045'] for b in range(100)],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_summary_tuning_curves_check_varea=1.svg').format(mat_type="stim_class", atlas_type='prior', subject=sub, session='ses-pilot01', task=TASKS[(sub, 'ses-pilot01')], vareas='1', eccen='2-8', binning='_eccen_bin') for sub in ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']]
 
 
 rule GLMdenoise_all:
@@ -576,32 +470,61 @@ rule first_level_analysis:
         "--benson_template_path {params.benson_template}"
 
 
+def get_binning(wildcards):
+    bin_str = ""
+    if "eccen_bin" in wildcards.binning:
+        bin_str += "--eccen "
+    if "angle_bin" in wildcards.binning:
+        bin_str += "--angle"
+    if not bin_str:
+        raise Exception("You must bin by something!")
+    return bin_str
+
+
+rule binning:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "first_level_analysis", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv")
+    resources:
+        cpus_per_task = 1,
+        mem = lambda wildcards: {'full': 30, 'summary': 10}[wildcards.df_mode]
+    params:
+        bin_str = get_binning
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}.log")
+    shell:
+        "python sfp/binning.py {params.bin_str} {input} {output}"
+
+
 rule tuning_curves:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "first_level_analysis", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "first_level_analysis", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv")
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}.log")
     shell:
         "python sfp/tuning_curves.py {input} {output}"
 
 
 rule plots:
     input:
-        dataframe=os.path.join(config['DATA_DIR'], "derivatives", "{step}", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}.csv")
+        dataframe=os.path.join(config['DATA_DIR'], "derivatives", "{step}", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv")
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "{step}", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}{binning}_{df_mode}_{plot_name}.svg")
+        os.path.join(config['DATA_DIR'], "derivatives", "{step}", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}_{plot_name}.svg")
     params:
         stim_dir = os.path.join(config['DATA_DIR'], 'stimuli')
     resources:
         mem = 2
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_{plot_name}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{plot_name}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}{binning}_{df_mode}_{plot_name}.log")
+        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{plot_name}.log")
     shell:
         "python sfp/plotting.py {input.dataframe} {params.stim_dir} --plot_to_make "
         "{wildcards.plot_name}"
@@ -615,24 +538,25 @@ def get_tuning_curves(wildcards):
     else:
         subjects = SUBJECTS
         sessions = SESSIONS
+    vareas = wildcards.vareas.split('-')
     return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}',
                          '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_'
-                         'v{vareas}_e{eccen}{binning}_{df_mode}.csv').format(mat_type=wildcards.mat_type,
+                         'v{vareas}_e{eccen}_{binning}_{df_mode}.csv').format(mat_type=wildcards.mat_type,
                                                                              atlas_type=wildcards.atlas_type,
                                                                              subject=sub, session=ses,
                                                                              task=TASKS[(sub, ses)],
-                                                                             vareas=wildcards.vareas,
+                                                                             vareas=v,
                                                                              eccen=wildcards.eccen,
                                                                              binning=wildcards.binning,
                                                                              df_mode=wildcards.df_mode)
-            for sub in subjects for ses in sessions[sub]]
+            for sub in subjects for ses in sessions[sub] for v in vareas]
 
 
 rule tuning_curves_summary:
     input:
         get_tuning_curves
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}{binning}_tuning_curves_{df_mode}.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_{df_mode}.csv")
     params:
         input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
     benchmark:
@@ -645,10 +569,10 @@ rule tuning_curves_summary:
 
 rule tuning_curves_summary_plot:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}{binning}_tuning_curves_summary.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_summary.csv")
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', '{mat_type}', '{atlas_type}',
-                     "v{vareas}_e{eccen}{binning}_tuning_curves_summary_plot_{subjects}_{sessions}_"
+                     "v{vareas}_e{eccen}_{binning}_tuning_curves_summary_plot_{subjects}_{sessions}_"
                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}"
                      "_{y}.svg")
     params:

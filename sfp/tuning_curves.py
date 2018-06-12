@@ -139,7 +139,7 @@ def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
         df = df.rename(columns={'amplitude_estimate_median': 'amplitude_estimate'})
     melt_cols = ['varea', 'eccen', 'amplitude_estimate', 'stimulus_superclass',
                  'freq_space_angle', 'baseline'] + additional_cols
-    df = df[['freq_space_distance', 'Local spatial frequency (cpd)'] + melt_cols]
+    df = df[['freq_space_distance', 'local_sf_magnitude'] + melt_cols]
     df = pd.melt(df, melt_cols, var_name='frequency_type', value_name='frequency_value')
     gb_columns = ['varea', 'eccen', 'stimulus_superclass', 'frequency_type'] + additional_cols
     gb = df.groupby(gb_columns)

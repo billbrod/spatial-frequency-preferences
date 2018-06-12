@@ -236,5 +236,5 @@ if __name__ == '__main__':
     args['plot_func'] = eval(plot_func)
     if args['y'] == 'preferred_period':
         # it only makes sense to look at preferred period with the local spatial frequency
-        args['frequency_type'] = 'Local spatial frequency (cpd)'
+        args['frequency_type'] = 'local_sf_magnitude'
     main(summary_df, save_path=save_path, **args)
