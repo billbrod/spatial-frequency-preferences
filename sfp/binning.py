@@ -101,5 +101,5 @@ if __name__ == '__main__':
         to_bin.append('eccen')
     if args.pop('angle'):
         to_bin.append('angle')
-    df = pd.read_csv(args.pop['first_level_results_path'])
+    df = pd.read_csv(args.pop('first_level_results_path'))
     main(df, to_bin=to_bin, **args)

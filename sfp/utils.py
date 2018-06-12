@@ -262,12 +262,12 @@ def create_data_dict(dataframe_path, stim_dir):
     dataframe. in either case, we'll then attempt to find the other one as well. there's a chance
     that the tuning curves dataframe hasn't been created yet -- in that case, we raise a warning.
     """
-    if 'first_level_analysis' in dataframe_path:
+    if 'first_level_binned' in dataframe_path:
         first_level_results_path = dataframe_path
-        tuning_df_path = first_level_results_path.replace('first_level_analysis', 'tuning_curves')
+        tuning_df_path = first_level_results_path.replace('first_level_binned', 'tuning_curves')
     else:
         tuning_df_path = dataframe_path
-        first_level_results_path = tuning_df_path.replace('tuning_curves', 'first_level_analysis')
+        first_level_results_path = tuning_df_path.replace('tuning_curves', 'first_level_binned')
     return_dict = {'df': pd.read_csv(first_level_results_path),
                    'df_filename': first_level_results_path}
     try:
@@ -292,9 +292,9 @@ def load_data(subject, session=None, task=None, df_mode='full',
 
     df_mode determines whether we load in the full or summary dataframe.
 
-    kwargs should specify other first_level_analysis keywords that are specified on the save path:
+    kwargs should specify other first_level_binned keywords that are specified on the save path:
     vareas (list of ints), eccen (2-tuple of ints, the range of eccentricity considered), eccen_bin
-    (boolean), hemi_bin (boolean), atlas_type ({"prior", "posterior"}), and mat_type (string
+    (boolean), angle_bin (boolean), atlas_type ({"prior", "posterior"}), and mat_type (string
     specifying the type of design matrix).
 
     bids_dir should be the path to the bids directory
@@ -304,8 +304,8 @@ def load_data(subject, session=None, task=None, df_mode='full',
     bids_dir = os.path.expanduser(bids_dir)
     if 'derivatives' not in bids_dir:
         bids_dir = os.path.join(bids_dir, 'derivatives')
-    if 'first_level_analysis' not in bids_dir:
-        bids_dir = os.path.join(bids_dir, 'first_level_analysis')
+    if 'first_level_binned' not in bids_dir:
+        bids_dir = os.path.join(bids_dir, 'first_level_binned')
     stim_dir = os.path.abspath(os.path.join(bids_dir, '..', '..', 'stimuli'))
     layout = BIDSLayout(bids_dir)
     if "sub-" in subject:
