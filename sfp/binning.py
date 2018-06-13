@@ -74,7 +74,7 @@ def main(df, to_bin=['eccen'], save_path=None):
     df['voxel'] = voxel_ids['voxel']
     df = df.reset_index()
     if save_path is not None:
-        df.to_csv(save_path)
+        df.to_csv(save_path, index=False)
     return df
 
 
