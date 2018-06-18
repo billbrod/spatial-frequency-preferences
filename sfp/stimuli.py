@@ -425,10 +425,10 @@ def create_sf_origin_polar_maps_cpd(size, max_visual_angle, origin=None, scale_f
     _, _, mag, direc = create_sf_maps_cpd(size, max_visual_angle, origin, scale_factor, stim_type,
                                           w_r, w_a, w_x, w_y)
     angle = ppt.mkAngle(size, origin=origin)
-    new_angle = direc - angle
+    new_angle = np.mod(direc - angle, 2*np.pi)
     dr = mag * np.cos(new_angle)
     da = mag * np.sin(new_angle)
-    return dr, da
+    return dr, da, new_angle
 
 
 def create_antialiasing_mask(size, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,

@@ -299,16 +299,19 @@ def calculate_stim_local_sf(stim, w_1, w_2, stim_type, eccens, angles, stim_rad_
         if stim_type in ['logpolar', 'pilot']:
             dx, dy, mag, direc = sfp_stimuli.sf_cpd(stim.shape[0], stim_rad_deg*2, e, a,
                                                     stim_type=stim_type, w_r=w_1, w_a=w_2)
-            dr, da = sfp_stimuli.sf_origin_polar_cpd(stim.shape[0], stim_rad_deg*2, e, a,
-                                                     stim_type=stim_type, w_r=w_1, w_a=w_2)
+            dr, da, new_angle = sfp_stimuli.sf_origin_polar_cpd(stim.shape[0], stim_rad_deg*2, e,
+                                                                a, stim_type=stim_type, w_r=w_1,
+                                                                w_a=w_2)
         elif stim_type == 'constant':
             dx, dy, mag, direc = sfp_stimuli.sf_cpd(stim.shape[0], stim_rad_deg*2, e, a,
                                                     stim_type=stim_type, w_x=w_1, w_y=w_2)
-            dr, da = sfp_stimuli.sf_origin_polar_cpd(stim.shape[0], stim_rad_deg*2, e, a,
-                                                     stim_type=stim_type, w_x=w_1, w_y=w_2)
+            dr, da, new_angle = sfp_stimuli.sf_origin_polar_cpd(stim.shape[0], stim_rad_deg*2, e,
+                                                                a, stim_type=stim_type, w_x=w_1,
+                                                                w_y=w_2)
         eccen_local_freqs.append(pd.DataFrame(
             {'local_w_x': dx, 'local_w_y': dy, 'local_w_r': dr, 'local_w_a': da, 'eccen': e,
-             'angle': a, 'local_sf_magnitude': mag, 'local_sf_direction': direc}, [i]))
+             'angle': a, 'local_sf_magnitude': mag, 'local_sf_xy_direction': direc,
+             'local_sf_ra_direction': new_angle}, [i]))
     eccen_local_freqs = pd.concat(eccen_local_freqs)
 
     if plot_flag:
