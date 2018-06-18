@@ -6,18 +6,6 @@ import numpy as np
 import argparse
 
 
-def _gb_mean(x):
-    """how we take the mean
-    """
-    try:
-        return x.mean()
-    except TypeError:
-        if x.nunique() == 1:
-            return x.unique()[0]
-        else:
-            return
-
-
 def _bin_eccen(eccens):
     eccen_min = int(np.floor(eccens.min()))
     eccen_max = int(np.ceil(eccens.max()))
@@ -34,7 +22,7 @@ def _bin_angle_quarters(angles):
     return new_angles
 
 
-def main(df, to_bin=['eccen'], save_path=None):
+def main(df, to_bin=['eccen'], save_path=None, weighted_avg=False):
     """bin first level results dataframe
 
     when we bin a column, we take the mean of all voxels in the corresponding bins in the other
@@ -51,6 +39,9 @@ def main(df, to_bin=['eccen'], save_path=None):
     *something*.
 
     save_path: str, optional. Where to save the binned dataframe.
+
+    weighted: boolean, optional. If True, we weight all averages by the precision column (which is
+    the inverse of the variance of the amplitude estimates for each voxel).
     """
     df = df.copy()
     if len(to_bin) == 0:
@@ -64,10 +55,24 @@ def main(df, to_bin=['eccen'], save_path=None):
     # these columns will have unique combinations of values that correspond to "binned voxels"
     voxel_id_cols = ['varea'] + to_bin
     to_bin.extend(['stimulus_class', 'varea'])
-    # we first drop any column that only have NaN / None values (these will be ones where taking a
-    # mean is not meaningful *and* where there are different values in one groupby instance).  we
-    # then drop any row that has a NaN value for voxel
-    df = df.groupby(to_bin).agg(_gb_mean).dropna(1, 'all').reset_index().dropna(subset=['voxel'])
+    # We loop through all columns in the groupby, checking if they're numeric.  if they are, we
+    # average all those values (setting weights to either None or reliability, depending on whether
+    # user selected to weight them or not); if it's not, check whether there's one unique value. if
+    # there is, use that. if not, return None.
+    data_dict = {}
+    gb = df.groupby(to_bin)
+    for col in df.columns:
+        if col not in to_bin:
+            if np.issubdtype(df[col].dtype, np.number):
+                if weighted_avg:
+                    data_dict[col] = gb.apply(lambda x: np.average(x[col], weights=x.precision))
+                else:
+                    data_dict[col] = gb.apply(lambda x: np.average(x[col], weights=None))
+            elif (gb[col].nunique() == 1).all():
+                data_dict[col] = gb.apply(lambda x: x.stimulus_superclass.unique()[0])
+            else:
+                data_dict[col] = None
+    df = pd.concat(data_dict, 1).reset_index()
     df = df.set_index(voxel_id_cols)
     df_index = df.index.unique()
     voxel_ids = pd.DataFrame(data={'voxel': range(len(df_index))}, index=df_index)
@@ -89,12 +94,16 @@ if __name__ == '__main__':
         formatter_class=CustomFormatter)
     parser.add_argument("first_level_results_path",
                         help=("Path to the unbinned first level results dataframe"))
-    parser.add_argument("save_path", help="Path to save the resulting binned results dataframe at.")
+    parser.add_argument("save_path",
+                        help="Path to save the resulting binned results dataframe at.")
     parser.add_argument("--eccen", action="store_true",
                         help=("Whether to bin the eccentricites into integer increments."))
     parser.add_argument("--angle", action="store_true",
                         help=("Whether to bin the angles into quarters of the visual field (upper,"
                               " lower, right, left)."))
+    parser.add_argument("--weighted_avg", action="store_true",
+                        help=("Whether to weight the averages (of numeric columns) by each voxels'"
+                              " reliability"))
     args = vars(parser.parse_args())
     to_bin = []
     if args.pop('eccen'):

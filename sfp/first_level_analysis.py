@@ -9,14 +9,12 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import os
-import warnings
 import nibabel as nib
 import itertools
 import re
 from matplotlib import pyplot as plt
 import stimuli as sfp_stimuli
 import pyPyrTools as ppt
-import utils
 
 
 def _load_mgz(path):
@@ -35,7 +33,7 @@ def _arrange_helper(hemi, name, template, varea_mask, eccen_mask):
     """
     tmp = _load_mgz(template % (hemi, name))
     if tmp.ndim == 1:
-        tmp =  tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
+        tmp = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
     elif tmp.ndim == 2:
         tmp = tmp[(varea_mask[hemi]) & (eccen_mask[hemi]), :]
     if os.sep in name:
@@ -388,6 +386,35 @@ def _transform_angle(x):
     return np.mod(np.radians(ang - 90), 2*np.pi)
 
 
+def _precision_dist(x):
+    """get precision from a distribution of values (inverse of variance)
+    """
+    cis = np.percentile(x, [16, 84])
+    std_dev = abs(cis[0] - cis[1]) / 2.
+    return 1. / (std_dev**2)
+
+
+def _append_precision_col(df):
+    """calculate precision and add to the dataframe
+
+    the precision is the inverse of the variance and can be used as weights when combining across
+    voxels. here, for each voxel, we calculate the precision for each stimulus class's estimate and
+    then average across all stimulus classes to get a single precision estimate for each voxel.
+    """
+    df = df.copy()
+    if 'amplitude_estimate_std_error' in df.columns:
+        df['precision'] = 1. / (df.amplitude_estimate_std_error ** 2)
+    else:
+        gb = df.groupby(['varea', 'voxel', 'stimulus_class'])
+        df = df.set_index(['varea', 'voxel', 'stimulus_class'])
+        df['precision'] = gb.amplitude_estimate.apply(_precision_dist)
+        df = df.reset_index()
+    gb = df.groupby(['varea', 'voxel'])
+    df = df.set_index(['varea', 'voxel'])
+    df['precision'] = gb.precision.mean()
+    return df.reset_index()
+
+
 def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
          save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
          benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
@@ -486,6 +513,7 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     df['angle'] = df.apply(_transform_angle, 1)
     df = _add_local_sf_to_df(df, stim, stim_type, stim_rad_deg, mid_val)
     df = _add_baseline(df)
+    df = _append_precision_col(df)
 
     if save_path is not None:
         df.to_csv(save_path, index=False)
