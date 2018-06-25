@@ -444,7 +444,7 @@ rule first_level_analysis:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
     resources:
         cpus_per_task = 1,
-        mem = lambda wildcards: {'full': 30, 'summary': 10}[wildcards.df_mode]
+        mem = lambda wildcards: {'full': 40, 'summary': 10}[wildcards.df_mode]
     params:
         save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
         save_dir = lambda wildcards, output: os.path.dirname(output[0]),
