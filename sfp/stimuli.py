@@ -330,10 +330,10 @@ def sf_origin_polar_cpd(size, max_visual_angle, eccen, angle, stim_type='logpola
     w_y must be set, w_r and w_a must be None; if 'logpolar' or 'pilot', then the opposite.
     """
     _, _, mag, direc = sf_cpd(size, max_visual_angle, eccen, angle, stim_type, w_r, w_a, w_x, w_y)
-    new_angle = direc - angle
+    new_angle = np.mod(direc - angle, 2*np.pi)
     dr = mag * np.cos(new_angle)
     da = mag * np.sin(new_angle)
-    return dr, da
+    return dr, da, new_angle
 
 
 def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', w_r=None, w_a=None,
