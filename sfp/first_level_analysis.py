@@ -148,7 +148,8 @@ def _add_freq_metainfo(stim_df):
     dist = pd.Series([i[2] for i in properties_list.values], properties_list.index)
 
     stim_df['stimulus_superclass'] = sc
-    stim_df['freq_space_angle'] = ang
+    # get these between 0 and 2*pi, like the local spatial frequency angles
+    stim_df['freq_space_angle'] = np.mod(ang, 2*np.pi)
     stim_df['freq_space_distance'] = dist
     return stim_df
 
@@ -415,6 +416,28 @@ def _append_precision_col(df):
     return df.reset_index()
 
 
+def _normalize_amplitude_estimate(df, norm_order=2):
+    """calculates the norm of the ampltiude estimates, and normalizes by that
+
+    by default, this is the L2-norm (as calculated by np.linalg.norm). Specify norm_order to change
+    this, see https://docs.scipy.org/doc/numpy-1.14.0/reference/generated/numpy.linalg.norm.html
+    for possible values.
+    """
+    gb = df.groupby(['varea', 'voxel'])
+    df = df.set_index(['varea', 'voxel'])
+    if 'amplitude_estimate_median' in df.columns:
+        df['amplitude_estimate_norm'] = gb.amplitude_estimate_median.apply(np.linalg.norm,
+                                                                           norm_order)
+        df = df.reset_index()
+        for col in ['amplitude_estimate_median', 'amplitude_estimate_std_error']:
+            df['%s_normed' % col] = df[col] / df.amplitude_estimate_norm
+    else:
+        df['amplitude_estimate_norm'] = gb.amplitude_estimate.apply(np.linalg.norm, norm_order)
+        df = df.reset_index()
+        df['amplitude_estimate_normed'] = df.amplitude_estimate / df.amplitude_estimate_norm
+    return df
+
+
 def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
          save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
          benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
@@ -514,6 +537,7 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     df = _add_local_sf_to_df(df, stim, stim_type, stim_rad_deg, mid_val)
     df = _add_baseline(df)
     df = _append_precision_col(df)
+    df = _normalize_amplitude_estimate(df)
 
     if save_path is not None:
         df.to_csv(save_path, index=False)
