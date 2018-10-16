@@ -69,8 +69,9 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
     hue_order = list(kwargs.pop('hue_order', legend_keys))
     size = kwargs.pop('size', 5)
     palette = kwargs.pop('palette', 'deep')
-    colors = sns.color_palette(palette, len(legend_keys))
-    palette = dict((k, v) for k, v in zip(legend_keys, colors))
+    if not isinstance(palette, dict):
+        colors = sns.color_palette(palette, len(legend_keys))
+        palette = dict((k, v) for k, v in zip(legend_keys, colors))
     if eccen_soft_exclude is not None:
         if eccen_soft_exclude[0] == eccen_range[0]:
             summary_df.loc[summary_df.eccen < eccen_soft_exclude[1], hue] = (
