@@ -8,3 +8,4 @@ import tuning_curves
 import summarize_tuning_curves
 import summary_plots
 import binning
+import model
