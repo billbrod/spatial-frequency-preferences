@@ -550,8 +550,7 @@ if __name__ == '__main__':
         pass
     parser = argparse.ArgumentParser(
         description=("Load in relevant data and create a DataFrame summarizing the first-level "
-                     "results for a given subject. Note that this can take a rather long time, "
-                     "especially if you are not binning by eccentricity."),
+                     "results for a given subject. Note that this can take a rather long time."),
         formatter_class=CustomFormatter)
     parser.add_argument("--results_template_path", required=True,
                         help=("template path to the results mgz files (outputs of realign.py), "
