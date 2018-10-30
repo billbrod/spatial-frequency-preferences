@@ -618,8 +618,45 @@ rule model:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", '')
     shell:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
-        "{wildcards.batch_size} -r {wildcards.learning_rate} -d reduce_num_voxels:200,"
-        "drop_voxels_with_negative_amplitudes -t .1 -e 1"
+        "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
+        "drop_voxels_with_negative_amplitudes -t .1"
+
+
+rule simulate_data:
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{model_type}', '{direction_type}', 'sim-{model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'sim-{model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_benchmark.txt')
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'sim-{model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}.log')
+    resources:
+        mem=10
+    shell:
+        "python sfp/simulate_data.py {wildcards.model_type} {output} -n {wildcards.num_voxels} -a "
+        "{wildcards.amplitude} -m {wildcards.mode} -s {wildcards.sigma} -e {wildcards.sf_ecc_slope}"
+        " -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} -d {wildcards.direction_type}"
+
+
+rule model_simulated_data:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{sim_model_type}', '{direction_type}', 'sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model.pt")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}.log")
+    resources:
+        cpus_per_task = 1,
+        mem = 10,
+        gpus = 1
+    params:
+        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", '')
+    shell:
+        "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
+        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t .001"
 
 
 rule report:

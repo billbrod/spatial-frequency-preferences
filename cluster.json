@@ -44,5 +44,17 @@
 	"mem": "{resources.mem}GB",
 	"cpus_per_task": "{resources.cpus_per_task}",
 	"gres": "gpu:{resources.gpus}"
-    }
+    },
+    "simulate_data":
+    {
+	"mem": "{resources.mem}GB"
+    },
+    "model_simulated_data":
+    {
+	"mem": "{resources.mem}GB",
+	"cpus_per_task": "{resources.cpus_per_task}",
+	"gres": "gpu:{resources.gpus}"
+    },
+
+
 }
