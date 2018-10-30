@@ -6,7 +6,6 @@ import matplotlib as mpl
 mpl.use('svg')
 import pandas as pd
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 import torch
 import warnings
@@ -247,9 +246,9 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=.1, 
             loss_history[t].append(loss.item())
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         if len(loss_history) > 3:
-            if ((np.mean(loss_history[-1]) - np.mean(loss_history[-2]) < train_thresh) and
-                (np.mean(loss_history[-2]) - np.mean(loss_history[-3]) < train_thresh) and
-                (np.mean(loss_history[-3]) - np.mean(loss_history[-4]) < train_thresh)):
+            if ((np.abs(np.mean(loss_history[-1]) - np.mean(loss_history[-2])) < train_thresh) and
+                (np.abs(np.mean(loss_history[-2]) - np.mean(loss_history[-3])) < train_thresh) and
+                (np.abs(np.mean(loss_history[-3]) - np.mean(loss_history[-4])) < train_thresh)):
                 print("Epoch loss appears to have stopped declining, so we stop training")
                 break
     loss_df = construct_loss_df(loss_history)
@@ -318,8 +317,8 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
     model.to(device)
     dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter)
     print("Beginning training!")
-    model, loss_df = train_model(model, dataset, max_epochs, batch_size,
-                                 learning_rate=learning_rate)
+    model, loss_df = train_model(model, dataset, max_epochs, batch_size, train_thresh,
+                                 learning_rate)
     print("Finished training!")
     # we reload the first level dataframe because the one in dataset may be filtered in some way
     first_level_df = combine_first_level_df_with_performance(pd.read_csv(first_level_results_path),
