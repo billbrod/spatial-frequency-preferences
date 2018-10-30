@@ -38,6 +38,11 @@
     "plots":
     {
 	"mem": "{resources.mem}GB"
+    },
+    "model":
+    {
+	"mem": "{resources.mem}GB",
+	"cpus_per_task": "{resources.cpus_per_task}",
+	"gres": "gpu:{resources.gpus}"
     }
-
 }

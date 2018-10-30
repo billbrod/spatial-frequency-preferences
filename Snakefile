@@ -176,7 +176,7 @@ rule stimuli_idx:
 
 rule preprocess:
     input:
-        os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", "{subject}"),
+        lambda wildcards: os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", wildcards.subject.replace('sub-', '')),
         func_files = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}_{session}_{task}_{run}_bold.nii")
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
@@ -422,7 +422,7 @@ def get_first_level_analysis_input(wildcards):
     elif wildcards.atlas_type == 'posterior':
         benson_prefix = 'inferred'
         benson_names.append('sigma')
-    benson_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', wildcards.subject, 'surf', '{hemi}.'+benson_prefix+'_{filename}.mgz')
+    benson_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', wildcards.subject.replace('sub-', ''), 'surf', '{hemi}.'+benson_prefix+'_{filename}.mgz')
     input_dict['benson_paths'] = expand(benson_temp, hemi=['lh', 'rh'], filename=benson_names)
     return input_dict
 
@@ -597,6 +597,29 @@ rule tuning_curves_summary_plot:
         "python sfp/summary_plots.py {input} --col {params.col} --row {params.row} --hue"
         " {params.hue} --y {params.y} --varea {params.plot_varea} --eccen_range {params.eccen_range}"
         " --subject {params.subjects} --task {params.tasks} --session {params.sessions}"
+
+
+rule model:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_model_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_model.pt")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}.log")
+    resources:
+        cpus_per_task = 1,
+        mem = 10,
+        gpus = 1
+    params:
+        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", '')
+    shell:
+        "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
+        "{wildcards.batch_size} -r {wildcards.learning_rate} -d reduce_num_voxels:200,"
+        "drop_voxels_with_negative_amplitudes -t .1 -e 1"
 
 
 rule report:
