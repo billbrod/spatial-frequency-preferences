@@ -255,7 +255,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=.1, 
     loss_df['max_epochs'] = max_epochs
     loss_df['batch_size'] = batch_size
     loss_df['train_thresh'] = train_thresh
-    loss_df['epochs_trained'] = t
+    loss_df['epochs_trained'] = t+1
     return model, loss_df
 
 
@@ -331,7 +331,7 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
     return model, loss_df, first_level_df
 
 
-def load_model(save_path_stem):
+def load_model(save_path_stem, model_type=None):
     """load in the model, loss df, and model df found at the save_path_stem
 
     we also send the model to the appropriate device
@@ -339,8 +339,19 @@ def load_model(save_path_stem):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     first_df = pd.read_csv(save_path_stem + '_model_df.csv')
     loss_df = pd.read_csv(save_path_stem + '_loss.csv')
-    model = sfp.model.ConstantLogGaussianDonut(1,2,.4)
-    model.load_state_dict(torch.load(save_path_stem + '_model.pt'))
+    if model_type is None:
+        # then we try and infer it from the path name, which we can do assuming we used the
+        # Snakefile to generate saved model.
+        model_type = save_path_stem.split('_')[-1]
+    if model_type == 'full':
+        model = LogGaussianDonut(1, 2, .4)
+    elif model_type == 'constant':
+        model = ConstantLogGaussianDonut(1, 2, .4)
+    elif model_type == 'scaling':
+        model = ScalingLogGaussianDonut(1, 2, .4)
+    else:
+        raise Exception("Don't know how to handle model_type %s!" % model_type)
+    model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
     model.eval()
     model.to(device)    
     return model, loss_df, first_df
