@@ -326,6 +326,7 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
     # we reload the first level dataframe because the one in dataset may be filtered in some way
     first_level_df = combine_first_level_df_with_performance(pd.read_csv(first_level_results_path),
                                                              check_performance(model, dataset))
+    first_level_df['fit_model'] = model.model_type
     if save_path_stem is not None:
         torch.save(model.state_dict(), save_path_stem + "_model.pt")
         loss_df.to_csv(save_path_stem + "_loss.csv", index=False)
