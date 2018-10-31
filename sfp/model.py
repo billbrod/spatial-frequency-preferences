@@ -106,6 +106,7 @@ class LogGaussianDonut(torch.nn.Module):
         self.sigma = _cast_as_param(sigma)
         self.sf_ecc_slope = _cast_as_param(sf_ecc_slope, train_sf_ecc_slope)
         self.sf_ecc_intercept = _cast_as_param(sf_ecc_intercept, train_sf_ecc_intercept)
+        self.model_type = 'full_donut'
 
     def _create_mag_angle(self, extent=(-10, 10), n_samps=1001):
         x = torch.linspace(extent[0], extent[1], n_samps)
@@ -161,6 +162,7 @@ class ConstantLogGaussianDonut(LogGaussianDonut):
     def __init__(self, amplitude, mode, sigma):
         # this way the "relative frequency" is sf_mag * (0*voxel_ecc + 1) = sf_mag
         super(ConstantLogGaussianDonut, self).__init__(amplitude, mode, sigma, 0, 1, False, False)
+        self.model_type = 'constant_donut'
         
     def create_image(self, extent=None, n_samps=1001):
         r, th = self._create_mag_angle(extent, n_samps)
@@ -185,6 +187,7 @@ class ScalingLogGaussianDonut(LogGaussianDonut):
     def __init__(self, amplitude, mode, sigma):
         # this way the "relative frequency" is sf_mag * (1*voxel_ecc + 0) = sf_mag * voxel_ecc
         super(ScalingLogGaussianDonut, self).__init__(amplitude, mode, sigma, 1, 0, False, False)
+        self.model_type = 'scaling_donut'
 
 
 def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_samps=1001,

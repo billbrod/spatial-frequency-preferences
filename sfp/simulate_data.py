@@ -45,6 +45,10 @@ def simulate_data(true_model, direction_type='absolute', num_voxels=100, noise_l
         df.append(tmp)
     df = pd.concat(df)
     df['varea'] = 1
+    # we want the generating model and its parameters stored here
+    df['true_model_type'] = true_model.model_type
+    for name, val in true_model.named_parameters():
+        df[name] = val.detach().numpy()
     return first_level_analysis._normalize_amplitude_estimate(df)
 
 
