@@ -49,6 +49,8 @@ def simulate_data(true_model, direction_type='absolute', num_voxels=100, noise_l
     df['true_model_type'] = true_model.model_type
     for name, val in true_model.named_parameters():
         df[name] = val.detach().numpy()
+    df['noise_level'] = noise_level
+    df['direction_type'] = direction_type
     return first_level_analysis._normalize_amplitude_estimate(df)
 
 

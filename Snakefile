@@ -656,7 +656,7 @@ rule model_simulated_data:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", '')
     shell:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
-        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t .001"
+        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t .0001 -e 1000"
 
 
 rule report:
