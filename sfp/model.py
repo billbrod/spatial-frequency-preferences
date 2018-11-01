@@ -233,11 +233,12 @@ def construct_loss_df(loss_history):
     return loss_df.rename(columns={'index': 'epoch_num'})
 
 
-def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=.1, learning_rate=1e-3):
+def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5,
+                learning_rate=1e-3):
     """train the model
     """
     # FOR CUSTOM LOSS, just need to return a scalar output (don't need to use the loss module)
-    loss_fn = torch.nn.MSELoss(False)
+    loss_fn = torch.nn.MSELoss()
     # AMSGrad argument here means we use a revised version that handles a bug people found where
     # it doesn't necessarily converge
     training_parameters = [p for p in model.parameters() if p.requires_grad]
