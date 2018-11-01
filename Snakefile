@@ -619,7 +619,7 @@ rule model:
     shell:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
-        "drop_voxels_with_negative_amplitudes -t .1"
+        "drop_voxels_with_negative_amplitudes -t .01 -e 500"
 
 
 rule simulate_data:
