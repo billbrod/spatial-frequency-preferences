@@ -108,6 +108,15 @@ class LogGaussianDonut(torch.nn.Module):
         self.sf_ecc_intercept = _cast_as_param(sf_ecc_intercept, train_sf_ecc_intercept)
         self.model_type = 'full_donut'
 
+    def __str__(self):
+        # so we can see the parameters
+        return "{0}({1:.03f}, {2:.03f}, {3:.03f}, {4:.03f}, {5:.03f})".format(
+            type(self).__name__, self.amplitude, self.mode, self.sigma, self.sf_ecc_slope,
+            self.sf_ecc_intercept)
+
+    def __repr__(self):
+        return self.__str__()
+
     def _create_mag_angle(self, extent=(-10, 10), n_samps=1001):
         x = torch.linspace(extent[0], extent[1], n_samps)
         x, y = torch_meshgrid(x)
