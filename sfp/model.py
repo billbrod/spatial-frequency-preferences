@@ -257,6 +257,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=.1, 
     loss_df = construct_loss_df(loss_history)
     loss_df['max_epochs'] = max_epochs
     loss_df['batch_size'] = batch_size
+    loss_df['learning_rate'] = learning_rate
     loss_df['train_thresh'] = train_thresh
     loss_df['epochs_trained'] = t+1
     return model, loss_df
