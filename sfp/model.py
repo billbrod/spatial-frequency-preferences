@@ -47,7 +47,7 @@ class FirstLevelDataset(torchdata.Dataset):
     returns one (most likely, a subset of the original) as output. See `drop_voxels_with_negative_amplitudes`
     for an example.
     """
-    def __init__(self, df_path, device, direction_type='absolute', df_filter=None):
+    def __init__(self, df_path, device, direction_type='absolute', df_filter=None, normed=True):
         df = pd.read_csv(df_path)
         if df_filter is not None:
             # we want the index to be reset so we can use iloc in __getitem__ below. this ensures
@@ -61,6 +61,7 @@ class FirstLevelDataset(torchdata.Dataset):
             raise Exception("Don't know how to handle direction_type %s!" % direction_type)
         self.direction_type = direction_type
         self.device = device
+        self.normed = normed
         
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
@@ -69,10 +70,16 @@ class FirstLevelDataset(torchdata.Dataset):
         elif self.direction_type == 'absolute':
             vals = row[['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']].values
         feature = _cast_as_tensor(vals.astype(float))
-        try:
-            target = _cast_as_tensor(row['amplitude_estimate_normed'])
-        except KeyError:
-            target = _cast_as_tensor(row['amplitude_estimate_median_normed'])
+        if self.normed:
+            try:
+                target = _cast_as_tensor(row['amplitude_estimate_normed'])
+            except KeyError:
+                target = _cast_as_tensor(row['amplitude_estimate_median_normed'])
+        else:
+            try:
+                target = _cast_as_tensor(row['amplitude_estimate'])
+            except KeyError:
+                target = _cast_as_tensor(row['amplitude_estimate_median'])
         return feature.to(self.device), target.to(self.device)
     
     def get_voxel(self, idx):
