@@ -347,7 +347,7 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
                                                              check_performance(model, dataset))
     first_level_df['fit_model'] = model.model_type
     for name, val in model.named_parameters():
-        df[name] = val.detach().numpy()
+        df[name] = val.cpu().detach().numpy()
     first_level_df['epochs_trained'] = loss_df.epochs_trained.unique()[0]
     first_level_df['batch_size'] = batch_size
     first_level_df['learning_rate'] = learning_rate
