@@ -335,6 +335,8 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.device_count() > 1 and batch_size > torch.cuda.device_count():
+        model = torch.nn.DataParallel(model)
     model.to(device)
     dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter,
                                 normed=normalize_voxels)
