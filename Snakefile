@@ -637,13 +637,21 @@ rule simulate_data:
         " -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} -d {wildcards.direction_type}"
 
 
+def get_normed(wildcards):
+    if wildcards.normed == 'normed':
+        return '-n'
+    elif wildcards.normed == 'un-normed':
+        return ''
+    else:
+        raise Exception("normed wildcard must have value 'normed' or 'un-normed', not %s!" % wildcards.normed)
+
 rule model_simulated_data:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{sim_model_type}', '{direction_type}', 'sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model_df.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model.pt")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}",  "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}",  "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model.pt")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_benchmark.txt")
     log:
@@ -653,10 +661,12 @@ rule model_simulated_data:
         mem = 10,
         gpus = 1
     params:
-        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", '')
+        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
+        normed_flag = get_normed
     shell:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
-        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t 1e-10 -e 10000"
+        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t 1e-10 -e 10000 "
+        "{params.normed_flag}"
 
 
 rule report:
