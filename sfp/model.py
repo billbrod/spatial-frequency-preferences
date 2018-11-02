@@ -62,6 +62,7 @@ class FirstLevelDataset(torchdata.Dataset):
         self.direction_type = direction_type
         self.device = device
         self.normed = normed
+        self.df_path = df_path
         
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
@@ -240,8 +241,71 @@ def construct_loss_df(loss_history):
     return loss_df.rename(columns={'index': 'epoch_num'})
 
 
+def check_performance(trained_model, dataset):
+    """check performance of trained_model for each voxel in the dataset
+
+    this assumes both model and dataset are on the same device
+    """
+    loss_fn = torch.nn.MSELoss(False)
+    performance = []
+    for i in dataset.df.voxel.unique():
+        targets = dataset.get_voxel(i)[1]
+        predictions = trained_model(*dataset.get_voxel(i)[0].transpose(1, 0))
+        corr = np.corrcoef(targets.cpu().detach().numpy(), predictions.cpu().detach().numpy())
+        loss = loss_fn(predictions, targets).item()
+        performance.append(pd.DataFrame({'voxel': i, 'stimulus_class': range(len(targets)),
+                                         'model_prediction_correlation': corr[0, 1],
+                                         'model_prediction_loss': loss,
+                                         'model_predictions': predictions.cpu().detach().numpy()}))
+    return pd.concat(performance)
+
+
+def combine_first_level_df_with_performance(first_level_df, performance_df):
+    """combine results_df and performance_df, along the voxel, producing results_df
+    """
+    results_df = first_level_df.set_index(['voxel', 'stimulus_class'])
+    performance_df = performance_df.set_index(['voxel', 'stimulus_class'])
+    results_df = results_df.join(performance_df, ['voxel', 'stimulus_class']).reset_index()
+    return results_df.reset_index()    
+
+
+def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate, train_thresh,
+                  current_epoch):
+    """construct the loss and results dataframes and add metadata
+    """
+    loss_df = construct_loss_df(loss_history)
+    loss_df['max_epochs'] = max_epochs
+    loss_df['batch_size'] = batch_size
+    loss_df['learning_rate'] = learning_rate
+    loss_df['train_thresh'] = train_thresh
+    loss_df['epochs_trained'] = current_epoch
+    # we reload the first level dataframe because the one in dataset may be filtered in some way
+    results_df = combine_first_level_df_with_performance(model.df_path,
+                                                         check_performance(model, dataset))
+    results_df['fit_model'] = model.model_type
+    loss_df['fit_model'] = model.model_type
+    if 'true_model_type' in results_df.columns:
+        loss_df['true_model_type'] = results_df.true_model_type.unique()[0]
+    for name, val in model.named_parameters():
+        df[name] = val.cpu().detach().numpy()
+    results_df['epochs_trained'] = current_epoch
+    results_df['batch_size'] = batch_size
+    results_df['learning_rate'] = learning_rate
+    results_df['predict_normalized_voxels'] = normalize_voxels
+    return loss_df, results_df    
+
+
+def save_outputs(model, loss_df, results_df, save_path_stem):
+    """save outputs (if save_path_stem is not None)
+    """
+    if save_path_stem is not None:
+        torch.save(model.state_dict(), save_path_stem + "_model.pt")
+        loss_df.to_csv(save_path_stem + "_loss.csv", index=False)
+        results_df.to_csv(save_path_stem + "_model_df.csv", index=False)
+
+
 def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5,
-                learning_rate=1e-3):
+                learning_rate=1e-3, save_path_stem=None):
     """train the model
     """
     # FOR CUSTOM LOSS, just need to return a scalar output (don't need to use the loss module)
@@ -264,6 +328,10 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5
             loss.backward()
             optimizer.step()
             loss_history[t].append(loss.item())
+        if t % 100:
+            loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs,
+                                                batch_size, learning_rate, train_thresh, t)
+            save_outputs(model, loss_df, results_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         if len(loss_history) > 3:
             if ((np.abs(np.mean(loss_history[-1]) - np.mean(loss_history[-2])) < train_thresh) and
@@ -271,41 +339,9 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5
                 (np.abs(np.mean(loss_history[-3]) - np.mean(loss_history[-4])) < train_thresh)):
                 print("Epoch loss appears to have stopped declining, so we stop training")
                 break
-    loss_df = construct_loss_df(loss_history)
-    loss_df['max_epochs'] = max_epochs
-    loss_df['batch_size'] = batch_size
-    loss_df['learning_rate'] = learning_rate
-    loss_df['train_thresh'] = train_thresh
-    loss_df['epochs_trained'] = t+1
-    return model, loss_df
-
-
-def check_performance(trained_model, dataset):
-    """check performance of trained_model for each voxel in the dataset
-
-    this assumes both model and dataset are on the same device
-    """
-    loss_fn = torch.nn.MSELoss(False)
-    performance = []
-    for i in dataset.df.voxel.unique():
-        targets = dataset.get_voxel(i)[1]
-        predictions = trained_model(*dataset.get_voxel(i)[0].transpose(1, 0))
-        corr = np.corrcoef(targets.cpu().detach().numpy(), predictions.cpu().detach().numpy())
-        loss = loss_fn(predictions, targets).item()
-        performance.append(pd.DataFrame({'voxel': i, 'stimulus_class': range(len(targets)),
-                                         'model_prediction_correlation': corr[0, 1],
-                                         'model_prediction_loss': loss,
-                                         'model_predictions': predictions.cpu().detach().numpy()}))
-    return pd.concat(performance)
-
-
-def combine_first_level_df_with_performance(first_level_df, performance_df):
-    """combine first_level_df and performance_df, along the voxel
-    """
-    first_level_df = first_level_df.set_index(['voxel', 'stimulus_class'])
-    performance_df = performance_df.set_index(['voxel', 'stimulus_class'])
-    first_level_df = first_level_df.join(performance_df, ['voxel', 'stimulus_class']).reset_index()
-    return first_level_df.reset_index()    
+    loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate,
+                                        train_thresh, t)
+    return model, loss_df, results_df
 
 
 def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, batch_size=2000,
@@ -341,25 +377,12 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
     dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter,
                                 normed=normalize_voxels)
     print("Beginning training!")
-    model, loss_df = train_model(model, dataset, max_epochs, batch_size, train_thresh,
-                                 learning_rate)
+    model, loss_df, results_df = train_model(model, dataset, max_epochs, batch_size, train_thresh,
+                                             learning_rate, save_path_stem)
     print("Finished training!")
-    # we reload the first level dataframe because the one in dataset may be filtered in some way
-    first_level_df = combine_first_level_df_with_performance(pd.read_csv(first_level_results_path),
-                                                             check_performance(model, dataset))
-    first_level_df['fit_model'] = model.model_type
-    for name, val in model.named_parameters():
-        df[name] = val.cpu().detach().numpy()
-    first_level_df['epochs_trained'] = loss_df.epochs_trained.unique()[0]
-    first_level_df['batch_size'] = batch_size
-    first_level_df['learning_rate'] = learning_rate
-    first_level_df['predict_normalized_voxels'] = normalize_voxels
-    if save_path_stem is not None:
-        torch.save(model.state_dict(), save_path_stem + "_model.pt")
-        loss_df.to_csv(save_path_stem + "_loss.csv", index=False)
-        first_level_df.to_csv(save_path_stem + "_model_df.csv", index=False)
+    save_outputs(model, loss_df, results_df, save_path_stem,)
     model.eval()
-    return model, loss_df, first_level_df
+    return model, loss_df, results_df
 
 
 def construct_df_filter(df_filter_string):
