@@ -665,7 +665,7 @@ rule model_simulated_data:
         normed_flag = get_normed
     shell:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
-        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t 1e-10 -e 10000 "
+        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t 1e-8 -e 1000 "
         "{params.normed_flag}"
 
 
