@@ -42,29 +42,30 @@ def combine_models(base_path_template):
 
     returns: model_df, loss_df, data_df
 
-    base_path_template: path template where we should find the results.
+    base_path_template: path template where we should find the results. should contain no string
+    formatting symbols (e.g., "{0}" or "%s") but should contain at least one '*' because we will
+    use glob to find them (and therefore should point to an actual file when passed to glob, one
+    of: the loss df, model df, or model paramters).
     """
     models = []
     loss_df = []
     data_df = []
-    for sim in ['constant', 'scaling', 'full']:
-        for fit in ['constant', 'scaling', 'full']:
-            m_files = glob.glob('/home/billbrod/Data/spatial_frequency_preferences/derivatives/tuning_2d_simulated/sim-{0}/absolute/sim-{0}_*_{1}_loss.csv'.format(sim, fit))
-            for m_f in m_files:
-                m, l, f = sfp.model.load_model(m_f.replace('_loss.csv', ''))
-                models[("sim-%s"%sim, fit, f.learning_rate.unique()[0], f.batch_size.unique()[0])] = m
-                data_df.append(f)
-                # I think this is as it should be
-                l['true_model'] = sim
-                l['fit_model'] = fit
-                # can remove this soon
-                l['learning_rate'] = f.learning_rate.unique()[0]
-                loss_df.append(l)
+    params = []
+    for p in glob.glob(base_path_template):
+        m, l, f = load_single_model(p.replace('_loss.csv', '').replace('_model.pt', '').replace('_model_df.csv', ''))
+        data_df.append(f)
+        loss_df.append(l)
+        tmp = l.head(1)
+        tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'])
+        for name, val in m.named_parameters():
+            tmp[name] = val.cpu().detach().numpy()
+            if name not in params:
+                params.append(name)
+        tmp['model'] = m
+        models.append(tmp)
     loss_df = pd.concat(loss_df).reset_index(drop=True)
     data_df = pd.concat(data_df).reset_index(drop=True).drop('index', 1)
-models_df_lr = []
-for i, (k, m) in enumerate(models_lr.iteritems()):
-    models_df_lr.append(pd.DataFrame(index=[i], data={'true_model': k[0], 'fit_model': k[1], 'learning_rate': k[2], 'batch_size': k[3], 'amplitude': m.amplitude.detach().numpy(), 'mode': m.mode.detach().numpy(), 
-                                                      'sigma': m.sigma.detach().numpy(), 'sf_ecc_slope': m.sf_ecc_slope.detach().numpy(), 'sf_ecc_intercept': m.sf_ecc_intercept.detach().numpy()}))
-models_df_lr = pd.concat(models_df_lr)
-models_df_lr=models_df_lr.melt(['true_model', 'fit_model', 'learning_rate', 'batch_size'], var_name='model_parameter').reset_index(drop=True)    
+    models = pd.concat(models)
+    models=models.melt([i for i in models.columns if i not in params], params,
+                       var_name='model_parameter').reset_index(drop=True)    
+    return models, loss_df, data_df
