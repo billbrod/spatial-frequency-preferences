@@ -309,7 +309,7 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
 
 
 def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, batch_size=2000,
-         df_filter=None, learning_rate=1e-3, save_path_stem="pytorch"):
+         df_filter=None, learning_rate=1e-3, save_path_stem="pytorch", normalize_voxels=False):
     """create, train, and save a model on the given first_level_results dataframe
 
     model_type: {'full', 'scaling', 'constant'}. Which type of model to train. 'full' is the
@@ -336,7 +336,8 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter)
+    dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter,
+                                normed=normalize_voxels)
     print("Beginning training!")
     model, loss_df = train_model(model, dataset, max_epochs, batch_size, train_thresh,
                                  learning_rate)
@@ -448,6 +449,8 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", '-r', default=1e-3, type=float,
                         help=("Learning rate for Adam optimizer (should change inversely with "
                               "batch size)."))
+    parser.add_argument("--normalize_voxels", '-n', action='store_true',
+                        help=("Whether to normalize the voxel responses or not"))
     args = vars(parser.parse_args())
     df_filter = construct_df_filter(args.pop('df_filter'))
     main(df_filter=df_filter, **args)
