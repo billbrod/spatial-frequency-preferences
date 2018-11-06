@@ -33,6 +33,8 @@ def drop_voxels_with_negative_amplitudes(df):
 
 
 def _cast_as_tensor(x):
+    if type(x) == pd.Series:
+        x = x.values
     return torch.tensor(x, dtype=torch.float64)
 
 
@@ -270,7 +272,7 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
 
 
 def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate, train_thresh,
-                  current_epoch):
+                  current_epoch, normalize_voxels):
     """construct the loss and results dataframes and add metadata
     """
     loss_df = construct_loss_df(loss_history)
@@ -280,14 +282,19 @@ def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning
     loss_df['train_thresh'] = train_thresh
     loss_df['epochs_trained'] = current_epoch
     # we reload the first level dataframe because the one in dataset may be filtered in some way
-    results_df = combine_first_level_df_with_performance(model.df_path,
+    results_df = combine_first_level_df_with_performance(pd.read_csv(dataset.df_path),
                                                          check_performance(model, dataset))
+    if type(model) == torch.nn.DataParallel:
+        # in this case, we need to access model.module in order to get the various custom
+        # attributes we set in our LogGaussianDonut
+        model = model.module
     results_df['fit_model'] = model.model_type
     loss_df['fit_model'] = model.model_type
+    # this is the case if the data is simulated
     if 'true_model_type' in results_df.columns:
         loss_df['true_model_type'] = results_df.true_model_type.unique()[0]
     for name, val in model.named_parameters():
-        df[name] = val.cpu().detach().numpy()
+        results_df['fit_model_%s'%name] = val.cpu().detach().numpy()
     results_df['epochs_trained'] = current_epoch
     results_df['batch_size'] = batch_size
     results_df['learning_rate'] = learning_rate
@@ -298,6 +305,9 @@ def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning
 def save_outputs(model, loss_df, results_df, save_path_stem):
     """save outputs (if save_path_stem is not None)
     """
+    if type(model) == torch.nn.DataParallel:
+        # in this case, we need to access model.module in order to just save the model
+        model = model.module
     if save_path_stem is not None:
         torch.save(model.state_dict(), save_path_stem + "_model.pt")
         loss_df.to_csv(save_path_stem + "_loss.csv", index=False)
@@ -305,7 +315,7 @@ def save_outputs(model, loss_df, results_df, save_path_stem):
 
 
 def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5,
-                learning_rate=1e-3, save_path_stem=None):
+                learning_rate=1e-3, save_path_stem=None, normalize_voxels=False):
     """train the model
     """
     # FOR CUSTOM LOSS, just need to return a scalar output (don't need to use the loss module)
@@ -328,9 +338,10 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5
             loss.backward()
             optimizer.step()
             loss_history[t].append(loss.item())
-        if t % 100:
+        if (t % 100) == 0:
             loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs,
-                                                batch_size, learning_rate, train_thresh, t)
+                                                batch_size, learning_rate, train_thresh, t,
+                                                normalize_voxels)
             save_outputs(model, loss_df, results_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         if len(loss_history) > 3:
@@ -340,7 +351,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5
                 print("Epoch loss appears to have stopped declining, so we stop training")
                 break
     loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate,
-                                        train_thresh, t)
+                                        train_thresh, t, normalize_voxels)
     return model, loss_df, results_df
 
 
@@ -378,9 +389,9 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, 
                                 normed=normalize_voxels)
     print("Beginning training!")
     model, loss_df, results_df = train_model(model, dataset, max_epochs, batch_size, train_thresh,
-                                             learning_rate, save_path_stem)
+                                             learning_rate, save_path_stem, normalize_voxels)
     print("Finished training!")
-    save_outputs(model, loss_df, results_df, save_path_stem,)
+    save_outputs(model, loss_df, results_df, save_path_stem)
     model.eval()
     return model, loss_df, results_df
 
