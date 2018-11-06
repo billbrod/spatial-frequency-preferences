@@ -649,17 +649,18 @@ rule model_simulated_data:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{sim_model_type}', '{direction_type}', 'sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}",  "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model_df.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}",  "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_model.pt")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}", "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}",  "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", "{normed}",  "sim-{sim_model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model.pt")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_{model_type}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}.log")
     resources:
-        cpus_per_task = 1,
+        # need the same number of cpus and gpus
+        cpus_per_task = lambda wildcards: int(wildcards.gpus),
         mem = 10,
-        gpus = 1
+        gpus = lambda wildcards: int(wildcards.gpus)
     params:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
         normed_flag = get_normed
