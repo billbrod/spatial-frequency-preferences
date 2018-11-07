@@ -51,6 +51,15 @@ def simulate_data(true_model, direction_type='absolute', num_voxels=100, noise_l
         df['true_model_%s'%name] = val.detach().numpy()
     df['noise_level'] = noise_level
     df['direction_type'] = direction_type
+    # since the noise_level becomes the standard deviation of a normal distribution, the precision
+    # is the reciprocal of its square
+    try:
+        df['precision'] = 1. / (noise_level**2)
+    except ZeroDivisionError:
+        # in this case, just set the precision to 1, so it's the same for all of them. only the
+        # relative precision matters anyway; if they're all identical it doesn't matter what the
+        # value is.
+        df['precision'] = 1
     return first_level_analysis._normalize_amplitude_estimate(df)
 
 

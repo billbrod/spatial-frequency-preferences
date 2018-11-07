@@ -45,6 +45,12 @@ def _cast_as_param(x, requires_grad=True):
 class FirstLevelDataset(torchdata.Dataset):
     """Dataset for first level results
 
+    the __getitem__ method here returns all (48) values for a single voxel, so keep that in mind
+    when setting batch size. this is done because (in the loss function) we normalize the
+    predictions and target so that that vector of length 48 has a norm of one.
+
+    In addition the features and targets, we also return the precision
+
     df_filter: function or None. If not None, a function that takes a dataframe as input and
     returns one (most likely, a subset of the original) as output. See `drop_voxels_with_negative_amplitudes`
     for an example.
@@ -66,7 +72,7 @@ class FirstLevelDataset(torchdata.Dataset):
         self.normed = normed
         self.df_path = df_path
         
-    def __getitem__(self, idx):
+    def get_single_item(self, idx):
         row = self.df.iloc[idx]
         if self.direction_type == 'relative':
             vals = row[['local_sf_magnitude', 'local_sf_ra_direction', 'eccen', 'angle']].values
@@ -83,14 +89,15 @@ class FirstLevelDataset(torchdata.Dataset):
                 target = _cast_as_tensor(row['amplitude_estimate'])
             except KeyError:
                 target = _cast_as_tensor(row['amplitude_estimate_median'])
-        return feature.to(self.device), target.to(self.device)
+        precision = _cast_as_tensor(row['precision'])
+        return (feature.to(self.device), target.to(self.device), precision.to(self.device))
     
-    def get_voxel(self, idx):
+    def __getitem__(self, idx):
         vox_idx = self.df[self.df.voxel==idx].index
-        return self[vox_idx]
+        return self.get_single_item(vox_idx)
             
     def __len__(self):
-        return self.df.shape[0]
+        return self.df.voxel.nunique()
 
 
 def torch_meshgrid(x, y=None):
@@ -111,7 +118,8 @@ class LogGaussianDonut(torch.nn.Module):
     def __init__(self, amplitude, mode, sigma, sf_ecc_slope=1, sf_ecc_intercept=0,
                  train_sf_ecc_slope=True, train_sf_ecc_intercept=True):
         super(LogGaussianDonut,self).__init__()
-        self.amplitude = _cast_as_param(amplitude)
+        # we don't train the amplitude because our loss function is amplitude-independent
+        self.amplitude = _cast_as_param(amplitude, requires_grad=False)
         self.mode = _cast_as_param(mode)
         self.sigma = _cast_as_param(sigma)
         self.sf_ecc_slope = _cast_as_param(sf_ecc_slope, train_sf_ecc_slope)
@@ -248,13 +256,12 @@ def check_performance(trained_model, dataset):
 
     this assumes both model and dataset are on the same device
     """
-    loss_fn = torch.nn.MSELoss(False)
     performance = []
     for i in dataset.df.voxel.unique():
-        targets = dataset.get_voxel(i)[1]
-        predictions = trained_model(*dataset.get_voxel(i)[0].transpose(1, 0))
+        features, targets, precision = dataset[i]
+        predictions = trained_model(*features.transpose(1, 0))
         corr = np.corrcoef(targets.cpu().detach().numpy(), predictions.cpu().detach().numpy())
-        loss = loss_fn(predictions, targets).item()
+        loss = weighted_normed_loss(predictions, targets, precision).item()
         performance.append(pd.DataFrame({'voxel': i, 'stimulus_class': range(len(targets)),
                                          'model_prediction_correlation': corr[0, 1],
                                          'model_prediction_loss': loss,
@@ -314,12 +321,27 @@ def save_outputs(model, loss_df, results_df, save_path_stem):
         results_df.to_csv(save_path_stem + "_model_df.csv", index=False)
 
 
+def weighted_normed_loss(predictions, target, precision):
+    """takes in the predictions and target
+
+    note all of these must be tensors, not numpy arrays
+    """
+    # we norm / average along the last dimension, since that means we do it across all stimulus
+    # classes for a given voxel. we don't know whether these tensors will be 1d (single voxel, as
+    # returned by our FirstLevelDataset) or 2d (multiple voxels, as returned by the DataLoader)
+    normed_predictions = predictions / predictions.norm(2, -1, True)
+    normed_target = target / target.norm(2, -1, True)
+    # this isn't really necessary (all the values along that dimension should be identical, based
+    # on how we calculated it), but just in case. and this gets it in the right shape
+    precision = precision.mean(-1, True)
+    squared_error = precision * (normed_predictions - normed_target)**2
+    return squared_error.mean()
+
+
 def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5,
                 learning_rate=1e-3, save_path_stem=None, normalize_voxels=False):
     """train the model
     """
-    # FOR CUSTOM LOSS, just need to return a scalar output (don't need to use the loss module)
-    loss_fn = torch.nn.MSELoss()
     # AMSGrad argument here means we use a revised version that handles a bug people found where
     # it doesn't necessarily converge
     training_parameters = [p for p in model.parameters() if p.requires_grad]
@@ -328,9 +350,12 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5
     loss_history = []
     for t in range(max_epochs):
         loss_history.append([])
-        for i, (features, target) in enumerate(dataloader):
-            predictions = model(*features.transpose(1, 0))
-            loss = loss_fn(predictions, target)
+        for i, (features, target, precision) in enumerate(dataloader):
+            # these transposes get features from the dimensions (voxels, stimulus class, features)
+            # into (features, voxels, stimulus class) so that the predictions are shape (voxels,
+            # stimulus class), just like the targets are
+            predictions = model(*features.transpose(2, 0).transpose(2, 1))
+            loss = weighted_normed_loss(predictions, target, precision)
             if np.isnan(loss.item()):
                 print(i)
                 break
