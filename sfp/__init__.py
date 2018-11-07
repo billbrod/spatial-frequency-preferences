@@ -10,3 +10,4 @@ import summary_plots
 import binning
 import model
 import simulate_data
+import analyze_model

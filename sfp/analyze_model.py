@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import warnings
+import glob
+import model as sfp_model
 
 
 def load_single_model(save_path_stem, model_type=None):
@@ -24,11 +26,11 @@ def load_single_model(save_path_stem, model_type=None):
         # Snakefile to generate saved model.
         model_type = save_path_stem.split('_')[-1]
     if model_type == 'full':
-        model = LogGaussianDonut(1, 2, .4)
+        model = sfp_model.LogGaussianDonut(1, 2, .4)
     elif model_type == 'constant':
-        model = ConstantLogGaussianDonut(1, 2, .4)
+        model = sfp_model.ConstantLogGaussianDonut(1, 2, .4)
     elif model_type == 'scaling':
-        model = ScalingLogGaussianDonut(1, 2, .4)
+        model = sfp_model.ScalingLogGaussianDonut(1, 2, .4)
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
@@ -56,7 +58,7 @@ def combine_models(base_path_template):
         data_df.append(f)
         loss_df.append(l)
         tmp = l.head(1)
-        tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'])
+        tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'], 1)
         for name, val in m.named_parameters():
             tmp[name] = val.cpu().detach().numpy()
             if name not in params:
