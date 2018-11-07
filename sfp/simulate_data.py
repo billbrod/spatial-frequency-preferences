@@ -32,7 +32,7 @@ def simulate_voxel(true_model, freqs, direction_type='absolute', noise_level=0, 
     resps += np.random.normal(scale=noise_level, size=len(resps))
     return pd.DataFrame({'eccen': vox_ecc, 'angle': vox_angle, 'local_sf_magnitude': mags,
                          'local_sf_xy_direction': direcs, 'local_sf_ra_direction': rel_direcs,
-                         'amplitude_estimate': resps,
+                         'amplitude_estimate_median': resps, 'amplitude_estimate_std_error': noise_level,
                          'stimulus_class': range(len(freqs))})
 
 
@@ -59,7 +59,7 @@ def simulate_data(true_model, direction_type='absolute', num_voxels=100, noise_l
         # in this case, just set the precision to 1, so it's the same for all of them. only the
         # relative precision matters anyway; if they're all identical it doesn't matter what the
         # value is.
-        df['precision'] = 1
+        df['precision'] = 1.
     return first_level_analysis._normalize_amplitude_estimate(df)
 
 
@@ -74,7 +74,7 @@ def main(model_type, amplitude=1, mode=2, sigma=.4, sf_ecc_slope=1, sf_ecc_inter
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     model.eval()
-    df = simulate_data(model, direction_type, num_voxels)
+    df = simulate_data(model, direction_type, num_voxels, noise_level)
     if df is not None:
         df.to_csv(save_path, index=False)
     return df
