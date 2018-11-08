@@ -52,7 +52,6 @@ def combine_models(base_path_template):
     models = []
     loss_df = []
     results_df = []
-    params = []
     path_stems = []
     for p in glob.glob(base_path_template):
         path_stem = p.replace('_loss.csv', '').replace('_model.pt', '').replace('_model_df.csv', '')
@@ -66,15 +65,15 @@ def combine_models(base_path_template):
         loss_df.append(loss)
         tmp = loss.head(1)
         tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'], 1)
-        for name, val in model.named_parameters():
-            tmp[name] = val.cpu().detach().numpy()
-            if name not in params:
-                params.append(name)
         tmp['model'] = model
-        models.append(tmp)
+        for name, val in model.named_parameters():
+            tmper = tmp.copy()
+            tmper['model_parameter'] = name
+            tmper['fit_value'] = val.cpu().detach().numpy()
+            if 'true_model_%s' % name in results.columns:
+                tmper['true_value'] = results['true_model_%s' % name].unique()[0]
+            models.append(tmper)
     loss_df = pd.concat(loss_df).reset_index(drop=True)
     results_df = pd.concat(results_df).reset_index(drop=True).drop('index', 1)
     models = pd.concat(models)
-    models=models.melt([i for i in models.columns if i not in params], params,
-                       var_name='model_parameter').reset_index(drop=True)    
     return models, loss_df, results_df
