@@ -274,7 +274,7 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
     """
     results_df = first_level_df.set_index(['voxel', 'stimulus_class'])
     performance_df = performance_df.set_index(['voxel', 'stimulus_class'])
-    results_df = results_df.join(performance_df, ['voxel', 'stimulus_class']).reset_index()
+    results_df = results_df.join(performance_df).reset_index()
     return results_df.reset_index()    
 
 
@@ -341,8 +341,8 @@ def weighted_normed_loss(predictions, target, precision):
     return squared_error.mean()
 
 
-def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5,
-                learning_rate=1e-3, save_path_stem=None, normalize_voxels=False):
+def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
+                learning_rate=1e-2, save_path_stem=None, normalize_voxels=False):
     """train the model
     """
     # AMSGrad argument here means we use a revised version that handles a bug people found where
@@ -359,13 +359,13 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5
             # stimulus class), just like the targets are
             predictions = model(*features.transpose(2, 0).transpose(2, 1))
             loss = weighted_normed_loss(predictions, target, precision)
-            if np.isnan(loss.item()):
-                print(i)
-                break
+            loss_history[t].append(loss.item())
+            if np.isnan(loss.item()) or np.isinf(loss.item()):
+                print("Loss is nan or inf on epoch %s, batch %s! We won't update parameters on this batch"% (t, i))
+                continue
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            loss_history[t].append(loss.item())
         if (t % 100) == 0:
             loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs,
                                                 batch_size, learning_rate, train_thresh, t,
@@ -383,8 +383,8 @@ def train_model(model, dataset, max_epochs=5, batch_size=2000, train_thresh=1e-5
     return model, loss_df, results_df
 
 
-def main(model_type, first_level_results_path, max_epochs=100, train_thresh=.1, batch_size=2000,
-         df_filter=None, learning_rate=1e-3, save_path_stem="pytorch", normalize_voxels=False):
+def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8, batch_size=1,
+         df_filter=None, learning_rate=1e-2, save_path_stem="pytorch", normalize_voxels=False):
     """create, train, and save a model on the given first_level_results dataframe
 
     model_type: {'full', 'scaling', 'constant'}. Which type of model to train. 'full' is the
