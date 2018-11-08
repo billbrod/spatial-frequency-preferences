@@ -299,10 +299,9 @@ def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning
     loss_df['fit_model_type'] = model.model_type
     loss_df['predict_normalized_voxels'] = normalize_voxels
     # this is the case if the data is simulated
-    if 'true_model_type' in results_df.columns:
-        loss_df['true_model_type'] = results_df.true_model_type.unique()[0]
-    if 'noise_level' in results_df.columns:
-        loss_df['noise_level'] = results_df.noise_level.unique()[0]
+    for col in ['true_model_type', 'noise_level', 'noise_source_df']:
+        if col in results_df.columns:
+            loss_df[col] = results_df[col].unique()[0]
     for name, val in model.named_parameters():
         results_df['fit_model_%s'%name] = val.cpu().detach().numpy()
     results_df['epochs_trained'] = current_epoch
