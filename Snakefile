@@ -651,7 +651,7 @@ rule simulate_data_voxel_noise:
     shell:
         "python sfp/simulate_data.py {wildcards.model_type} {output} -n {wildcards.num_voxels} -a "
         "{wildcards.amplitude} -m {wildcards.mode} -s {wildcards.sigma} -e {wildcards.sf_ecc_slope}"
-        " -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} -d {wildcards.direction_type}"
+        " -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} -d {wildcards.direction_type} "
         "--noise_source_path {input}"
 
 
