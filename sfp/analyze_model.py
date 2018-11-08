@@ -19,7 +19,7 @@ def load_single_model(save_path_stem, model_type=None):
     we also send the model to the appropriate device
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    first_df = pd.read_csv(save_path_stem + '_model_df.csv')
+    results_df = pd.read_csv(save_path_stem + '_model_df.csv')
     loss_df = pd.read_csv(save_path_stem + '_loss.csv')
     if model_type is None:
         # then we try and infer it from the path name, which we can do assuming we used the
@@ -36,7 +36,7 @@ def load_single_model(save_path_stem, model_type=None):
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
     model.eval()
     model.to(device)    
-    return model, loss_df, first_df
+    return model, loss_df, results_df
 
 
 def combine_models(base_path_template):
@@ -51,23 +51,30 @@ def combine_models(base_path_template):
     """
     models = []
     loss_df = []
-    data_df = []
+    results_df = []
     params = []
+    path_stems = []
     for p in glob.glob(base_path_template):
-        m, l, f = load_single_model(p.replace('_loss.csv', '').replace('_model.pt', '').replace('_model_df.csv', ''))
-        data_df.append(f)
-        loss_df.append(l)
-        tmp = l.head(1)
+        path_stem = p.replace('_loss.csv', '').replace('_model.pt', '').replace('_model_df.csv', '')
+        # we do this to make sure we're not loading in the outputs of a model twice (by finding
+        # both its loss.csv and its model_df.csv, for example)
+        if path_stem in path_stems:
+            continue
+        path_stems.append(path_stem)
+        model, loss, results = load_single_model(path_stem)
+        results_df.append(results)
+        loss_df.append(loss)
+        tmp = loss.head(1)
         tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'], 1)
-        for name, val in m.named_parameters():
+        for name, val in model.named_parameters():
             tmp[name] = val.cpu().detach().numpy()
             if name not in params:
                 params.append(name)
-        tmp['model'] = m
+        tmp['model'] = model
         models.append(tmp)
     loss_df = pd.concat(loss_df).reset_index(drop=True)
-    data_df = pd.concat(data_df).reset_index(drop=True).drop('index', 1)
+    results_df = pd.concat(results_df).reset_index(drop=True).drop('index', 1)
     models = pd.concat(models)
     models=models.melt([i for i in models.columns if i not in params], params,
                        var_name='model_parameter').reset_index(drop=True)    
-    return models, loss_df, data_df
+    return models, loss_df, results_df
