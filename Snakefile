@@ -622,7 +622,7 @@ rule model:
         "drop_voxels_with_negative_amplitudes -t 1e-8 -e 1000"
 
 
-rule simulate_data:
+rule simulate_data_uniform_noise:
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{model_type}', '{direction_type}', 'noise-uniform', 'sim-{model_type}_n{num_voxels}_a{amplitude}_m{mode}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
     benchmark:
