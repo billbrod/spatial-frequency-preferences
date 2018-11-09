@@ -115,12 +115,11 @@ def torch_meshgrid(x, y=None):
 class LogGaussianDonut(torch.nn.Module):
     """simple LogGaussianDonut in pytorch
     """
-    def __init__(self, amplitude, mode, sigma, sf_ecc_slope=1, sf_ecc_intercept=0,
+    def __init__(self, amplitude, sigma, sf_ecc_slope=1, sf_ecc_intercept=0,
                  train_sf_ecc_slope=True, train_sf_ecc_intercept=True):
         super(LogGaussianDonut,self).__init__()
         # we don't train the amplitude because our loss function is amplitude-independent
         self.amplitude = _cast_as_param(amplitude, requires_grad=False)
-        self.mode = _cast_as_param(mode)
         self.sigma = _cast_as_param(sigma)
         self.sf_ecc_slope = _cast_as_param(sf_ecc_slope, train_sf_ecc_slope)
         self.sf_ecc_intercept = _cast_as_param(sf_ecc_intercept, train_sf_ecc_intercept)
@@ -128,8 +127,8 @@ class LogGaussianDonut(torch.nn.Module):
 
     def __str__(self):
         # so we can see the parameters
-        return "{0}({1:.03f}, {2:.03f}, {3:.03f}, {4:.03f}, {5:.03f})".format(
-            type(self).__name__, self.amplitude, self.mode, self.sigma, self.sf_ecc_slope,
+        return "{0}({1:.03f}, {2:.03f}, {3:.03f}, {4:.03f})".format(
+            type(self).__name__, self.amplitude, self.sigma, self.sf_ecc_slope,
             self.sf_ecc_intercept)
 
     def __repr__(self):
@@ -146,20 +145,6 @@ class LogGaussianDonut(torch.nn.Module):
         r, th = self._create_mag_angle(extent, n_samps)
         return self.evaluate(r, th, vox_ecc, vox_angle)
     
-    def log_norm_pdf_1d(self, x):
-        """the pdf of a one-dimensional log normal distribution, with a scale factor
-
-        we parameterize this using the mode instead of mu because we place constraints on the mode
-        during optimization
-
-        this is the same function as sfp.tuning_curves.log_norm_pdf, but in pytorch (and without
-        the normalization by the max; the function in tuning_curves is always called on a range of
-        x values, so that's fine -- this one is occasionally called on a single value, so it's not)
-        """
-        mu = torch.log(self.mode) + torch.pow(self.sigma, 2)
-        pdf = (1/(x*self.sigma*np.sqrt(2*np.pi))) * torch.exp(-(torch.log(x)-mu)**2/(2*self.sigma**2))
-        return self.amplitude * pdf
-
     def evaluate(self, sf_mag, sf_angle, vox_ecc, vox_angle):
         variables = {'sf_mag': sf_mag, 'sf_angle': sf_angle, 'vox_ecc': vox_ecc, 'vox_angle': vox_angle}
         # this is messy
@@ -169,9 +154,13 @@ class LogGaussianDonut(torch.nn.Module):
             if self.amplitude.is_cuda:
                 v = v.cuda()
             variables[k] = v
-        relative_freq = variables['sf_mag'] * (self.sf_ecc_slope * variables['vox_ecc'] + self.sf_ecc_intercept)
-        relative_freq = torch.clamp(relative_freq, min=1e-6)
-        return self.log_norm_pdf_1d(relative_freq)
+        # if ecc_effect is 0 or below, then log2(ecc_effect) is infinity or undefined
+        # (respectively). to avoid that, we clamp it 1e-6. in practice, if a voxel ends up here
+        # that means the model predicts 0 response for it.
+        ecc_effect = self.sf_ecc_slope * variables['vox_ecc'] + self.sf_ecc_intercept
+        ecc_effect = torch.clamp(ecc_effect, min=1e-6)
+        pdf = torch.exp(-((torch.log2(variables['sf_mag']) + torch.log2(ecc_effect))**2)/ (2*self.sigma**2))
+        return self.amplitude * pdf
 
     def forward(self, spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity, voxel_angle):
         """
@@ -186,9 +175,9 @@ class ConstantLogGaussianDonut(LogGaussianDonut):
     """Instantiation of the "constant" extreme possibility
 
     this version does not depend on voxel eccentricity or angle at all"""
-    def __init__(self, amplitude, mode, sigma):
+    def __init__(self, amplitude, sigma):
         # this way the "relative frequency" is sf_mag * (0*voxel_ecc + 1) = sf_mag
-        super(ConstantLogGaussianDonut, self).__init__(amplitude, mode, sigma, 0, 1, False, False)
+        super(ConstantLogGaussianDonut, self).__init__(amplitude, sigma, 0, 1, False, False)
         self.model_type = 'constant_donut'
         
     def create_image(self, extent=None, n_samps=1001):
@@ -211,9 +200,9 @@ class ScalingLogGaussianDonut(LogGaussianDonut):
     in this version, spatial frequency preferences scale *exactly* with eccentricity, so as to
     cancel out the scaling done in our stimuli creation
     """
-    def __init__(self, amplitude, mode, sigma):
+    def __init__(self, amplitude, sigma):
         # this way the "relative frequency" is sf_mag * (1*voxel_ecc + 0) = sf_mag * voxel_ecc
-        super(ScalingLogGaussianDonut, self).__init__(amplitude, mode, sigma, 1, 0, False, False)
+        super(ScalingLogGaussianDonut, self).__init__(amplitude, sigma, 1, 0, False, False)
         self.model_type = 'scaling_donut'
 
 
@@ -409,11 +398,11 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
     no extension because we'll add it ourselves). If None, will not save the output.
     """
     if model_type == 'full':
-        model = LogGaussianDonut(1, 2, .4)
+        model = LogGaussianDonut(1, .4)
     elif model_type == 'constant':
-        model = ConstantLogGaussianDonut(1, 2, .4)
+        model = ConstantLogGaussianDonut(1, .4)
     elif model_type == 'scaling':
-        model = ScalingLogGaussianDonut(1, 2, .4)
+        model = ScalingLogGaussianDonut(1, .4)
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

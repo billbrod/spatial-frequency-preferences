@@ -112,15 +112,15 @@ def simulate_data(true_model, direction_type='absolute', num_voxels=100, noise_l
     return df
 
 
-def main(model_type, amplitude=1, mode=2, sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0,
+def main(model_type, amplitude=1, sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0,
          direction_type='absolute', num_voxels=100, noise_level=0, save_path=None,
          noise_source_path=None):
     if model_type == 'full':
-        model = sfp_model.LogGaussianDonut(amplitude, mode, sigma, sf_ecc_slope, sf_ecc_intercept)
+        model = sfp_model.LogGaussianDonut(amplitude, sigma, sf_ecc_slope, sf_ecc_intercept)
     elif model_type == 'constant':
-        model = sfp_model.ConstantLogGaussianDonut(amplitude, mode, sigma)
+        model = sfp_model.ConstantLogGaussianDonut(amplitude, sigma)
     elif model_type == 'scaling':
-        model = sfp_model.ScalingLogGaussianDonut(amplitude, mode, sigma)
+        model = sfp_model.ScalingLogGaussianDonut(amplitude, sigma)
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     model.eval()
@@ -145,7 +145,6 @@ if __name__ == '__main__':
                         type=int)
     parser.add_argument("--amplitude", '-a', default=1, type=float,
                         help="Amplitude of log-Normal donut")
-    parser.add_argument("--mode", '-m', default=2, type=float, help="Mode of log-Normal donut")
     parser.add_argument("--sigma", '-s', default=.4, type=float, help="Sigma of log-Normal donut")
     parser.add_argument("--sf_ecc_slope", '-e', default=1, type=float,
                         help=("Slope of relationship between tuning and eccentricity for log-Normal"
