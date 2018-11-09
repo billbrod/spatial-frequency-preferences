@@ -170,7 +170,7 @@ class LogGaussianDonut(torch.nn.Module):
                 v = v.cuda()
             variables[k] = v
         relative_freq = variables['sf_mag'] * (self.sf_ecc_slope * variables['vox_ecc'] + self.sf_ecc_intercept)
-        relative_freq = torch.clamp(relative_freq, min=1e-12)
+        relative_freq = torch.clamp(relative_freq, min=1e-6)
         return self.log_norm_pdf_1d(relative_freq)
 
     def forward(self, spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity, voxel_angle):
@@ -328,6 +328,12 @@ def weighted_normed_loss(predictions, target, precision):
 
     note all of these must be tensors, not numpy arrays
     """
+    # we occasionally have an issue where the predictions are really small (like 1e-200), which
+    # gives us a norm of 0 and thus a normed_predictions of infinity, and thus an infinite loss.
+    # the point of renorming is that multiplying by a scale factor won't change our loss, so we do
+    # that here to avoid this issue
+    if 0 in predictions.norm(2, -1, True):
+        predictions = predictions * 1e100
     # we norm / average along the last dimension, since that means we do it across all stimulus
     # classes for a given voxel. we don't know whether these tensors will be 1d (single voxel, as
     # returned by our FirstLevelDataset) or 2d (multiple voxels, as returned by the DataLoader)
@@ -361,6 +367,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
             loss_history[t].append(loss.item())
             if np.isnan(loss.item()) or np.isinf(loss.item()):
                 print("Loss is nan or inf on epoch %s, batch %s! We won't update parameters on this batch"% (t, i))
+                print("Predictions are: %s" % predictions.detach())
                 continue
             optimizer.zero_grad()
             loss.backward()
@@ -371,6 +378,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                                                 normalize_voxels)
             save_outputs(model, loss_df, results_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
+        print(model)
         if len(loss_history) > 3:
             if ((np.abs(np.mean(loss_history[-1]) - np.mean(loss_history[-2])) < train_thresh) and
                 (np.abs(np.mean(loss_history[-2]) - np.mean(loss_history[-3])) < train_thresh) and
