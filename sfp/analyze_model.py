@@ -26,11 +26,11 @@ def load_single_model(save_path_stem, model_type=None):
         # Snakefile to generate saved model.
         model_type = save_path_stem.split('_')[-1]
     if model_type == 'full':
-        model = sfp_model.LogGaussianDonut(1, 2, .4)
+        model = sfp_model.LogGaussianDonut(1, .4)
     elif model_type == 'constant':
-        model = sfp_model.ConstantLogGaussianDonut(1, 2, .4)
+        model = sfp_model.ConstantLogGaussianDonut(1, .4)
     elif model_type == 'scaling':
-        model = sfp_model.ScalingLogGaussianDonut(1, 2, .4)
+        model = sfp_model.ScalingLogGaussianDonut(1, .4)
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
