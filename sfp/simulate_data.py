@@ -112,15 +112,17 @@ def simulate_data(true_model, direction_type='absolute', num_voxels=100, noise_l
     return df
 
 
-def main(model_type, amplitude=1, sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0,
+def main(model_type, sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0,
          direction_type='absolute', num_voxels=100, noise_level=0, save_path=None,
          noise_source_path=None):
+    # amplitude is not fit (because it doesn't matter), so we can't specify it when simulating
+    # data.
     if model_type == 'full':
-        model = sfp_model.LogGaussianDonut(amplitude, sigma, sf_ecc_slope, sf_ecc_intercept)
+        model = sfp_model.LogGaussianDonut(1, sigma, sf_ecc_slope, sf_ecc_intercept)
     elif model_type == 'constant':
-        model = sfp_model.ConstantLogGaussianDonut(amplitude, sigma)
+        model = sfp_model.ConstantLogGaussianDonut(1, sigma)
     elif model_type == 'scaling':
-        model = sfp_model.ScalingLogGaussianDonut(amplitude, sigma)
+        model = sfp_model.ScalingLogGaussianDonut(1, sigma)
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     model.eval()
@@ -143,8 +145,6 @@ if __name__ == '__main__':
                         help=("Path (should end in .csv) where we'll save the simulated data"))
     parser.add_argument("--num_voxels", '-n', default=100, help="Number of voxels to simulate",
                         type=int)
-    parser.add_argument("--amplitude", '-a', default=1, type=float,
-                        help="Amplitude of log-Normal donut")
     parser.add_argument("--sigma", '-s', default=.4, type=float, help="Sigma of log-Normal donut")
     parser.add_argument("--sf_ecc_slope", '-e', default=1, type=float,
                         help=("Slope of relationship between tuning and eccentricity for log-Normal"

@@ -55,7 +55,7 @@ class FirstLevelDataset(torchdata.Dataset):
     returns one (most likely, a subset of the original) as output. See `drop_voxels_with_negative_amplitudes`
     for an example.
     """
-    def __init__(self, df_path, device, direction_type='absolute', df_filter=None, normed=True):
+    def __init__(self, df_path, device, direction_type='absolute', df_filter=None):
         df = pd.read_csv(df_path)
         if df_filter is not None:
             # we want the index to be reset so we can use iloc in __getitem__ below. this ensures
@@ -69,7 +69,6 @@ class FirstLevelDataset(torchdata.Dataset):
             raise Exception("Don't know how to handle direction_type %s!" % direction_type)
         self.direction_type = direction_type
         self.device = device
-        self.normed = normed
         self.df_path = df_path
         
     def get_single_item(self, idx):
@@ -79,16 +78,10 @@ class FirstLevelDataset(torchdata.Dataset):
         elif self.direction_type == 'absolute':
             vals = row[['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']].values
         feature = _cast_as_tensor(vals.astype(float))
-        if self.normed:
-            try:
-                target = _cast_as_tensor(row['amplitude_estimate_normed'])
-            except KeyError:
-                target = _cast_as_tensor(row['amplitude_estimate_median_normed'])
-        else:
-            try:
-                target = _cast_as_tensor(row['amplitude_estimate'])
-            except KeyError:
-                target = _cast_as_tensor(row['amplitude_estimate_median'])
+        try:
+            target = _cast_as_tensor(row['amplitude_estimate'])
+        except KeyError:
+            target = _cast_as_tensor(row['amplitude_estimate_median'])
         precision = _cast_as_tensor(row['precision'])
         return (feature.to(self.device), target.to(self.device), precision.to(self.device))
     
@@ -268,7 +261,7 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
 
 
 def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate, train_thresh,
-                  current_epoch, normalize_voxels):
+                  current_epoch):
     """construct the loss and results dataframes and add metadata
     """
     loss_df = construct_loss_df(loss_history)
@@ -286,7 +279,6 @@ def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning
         model = model.module
     results_df['fit_model_type'] = model.model_type
     loss_df['fit_model_type'] = model.model_type
-    loss_df['predict_normalized_voxels'] = normalize_voxels
     # this is the case if the data is simulated
     for col in ['true_model_type', 'noise_level', 'noise_source_df']:
         if col in results_df.columns:
@@ -296,7 +288,6 @@ def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning
     results_df['epochs_trained'] = current_epoch
     results_df['batch_size'] = batch_size
     results_df['learning_rate'] = learning_rate
-    results_df['predict_normalized_voxels'] = normalize_voxels
     return loss_df, results_df    
 
 
@@ -336,7 +327,7 @@ def weighted_normed_loss(predictions, target, precision):
 
 
 def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
-                learning_rate=1e-2, save_path_stem=None, normalize_voxels=False):
+                learning_rate=1e-2, save_path_stem=None):
     """train the model
     """
     # AMSGrad argument here means we use a revised version that handles a bug people found where
@@ -363,8 +354,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
             optimizer.step()
         if (t % 100) == 0:
             loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs,
-                                                batch_size, learning_rate, train_thresh, t,
-                                                normalize_voxels)
+                                                batch_size, learning_rate, train_thresh, t)
             save_outputs(model, loss_df, results_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         print(model)
@@ -375,12 +365,12 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                 print("Epoch loss appears to have stopped declining, so we stop training")
                 break
     loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate,
-                                        train_thresh, t, normalize_voxels)
+                                        train_thresh, t)
     return model, loss_df, results_df
 
 
 def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8, batch_size=1,
-         df_filter=None, learning_rate=1e-2, save_path_stem="pytorch", normalize_voxels=False):
+         df_filter=None, learning_rate=1e-2, save_path_stem="pytorch"):
     """create, train, and save a model on the given first_level_results dataframe
 
     model_type: {'full', 'scaling', 'constant'}. Which type of model to train. 'full' is the
@@ -409,11 +399,10 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
     if torch.cuda.device_count() > 1 and batch_size > torch.cuda.device_count():
         model = torch.nn.DataParallel(model)
     model.to(device)
-    dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter,
-                                normed=normalize_voxels)
+    dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter)
     print("Beginning training!")
     model, loss_df, results_df = train_model(model, dataset, max_epochs, batch_size, train_thresh,
-                                             learning_rate, save_path_stem, normalize_voxels)
+                                             learning_rate, save_path_stem)
     print("Finished training!")
     save_outputs(model, loss_df, results_df, save_path_stem)
     model.eval()
@@ -487,8 +476,6 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", '-r', default=1e-3, type=float,
                         help=("Learning rate for Adam optimizer (should change inversely with "
                               "batch size)."))
-    parser.add_argument("--normalize_voxels", '-n', action='store_true',
-                        help=("Whether to normalize the voxel responses or not"))
     args = vars(parser.parse_args())
     df_filter = construct_df_filter(args.pop('df_filter'))
     main(df_filter=df_filter, **args)
