@@ -39,15 +39,19 @@ def load_single_model(save_path_stem, model_type=None):
     return model, loss_df, results_df
 
 
-def combine_models(base_path_template):
+def combine_models(base_path_template, load_results_df=True):
     """load in many models and combine into dataframes
 
-    returns: model_df, loss_df, data_df
+    returns: model_df, loss_df, results_df
 
     base_path_template: path template where we should find the results. should contain no string
     formatting symbols (e.g., "{0}" or "%s") but should contain at least one '*' because we will
     use glob to find them (and therefore should point to an actual file when passed to glob, one
     of: the loss df, model df, or model paramters).
+
+    load_results_df: boolean. Whether to load the results_df or not. Set False if your results_df
+    are too big and you're worried about having them all in memory. In this case, the returned
+    results_df will be None.
     """
     models = []
     loss_df = []
@@ -61,7 +65,8 @@ def combine_models(base_path_template):
             continue
         path_stems.append(path_stem)
         model, loss, results = load_single_model(path_stem)
-        results_df.append(results)
+        if load_results_df:
+            results_df.append(results)
         loss_df.append(loss)
         tmp = loss.head(1)
         tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'], 1)
@@ -74,6 +79,9 @@ def combine_models(base_path_template):
                 tmper['true_value'] = results['true_model_%s' % name].unique()[0]
             models.append(tmper)
     loss_df = pd.concat(loss_df).reset_index(drop=True)
-    results_df = pd.concat(results_df).reset_index(drop=True).drop('index', 1)
+    if load_results_df:
+        results_df = pd.concat(results_df).reset_index(drop=True).drop('index', 1)
+    else:
+        results_df = None
     models = pd.concat(models)
     return models, loss_df, results_df
