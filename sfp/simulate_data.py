@@ -138,7 +138,7 @@ if __name__ == '__main__':
         formatter_class=CustomFormatter)
     parser.add_argument("model_type",
                         help=("{'full', 'scaling', 'constant'}. Which type of model underlies the"
-                              " simualted data."))
+                              " simulated data."))
     parser.add_argument("save_path",
                         help=("Path (should end in .csv) where we'll save the simulated data"))
     parser.add_argument("--num_voxels", '-n', default=100, help="Number of voxels to simulate",
