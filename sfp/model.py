@@ -58,11 +58,18 @@ class FirstLevelDataset(torchdata.Dataset):
     def __init__(self, df_path, device, direction_type='absolute', df_filter=None):
         df = pd.read_csv(df_path)
         if df_filter is not None:
-            # we want the index to be reset so we can use iloc in __getitem__ below. this ensures
-            # that iloc and loc will return the same thing, which isn't otherwise the case. and we
-            # want them to be the same because Dataloader assumes iloc but our custom get_voxel
-            # needs loc.
-            self.df = df_filter(df).reset_index()
+            # we want the index to be reset so we can use iloc in get_single_item below. this
+            # ensures that iloc and loc will return the same thing, which isn't otherwise the
+            # case. and we want them to be the same because Dataloader assumes iloc but our custom
+            # get_voxel needs loc.
+            df = df_filter(df).reset_index()
+            # in order to make sure that we can iterate through the dataset (as dataloader does),
+            # we need to create a new "voxel" column. this column just relabels the voxel column,
+            # running from 0 to df.voxel.nunique() while ensuring that voxel identity is preserved.
+            new_idx = pd.Series(range(df.voxel.nunique()), df.voxel.unique())
+            df = df.set_index('voxel')
+            df['voxel_reindexed'] = new_idx
+            self.df = df.reset_index()
         else:
             self.df = df
         if direction_type not in ['relative', 'absolute']:
@@ -84,11 +91,15 @@ class FirstLevelDataset(torchdata.Dataset):
             target = _cast_as_tensor(row['amplitude_estimate_median'])
         precision = _cast_as_tensor(row['precision'])
         return (feature.to(self.device), target.to(self.device), precision.to(self.device))
-    
+
     def __getitem__(self, idx):
+        vox_idx = self.df[self.df.voxel_reindexed==idx].index
+        return self.get_single_item(vox_idx)
+
+    def get_voxel(self, idx):
         vox_idx = self.df[self.df.voxel==idx].index
         return self.get_single_item(vox_idx)
-            
+
     def __len__(self):
         return self.df.voxel.nunique()
 
@@ -240,7 +251,7 @@ def check_performance(trained_model, dataset):
     """
     performance = []
     for i in dataset.df.voxel.unique():
-        features, targets, precision = dataset[i]
+        features, targets, precision = dataset.get_voxel(i)
         predictions = trained_model(*features.transpose(1, 0))
         corr = np.corrcoef(targets.cpu().detach().numpy(), predictions.cpu().detach().numpy())
         loss = weighted_normed_loss(predictions, targets, precision).item()
