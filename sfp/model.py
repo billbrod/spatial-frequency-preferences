@@ -63,15 +63,14 @@ class FirstLevelDataset(torchdata.Dataset):
             # case. and we want them to be the same because Dataloader assumes iloc but our custom
             # get_voxel needs loc.
             df = df_filter(df).reset_index()
-            # in order to make sure that we can iterate through the dataset (as dataloader does),
-            # we need to create a new "voxel" column. this column just relabels the voxel column,
-            # running from 0 to df.voxel.nunique() while ensuring that voxel identity is preserved.
-            new_idx = pd.Series(range(df.voxel.nunique()), df.voxel.unique())
-            df = df.set_index('voxel')
-            df['voxel_reindexed'] = new_idx
-            self.df = df.reset_index()
-        else:
-            self.df = df
+        # in order to make sure that we can iterate through the dataset (as dataloader does), we
+        # need to create a new "voxel" column. this column just relabels the voxel column, running
+        # from 0 to df.voxel.nunique() while ensuring that voxel identity is preserved. if
+        # df_filter is None, voxel_reindexed should just be a copy of voxel
+        new_idx = pd.Series(range(df.voxel.nunique()), df.voxel.unique())
+        df = df.set_index('voxel')
+        df['voxel_reindexed'] = new_idx
+        self.df = df.reset_index()
         if direction_type not in ['relative', 'absolute']:
             raise Exception("Don't know how to handle direction_type %s!" % direction_type)
         self.direction_type = direction_type
