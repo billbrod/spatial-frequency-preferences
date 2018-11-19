@@ -49,6 +49,10 @@
     {
 	"mem": "{resources.mem}GB"
     },
+    "simulate_data_voxel_noise":
+    {
+	"mem": "{resources.mem}GB"
+    },
     "model_simulated_data":
     {
 	"mem": "{resources.mem}GB",
