@@ -42,6 +42,24 @@ def _cast_as_param(x, requires_grad=True):
     return torch.nn.Parameter(_cast_as_tensor(x), requires_grad=requires_grad)
 
 
+def _cast_args_as_tensors(args, on_cuda=False):
+    return_args = []
+    for v in args:
+        if not torch.is_tensor(v):
+            v = _cast_as_tensor(v)
+        if on_cuda:
+            v = v.cuda()
+        return_args.append(v)
+    return return_args
+
+
+def _check_and_reshape_tensors(x, y):
+    if (x.ndimension() == 1 and y.ndimension() == 1) and (x.shape != y.shape):
+        x = x.repeat(len(y), 1)
+        y = y.repeat(x.shape[1], 1).transpose(0, 1)
+    return x, y
+
+
 class FirstLevelDataset(torchdata.Dataset):
     """Dataset for first level results
 
@@ -55,7 +73,7 @@ class FirstLevelDataset(torchdata.Dataset):
     returns one (most likely, a subset of the original) as output. See `drop_voxels_with_negative_amplitudes`
     for an example.
     """
-    def __init__(self, df_path, device, direction_type='absolute', df_filter=None):
+    def __init__(self, df_path, device, df_filter=None):
         df = pd.read_csv(df_path)
         if df_filter is not None:
             # we want the index to be reset so we can use iloc in get_single_item below. this
@@ -71,18 +89,12 @@ class FirstLevelDataset(torchdata.Dataset):
         df = df.set_index('voxel')
         df['voxel_reindexed'] = new_idx
         self.df = df.reset_index()
-        if direction_type not in ['relative', 'absolute']:
-            raise Exception("Don't know how to handle direction_type %s!" % direction_type)
-        self.direction_type = direction_type
         self.device = device
         self.df_path = df_path
         
     def get_single_item(self, idx):
         row = self.df.iloc[idx]
-        if self.direction_type == 'relative':
-            vals = row[['local_sf_magnitude', 'local_sf_ra_direction', 'eccen', 'angle']].values
-        elif self.direction_type == 'absolute':
-            vals = row[['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']].values
+        vals = row[['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']].values
         feature = _cast_as_tensor(vals.astype(float))
         try:
             target = _cast_as_tensor(row['amplitude_estimate'])
@@ -117,22 +129,37 @@ def torch_meshgrid(x, y=None):
 
 class LogGaussianDonut(torch.nn.Module):
     """simple LogGaussianDonut in pytorch
+
+    when you call this model, sf_angle should be the (absolute) orientation of the grating, so that
+    sf_angle=0 corresponds to "to the right". if you want the model's prediction to be based on the
+    relative orientation, set `orientation_type` parameter to 'relative', and then the angle will
+    be remapped internally. NOTE THAT YOU CONTINUE TO CALL THIS MODEL WITH THE ABSOLUTE
+    ORIENTATION.
     """
-    def __init__(self, amplitude, sigma, sf_ecc_slope=1, sf_ecc_intercept=0,
-                 train_sf_ecc_slope=True, train_sf_ecc_intercept=True):
+    def __init__(self, sigma, sf_ecc_slope=1, sf_ecc_intercept=0, mode_cardinals=0, mode_obliques=0,
+                 amplitude_cardinals=0, amplitude_obliques=0, orientation_type='absolute',
+                 train_sf_ecc_slope=True, train_sf_ecc_intercept=True, train_mode_cardinals=True,
+                 train_mode_obliques=True, train_amplitude_cardinals=True,
+                 train_amplitude_obliques=True):
         super(LogGaussianDonut,self).__init__()
-        # we don't train the amplitude because our loss function is amplitude-independent
-        self.amplitude = _cast_as_param(amplitude, requires_grad=False)
+        self.amplitude_cardinals = _cast_as_param(amplitude_cardinals, train_amplitude_cardinals)
+        self.amplitude_obliques = _cast_as_param(amplitude_obliques, train_amplitude_obliques)
         self.sigma = _cast_as_param(sigma)
         self.sf_ecc_slope = _cast_as_param(sf_ecc_slope, train_sf_ecc_slope)
         self.sf_ecc_intercept = _cast_as_param(sf_ecc_intercept, train_sf_ecc_intercept)
-        self.model_type = 'full_donut'
+        self.mode_cardinals = _cast_as_param(mode_cardinals, train_mode_cardinals)
+        self.mode_obliques = _cast_as_param(mode_obliques, train_mode_obliques)
+        if orientation_type not in ['relative', 'absolute']:
+            raise Exception("Don't know how to handle orientation_type %s!" % orientation_type)
+        self.orientation_type = orientation_type
+        self.model_type = 'full_donut_%s' % orientation_type
 
     def __str__(self):
         # so we can see the parameters
-        return "{0}({1:.03f}, {2:.03f}, {3:.03f}, {4:.03f})".format(
-            type(self).__name__, self.amplitude, self.sigma, self.sf_ecc_slope,
-            self.sf_ecc_intercept)
+        return "{0}({1:.03f}, {2:.03f}, {3:.03f}, {4:.03f}, {5:.03f}, {6:.03f}, {7:.03f}, {8})".format(
+            type(self).__name__, self.sigma, self.sf_ecc_slope, self.sf_ecc_intercept,
+            self.mode_cardinals, self.mode_obliques, self.amplitude_cardinals,
+            self.amplitude_obliques, self.orientation_type)
 
     def __repr__(self):
         return self.__str__()
@@ -148,47 +175,75 @@ class LogGaussianDonut(torch.nn.Module):
         r, th = self._create_mag_angle(extent, n_samps)
         return self.evaluate(r, th, vox_ecc, vox_angle)
     
+    def preferred_period(self, sf_angle, vox_ecc, vox_angle):
+        """return preferred period for specified voxel at given orientation
+        """
+        sf_angle, vox_ecc, vox_angle = _cast_args_as_tensors([sf_angle, vox_ecc, vox_angle],
+                                                             self.sigma.is_cuda)
+        # we can allow up to two of these variables to be non-singletons.
+        if sf_angle.ndimension() == 1 and vox_ecc.ndimension()==1 and vox_angle.ndimension()==1:
+            # if this is False, then all of them are the same shape and we have no issues
+            if sf_angle.shape != vox_ecc.shape != vox_angle.shape:
+                raise Exception("Only two of these variables can be non-singletons!")
+        else:
+            sf_angle, vox_ecc = _check_and_reshape_tensors(sf_angle, vox_ecc)
+            vox_ecc, vox_angle = _check_and_reshape_tensors(vox_ecc, vox_angle)
+            sf_angle, vox_angle = _check_and_reshape_tensors(sf_angle, vox_angle)
+        if self.orientation_type == 'relative':
+            sf_angle = sf_angle - vox_angle
+        eccentricity_effect = self.sf_ecc_slope * vox_ecc + self.sf_ecc_intercept
+        orientation_effect = (1 + self.mode_cardinals * torch.cos(2 * sf_angle) +
+                              self.mode_obliques * torch.cos(4 * sf_angle))
+        return torch.clamp(eccentricity_effect * orientation_effect, min=1e-6)
+        
+    def preferred_sf(self, sf_angle, vox_ecc, vox_angle):
+        return 1. / self.preferred_period(sf_angle, vox_ecc, vox_angle)
+    
+    def max_amplitude(self, sf_angle, vox_angle):
+        sf_angle, vox_angle = _cast_args_as_tensors([sf_angle, vox_angle], self.sigma.is_cuda)
+        sf_angle, vox_angle = _check_and_reshape_tensors(sf_angle, vox_angle)
+        if self.orientation_type == 'relative':
+            sf_angle = sf_angle - vox_angle
+        amplitude = (1 + self.amplitude_cardinals * torch.cos(2*sf_angle) +
+                     self.amplitude_obliques * torch.cos(4*sf_angle))
+        return torch.clamp(amplitude, min=1e-6)
+    
     def evaluate(self, sf_mag, sf_angle, vox_ecc, vox_angle):
-        variables = {'sf_mag': sf_mag, 'sf_angle': sf_angle, 'vox_ecc': vox_ecc, 'vox_angle': vox_angle}
-        # this is messy
-        for k, v in variables.iteritems():
-            if not torch.is_tensor(v):
-                v = torch.tensor(v, dtype=torch.float64)
-            if self.amplitude.is_cuda:
-                v = v.cuda()
-            variables[k] = v
+        sf_mag, = _cast_args_as_tensors([sf_mag], self.sigma.is_cuda)
         # if ecc_effect is 0 or below, then log2(ecc_effect) is infinity or undefined
         # (respectively). to avoid that, we clamp it 1e-6. in practice, if a voxel ends up here
         # that means the model predicts 0 response for it.
-        ecc_effect = self.sf_ecc_slope * variables['vox_ecc'] + self.sf_ecc_intercept
-        ecc_effect = torch.clamp(ecc_effect, min=1e-6)
-        pdf = torch.exp(-((torch.log2(variables['sf_mag']) + torch.log2(ecc_effect))**2)/ (2*self.sigma**2))
-        return self.amplitude * pdf
+        preferred_period = self.preferred_period(sf_angle, vox_ecc, vox_angle)
+        pdf = torch.exp(-((torch.log2(sf_mag) + torch.log2(preferred_period))**2)/ (2*self.sigma**2))
+        amplitude = self.max_amplitude(sf_angle, vox_angle)
+        return amplitude * pdf
 
-    def forward(self, spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity, voxel_angle):
+    def forward(self, spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity,
+                voxel_angle):
         """
         In the forward function we accept a Tensor of input data and we must return
         a Tensor of output data. We can use Modules defined in the constructor as
         well as arbitrary operators on Tensors.
         """
-        return self.evaluate(spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity, voxel_angle)
+        return self.evaluate(spatial_frequency_magnitude, spatial_frequency_theta,
+                             voxel_eccentricity, voxel_angle)
 
 
-class ConstantLogGaussianDonut(LogGaussianDonut):
-    """Instantiation of the "constant" extreme possibility
+class ConstantIsoLogGaussianDonut(LogGaussianDonut):
+    """Instantiation of the "constant" isotropic extreme possibility
 
     this version does not depend on voxel eccentricity or angle at all"""
-    def __init__(self, amplitude, sigma):
-        # this way the "relative frequency" is sf_mag * (0*voxel_ecc + 1) = sf_mag
-        super(ConstantLogGaussianDonut, self).__init__(amplitude, sigma, 0, 1, False, False)
-        self.model_type = 'constant_donut'
-        
+    def __init__(self, sigma):
+        super(ConstantIsoLogGaussianDonut, self).__init__(sigma, 0, 1, 0, 0, 0, 0, 'absolute', False,
+                                                          False, False, False, False, False)
+        self.model_type = 'constant_iso_donut'
+
     def create_image(self, extent=None, n_samps=1001):
         r, th = self._create_mag_angle(extent, n_samps)
         return self.evaluate(r, th)
-        
+
     def evaluate(self, sf_mag, sf_angle):
-        return super(ConstantLogGaussianDonut, self).evaluate(sf_mag, sf_angle, 0, 0)
+        return super(ConstantIsoLogGaussianDonut, self).evaluate(sf_mag, sf_angle, 0, 0)
         
     def forward(self, spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity=None,
                 voxel_angle=None):
@@ -197,16 +252,29 @@ class ConstantLogGaussianDonut(LogGaussianDonut):
         return self.evaluate(spatial_frequency_magnitude, spatial_frequency_theta)
 
 
-class ScalingLogGaussianDonut(LogGaussianDonut):
-    """Instantiation of the "scaling" extreme possibility
+class ScalingIsoLogGaussianDonut(LogGaussianDonut):
+    """Instantiation of the "scaling" isotropic extreme possibility
 
     in this version, spatial frequency preferences scale *exactly* with eccentricity, so as to
     cancel out the scaling done in our stimuli creation
     """
-    def __init__(self, amplitude, sigma):
-        # this way the "relative frequency" is sf_mag * (1*voxel_ecc + 0) = sf_mag * voxel_ecc
-        super(ScalingLogGaussianDonut, self).__init__(amplitude, sigma, 1, 0, False, False)
-        self.model_type = 'scaling_donut'
+    def __init__(self, sigma):
+        super(ScalingIsoLogGaussianDonut, self).__init__(sigma, 1, 0, 0, 0, 0, 0, 'absolute', False,
+                                                         False, False, False, False, False)
+        self.model_type = 'scaling_iso_donut'
+
+
+class IsoLogGaussianDonut(LogGaussianDonut):
+    """Instantiation of the "full" isotropic donut
+
+    In this version, there's no dependence on orientation / voxel angle, but we can learn how the
+    preferences scale with eccentricity
+    """
+    def __init__(self, sigma, sf_ecc_slope=1, sf_ecc_intercept=0):
+        super(IsoLogGaussianDonut, self).__init__(sigma, sf_ecc_slope, sf_ecc_intercept, 0, 0, 0,
+                                                  0, 'absolute', True, True, False, False, False,
+                                                  False)
+        self.model_type = 'full_iso_donut'
 
 
 def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_samps=1001,
@@ -383,6 +451,7 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
          df_filter=None, learning_rate=1e-2, save_path_stem="pytorch"):
     """create, train, and save a model on the given first_level_results dataframe
 
+    UPDATE THIS
     model_type: {'full', 'scaling', 'constant'}. Which type of model to train. 'full' is the
     LogGaussianDonut that can train its sf_ecc_intercept and sf_ecc_slope, while 'scaling' and
     'constant' have those two parameters set (at 0,1 and 1,0, respectively).
@@ -397,12 +466,16 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
     save_path_stem: string or None. a string to save the trained model and loss_df at (should have
     no extension because we'll add it ourselves). If None, will not save the output.
     """
-    if model_type == 'full':
-        model = LogGaussianDonut(1, .4)
+    if model_type == 'full_absolute':
+        model = LogGaussianDonut(.4, orientation_type='absolute')
+    elif model_type == 'full_relative':
+        model = LogGaussianDonut(.4, orientation_type='relative')
     elif model_type == 'constant':
-        model = ConstantLogGaussianDonut(1, .4)
+        model = ConstantIsoLogGaussianDonut(.4)
     elif model_type == 'scaling':
-        model = ScalingLogGaussianDonut(1, .4)
+        model = ScalingIsoLogGaussianDonut(.4)
+    elif model_type == 'iso':
+        model = IsoLogGaussianDonut(.4)
     else:
         raise Exception("Don't know how to handle model_type %s!" % model_type)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -457,7 +530,8 @@ if __name__ == '__main__':
         description=("Load in the first level results Dataframe and train a 2d tuning model on it"
                      ". Will save the model parameters and loss information."))
     parser.add_argument("model_type",
-                        help=("{'full', 'scaling', 'constant'}. Which type of model to train"))
+                        help=("{'full_absolute', 'full_relative', 'scaling', 'constant', 'iso'}."
+                              " Which type of model to train"))
     parser.add_argument("first_level_results_path",
                         help=("Path to the first level results dataframe containing the data to "
                               "fit."))

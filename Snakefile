@@ -624,48 +624,51 @@ rule model:
 
 rule simulate_data_uniform_noise:
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{model_type}', '{direction_type}', 'noise-uniform', 'sim-{model_type}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-uniform', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'sim-{model_type}_{direction_type}_noise-uniform_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-uniform_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'sim-{model_type}_{direction_type}_noise-uniform_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}.log')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-uniform_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}.log')
     resources:
         mem=10
     shell:
         "python sfp/simulate_data.py {wildcards.model_type} {output} -n {wildcards.num_voxels} "
-        " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope}"
-        " -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} -d {wildcards.direction_type}"
+        " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope} -mc {wildcards.mode_cardinals} -mo "
+        "{wildcards.mode_obliques} -ac {wildcards.amlpitude_cardinals} -ao "
+        "{wildcards.ampitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
+        " -o {wildcards.orientation_type}"
 
 
 rule simulate_data_voxel_noise:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{model_type}', '{direction_type}', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'sim-{model_type}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'sim-{model_type}_{direction_type}_noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'sim-{model_type}_{direction_type}_noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}.log')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}.log')
     resources:
         mem=10
     shell:
         "python sfp/simulate_data.py {wildcards.model_type} {output} -n {wildcards.num_voxels} "
-        " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope}"
-        " -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} -d {wildcards.direction_type} "
-        "--noise_source_path {input}"
+        " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope} -mc {wildcards.mode_cardinals} -mo "
+        "{wildcards.mode_obliques} -ac {wildcards.amlpitude_cardinals} -ao "
+        "{wildcards.ampitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
+        " -o {wildcards.orientation_type} --noise_source_path {input}"
 
 
 rule model_simulated_data:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'sim-{sim_model_type}', '{direction_type}', 'noise-{noise_source}', 'sim-{sim_model_type}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", 'noise-{noise_source}', "sim-{sim_model_type}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", 'noise-{noise_source}', "sim-{sim_model_type}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model_df.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "sim-{sim_model_type}", "{direction_type}", 'noise-{noise_source}', "sim-{sim_model_type}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model.pt")
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model_df.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model.pt')
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "sim-{sim_model_type}_{direction_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}.log")
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: int(wildcards.gpus),
