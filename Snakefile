@@ -634,10 +634,10 @@ rule simulate_data_uniform_noise:
     resources:
         mem=10
     shell:
-        "python sfp/simulate_data.py {wildcards.model_type} {output} -n {wildcards.num_voxels} "
+        "python sfp/simulate_data.py {output} -n {wildcards.num_voxels} "
         " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope} -mc {wildcards.mode_cardinals} -mo "
-        "{wildcards.mode_obliques} -ac {wildcards.amlpitude_cardinals} -ao "
-        "{wildcards.ampitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
+        "{wildcards.mode_obliques} -ac {wildcards.amplitude_cardinals} -ao "
+        "{wildcards.amplitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
         " -o {wildcards.orientation_type}"
 
 
@@ -653,10 +653,10 @@ rule simulate_data_voxel_noise:
     resources:
         mem=10
     shell:
-        "python sfp/simulate_data.py {wildcards.model_type} {output} -n {wildcards.num_voxels} "
+        "python sfp/simulate_data.py {output} -n {wildcards.num_voxels} "
         " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope} -mc {wildcards.mode_cardinals} -mo "
-        "{wildcards.mode_obliques} -ac {wildcards.amlpitude_cardinals} -ao "
-        "{wildcards.ampitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
+        "{wildcards.mode_obliques} -ac {wildcards.amplitude_cardinals} -ao "
+        "{wildcards.amplitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
         " -o {wildcards.orientation_type} --noise_source_path {input}"
 
 

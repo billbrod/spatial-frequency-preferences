@@ -123,9 +123,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=("Simulate first level data to be fit with 2d tuning model."),
         formatter_class=CustomFormatter)
-    parser.add_argument("model_type",
-                        help=("{'full_relative', 'full_absolute', 'iso', 'scaling', 'constant'}."
-                              " Which type of model underlies the simulated data."))
     parser.add_argument("save_path",
                         help=("Path (should end in .csv) where we'll save the simulated data"))
     parser.add_argument("--num_voxels", '-n', default=100, help="Number of voxels to simulate",
