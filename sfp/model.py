@@ -70,10 +70,15 @@ class FirstLevelDataset(torchdata.Dataset):
     In addition the features and targets, we also return the precision
 
     df_filter: function or None. If not None, a function that takes a dataframe as input and
-    returns one (most likely, a subset of the original) as output. See `drop_voxels_with_negative_amplitudes`
-    for an example.
+    returns one (most likely, a subset of the original) as output. See
+    `drop_voxels_with_negative_amplitudes` for an example.
+
+    stimulus_class: list of ints or None. What subset of the stimulus_class should be used. these
+    are numbers between 0 and 47 (inclusive) and then the dataset will only include data from those
+    stimulus classes. this is used for cross-validation purposes (i.e., train on 0 through 46, test
+    on 47).
     """
-    def __init__(self, df_path, device, df_filter=None):
+    def __init__(self, df_path, device, df_filter=None, stimulus_class=None):
         df = pd.read_csv(df_path)
         if df_filter is not None:
             # we want the index to be reset so we can use iloc in get_single_item below. this
@@ -84,13 +89,18 @@ class FirstLevelDataset(torchdata.Dataset):
         # in order to make sure that we can iterate through the dataset (as dataloader does), we
         # need to create a new "voxel" column. this column just relabels the voxel column, running
         # from 0 to df.voxel.nunique() while ensuring that voxel identity is preserved. if
-        # df_filter is None, voxel_reindexed should just be a copy of voxel
+        # df_filter is None, df.voxel_reindexed should just be a copy of df.voxel
         new_idx = pd.Series(range(df.voxel.nunique()), df.voxel.unique())
         df = df.set_index('voxel')
         df['voxel_reindexed'] = new_idx
+        if stimulus_class is not None:
+            df = df[df.stimulus_class.isin(stimulus_class)]
+        if df.empty:
+            raise Exception("Dataframe is empty!")
         self.df = df.reset_index()
         self.device = device
         self.df_path = df_path
+        self.stimulus_class = df.stimulus_class.unique()
         
     def get_single_item(self, idx):
         row = self.df.iloc[idx]
@@ -300,7 +310,7 @@ def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_sam
     return ax
 
 
-def construct_loss_df(loss_history):
+def construct_loss_df(loss_history, subset='train'):
     """constructs loss dataframe from array of lost history
 
     loss_history: 2d list or array, as constructed in `train_model`, n_epochs by batch_size
@@ -308,6 +318,7 @@ def construct_loss_df(loss_history):
     loss_df = pd.DataFrame(np.array(loss_history))
     loss_df = pd.melt(loss_df.reset_index(), id_vars='index', var_name='batch_num',
                       value_name='loss')
+    loss_df['data_subset'] = subset
     return loss_df.rename(columns={'index': 'epoch_num'})
 
 
@@ -338,11 +349,13 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
     return results_df.reset_index()    
 
 
-def construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate, train_thresh,
-                  current_epoch):
+def construct_dfs(model, dataset, train_loss_history, max_epochs, batch_size, learning_rate,
+                  train_thresh, current_epoch, test_loss_history=None):
     """construct the loss and results dataframes and add metadata
     """
-    loss_df = construct_loss_df(loss_history)
+    loss_df = construct_loss_df(train_loss_history)
+    if test_loss_history is not None:
+        loss_df = pd.concat([loss_df, construct_loss_df(test_loss_history, 'test')])
     loss_df['max_epochs'] = max_epochs
     loss_df['batch_size'] = batch_size
     loss_df['learning_rate'] = learning_rate
@@ -381,10 +394,19 @@ def save_outputs(model, loss_df, results_df, save_path_stem):
         results_df.to_csv(save_path_stem + "_model_df.csv", index=False)
 
 
-def weighted_normed_loss(predictions, target, precision):
+def weighted_normed_loss(predictions, target, precision, predictions_for_norm=None,
+                         target_for_norm=None):
     """takes in the predictions and target
 
     note all of these must be tensors, not numpy arrays
+
+    predictions_for_norm, target_for_norm: normally, this should be called such that predictions
+    and target each contain all the values for the voxels investigated. however, during
+    cross-validation, predictions and target will contain a subset of the stimulus classes, so we
+    need to pass the predictions and targets for all stimulus classes as well in order to normalize
+    them properly (for an intuition as to why this is important, consider the extreme case: if both
+    predictions and target have length 1 and are normalized with respect to themselves, the loss
+    will always be 0)
     """
     # we occasionally have an issue where the predictions are really small (like 1e-200), which
     # gives us a norm of 0 and thus a normed_predictions of infinity, and thus an infinite loss.
@@ -392,11 +414,15 @@ def weighted_normed_loss(predictions, target, precision):
     # that here to avoid this issue
     if 0 in predictions.norm(2, -1, True):
         predictions = predictions * 1e100
+    if predictions_for_norm is None:
+        assert target_for_norm is None, "Both target_for_norm and predictions_for_norm must be unset"
+        predictions_for_norm = predictions
+        target_for_norm = target
     # we norm / average along the last dimension, since that means we do it across all stimulus
     # classes for a given voxel. we don't know whether these tensors will be 1d (single voxel, as
     # returned by our FirstLevelDataset) or 2d (multiple voxels, as returned by the DataLoader)
-    normed_predictions = predictions / predictions.norm(2, -1, True)
-    normed_target = target / target.norm(2, -1, True)
+    normed_predictions = predictions / predictions_for_norm.norm(2, -1, True)
+    normed_target = target / target_for_norm.norm(2, -1, True)
     # this isn't really necessary (all the values along that dimension should be identical, based
     # on how we calculated it), but just in case. and this gets it in the right shape
     precision = precision.mean(-1, True)
@@ -448,8 +474,74 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
     return model, loss_df, results_df
 
 
+def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_epochs=5,
+                          batch_size=1, train_thresh=1e-8, learning_rate=1e-2, save_path_stem=None):
+    """train the model with separate train and test sets
+    """
+    training_parameters = [p for p in model.parameters() if p.requires_grad]
+    # AMSGrad argument here means we use a revised version that handles a bug people found where
+    # it doesn't necessarily converge
+    optimizer = torch.optim.Adam(training_parameters, lr=learning_rate, amsgrad=True)    
+    train_dataloader = torchdata.DataLoader(train_dataset, batch_size)
+    test_dataloader = torchdata.DataLoader(test_dataset, batch_size)
+    train_loss_history = []
+    test_loss_history = []
+    for t in range(max_epochs):
+        train_loss_history.append([])
+        for i, (train_stuff, test_stuff) in enumerate(zip(train_dataloader, test_dataloader)):
+            features, target, precision = train_stuff
+            test_features, test_target, _ = test_stuff
+            # these transposes get features from the dimensions (voxels, stimulus class, features)
+            # into (features, voxels, stimulus class) so that the predictions are shape (voxels,
+            # stimulus class), just like the targets are
+            predictions = model(*features.transpose(2, 0).transpose(2, 1))
+            test_predictions = model(*test_features.transpose(2, 0).transpose(2, 1))
+            loss = weighted_normed_loss(predictions, target, precision,
+                                        torch.cat([test_predictions, predictions], 1),
+                                        torch.cat([test_target, target], 1))
+            train_loss_history[t].append(loss.item())
+            if np.isnan(loss.item()) or np.isinf(loss.item()):
+                print("Loss is nan or inf on epoch %s, batch %s! We won't update parameters on "
+                      "this batch"% (t, i))
+                print("Predictions are: %s" % predictions.detach())
+                continue
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        model.eval()
+        test_loss_history.append([])
+        for v in test_dataset.df.voxel.unique():
+            test_features, test_target, test_precision = test_dataset.get_voxel(v)
+            train_features, train_target, _ = train_dataset.get_voxel(v)
+            test_predictions = model(*test_features.transpose(1, 0))
+            train_predictions = model(*train_features.transpose(1, 0))
+            loss = weighted_normed_loss(test_predictions, test_target, test_precision,
+                                        torch.cat([test_predictions, train_predictions]),
+                                        torch.cat([test_target, train_target]))
+            test_loss_history[t].append(loss.item())
+        model.train()
+        if (t % 100) == 0:
+            loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history, max_epochs,
+                                                batch_size, learning_rate, train_thresh, t,
+                                                test_loss_history)
+            save_outputs(model, loss_df, results_df, save_path_stem)
+        print("Average train loss on epoch %s: %s" % (t, np.mean(train_loss_history[-1])))
+        print("Average test loss on epoch %s: %s" % (t, np.mean(test_loss_history[-1])))
+        print(model)
+        if len(train_loss_history) > 3:
+            if ((np.abs(np.mean(train_loss_history[-1]) - np.mean(train_loss_history[-2])) < train_thresh) and
+                (np.abs(np.mean(train_loss_history[-2]) - np.mean(train_loss_history[-3])) < train_thresh) and
+                (np.abs(np.mean(train_loss_history[-3]) - np.mean(train_loss_history[-4])) < train_thresh)):
+                print("Training loss appears to have stopped declining, so we stop training")
+                break
+    loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history, max_epochs,
+                                        batch_size, learning_rate, train_thresh, t,
+                                        test_loss_history)
+    return model, loss_df, results_df
+
+
 def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8, batch_size=1,
-         df_filter=None, learning_rate=1e-2, save_path_stem="pytorch"):
+         df_filter=None, learning_rate=1e-2, stimulus_class=None, save_path_stem="pytorch"):
     """create, train, and save a model on the given first_level_results dataframe
 
     model_type: {'full_absolute', 'full_relative', 'iso', 'scaling', 'constant'}. Which type of
@@ -467,6 +559,11 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
     df_filter: function or None. If not None, a function that takes a dataframe as input and
     returns one (most likely, a subset of the original) as output. See
     `drop_voxels_with_negative_amplitudes` for an example.
+
+    stimulus_class: list of ints or None. What subset of the stimulus_class should be used. these
+    are numbers between 0 and 47 (inclusive) and then the dataset will only include data from those
+    stimulus classes. this is used for cross-validation purposes (i.e., train on 0 through 46, test
+    on 47).
 
     save_path_stem: string or None. a string to save the trained model and loss_df at (should have
     no extension because we'll add it ourselves). If None, will not save the output.
@@ -487,10 +584,41 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
     if torch.cuda.device_count() > 1 and batch_size > torch.cuda.device_count():
         model = torch.nn.DataParallel(model)
     model.to(device)
-    dataset = FirstLevelDataset(first_level_results_path, device, df_filter=df_filter)
-    print("Beginning training!")
-    model, loss_df, results_df = train_model(model, dataset, max_epochs, batch_size, train_thresh,
-                                             learning_rate, save_path_stem)
+    dataset = FirstLevelDataset(first_level_results_path, device, df_filter)
+    if stimulus_class is None:
+        print("Beginning training!")
+        # use all stimulus classes
+        model, loss_df, results_df = train_model(model, dataset, max_epochs, batch_size,
+                                                 train_thresh, learning_rate, save_path_stem)
+        test_subset = 'none'
+    else:
+        df = pd.read_csv(first_level_results_path)
+        all_stimulus_class = df.stimulus_class.unique()
+        other_stimulus_class = [i for i in all_stimulus_class if i not in stimulus_class]
+        # split into test and train
+        if len(other_stimulus_class) > len(stimulus_class):
+            # we assume that test set should be smaller than train
+            train_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
+                                              other_stimulus_class)
+            test_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
+                                             stimulus_class)
+            test_subset = stimulus_class
+        else:
+            train_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
+                                              stimulus_class)
+            test_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
+                                             other_stimulus_class)
+            test_subset = other_stimulus_class
+        print("Beginning training, treating stimulus classes %s as test "
+              "set!"%test_subset)
+        model, loss_df, results_df = train_model_traintest(model, train_dataset, test_dataset,
+                                                           dataset, max_epochs, batch_size,
+                                                           train_thresh, learning_rate, save_path_stem)
+    test_subset = str(test_subset).replace('[', '').replace(']', '')
+    if len(test_subset) == 1:
+        test_subset = int(test_subset)
+    results_df['test_subset'] = test_subset
+    loss_df['test_subset'] = test_subset
     print("Finished training!")
     save_outputs(model, loss_df, results_df, save_path_stem)
     model.eval()
@@ -565,6 +693,10 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", '-r', default=1e-2, type=float,
                         help=("Learning rate for Adam optimizer (should change inversely with "
                               "batch size)."))
+    parser.add_argument("--stimulus_class", '-s', type=int, default=None, nargs='+',
+                        help=("Which stimulus class(es) to consider part of the test set. should "
+                              "probably only be one, but should work if you pass more than one as "
+                              "well"))
     args = vars(parser.parse_args())
     df_filter = construct_df_filter(args.pop('df_filter'))
     main(df_filter=df_filter, **args)

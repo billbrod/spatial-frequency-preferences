@@ -603,23 +603,25 @@ rule model:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_model_df.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_model.pt")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_model_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_model.pt")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_{model_type}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}.log")
     resources:
-        cpus_per_task = 1,
+        # need the same number of cpus and gpus
+        cpus_per_task = lambda wildcards: int(wildcards.gpus),
         mem = 10,
-        gpus = 1
+        gpus = lambda wildcards: int(wildcards.gpus)
     params:
-        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", '')
+        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
+        stimulus_class = lambda wildcards: wildcards.stimulus_class.split(',')
     shell:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
-        "drop_voxels_with_negative_amplitudes -t 1e-8 -e 1000"
+        "drop_voxels_with_negative_amplitudes -t 1e-8 -e 1000 -s {params.stimulus_class}"
 
 
 rule simulate_data_uniform_noise:
@@ -662,23 +664,25 @@ rule model_simulated_data:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_loss.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model_df.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_model.pt')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_model_df.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_model.pt')
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}.log")
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: int(wildcards.gpus),
         mem = 10,
         gpus = lambda wildcards: int(wildcards.gpus)
     params:
-        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", '')
+        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
+        stimulus_class = lambda wildcards: wildcards.stimulus_class.split(',')
     shell:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t 1e-8 -e 1000 "
+        "-s {params.stimulus_class}"
 
 
 rule report:
