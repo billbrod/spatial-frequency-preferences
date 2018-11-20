@@ -299,7 +299,7 @@ def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_sam
     extent: 2-tuple of floats. the range of spatial frequencies to visualize `(min, max)`. this
     will be the same for x and y
     """
-    if isinstance(donut, ConstantLogGaussianDonut):
+    if isinstance(donut, ConstantIsoLogGaussianDonut):
         ax = plt.imshow(donut.create_image(extent, n_samps=n_samps).detach(),
                         extent=(extent[0], extent[1], extent[0], extent[1]), cmap=cmap, **kwargs)
     else:
