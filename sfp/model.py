@@ -408,11 +408,11 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                 learning_rate=1e-2, save_path_stem=None):
     """train the model
     """
+    training_parameters = [p for p in model.parameters() if p.requires_grad]
     # AMSGrad argument here means we use a revised version that handles a bug people found where
     # it doesn't necessarily converge
-    training_parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.Adam(training_parameters, lr=learning_rate, amsgrad=True)    
-    dataloader = torchdata.DataLoader(dataset, batch_size,)# shuffle=True)
+    dataloader = torchdata.DataLoader(dataset, batch_size)
     loss_history = []
     for t in range(max_epochs):
         loss_history.append([])
@@ -424,7 +424,8 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
             loss = weighted_normed_loss(predictions, target, precision)
             loss_history[t].append(loss.item())
             if np.isnan(loss.item()) or np.isinf(loss.item()):
-                print("Loss is nan or inf on epoch %s, batch %s! We won't update parameters on this batch"% (t, i))
+                print("Loss is nan or inf on epoch %s, batch %s! We won't update parameters on "
+                      "this batch"% (t, i))
                 print("Predictions are: %s" % predictions.detach())
                 continue
             optimizer.zero_grad()
@@ -442,8 +443,8 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                 (np.abs(np.mean(loss_history[-3]) - np.mean(loss_history[-4])) < train_thresh)):
                 print("Epoch loss appears to have stopped declining, so we stop training")
                 break
-    loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs, batch_size, learning_rate,
-                                        train_thresh, t)
+    loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs, batch_size,
+                                        learning_rate, train_thresh, t)
     return model, loss_df, results_df
 
 
@@ -451,10 +452,14 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
          df_filter=None, learning_rate=1e-2, save_path_stem="pytorch"):
     """create, train, and save a model on the given first_level_results dataframe
 
-    UPDATE THIS
-    model_type: {'full', 'scaling', 'constant'}. Which type of model to train. 'full' is the
-    LogGaussianDonut that can train its sf_ecc_intercept and sf_ecc_slope, while 'scaling' and
-    'constant' have those two parameters set (at 0,1 and 1,0, respectively).
+    model_type: {'full_absolute', 'full_relative', 'iso', 'scaling', 'constant'}. Which type of
+    model to train. 'full_abslute' and 'full_relative' fit all parameters and so include the
+    effects of orientation on the amplitude and mode; they differ in whether they consider
+    orientation to be absolute (so that orientation=0 means "to the right") or relative (so that
+    orientation=0 means "away from the fovea"). The other three models do not consider
+    orientation. 'iso' is the LogGaussianDonut that can train its sf_ecc_intercept and
+    sf_ecc_slope, while 'scaling' and 'constant' have those two parameters set (at 0,1 and 1,0,
+    respectively).
 
     max_epochs: int. the max number of epochs to let the training run for. otherwise, we train
     until the loss changes by less than train_thresh for 3 epochs in a row.
@@ -540,7 +545,7 @@ if __name__ == '__main__':
                               " dict (`save_path_stem`_model.pt), loss dataframe "
                               "(`save_path_stem`_loss.csv), and first level dataframe with "
                               "performance  (`save_path_stem`_model_df.csv)"))
-    parser.add_argument("--train_thresh", '-t', default=.1, type=float,
+    parser.add_argument("--train_thresh", '-t', default=1e-8, type=float,
                         help=("How little the loss can change with successive epochs to be "
                               "considered done training."))
     parser.add_argument("--df_filter", '-d', default='drop_voxels_with_negative_amplitudes',
@@ -553,11 +558,11 @@ if __name__ == '__main__':
                               "'reduce_num_voxels:n', will drop all but the first n voxels. If "
                               "'None', fit on all data (obviously, this cannot be chained with any"
                               " of the others)."))
-    parser.add_argument("--batch_size", "-b", default=2000, type=int,
+    parser.add_argument("--batch_size", "-b", default=1, type=int,
                         help=("Size of the batches for training"))
     parser.add_argument("--max_epochs", '-e', default=100, type=int,
                         help=("Maximum number of training epochs (full runs through the data)"))
-    parser.add_argument("--learning_rate", '-r', default=1e-3, type=float,
+    parser.add_argument("--learning_rate", '-r', default=1e-2, type=float,
                         help=("Learning rate for Adam optimizer (should change inversely with "
                               "batch size)."))
     args = vars(parser.parse_args())
