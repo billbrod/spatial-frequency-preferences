@@ -544,7 +544,7 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
          df_filter=None, learning_rate=1e-2, stimulus_class=None, save_path_stem="pytorch"):
     """create, train, and save a model on the given first_level_results dataframe
 
-    model_type: {'full_absolute', 'full_relative', 'iso', 'scaling', 'constant'}. Which type of
+    model_type: {'full-absolute', 'full-relative', 'iso', 'scaling', 'constant'}. Which type of
     model to train. 'full_abslute' and 'full_relative' fit all parameters and so include the
     effects of orientation on the amplitude and mode; they differ in whether they consider
     orientation to be absolute (so that orientation=0 means "to the right") or relative (so that
@@ -568,9 +568,9 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
     save_path_stem: string or None. a string to save the trained model and loss_df at (should have
     no extension because we'll add it ourselves). If None, will not save the output.
     """
-    if model_type == 'full_absolute':
+    if model_type == 'full-absolute':
         model = LogGaussianDonut(.4, orientation_type='absolute')
-    elif model_type == 'full_relative':
+    elif model_type == 'full-relative':
         model = LogGaussianDonut(.4, orientation_type='relative')
     elif model_type == 'constant':
         model = ConstantIsoLogGaussianDonut(.4)
@@ -663,7 +663,7 @@ if __name__ == '__main__':
         description=("Load in the first level results Dataframe and train a 2d tuning model on it"
                      ". Will save the model parameters and loss information."))
     parser.add_argument("model_type",
-                        help=("{'full_absolute', 'full_relative', 'scaling', 'constant', 'iso'}."
+                        help=("{'full-absolute', 'full-relative', 'scaling', 'constant', 'iso'}."
                               " Which type of model to train"))
     parser.add_argument("first_level_results_path",
                         help=("Path to the first level results dataframe containing the data to "
