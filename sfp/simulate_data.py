@@ -163,7 +163,7 @@ if __name__ == '__main__':
                               "responses are normalized to have an L2 norm of 1 before noise is"
                               " added, so this should be interpreted as relative to a unit vector"
                               ". In both cases, a value of 0 means no noise."))
-    parser.add_argument("--orienation_type", '-o', default='absolute',
+    parser.add_argument("--orientation_type", '-o', default='absolute',
                         help=("{'absolute', 'relative'}. Whether orientation should be absolute "
                               "(so that 0 is to the right) or relative (so that 0 is away from the"
                               " fovea)"))

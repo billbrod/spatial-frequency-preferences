@@ -78,6 +78,8 @@ wildcard_constraints:
     hue="[a-z-]+",
     y="[a-z-]+",
     binning="[a-z_]+bin",
+    stimulus_class="[0-9,]+",
+    model_type="[a-z-]+"
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -90,6 +92,12 @@ wildcard_constraints:
 ruleorder: GLMdenoise_fixed_hrf > GLMdenoise
 
 # all: plots_all plots_modeling_blanks plots_VSS_abstract summary_plots_all summary_plots_VSS_abstract
+
+rule model_all_simulated:
+    input:
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "absolute", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "n100_s1_e.75_i.25_mc.5_mo.2_ac.2_ao.7_l1_b1_r1e-3_g1_c{num:02d}_full-absolute_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "absolute", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "n100_s1_e.75_i.25_mc.5_mo.2_ac.2_ao.7_l1_b1_r1e-3_g1_c{num:02d}_full-relative_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "absolute", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "n100_s1_e.75_i.25_mc.5_mo.2_ac.2_ao.7_l1_b1_r1e-3_g1_c{num:02d}_iso_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))]
 
 rule GLMdenoise_all_visual:
     input:
