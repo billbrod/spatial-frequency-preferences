@@ -99,6 +99,12 @@ rule model_all_simulated:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "absolute", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "n100_s1_e.75_i.25_mc.5_mo.2_ac.2_ao.7_l1_b1_r1e-3_g1_c{num:02d}_full-relative_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "absolute", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "n100_s1_e.75_i.25_mc.5_mo.2_ac.2_ao.7_l1_b1_r1e-3_g1_c{num:02d}_iso_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))]
 
+rule model_all_data:
+    input:
+         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full-absolute_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full-relative_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))]
+
 rule GLMdenoise_all_visual:
     input:
         [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
