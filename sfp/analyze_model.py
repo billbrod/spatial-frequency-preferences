@@ -13,13 +13,16 @@ import glob
 import model as sfp_model
 
 
-def load_single_model(save_path_stem, model_type=None):
+def load_single_model(save_path_stem, model_type=None, load_results_df=True):
     """load in the model, loss df, and model df found at the save_path_stem
 
     we also send the model to the appropriate device
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    results_df = pd.read_csv(save_path_stem + '_model_df.csv')
+    if load_results_df:
+        results_df = pd.read_csv(save_path_stem + '_model_df.csv')
+    else:
+        results_df = pd.read_csv(save_path_stem + '_model_df.csv', nrows=1)
     loss_df = pd.read_csv(save_path_stem + '_loss.csv')
     if model_type is None:
         # then we try and infer it from the path name, which we can do assuming we used the
@@ -68,9 +71,8 @@ def combine_models(base_path_template, load_results_df=True):
         if path_stem in path_stems:
             continue
         path_stems.append(path_stem)
-        model, loss, results = load_single_model(path_stem)
-        if load_results_df:
-            results_df.append(results)
+        model, loss, results = load_single_model(path_stem, load_results_df=load_results_df)
+        results_df.append(results)
         loss_df.append(loss)
         tmp = loss.head(1)
         tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'], 1)
