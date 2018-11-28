@@ -91,3 +91,23 @@ def combine_models(base_path_template, load_results_df=True):
         results_df = None
     models = pd.concat(models)
     return models, loss_df, results_df
+
+
+def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi),
+                      orientation_n_steps=8, retinotopic_angle_n_steps=4):
+    """create dataframe with preferred period and amplitude for given models
+
+    will do so at multiple (stimulus) orientations, retinotopic angles, and retinotopic
+    eccentricities
+    """
+    features = []
+    eccen = np.linspace(*eccen_range, num=10)
+    orientations = np.linspace(*orientation_range, num=orientation_n_steps, endpoint=False)
+    angles = np.linspace(*orientation_range, num=retinotopic_angle_n_steps, endpoint=False)
+    for m, o, a in itertools.product(models, orientations, angles):
+        period = m.preferred_period(o, eccen, a).detach().cpu().numpy()
+        max_amp = m.max_amplitude(o, a).detach().cpu().numpy()
+        features.append(pd.DataFrame({'preferred_period': period, 'max_amplitude': max_amp,
+                                      'retinotopic_angle': a, 'fit_model_type': m.model_type,
+                                      'eccentricity': eccen, 'orientation': o}))
+    return pd.concat(features)
