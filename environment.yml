@@ -44,6 +44,7 @@ dependencies:
   - scikit-image
   - greenlet==0.4.15
   - pip:
+      - pybids >= 0.4.2
       - pyglet
       - neuropythy
       - zmq
