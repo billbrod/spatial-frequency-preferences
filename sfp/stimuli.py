@@ -1,17 +1,78 @@
 #!/usr/bin/python
 """script to generate stimuli
 """
-import pyPyrTools as ppt
 import numpy as np
 from matplotlib import pyplot as plt
 import itertools
 import pandas as pd
 import seaborn as sns
-import utils
+from . import utils
 from scipy import misc as smisc
 import os
 import argparse
-import first_level_analysis
+# from . import first_level_analysis
+
+
+def mkR(size, exponent=1, origin=None):
+    '''make distance-from-origin (r) matrix
+
+    Compute a matrix of dimension SIZE (a [Y X] list/tuple, or a scalar)
+    containing samples of a radial ramp function, raised to power EXPONENT
+    (default = 1), with given ORIGIN (default = (size+1)//2, (0, 0) = upper left).
+
+    NOTE: the origin is not rounded to the nearest int
+    '''
+
+    if not hasattr(size, '__iter__'):
+        size = (size, size)
+
+    if origin is None:
+        origin = ((size[0]+1)/2., (size[1]+1)/2.)
+    elif not hasattr(origin, '__iter__'):
+        origin = (origin, origin)
+
+    xramp, yramp = np.meshgrid(np.arange(1, size[1]+1)-origin[1],
+                               np.arange(1, size[0]+1)-origin[0])
+
+    if exponent <= 0:
+        # zero to a negative exponent raises:
+        # ZeroDivisionError: 0.0 cannot be raised to a negative power
+        r = xramp ** 2 + yramp ** 2
+        res = np.power(r, exponent / 2.0, where=(r!=0))
+    else:
+        res = (xramp ** 2 + yramp ** 2) ** (exponent / 2.0)
+    return res
+
+
+def mkAngle(size, phase=0, origin=None):
+    '''make polar angle matrix (in radians)
+
+    Compute a matrix of dimension SIZE (a [Y X] list/tuple, or a scalar)
+    containing samples of the polar angle (in radians, CW from the X-axis,
+    ranging from -pi to pi), relative to angle PHASE (default = 0), about ORIGIN
+    pixel (default = (size+1)/2).
+
+    NOTE: the origin is not rounded to the nearest int
+    '''
+
+    if not hasattr(size, '__iter__'):
+        size = (size, size)
+
+    if origin is None:
+        origin = ((size[0]+1)/2., (size[1]+1)/2.)
+    elif not hasattr(origin, '__iter__'):
+        origin = (origin, origin)
+
+    xramp, yramp = np.meshgrid(np.arange(1, size[1]+1)-origin[1],
+                               np.arange(1, size[0]+1)-origin[0])
+    xramp = np.array(xramp)
+    yramp = np.array(yramp)
+
+    res = np.arctan2(yramp, xramp)
+
+    res = ((res+(np.pi-phase)) % (2*np.pi)) - np.pi
+
+    return res
 
 
 def log_polar_grating(size, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -54,14 +115,14 @@ def log_polar_grating(size, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_fact
     sampled differently
     """
     assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
-    rad = ppt.mkR(size, origin=origin)/scale_factor
+    rad = mkR(size, origin=origin)/scale_factor
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
     # distance 0, that means we'll have a -inf out of np.log2 and thus a nan from the cosine. this
     # little hack avoids that issue.
     if 0 in rad:
         rad += 1e-12
     lrad = np.log2(rad**2)
-    theta = ppt.mkAngle(size, origin=origin)
+    theta = mkAngle(size, origin=origin)
 
     return ampl * np.cos(((w_r * np.log(2))/2) * lrad + w_a * theta + phi)
 
@@ -99,8 +160,8 @@ def aliasing_plot(better_sampled_stim, stim, slices_to_check=None, axes=None, **
         # with squeeze=False, this will always be a 2d array, but because we only set ncols, it
         # will only have axes in one dimension
         axes = axes[0]
-    x0 = np.array(range(size)) / float(size) + 1./(size*2)
-    x1 = np.array(range(better_sampled_stim.shape[0])) / float(better_sampled_stim.shape[0]) + 1./(better_sampled_stim.shape[0]*2)
+    x0 = np.array(list(range(size))) / float(size) + 1./(size*2)
+    x1 = np.array(list(range(better_sampled_stim.shape[0]))) / float(better_sampled_stim.shape[0]) + 1./(better_sampled_stim.shape[0]*2)
     for i, ax in enumerate(axes):
         ax.plot(x1, better_sampled_stim[:, check_scale_factor*slices_to_check[i] + (check_scale_factor - 1)/2])
         ax.plot(x0, stim[:, slices_to_check[i]], 'o:')
@@ -136,7 +197,7 @@ def _fade_mask(mask, inner_number_of_fade_pixels, outer_number_of_fade_pixels, o
     if False not in mask or True not in mask or (inner_number_of_fade_pixels == 0 and outer_number_of_fade_pixels == 0):
         return mask
     size = mask.shape[0]
-    rad = ppt.mkR(size, origin=origin)
+    rad = mkR(size, origin=origin)
     inner_rad = (mask*rad)[(mask*rad).nonzero()].min()
     # in this case, there really isn't an inner radius, just an outer one, so we ignore this
     if inner_rad == rad.min():
@@ -364,9 +425,9 @@ def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', 
     if origin is None:
         origin = ((size+1) / 2., (size+1) / 2.)
     # we do this in terms of x and y
-    x, y = np.divide(np.meshgrid(np.array(range(1, size+1)) - origin[0],
-                                 np.array(range(1, size+1)) - origin[1]),
-                     scale_factor)
+    x, y = np.divide(np.meshgrid(np.array(list(range(1, size+1))) - origin[0],
+                                 np.array(list(range(1, size+1))) - origin[1]),
+                      scale_factor)
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
     # distance 0 and that means we'll have a divide by zero coming up. this little hack avoids that
     # issue.
@@ -424,7 +485,7 @@ def create_sf_origin_polar_maps_cpd(size, max_visual_angle, origin=None, scale_f
     """
     _, _, mag, direc = create_sf_maps_cpd(size, max_visual_angle, origin, scale_factor, stim_type,
                                           w_r, w_a, w_x, w_y)
-    angle = ppt.mkAngle(size, origin=origin)
+    angle = mkAngle(size, origin=origin)
     new_angle = np.mod(direc - angle, 2*np.pi)
     dr = mag * np.cos(new_angle)
     da = mag * np.sin(new_angle)
@@ -469,7 +530,7 @@ def create_outer_mask(size, origin, radius=None, number_of_fade_pixels=3):
     To combine this with the antialiasing mask, call np.logical_and on the two unfaded masks (and
     then fade that if you want to fade it)
     """
-    rad = ppt.mkR(size, origin=origin)
+    rad = mkR(size, origin=origin)
     assert not hasattr(size, "__iter__"), "size must be a scalar!"
     if radius is None:
         radius = min(rad[:, size/2].max(), rad[size/2, :].max())
@@ -536,7 +597,7 @@ def check_stim_properties(size, origin, max_visual_angle, w_r=0, w_a=range(10),
         w_r = [w_r]
     if not hasattr(w_a, '__iter__'):
         w_a = [w_a]
-    rad = ppt.mkR(size, origin=origin)
+    rad = mkR(size, origin=origin)
     mask_df = []
     sf_df = []
     for i, (f_r, f_a) in enumerate(itertools.product(w_r, w_a)):
