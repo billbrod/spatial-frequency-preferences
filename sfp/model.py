@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 import warnings
 import argparse
+import itertools
 from torch.utils import data as torchdata
 
 
@@ -156,30 +157,99 @@ class LogGaussianDonut(torch.nn.Module):
     be remapped internally. NOTE THAT YOU CONTINUE TO CALL THIS MODEL WITH THE ABSOLUTE
     ORIENTATION.
     """
-    def __init__(self, sigma, sf_ecc_slope=1, sf_ecc_intercept=0, mode_cardinals=0, mode_obliques=0,
-                 amplitude_cardinals=0, amplitude_obliques=0, orientation_type='absolute',
-                 train_sf_ecc_slope=True, train_sf_ecc_intercept=True, train_mode_cardinals=True,
-                 train_mode_obliques=True, train_amplitude_cardinals=True,
-                 train_amplitude_obliques=True):
+    def __init__(self, orientation_type='iso', eccentricity_type='full', vary_amplitude=True,
+                 sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0, abs_mode_cardinals=0,
+                 abs_mode_obliques=0, rel_mode_cardinals=0, rel_mode_obliques=0,
+                 abs_amplitude_cardinals=0, abs_amplitude_obliques=0, rel_amplitude_cardinals=0,
+                 rel_amplitude_obliques=0):
         super(LogGaussianDonut,self).__init__()
-        self.amplitude_cardinals = _cast_as_param(amplitude_cardinals, train_amplitude_cardinals)
-        self.amplitude_obliques = _cast_as_param(amplitude_obliques, train_amplitude_obliques)
-        self.sigma = _cast_as_param(sigma)
-        self.sf_ecc_slope = _cast_as_param(sf_ecc_slope, train_sf_ecc_slope)
-        self.sf_ecc_intercept = _cast_as_param(sf_ecc_intercept, train_sf_ecc_intercept)
-        self.mode_cardinals = _cast_as_param(mode_cardinals, train_mode_cardinals)
-        self.mode_obliques = _cast_as_param(mode_obliques, train_mode_obliques)
-        if orientation_type not in ['relative', 'absolute']:
+        train_kwargs = {}
+        kwargs = {}
+        for ori, param, angle in itertools.product(['abs', 'rel'], ['mode', 'amplitude'],
+                                                   ['cardinals', 'obliques']):
+            train_kwargs['%s_%s_%s' % (ori, param, angle)] = True
+            kwargs['%s_%s_%s' % (ori, param, angle)] = eval('%s_%s_%s' % (ori, param, angle))
+        for var in ['slope', 'intercept']:
+            train_kwargs['sf_ecc_%s' % var] = True
+            kwargs['sf_ecc_%s' % var] = eval("sf_ecc_%s" % var)
+        if orientation_type in ['relative', 'iso']:
+            for param, angle in itertools.product(['mode', 'amplitude'], ['cardinals', 'obliques']):
+                if kwargs['abs_%s_%s' % (param, angle)] != 0:
+                    warnings.warn("When orientation_type is %s, all absolute variables must"
+                                  " be 0, correcting this..." % orientation_type)
+                    kwargs['abs_%s_%s' % (param, angle)] = 0
+                train_kwargs['abs_%s_%s' % (param, angle)] = False
+        if orientation_type in ['absolute', 'iso']:
+            for param, angle in itertools.product(['mode', 'amplitude'], ['cardinals', 'obliques']):
+                if kwargs['rel_%s_%s' % (param, angle)] != 0:
+                    warnings.warn("When orientation_type is %s, all relative variables must"
+                                  " be 0, correcting this..." % orientation_type)
+                    kwargs['rel_%s_%s' % (param, angle)] = 0
+                train_kwargs['rel_%s_%s' % (param, angle)] = False
+        if orientation_type not in ['relative', 'absolute', 'iso', 'full']:
             raise Exception("Don't know how to handle orientation_type %s!" % orientation_type)
         self.orientation_type = orientation_type
-        self.model_type = 'full_donut_%s' % orientation_type
+        if not vary_amplitude:
+            for ori, angle in itertools.product(['abs', 'rel'], ['cardinals', 'obliques']):
+                if kwargs['%s_amplitude_%s' % (ori, angle)] != 0:
+                    warnings.warn("When vary_amplitude is False, all amplitude variables must"
+                                  " be 0, correcting this..." % orientation_type)
+                    kwargs['%s_amplitude_%s' % (ori, angle)] = 0
+                train_kwargs['%s_amplitude_%s' % (ori, angle)] = False
+        if eccentricity_type == 'scaling':
+            if kwargs['sf_ecc_slope'] != 1 or kwargs['sf_ecc_intercept'] != 0:
+                warnings.warn("When eccentricity_type is scaling, sf_ecc_slope must be 1 and "
+                              "sf_ecc_intercept must be 0! correcting...")
+                kwargs['sf_ecc_slope'] = 1
+                kwargs['sf_ecc_intercept'] = 0
+            train_kwargs['sf_ecc_slope'] = False
+            train_kwargs['sf_ecc_intercept'] = False
+        elif eccentricity_type == 'constant':
+            if kwargs['sf_ecc_slope'] != 0 or kwargs['sf_ecc_intercept'] != 1:
+                warnings.warn("When eccentricity_type is constant, sf_ecc_slope must be 0 and "
+                              "sf_ecc_intercept must be 1! correcting...")
+                kwargs['sf_ecc_slope'] = 0
+                kwargs['sf_ecc_intercept']= 1
+            train_kwargs['sf_ecc_slope'] = False
+            train_kwargs['sf_ecc_intercept'] = False
+        elif eccentricity_type != 'full':
+            raise Exception("Don't know how to handle eccentricity_type %s!" % eccentricity_type)
+        self.eccentricity_type = eccentricity_type
+        self.model_type = '%s_donut_%s' % (eccentricity_type, orientation_type)
+        self.sigma = _cast_as_param(sigma)
+
+        self.abs_amplitude_cardinals = _cast_as_param(kwargs['abs_amplitude_cardinals'],
+                                                      train_kwargs['abs_amplitude_cardinals'])
+        self.abs_amplitude_obliques = _cast_as_param(kwargs['abs_amplitude_obliques'],
+                                                     train_kwargs['abs_amplitude_obliques'])
+        self.rel_amplitude_cardinals = _cast_as_param(kwargs['rel_amplitude_cardinals'],
+                                                      train_kwargs['rel_amplitude_cardinals'])
+        self.rel_amplitude_obliques = _cast_as_param(kwargs['rel_amplitude_obliques'],
+                                                     train_kwargs['rel_amplitude_obliques'])
+        self.abs_mode_cardinals = _cast_as_param(kwargs['abs_mode_cardinals'],
+                                                 train_kwargs['abs_mode_cardinals'])
+        self.abs_mode_obliques = _cast_as_param(kwargs['abs_mode_obliques'],
+                                                train_kwargs['abs_mode_obliques'])
+        self.rel_mode_cardinals = _cast_as_param(kwargs['rel_mode_cardinals'],
+                                                 train_kwargs['rel_mode_cardinals'])
+        self.rel_mode_obliques = _cast_as_param(kwargs['rel_mode_obliques'],
+                                                train_kwargs['rel_mode_obliques'])
+        self.sf_ecc_slope = _cast_as_param(kwargs['sf_ecc_slope'],
+                                           train_kwargs['sf_ecc_slope'])
+        self.sf_ecc_intercept = _cast_as_param(kwargs['sf_ecc_intercept'],
+                                               train_kwargs['sf_ecc_intercept'])
 
     def __str__(self):
         # so we can see the parameters
-        return "{0}({1:.03f}, {2:.03f}, {3:.03f}, {4:.03f}, {5:.03f}, {6:.03f}, {7:.03f}, {8})".format(
-            type(self).__name__, self.sigma, self.sf_ecc_slope, self.sf_ecc_intercept,
-            self.mode_cardinals, self.mode_obliques, self.amplitude_cardinals,
-            self.amplitude_obliques, self.orientation_type)
+        return ("{0}(sigma: {1:.03f}, sf_ecc_slope: {2:.03f}, sf_ecc_intercept: {3:.03f}, "
+                "abs_amplitude_cardinals: {4:.03f}, abs_amplitude_obliques: {5:.03f}, "
+                "abs_mode_cardinals: {6:.03f}, abs_mode_obliques: {7:.03f}, "
+                "rel_amplitude_cardinals: {8:.03f}, rel_amplitude_obliques: {9:.03f}, "
+                "rel_mode_cardinals: {10:.03f}, rel_mode_obliques: {11:.03f})").format(
+                    type(self).__name__, self.sigma, self.sf_ecc_slope, self.sf_ecc_intercept,
+                    self.abs_amplitude_cardinals, self.abs_amplitude_obliques,
+                    self.abs_mode_cardinals, self.abs_mode_obliques, self.rel_amplitude_cardinals,
+                    self.rel_amplitude_obliques, self.rel_mode_cardinals, self.rel_mode_obliques)
 
     def __repr__(self):
         return self.__str__()
@@ -209,11 +279,12 @@ class LogGaussianDonut(torch.nn.Module):
             sf_angle, vox_ecc = _check_and_reshape_tensors(sf_angle, vox_ecc)
             vox_ecc, vox_angle = _check_and_reshape_tensors(vox_ecc, vox_angle)
             sf_angle, vox_angle = _check_and_reshape_tensors(sf_angle, vox_angle)
-        if self.orientation_type == 'relative':
-            sf_angle = sf_angle - vox_angle
+        rel_sf_angle = sf_angle - vox_angle
         eccentricity_effect = self.sf_ecc_slope * vox_ecc + self.sf_ecc_intercept
-        orientation_effect = (1 + self.mode_cardinals * torch.cos(2 * sf_angle) +
-                              self.mode_obliques * torch.cos(4 * sf_angle))
+        orientation_effect = (1 + self.abs_mode_cardinals * torch.cos(2 * sf_angle) +
+                              self.abs_mode_obliques * torch.cos(4 * sf_angle) +
+                              self.rel_mode_cardinals * torch.cos(2 * rel_sf_angle) +
+                              self.rel_mode_obliques * torch.cos(4 * rel_sf_angle))
         return torch.clamp(eccentricity_effect * orientation_effect, min=1e-6)
         
     def preferred_sf(self, sf_angle, vox_ecc, vox_angle):
@@ -222,10 +293,11 @@ class LogGaussianDonut(torch.nn.Module):
     def max_amplitude(self, sf_angle, vox_angle):
         sf_angle, vox_angle = _cast_args_as_tensors([sf_angle, vox_angle], self.sigma.is_cuda)
         sf_angle, vox_angle = _check_and_reshape_tensors(sf_angle, vox_angle)
-        if self.orientation_type == 'relative':
-            sf_angle = sf_angle - vox_angle
-        amplitude = (1 + self.amplitude_cardinals * torch.cos(2*sf_angle) +
-                     self.amplitude_obliques * torch.cos(4*sf_angle))
+        rel_sf_angle = sf_angle - vox_angle
+        amplitude = (1 + self.abs_amplitude_cardinals * torch.cos(2*sf_angle) +
+                     self.abs_amplitude_obliques * torch.cos(4*sf_angle) +
+                     self.rel_amplitude_cardinals * torch.cos(2*rel_sf_angle) +
+                     self.rel_amplitude_obliques * torch.cos(4*rel_sf_angle))
         return torch.clamp(amplitude, min=1e-6)
     
     def evaluate(self, sf_mag, sf_angle, vox_ecc, vox_angle):
@@ -247,54 +319,6 @@ class LogGaussianDonut(torch.nn.Module):
         """
         return self.evaluate(spatial_frequency_magnitude, spatial_frequency_theta,
                              voxel_eccentricity, voxel_angle)
-
-
-class ConstantIsoLogGaussianDonut(LogGaussianDonut):
-    """Instantiation of the "constant" isotropic extreme possibility
-
-    this version does not depend on voxel eccentricity or angle at all"""
-    def __init__(self, sigma):
-        super(ConstantIsoLogGaussianDonut, self).__init__(sigma, 0, 1, 0, 0, 0, 0, 'absolute', False,
-                                                          False, False, False, False, False)
-        self.model_type = 'constant_iso_donut'
-
-    def create_image(self, extent=None, n_samps=1001):
-        r, th = self._create_mag_angle(extent, n_samps)
-        return self.evaluate(r, th)
-
-    def evaluate(self, sf_mag, sf_angle):
-        return super(ConstantIsoLogGaussianDonut, self).evaluate(sf_mag, sf_angle, 0, 0)
-        
-    def forward(self, spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity=None,
-                voxel_angle=None):
-        # we keep the same kwargs so that forward can be called the same way as the regular
-        # LogGaussianDonut, but we do nothing with them.
-        return self.evaluate(spatial_frequency_magnitude, spatial_frequency_theta)
-
-
-class ScalingIsoLogGaussianDonut(LogGaussianDonut):
-    """Instantiation of the "scaling" isotropic extreme possibility
-
-    in this version, spatial frequency preferences scale *exactly* with eccentricity, so as to
-    cancel out the scaling done in our stimuli creation
-    """
-    def __init__(self, sigma):
-        super(ScalingIsoLogGaussianDonut, self).__init__(sigma, 1, 0, 0, 0, 0, 0, 'absolute', False,
-                                                         False, False, False, False, False)
-        self.model_type = 'scaling_iso_donut'
-
-
-class IsoLogGaussianDonut(LogGaussianDonut):
-    """Instantiation of the "full" isotropic donut
-
-    In this version, there's no dependence on orientation / voxel angle, but we can learn how the
-    preferences scale with eccentricity
-    """
-    def __init__(self, sigma, sf_ecc_slope=1, sf_ecc_intercept=0):
-        super(IsoLogGaussianDonut, self).__init__(sigma, sf_ecc_slope, sf_ecc_intercept, 0, 0, 0,
-                                                  0, 'absolute', True, True, False, False, False,
-                                                  False)
-        self.model_type = 'full_iso_donut'
 
 
 def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_samps=1001,
@@ -560,13 +584,17 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
     return model, loss_df, results_df
 
 
-def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8, batch_size=1,
+def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
+         first_level_results_path, max_epochs=100, train_thresh=1e-8, batch_size=1,
          df_filter=None, learning_rate=1e-2, stimulus_class=None, save_path_stem="pytorch"):
     """create, train, and save a model on the given first_level_results dataframe
 
-    model_type: {'full-absolute', 'full-relative', 'iso', 'scaling', 'constant'}. Which type of
-    model to train. 'full_abslute' and 'full_relative' fit all parameters and so include the
-    effects of orientation on the amplitude and mode; they differ in whether they consider
+    model_orientation_type, model_eccentricity_type, model_vary_amplitude: together specify what
+    kind of model to train
+    
+    OBSOLETE: model_type: {'full-absolute', 'full-relative', 'iso', 'scaling', 'constant'}. Which
+    type of model to train. 'full-absolute' and 'full-relative' fit all parameters and so include
+    the effects of orientation on the amplitude and mode; they differ in whether they consider
     orientation to be absolute (so that orientation=0 means "to the right") or relative (so that
     orientation=0 means "away from the fovea"). The other three models do not consider
     orientation. 'iso' is the LogGaussianDonut that can train its sf_ecc_intercept and
@@ -588,18 +616,7 @@ def main(model_type, first_level_results_path, max_epochs=100, train_thresh=1e-8
     save_path_stem: string or None. a string to save the trained model and loss_df at (should have
     no extension because we'll add it ourselves). If None, will not save the output.
     """
-    if model_type == 'full-absolute':
-        model = LogGaussianDonut(.4, orientation_type='absolute')
-    elif model_type == 'full-relative':
-        model = LogGaussianDonut(.4, orientation_type='relative')
-    elif model_type == 'constant':
-        model = ConstantIsoLogGaussianDonut(.4)
-    elif model_type == 'scaling':
-        model = ScalingIsoLogGaussianDonut(.4)
-    elif model_type == 'iso':
-        model = IsoLogGaussianDonut(.4)
-    else:
-        raise Exception("Don't know how to handle model_type %s!" % model_type)
+    model = LogGaussianDonut(model_orientation_type, model_eccentricity_type, model_vary_amplitude)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.device_count() > 1 and batch_size > torch.cuda.device_count():
         model = torch.nn.DataParallel(model)
@@ -684,9 +701,12 @@ if __name__ == '__main__':
         formatter_class=CustomFormatter,
         description=("Load in the first level results Dataframe and train a 2d tuning model on it"
                      ". Will save the model parameters and loss information."))
-    parser.add_argument("model_type",
-                        help=("{'full-absolute', 'full-relative', 'scaling', 'constant', 'iso'}."
-                              " Which type of model to train"))
+    parser.add_argument("model_orientation_type",
+                        help="{absolute, relative, full, iso}")
+    parser.add_argument("model_eccentricity_type",
+                        help="{scaling, constant, full}")
+    parser.add_argument("--model_vary_amplitude", '-a', action=store_true,
+                        help="whether to vary amplitude or not")
     parser.add_argument("first_level_results_path",
                         help=("Path to the first level results dataframe containing the data to "
                               "fit."))
