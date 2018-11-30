@@ -332,7 +332,7 @@ def construct_loss_df(loss_history, subset='train'):
     return loss_df.rename(columns={'index': 'epoch_num'})
 
 
-def check_performance(trained_model, dataset):
+def check_performance(trained_model, dataset, test_dataset=None):
     """check performance of trained_model for each voxel in the dataset
 
     this assumes both model and dataset are on the same device
@@ -341,12 +341,21 @@ def check_performance(trained_model, dataset):
     for i in dataset.df.voxel.unique():
         features, targets, precision = dataset.get_voxel(i)
         predictions = trained_model(*features.transpose(1, 0))
+        if test_dataset is not None:
+            test_features, test_target, test_precision = test_dataset.get_voxel(i)
+            test_predictions = trained_model(*test_features.transpose(1, 0))
+            cv_loss = weighted_normed_loss(test_predictions, test_target, test_precision,
+                                           torch.cat([test_predictions, predictions]),
+                                           torch.cat([test_target, targets])).item()
+        else:
+            cv_loss = None
         corr = np.corrcoef(targets.cpu().detach().numpy(), predictions.cpu().detach().numpy())
         loss = weighted_normed_loss(predictions, targets, precision).item()
         performance.append(pd.DataFrame({'voxel': i, 'stimulus_class': range(len(targets)),
                                          'model_prediction_correlation': corr[0, 1],
                                          'model_prediction_loss': loss,
-                                         'model_predictions': predictions.cpu().detach().numpy()}))
+                                         'model_predictions': predictions.cpu().detach().numpy(),
+                                         'model_prediction_cv_loss': cv_loss}))
     return pd.concat(performance)
 
 
@@ -360,7 +369,7 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
 
 
 def construct_dfs(model, dataset, train_loss_history, max_epochs, batch_size, learning_rate,
-                  train_thresh, current_epoch, test_loss_history=None):
+                  train_thresh, current_epoch, test_loss_history=None, test_dataset=None):
     """construct the loss and results dataframes and add metadata
     """
     loss_df = construct_loss_df(train_loss_history)
@@ -373,7 +382,8 @@ def construct_dfs(model, dataset, train_loss_history, max_epochs, batch_size, le
     loss_df['epochs_trained'] = current_epoch
     # we reload the first level dataframe because the one in dataset may be filtered in some way
     results_df = combine_first_level_df_with_performance(pd.read_csv(dataset.df_path),
-                                                         check_performance(model, dataset))
+                                                         check_performance(model, dataset,
+                                                                           test_dataset))
     if type(model) == torch.nn.DataParallel:
         # in this case, we need to access model.module in order to get the various custom
         # attributes we set in our LogGaussianDonut
@@ -533,7 +543,7 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
         if (t % 100) == 0:
             loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history, max_epochs,
                                                 batch_size, learning_rate, train_thresh, t,
-                                                test_loss_history)
+                                                test_loss_history, test_dataset)
             save_outputs(model, loss_df, results_df, save_path_stem)
         print("Average train loss on epoch %s: %s" % (t, np.mean(train_loss_history[-1])))
         print("Average test loss on epoch %s: %s" % (t, np.mean(test_loss_history[-1])))
@@ -546,7 +556,7 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
                 break
     loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history, max_epochs,
                                         batch_size, learning_rate, train_thresh, t,
-                                        test_loss_history)
+                                        test_loss_history, test_dataset)
     return model, loss_df, results_df
 
 
