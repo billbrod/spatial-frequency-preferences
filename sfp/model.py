@@ -32,6 +32,16 @@ def drop_voxels_with_negative_amplitudes(df):
     return df
 
 
+def drop_voxels_near_border(df, inner_border=.96, outer_border=12):
+    """drop all voxels whose pRF center is one sigma away form the border
+
+    where the sigma is the sigma of the Gaussian pRF
+    """
+    df = df.groupby('voxel').filter(lambda x: (x.eccen + x.sigma <= outer_border).all())
+    df = df.groupby('voxel').filter(lambda x: (x.eccen - x.sigma >= inner_border).all())
+    return df
+
+
 def _cast_as_tensor(x):
     if type(x) == pd.Series:
         x = x.values
@@ -638,6 +648,8 @@ def construct_df_filter(df_filter_string):
         # this is a little bit weird, but it does what we want
         if f == 'drop_voxels_with_negative_amplitudes':
             df_filters.append(drop_voxels_with_negative_amplitudes)
+        elif f == 'drop_voxels_near_border':
+            df_filters.append(drop_voxels_near_border)
         elif f == 'None' or f == 'none':
             df_filters = [None]
             break
@@ -677,7 +689,8 @@ if __name__ == '__main__':
                         help=("How little the loss can change with successive epochs to be "
                               "considered done training."))
     parser.add_argument("--df_filter", '-d', default='drop_voxels_with_negative_amplitudes',
-                        help=("{'drop_voxels_with_negative_amplitudes', 'reduce_num_voxels:n', 'None'}."
+                        help=("{'drop_voxels_near_border', 'drop_voxels_with_negative_amplitudes',"
+                              " 'reduce_num_voxels:n', 'None'}."
                               " How to filter the first level dataframe. Can be multiple of these,"
                               " separated by a comma, in which case they will be chained in the "
                               "order provided (so the first one will be applied to the dataframe "
