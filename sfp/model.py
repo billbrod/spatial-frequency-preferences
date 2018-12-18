@@ -327,7 +327,7 @@ class LogGaussianDonut(torch.nn.Module):
 
 
 def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_samps=1001,
-               cmap="Reds", **kwargs):
+               cmap="Reds", show_colorbar=True, ax=None, **kwargs):
     """wrapper function to plot the image from a given donut
 
     This shows the spatial frequency selectivity implied by the donut at a given voxel eccentricity
@@ -338,14 +338,19 @@ def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_sam
     extent: 2-tuple of floats. the range of spatial frequencies to visualize `(min, max)`. this
     will be the same for x and y
     """
-    if isinstance(donut, ConstantIsoLogGaussianDonut):
-        ax = plt.imshow(donut.create_image(extent, n_samps=n_samps).detach(),
-                        extent=(extent[0], extent[1], extent[0], extent[1]), cmap=cmap, **kwargs)
-    else:
+    if ax is None:
         ax = plt.imshow(donut.create_image(voxel_eccentricity, voxel_angle, extent, n_samps=n_samps).detach(),
-                        extent=(extent[0], extent[1], extent[0], extent[1]), cmap=cmap, **kwargs)
-        
-    plt.colorbar()
+                        extent=(extent[0], extent[1], extent[0], extent[1]), cmap=cmap,
+                        origin='lower', **kwargs)
+    else:
+        ax.imshow(donut.create_image(voxel_eccentricity, voxel_angle, extent, n_samps=n_samps).detach(),
+                  extent=(extent[0], extent[1], extent[0], extent[1]), cmap=cmap,
+                  origin='lower', **kwargs)
+    ax.axes.xaxis.set_visible(False)
+    ax.axes.yaxis.set_visible(False)
+    ax.set_frame_on(False)        
+    if show_colorbar:
+        plt.colorbar()
     return ax
 
 
