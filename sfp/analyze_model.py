@@ -9,37 +9,33 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import warnings
+import argparse
 import glob
+import itertools
 import model as sfp_model
 
 
-def load_single_model(save_path_stem, model_type=None, load_results_df=True):
+def load_single_model(save_path_stem, load_results_df=True):
     """load in the model, loss df, and model df found at the save_path_stem
 
     we also send the model to the appropriate device
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if load_results_df:
-        results_df = pd.read_csv(save_path_stem + '_model_df.csv')
+        results_df = pd.read_csv(save_path_stem + '_results_df.csv')
     else:
-        results_df = pd.read_csv(save_path_stem + '_model_df.csv', nrows=1)
+        results_df = pd.read_csv(save_path_stem + '_results_df.csv', nrows=1)
     loss_df = pd.read_csv(save_path_stem + '_loss.csv')
-    if model_type is None:
-        # then we try and infer it from the path name, which we can do assuming we used the
-        # Snakefile to generate saved model.
-        model_type = save_path_stem.split('_')[-1]
-    if model_type == 'full-absolute':
-        model = sfp_model.LogGaussianDonut(.4, orientation_type='absolute')
-    elif model_type == 'full-relative':
-        model = sfp_model.LogGaussianDonut(.4, orientation_type='relative')
-    elif model_type == 'constant':
-        model = sfp_model.ConstantIsoLogGaussianDonut(.4)
-    elif model_type == 'scaling':
-        model = sfp_model.ScalingIsoLogGaussianDonut(.4)
-    elif model_type == 'iso':
-        model = sfp_model.IsoLogGaussianDonut(.4)
-    else:
-        raise Exception("Don't know how to handle model_type %s!" % model_type)
+    # we try and infer model type from the path name, which we can do assuming we used the
+    # Snakefile to generate saved model.
+    vary_amps_label = save_path_stem.split('_')[-1]
+    if vary_amps_label == 'vary':
+        vary_amps = True
+    elif vary_amps_label == 'constant':
+        vary_amps = False
+    ecc_type = save_path_stem.split('_')[-2]
+    ori_type = save_path_stem.split('_')[-3]
+    model = sfp_model.LogGaussianDonut(ori_type, ecc_type, vary_amps)
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
     model.eval()
     model.to(device)    
@@ -65,9 +61,9 @@ def combine_models(base_path_template, load_results_df=True):
     results_df = []
     path_stems = []
     for p in glob.glob(base_path_template):
-        path_stem = p.replace('_loss.csv', '').replace('_model.pt', '').replace('_model_df.csv', '')
+        path_stem = p.replace('_loss.csv', '').replace('_model.pt', '').replace('_results_df.csv', '')
         # we do this to make sure we're not loading in the outputs of a model twice (by finding
-        # both its loss.csv and its model_df.csv, for example)
+        # both its loss.csv and its results_df.csv, for example)
         if path_stem in path_stems:
             continue
         path_stems.append(path_stem)
@@ -94,20 +90,52 @@ def combine_models(base_path_template, load_results_df=True):
 
 
 def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi),
-                      orientation_n_steps=8, retinotopic_angle_n_steps=4):
+                      orientation_n_steps=8, retinotopic_angle_n_steps=4, **identity_kwargs):
     """create dataframe with preferred period and amplitude for given models
 
     will do so at multiple (stimulus) orientations, retinotopic angles, and retinotopic
     eccentricities
+
+    identity_kwargs: the values of the key, values pairs here should be lists the same length as
+    models, which contain extra values to add to the features_df in order to identify the models
+    (e.g. test_subset, etc)
     """
     features = []
     eccen = np.linspace(*eccen_range, num=10)
     orientations = np.linspace(*orientation_range, num=orientation_n_steps, endpoint=False)
     angles = np.linspace(*orientation_range, num=retinotopic_angle_n_steps, endpoint=False)
-    for m, o, a in itertools.product(models, orientations, angles):
-        period = m.preferred_period(o, eccen, a).detach().cpu().numpy()
-        max_amp = m.max_amplitude(o, a).detach().cpu().numpy()
-        features.append(pd.DataFrame({'preferred_period': period, 'max_amplitude': max_amp,
-                                      'retinotopic_angle': a, 'fit_model_type': m.model_type,
-                                      'eccentricity': eccen, 'orientation': o}))
+    for i, m in enumerate(models):
+        for o, a in itertools.product(orientations, angles):
+            period = m.preferred_period(o, eccen, a).detach().cpu().numpy()
+            max_amp = m.max_amplitude(o, a).detach().cpu().numpy()
+            data_dict = {'preferred_period': period, 'max_amplitude': max_amp,
+                         'retinotopic_angle': a, 'fit_model_type': m.model_type,
+                         'eccentricity': eccen, 'orientation': o}
+            for k, v in identity_kwargs.iteritems():
+                data_dict[k] = v[i]
+            features.append(pd.DataFrame(data_dict))
     return pd.concat(features)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description="Load in a bunch of model results dataframes and save them",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("base_path_template",
+                        help=("path template where we should find the results. should contain no "
+                              "string  formatting symbols (e.g., '{0}' or '%s') but should contain"
+                              " at least one '*' because we will use glob to find them (and "
+                              "therefore should point to an actual file when passed to glob, one"
+                              " of: the loss df, model df, or model paramters)."))
+    parser.add_argument("save_path_stem",
+                        help=("Path stem (no extension) where we'll save the results"))
+    args = vars(parser.parse_args())
+    models, loss_df, results_df = combine_models(args['base_path_template'], False)
+    models.to_csv(args['save_path_stem'] + "_model.csv")
+    loss_df.to_csv(args['save_path_stem'] + "_loss.csv")
+    # results_df.to_csv(args['save_path_stem'] + "_results_df.csv")
+    models = models.drop_duplicates('model')
+    features = create_feature_df(models.model.values, orientation_n_steps=50,
+                                 retinotopic_angle_n_steps=50,
+                                 test_subset=models.test_subset.values)
+    features.to_csv(args['save_path_stem'] + '_features.csv')

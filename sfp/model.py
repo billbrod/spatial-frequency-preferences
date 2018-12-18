@@ -190,12 +190,15 @@ class LogGaussianDonut(torch.nn.Module):
             raise Exception("Don't know how to handle orientation_type %s!" % orientation_type)
         self.orientation_type = orientation_type
         if not vary_amplitude:
+            amp_vary_label = 'constant'
             for ori, angle in itertools.product(['abs', 'rel'], ['cardinals', 'obliques']):
                 if kwargs['%s_amplitude_%s' % (ori, angle)] != 0:
                     warnings.warn("When vary_amplitude is False, all amplitude variables must"
                                   " be 0, correcting this..." % orientation_type)
                     kwargs['%s_amplitude_%s' % (ori, angle)] = 0
                 train_kwargs['%s_amplitude_%s' % (ori, angle)] = False
+        else:
+            amp_vary_label = 'vary'
         if eccentricity_type == 'scaling':
             if kwargs['sf_ecc_slope'] != 1 or kwargs['sf_ecc_intercept'] != 0:
                 warnings.warn("When eccentricity_type is scaling, sf_ecc_slope must be 1 and "
@@ -215,7 +218,9 @@ class LogGaussianDonut(torch.nn.Module):
         elif eccentricity_type != 'full':
             raise Exception("Don't know how to handle eccentricity_type %s!" % eccentricity_type)
         self.eccentricity_type = eccentricity_type
-        self.model_type = '%s_donut_%s' % (eccentricity_type, orientation_type)
+        self.vary_amplitude = vary_amplitude
+        self.model_type = '%s_donut_%s_amps-%s' % (eccentricity_type, orientation_type,
+                                                   amp_vary_label)
         self.sigma = _cast_as_param(sigma)
 
         self.abs_amplitude_cardinals = _cast_as_param(kwargs['abs_amplitude_cardinals'],
@@ -435,7 +440,7 @@ def save_outputs(model, loss_df, results_df, save_path_stem):
     if save_path_stem is not None:
         torch.save(model.state_dict(), save_path_stem + "_model.pt")
         loss_df.to_csv(save_path_stem + "_loss.csv", index=False)
-        results_df.to_csv(save_path_stem + "_model_df.csv", index=False)
+        results_df.to_csv(save_path_stem + "_results_df.csv", index=False)
 
 
 def weighted_normed_loss(predictions, target, precision, predictions_for_norm=None,
@@ -705,7 +710,7 @@ if __name__ == '__main__':
                         help="{absolute, relative, full, iso}")
     parser.add_argument("model_eccentricity_type",
                         help="{scaling, constant, full}")
-    parser.add_argument("--model_vary_amplitude", '-a', action=store_true,
+    parser.add_argument("--model_vary_amplitude", '-a', action="store_true",
                         help="whether to vary amplitude or not")
     parser.add_argument("first_level_results_path",
                         help=("Path to the first level results dataframe containing the data to "
@@ -714,7 +719,7 @@ if __name__ == '__main__':
                         help=("Path stem (no extension) where we'll save the results: model state "
                               " dict (`save_path_stem`_model.pt), loss dataframe "
                               "(`save_path_stem`_loss.csv), and first level dataframe with "
-                              "performance  (`save_path_stem`_model_df.csv)"))
+                              "performance  (`save_path_stem`_results_df.csv)"))
     parser.add_argument("--train_thresh", '-t', default=1e-8, type=float,
                         help=("How little the loss can change with successive epochs to be "
                               "considered done training."))

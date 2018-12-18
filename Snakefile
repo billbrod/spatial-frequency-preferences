@@ -79,6 +79,9 @@ wildcard_constraints:
     y="[a-z-]+",
     binning="[a-z_]+bin",
     stimulus_class="[0-9,]+",
+    orientation_type="[a-z-]+",
+    eccentricity_type="[a-z-]+",
+    train_amps="[a-z-]+",
     model_type="[a-z-]+"
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
@@ -101,9 +104,25 @@ rule model_all_simulated:
 
 rule model_all_data:
     input:
-         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full-absolute_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full-relative_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))]
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_scaling_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_constant_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_scaling_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_constant_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+
 
 rule GLMdenoise_all_visual:
     input:
@@ -627,7 +646,7 @@ rule model:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_model_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_results_df.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_model.pt")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_benchmark.txt")
@@ -691,7 +710,7 @@ rule model_simulated_data:
         os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_loss.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_model_df.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_results_df.csv'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_model.pt')
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_benchmark.txt")
@@ -709,6 +728,25 @@ rule model_simulated_data:
         "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t 1e-8 -e 1000 "
         "-s {params.stimulus_class}"
+
+
+rule gather_model_results:
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_model.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_results_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_features.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all.log")
+    resources:
+        mem = 100,
+    params:
+        base_path_template = lambda wildcards, output: output[0].replace("_all_loss.csv", '\*'),
+        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
+    shell:
+        "python sfp/analyze_model.py {params.base_path_template} {params.save_stem}"
 
 
 rule report:
