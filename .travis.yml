@@ -1,9 +1,7 @@
 language: python
 dist: xenial
 python:
-  - "3.5"
   - "3.6"
-  - "3.7"
 install:
   # this first bit is how to get conda set up on Travis CI, from
   # https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
@@ -19,6 +17,8 @@ install:
 
   - conda env create -f environment.yml
   - conda install pytorch-cpu torchvision-cpu -c pytorch
+  - echo ". /home/travis/miniconda/etc/profile.d/conda.sh" >> ~/.bashrc
+  - source ~/.bashrc
 script:
   - conda activate sfp
   - pytest
