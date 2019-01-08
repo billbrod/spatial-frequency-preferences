@@ -24,7 +24,6 @@ dependencies:
   - h5py
   - nibabel
   - scikit-learn
-  - scikit-image
   - snakemake
   - pip:
       - pybids >= 0.4.2
