@@ -7,7 +7,6 @@ import itertools
 import pandas as pd
 import seaborn as sns
 from . import utils
-from sklearn.externals._pilutil import bytescale as bytescale_func
 import os
 import argparse
 from . import first_level_analysis
@@ -740,8 +739,8 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
         if 0 in [w_r, w_a] or 'spiral' in combo_stimuli_type:
             tmp_stimuli = log_polar_grating(size, w_r, w_a, p, A, origin)
             if bytescale:
-                masked_stimuli.append(bytescale_func(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(bytescale_func(tmp_stimuli, cmin=-1, cmax=1))
+                masked_stimuli.append(utils.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(utils.bytescale(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -749,8 +748,8 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
             tmp_stimuli = (log_polar_grating(size, w_r, 0, p, A, origin) +
                            log_polar_grating(size, 0, w_a, p, A, origin))
             if bytescale:
-                masked_stimuli.append(bytescale_func(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(bytescale_func(tmp_stimuli, cmin=-1, cmax=1))
+                masked_stimuli.append(utils.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(utils.bytescale(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -810,8 +809,8 @@ def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], orig
         else:
             tmp_stimuli = A * utils.create_sin_cpp(size, w_x, w_y, p, origin=origin)
             if bytescale:
-                masked_stimuli.append(bytescale_func(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(bytescale_func(tmp_stimuli, cmin=-1, cmax=1))
+                masked_stimuli.append(utils.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(utils.bytescale(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -852,8 +851,8 @@ def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir, sti
     elif stim_type == 'constant':
         stim, _ = gen_constant_stim_set(res, mask, freqs, phi)
     stim = np.concatenate([np.array(stim),
-                           bytescale_func(np.zeros((num_blank_trials * n_exemplars, res, res)),
-                                          cmin=-1, cmax=1)])
+                           utils.bytescale(np.zeros((num_blank_trials * n_exemplars, res, res)),
+                                           cmin=-1, cmax=1)])
     np.save(os.path.join(output_dir, stimuli_name), stim)
     # log-polar csv
     df = []
@@ -965,11 +964,11 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
                                   stimuli_name, stimuli_description_csv_name,
                                   ['w_r', 'w_a', 'phi', 'res', 'index', 'class_idx'], 'logpolar')
         # constant stimuli and csv
-        constant_stim = _create_stim(res, constant_freqs, phi, num_blank_trials, n_exemplars,
-                                     output_dir, "constant_" + stimuli_name,
-                                     "constant_" + stimuli_description_csv_name,
-                                     ['w_x', 'w_y', 'phi', 'res', 'index', 'class_idx'],
-                                     'constant', mask)
+        constant_stim, _ = _create_stim(res, constant_freqs, phi, num_blank_trials, n_exemplars,
+                                        output_dir, "constant_" + stimuli_name,
+                                        "constant_" + stimuli_description_csv_name,
+                                        ['w_x', 'w_y', 'phi', 'res', 'index', 'class_idx'],
+                                        'constant', mask)
         return stim, constant_stim
 
 

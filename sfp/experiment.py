@@ -15,7 +15,6 @@ import h5py
 import datetime
 import glob
 import argparse
-from sklearn.externals._pilutil import bytescale
 
 
 def _create_blanks(blank_sec_length, on_msec_length, off_msec_length, stimulus_shape, blank_loc):
@@ -30,8 +29,8 @@ def _create_blanks(blank_sec_length, on_msec_length, off_msec_length, stimulus_s
                         ". {loc}_blank_sec_length must be a multiple of on_msec_length+"
                         "off_msec_length!".format(loc=blank_loc, length=blank_sec_length))
     nblanks = int(nblanks)
-    blanks = bytescale(np.zeros((nblanks, stimulus_shape[0], stimulus_shape[1])),
-                       cmin=-1, cmax=1)
+    # 128 corresponds to the mid-value between 0 and 255
+    blanks = (128 * np.ones((nblanks, stimulus_shape[0], stimulus_shape[1]))).astype(np.uint8)
     return nblanks, blanks
 
 
