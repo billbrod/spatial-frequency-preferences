@@ -12,7 +12,7 @@ import warnings
 import argparse
 import glob
 import itertools
-import model as sfp_model
+from . import model as sfp_model
 
 
 def load_single_model(save_path_stem, load_results_df=True):

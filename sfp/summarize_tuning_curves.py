@@ -21,7 +21,7 @@ def main(root_dir, save_path=None, **kwargs):
     """
     limit_kwargs = {}
     for k, v in kwargs.iteritems():
-        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
+        if isinstance(v, str) or not hasattr(v, '__iter__'):
             limit_kwargs[k] = [v]
         else:
             limit_kwargs[k] = v

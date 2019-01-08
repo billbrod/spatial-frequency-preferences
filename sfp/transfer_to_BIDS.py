@@ -66,7 +66,7 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
         os.path.join(base_dir, BIDS_subj, BIDS_ses, "func",
                      BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"), full_TRs)
     print("  Successfully moved over events tsv")
-    if isinstance(behavioral_results_path, basestring):
+    if isinstance(behavioral_results_path, str):
         behavioral_results_path = [behavioral_results_path]
     for res in behavioral_results_path:
         shutil.copy(res, os.path.join(source_dir, os.path.split(res)[-1]))

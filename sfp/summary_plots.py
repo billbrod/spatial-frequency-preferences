@@ -55,7 +55,7 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
         if k in summary_df.columns:
             # user can specify None, to mean all
             if v is not None:
-                if isinstance(v, basestring) or not hasattr(v, '__iter__'):
+                if isinstance(v, str) or not hasattr(v, '__iter__'):
                     summary_df = summary_df[summary_df[k] == v]
                 else:
                     summary_df = summary_df[summary_df[k].isin(v)]

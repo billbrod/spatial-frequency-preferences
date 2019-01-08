@@ -1,17 +1,78 @@
 #!/usr/bin/python
 """script to generate stimuli
 """
-import pyPyrTools as ppt
 import numpy as np
 from matplotlib import pyplot as plt
 import itertools
 import pandas as pd
 import seaborn as sns
-import utils
-from scipy import misc as smisc
+from . import utils
+from sklearn.externals._pilutil import bytescale as bytescale_func
 import os
 import argparse
-import first_level_analysis
+from . import first_level_analysis
+
+
+def mkR(size, exponent=1, origin=None):
+    '''make distance-from-origin (r) matrix
+
+    Compute a matrix of dimension SIZE (a [Y X] list/tuple, or a scalar)
+    containing samples of a radial ramp function, raised to power EXPONENT
+    (default = 1), with given ORIGIN (default = (size+1)//2, (0, 0) = upper left).
+
+    NOTE: the origin is not rounded to the nearest int
+    '''
+
+    if not hasattr(size, '__iter__'):
+        size = (size, size)
+
+    if origin is None:
+        origin = ((size[0]+1)/2., (size[1]+1)/2.)
+    elif not hasattr(origin, '__iter__'):
+        origin = (origin, origin)
+
+    xramp, yramp = np.meshgrid(np.arange(1, size[1]+1)-origin[1],
+                               np.arange(1, size[0]+1)-origin[0])
+
+    if exponent <= 0:
+        # zero to a negative exponent raises:
+        # ZeroDivisionError: 0.0 cannot be raised to a negative power
+        r = xramp ** 2 + yramp ** 2
+        res = np.power(r, exponent / 2.0, where=(r != 0))
+    else:
+        res = (xramp ** 2 + yramp ** 2) ** (exponent / 2.0)
+    return res
+
+
+def mkAngle(size, phase=0, origin=None):
+    '''make polar angle matrix (in radians)
+
+    Compute a matrix of dimension SIZE (a [Y X] list/tuple, or a scalar)
+    containing samples of the polar angle (in radians, CW from the X-axis,
+    ranging from -pi to pi), relative to angle PHASE (default = 0), about ORIGIN
+    pixel (default = (size+1)/2).
+
+    NOTE: the origin is not rounded to the nearest int
+    '''
+
+    if not hasattr(size, '__iter__'):
+        size = (size, size)
+
+    if origin is None:
+        origin = ((size[0]+1)/2., (size[1]+1)/2.)
+    elif not hasattr(origin, '__iter__'):
+        origin = (origin, origin)
+
+    xramp, yramp = np.meshgrid(np.arange(1, size[1]+1)-origin[1],
+                               np.arange(1, size[0]+1)-origin[0])
+    xramp = np.array(xramp)
+    yramp = np.array(yramp)
+
+    res = np.arctan2(yramp, xramp)
+
+    res = ((res+(np.pi-phase)) % (2*np.pi)) - np.pi
+
+    return res
 
 
 def log_polar_grating(size, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1):
@@ -54,14 +115,14 @@ def log_polar_grating(size, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_fact
     sampled differently
     """
     assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
-    rad = ppt.mkR(size, origin=origin)/scale_factor
+    rad = mkR(size, origin=origin)/scale_factor
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
     # distance 0, that means we'll have a -inf out of np.log2 and thus a nan from the cosine. this
     # little hack avoids that issue.
     if 0 in rad:
         rad += 1e-12
     lrad = np.log2(rad**2)
-    theta = ppt.mkAngle(size, origin=origin)
+    theta = mkAngle(size, origin=origin)
 
     return ampl * np.cos(((w_r * np.log(2))/2) * lrad + w_a * theta + phi)
 
@@ -88,9 +149,9 @@ def aliasing_plot(better_sampled_stim, stim, slices_to_check=None, axes=None, **
     to add to an existing figure, pass axes (else a new one will be created)
     """
     size = stim.shape[0]
-    check_scale_factor = better_sampled_stim.shape[0] / size
+    check_scale_factor = better_sampled_stim.shape[0] // size
     if slices_to_check is None:
-        slices_to_check = [(size+1)/2]
+        slices_to_check = [(size+1)//2]
     elif not hasattr(slices_to_check, '__iter__'):
         slices_to_check = [slices_to_check]
     if axes is None:
@@ -99,10 +160,12 @@ def aliasing_plot(better_sampled_stim, stim, slices_to_check=None, axes=None, **
         # with squeeze=False, this will always be a 2d array, but because we only set ncols, it
         # will only have axes in one dimension
         axes = axes[0]
-    x0 = np.array(range(size)) / float(size) + 1./(size*2)
-    x1 = np.array(range(better_sampled_stim.shape[0])) / float(better_sampled_stim.shape[0]) + 1./(better_sampled_stim.shape[0]*2)
+    x0 = np.array(list(range(size))) / float(size) + 1./(size*2)
+    x1 = (np.array(list(range(better_sampled_stim.shape[0]))) / float(better_sampled_stim.shape[0])
+          + 1./(better_sampled_stim.shape[0]*2))
     for i, ax in enumerate(axes):
-        ax.plot(x1, better_sampled_stim[:, check_scale_factor*slices_to_check[i] + (check_scale_factor - 1)/2])
+        ax.plot(x1, better_sampled_stim[:, check_scale_factor*slices_to_check[i] +
+                                        (check_scale_factor - 1)//2])
         ax.plot(x0, stim[:, slices_to_check[i]], 'o:')
 
 
@@ -133,10 +196,11 @@ def _fade_mask(mask, inner_number_of_fade_pixels, outer_number_of_fade_pixels, o
     # if there's no False in mask, then we don't need to mask anything out. and if there's only
     # False, we don't need to fade anything. and if there's no fade pixels, then we don't fade
     # anything
-    if False not in mask or True not in mask or (inner_number_of_fade_pixels == 0 and outer_number_of_fade_pixels == 0):
+    if False not in mask or True not in mask or (inner_number_of_fade_pixels == 0 and
+                                                 outer_number_of_fade_pixels == 0):
         return mask
     size = mask.shape[0]
-    rad = ppt.mkR(size, origin=origin)
+    rad = mkR(size, origin=origin)
     inner_rad = (mask*rad)[(mask*rad).nonzero()].min()
     # in this case, there really isn't an inner radius, just an outer one, so we ignore this
     if inner_rad == rad.min():
@@ -364,8 +428,8 @@ def create_sf_maps_cpp(size, origin=None, scale_factor=1, stim_type='logpolar', 
     if origin is None:
         origin = ((size+1) / 2., (size+1) / 2.)
     # we do this in terms of x and y
-    x, y = np.divide(np.meshgrid(np.array(range(1, size+1)) - origin[0],
-                                 np.array(range(1, size+1)) - origin[1]),
+    x, y = np.divide(np.meshgrid(np.array(list(range(1, size+1))) - origin[0],
+                                 np.array(list(range(1, size+1))) - origin[1]),
                      scale_factor)
     # if the origin is set such that it lies directly on a pixel, then one of the pixels will have
     # distance 0 and that means we'll have a divide by zero coming up. this little hack avoids that
@@ -424,7 +488,7 @@ def create_sf_origin_polar_maps_cpd(size, max_visual_angle, origin=None, scale_f
     """
     _, _, mag, direc = create_sf_maps_cpd(size, max_visual_angle, origin, scale_factor, stim_type,
                                           w_r, w_a, w_x, w_y)
-    angle = ppt.mkAngle(size, origin=origin)
+    angle = mkAngle(size, origin=origin)
     new_angle = np.mod(direc - angle, 2*np.pi)
     dr = mag * np.cos(new_angle)
     da = mag * np.sin(new_angle)
@@ -469,26 +533,26 @@ def create_outer_mask(size, origin, radius=None, number_of_fade_pixels=3):
     To combine this with the antialiasing mask, call np.logical_and on the two unfaded masks (and
     then fade that if you want to fade it)
     """
-    rad = ppt.mkR(size, origin=origin)
+    rad = mkR(size, origin=origin)
     assert not hasattr(size, "__iter__"), "size must be a scalar!"
     if radius is None:
-        radius = min(rad[:, size/2].max(), rad[size/2, :].max())
+        radius = min(rad[:, size//2].max(), rad[size//2, :].max())
     mask = rad < radius
     return _fade_mask(mask, 0, number_of_fade_pixels, origin), mask
 
 
 def check_aliasing_with_mask(size, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_factor=1,
-                             number_of_fade_pixels=3, slices_to_check=None):
+                             number_of_fade_pixels=3, slices_to_check=None, check_scale_factor=99):
     """check the aliasing when mask is applied
     """
     stim = log_polar_grating(size, w_r, w_a, phi, ampl, origin, scale_factor)
     fmask, mask = create_antialiasing_mask(size, w_r, w_a, origin)
     better_sampled_stim = _create_better_sampled_grating(size, w_r, w_a, phi, ampl, origin,
-                                                         scale_factor, 99)
-    big_fmask = fmask.repeat(99, 0).repeat(99, 1)
-    big_mask = mask.repeat(99, 0).repeat(99, 1)
+                                                         scale_factor, check_scale_factor)
+    big_fmask = fmask.repeat(check_scale_factor, 0).repeat(check_scale_factor, 1)
+    big_mask = mask.repeat(check_scale_factor, 0).repeat(check_scale_factor, 1)
     if slices_to_check is None:
-        slices_to_check = [(size+1)/2]
+        slices_to_check = [(size+1)//2]
     fig, axes = plt.subplots(ncols=3, nrows=len(slices_to_check), squeeze=False,
                              figsize=(15, 5*len(slices_to_check)))
     aliasing_plot(better_sampled_stim, stim, slices_to_check, axes[:, 0])
@@ -536,9 +600,11 @@ def check_stim_properties(size, origin, max_visual_angle, w_r=0, w_a=range(10),
         w_r = [w_r]
     if not hasattr(w_a, '__iter__'):
         w_a = [w_a]
-    rad = ppt.mkR(size, origin=origin)
+    rad = mkR(size, origin=origin)
     mask_df = []
     sf_df = []
+    eccens = [(i+i+1)/2 for i in range(*eccen_range)]
+    angles = [0 for i in eccens]
     for i, (f_r, f_a) in enumerate(itertools.product(w_r, w_a)):
         fmask, mask = create_antialiasing_mask(size, f_r, f_a, origin, 0)
         _, _, mag_cpp, _ = create_sf_maps_cpp(size, origin, w_r=f_r, w_a=f_a)
@@ -552,10 +618,9 @@ def check_stim_properties(size, origin, max_visual_angle, w_r=0, w_a=range(10),
             data[name + "_masked_max"] = (fmask * mag).max()
         mask_df.append(pd.DataFrame(data, index=[i]))
         sf = first_level_analysis.calculate_stim_local_sf(np.ones((size, size)), f_r, f_a,
-                                                          max_visual_angle/2.,
-                                                          eccen_range=eccen_range)
-        sf = pd.DataFrame(sf, columns=['local_freq_cpd'])
-        sf.index.name = 'eccen'
+                                                          'logpolar', eccens, angles,
+                                                          max_visual_angle/2)
+        sf = sf.rename(columns={'local_sf_magnitude': 'local_freq_cpd'})
         sf['w_r'] = f_r
         sf['w_a'] = f_a
         sf['local_freq_cpp'] = sf['local_freq_cpd'] / (rad.max() / np.sqrt(2*(max_visual_angle/2.)**2))
@@ -567,10 +632,10 @@ def check_stim_properties(size, origin, max_visual_angle, w_r=0, w_a=range(10),
 
 
 def _set_ticklabels(datashape):
-    xticklabels = datashape[1]/10
+    xticklabels = datashape[1]//10
     if xticklabels == 0 or xticklabels == 1:
         xticklabels = True
-    yticklabels = datashape[0]/10
+    yticklabels = datashape[0]//10
     if yticklabels == 0 or yticklabels == 1:
         yticklabels = True
     return xticklabels, yticklabels
@@ -625,15 +690,16 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
     when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
     create radial and angular stimuli, just include 0 in w_a or w_r, respectively).
 
-    bytescale: boolean, default True. if True, calls smisc.bytescale(cmin=-1, cmax=1) on
-    image to rescale it to between 0 and 255, with dtype uint8. this is done because this is
-    probably sufficient for displays and takes up much less space.
+    bytescale: boolean, default True. if True, calls bytescale(cmin=-1, cmax=1) on image to rescale
+    it to between 0 and 255, with dtype uint8. this is done because this is probably sufficient for
+    displays and takes up much less space.
 
 
     Returns
     =============
 
     masked stimuli, unmasked stimuli, and the mask used to mask the stimuli
+
     """
     # we need to make sure that size, origin, and number_of_fade_pixels are not iterable and the
     # other arguments are
@@ -674,8 +740,8 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
         if 0 in [w_r, w_a] or 'spiral' in combo_stimuli_type:
             tmp_stimuli = log_polar_grating(size, w_r, w_a, p, A, origin)
             if bytescale:
-                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-1, cmax=1))
+                masked_stimuli.append(bytescale_func(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(bytescale_func(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -683,8 +749,8 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
             tmp_stimuli = (log_polar_grating(size, w_r, 0, p, A, origin) +
                            log_polar_grating(size, 0, w_a, p, A, origin))
             if bytescale:
-                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-1, cmax=1))
+                masked_stimuli.append(bytescale_func(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(bytescale_func(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -709,15 +775,16 @@ def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], orig
     create. Each entry in the list corresponds to one stimuli, which will use the specified (w_x,
     w_y). They sould be in cycles per pixel.
 
-    bytescale: boolean, default True. if True, calls smisc.bytescale(cmin=-1, cmax=1) on
-    image to rescale it to between 0 and 255, with dtype uint8. this is done because this is
-    probably sufficient for displays and takes up much less space.
+    bytescale: boolean, default True. if True, calls bytescale(cmin=-1, cmax=1) on image to rescale
+    it to between 0 and 255, with dtype uint8. this is done because this is probably sufficient for
+    displays and takes up much less space.
 
 
     Returns
     =============
 
     masked stimuli and unmasked stimuli
+
     """
     # we need to make sure that size, origin, and number_of_fade_pixels are not iterable and the
     # other arguments are
@@ -743,8 +810,8 @@ def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], orig
         else:
             tmp_stimuli = A * utils.create_sin_cpp(size, w_x, w_y, p, origin=origin)
             if bytescale:
-                masked_stimuli.append(smisc.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(smisc.bytescale(tmp_stimuli, cmin=-1, cmax=1))
+                masked_stimuli.append(bytescale_func(tmp_stimuli*mask, cmin=-1, cmax=1))
+                stimuli.append(bytescale_func(tmp_stimuli, cmin=-1, cmax=1))
             else:
                 masked_stimuli.append(tmp_stimuli*mask)
                 stimuli.append(tmp_stimuli)
@@ -766,8 +833,8 @@ def _gen_freqs(base_freqs, round_flag=True):
     # arc, where distance from the origin is half the max (in log space)
     #  skip those values which we've already gotten: 0, pi/4, pi/2, 3*pi/4, and pi
     angles = [np.pi*1/12.*i for i in [1, 2, 4, 5, 7, 8, 10, 11]]
-    freqs.extend([(base_freqs[len(base_freqs)/2]*np.sin(i),
-                   base_freqs[len(base_freqs)/2]*np.cos(i)) for i in angles])
+    freqs.extend([(base_freqs[len(base_freqs)//2]*np.sin(i),
+                   base_freqs[len(base_freqs)//2]*np.cos(i)) for i in angles])
     if round_flag:
         freqs = np.round(freqs)
     return freqs
@@ -785,8 +852,8 @@ def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir, sti
     elif stim_type == 'constant':
         stim, _ = gen_constant_stim_set(res, mask, freqs, phi)
     stim = np.concatenate([np.array(stim),
-                           smisc.bytescale(np.zeros((num_blank_trials * n_exemplars, res, res)),
-                                           cmin=-1, cmax=1)])
+                           bytescale_func(np.zeros((num_blank_trials * n_exemplars, res, res)),
+                                          cmin=-1, cmax=1)])
     np.save(os.path.join(output_dir, stimuli_name), stim)
     # log-polar csv
     df = []
@@ -825,8 +892,8 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     The actual stimuli will be saved as {stimuli_name} in the output_dir, while the indices
     necessary to shuffle it will be saved at {subj}_run_00_idx.npy through {subj}_run_11_idx.npy. A
     description of the stimuli properties, in the order found in unshuffled, is saved at
-    {stimuli_description_csv_name} in the output folder, as a pandas DataFrame. In order to view the
-    properties of a shuffled one, load that DataFrame in as df, and the index as idx, then call
+    {stimuli_description_csv_name} in the output folder, as a pandas DataFrame. In order to view
+    the properties of a shuffled one, load that DataFrame in as df, and the index as idx, then call
     df.iloc[idx]
 
     if create_stim is False, then we don't create the stim, just create and save the shuffled
@@ -840,6 +907,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     dataframe .csv file
 
     returns (one copy) of the (un-shuffled) stimuli, for inspection.
+
     """
     np.random.seed(seed)
     if not os.path.isdir(output_dir):
@@ -855,7 +923,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     constant_freqs = _gen_freqs([2**i for i in constant_freqs], False)
     n_classes = len(freqs) + num_blank_trials
     n_exemplars = 8
-    phi = np.array(range(n_exemplars))/float(n_exemplars)*2*np.pi
+    phi = np.array(range(n_exemplars))/n_exemplars*2*np.pi
     res = 1080
     if create_idx:
         if os.path.isfile(filename % 0):
@@ -906,7 +974,8 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
 
 
 if __name__ == '__main__':
-    class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                          argparse.RawDescriptionHelpFormatter):
         pass
     parser = argparse.ArgumentParser(description=(main.__doc__),
                                      formatter_class=CustomFormatter)
@@ -923,12 +992,11 @@ if __name__ == '__main__':
                         help="Create and save the experiment stimuli and descriptive dataframe")
     parser.add_argument("--create_idx", '-i', action="store_true",
                         help=("Create and save the 12 randomized indices for this subject"))
-    parser.add_argument("--seed", '-s', default=None,
-                        help="Seed to initialize randomizer, for stimuli presentation randomization")
+    parser.add_argument("--seed", '-s', default=None, type=int,
+                        help=("Seed to initialize randomizer, for stimuli presentation "
+                              "randomization"))
     args = vars(parser.parse_args())
     if not args["create_stim"] and not args['create_idx']:
         print("Nothing to create, exiting...")
     else:
-        if args['seed'] is not None:
-            args['seed'] = int(args['seed'])
         _ = main(**args)

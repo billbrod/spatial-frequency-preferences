@@ -6,13 +6,13 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
-import pyPyrTools as ppt
-from bids.grabbids import BIDSLayout
+from . import stimuli as sfp_stimuli
+from bids.layout import BIDSLayout
 import pandas as pd
-import first_level_analysis
-import tuning_curves
+from . import first_level_analysis
+from . import tuning_curves
 import warnings
-import plotting
+from . import plotting
 
 
 def scatter_heat(x, y, c, **kwargs):
@@ -64,8 +64,8 @@ def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want to
     set array_to_mask to is val_to_set (same reasonable values as mid_val)
     """
-    R = ppt.mkR(masked.shape) / float(masked.shape[0])
-    R_masking = ppt.mkR(array_to_mask.shape) / float(array_to_mask.shape[0])
+    R = sfp_stimuli.mkR(masked.shape) / float(masked.shape[0])
+    R_masking = sfp_stimuli.mkR(array_to_mask.shape) / float(array_to_mask.shape[0])
     x, y = np.where(masked != mid_val)
     Rmin = R[x, y].min()
     try:
@@ -106,7 +106,8 @@ def fit_log_norm(x, y, **kwargs):
     plot_data = data.groupby(x)[y].mean()
 
     try:
-        popt, pcov = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_data.index, plot_data.values)
+        popt, pcov = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_data.index,
+                                           plot_data.values)
     except RuntimeError:
         # since data is a Series, this is the best way to do this.
         idx = [i for i in data.iloc[0].index if i not in [x, y]]
@@ -144,7 +145,8 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
         color = kwargs.pop('color')
     lines = []
     for boot in data.bootstrap_num.unique():
-        plot_data = data.groupby(x)[[y, 'bootstrap_num']].apply(lambda x, j: x[x.bootstrap_num==j], boot)
+        plot_data = data.groupby(x)[[y, 'bootstrap_num']]
+        plot_data = plot_data.apply(lambda x, j: x[x.bootstrap_num == j], boot)
         plot_idx = plot_data.index.get_level_values(x)
         plot_vals = plot_data[y].values
         try:
@@ -218,11 +220,11 @@ def find_stim_idx(stim_df, **kwargs):
     stim_df = first_level_analysis._add_freq_metainfo(stim_df)
     props = stim_df.copy()
     key_order = ['stimulus_superclass', 'phi', 'freq_space_angle', 'freq_space_distance']
-    key_order += [k for k in kwargs.iterkeys() if k not in key_order]
+    key_order += [k for k in kwargs.keys() if k not in key_order]
     for k in key_order:
         v = kwargs.get(k, None)
         if v is not None:
-            if isinstance(v, basestring):
+            if isinstance(v, str):
                 val = v
             else:
                 val = props.iloc[np.abs(props[k].values - v).argsort()[0]][k]
@@ -320,7 +322,7 @@ def load_data(subject, session=None, task=None, df_mode='full',
             task = task.replace('task-', '')
         # the bit in session is regex to return a string that doesn't start with pilot
         files = layout.get("file", subject=subject, type=df_mode, session=r'^((?!pilot).+)')
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
         # we need to treat atlas_type and mat_type, which will show up as a folder in the path,
         # separately from the others, which will just show in the filename of the csv
         if k in ['atlas_type', 'mat_type']:
@@ -328,12 +330,12 @@ def load_data(subject, session=None, task=None, df_mode='full',
             files = [f for f in files if val in f.split(os.sep)]
         else:
             if k == 'vareas':
-                if not isinstance(v, basestring):
+                if not isinstance(v, str):
                     val = '-'.join([str(i) for i in v])
                 else:
                     val = v
             elif k == 'eccen':
-                if not isinstance(v, basestring):
+                if not isinstance(v, str):
                     val = '-'.join([str(i) for i in v])
                 else:
                     val = v
