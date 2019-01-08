@@ -34,6 +34,7 @@ dependencies:
   - pyosf
   - greenlet==0.4.15
   - h5py
+  - scikit-learn
   - pip:
       - pyglet
       - zmq
