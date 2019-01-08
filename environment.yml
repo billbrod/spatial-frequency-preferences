@@ -2,6 +2,7 @@ name: sfp
 channels:
   - conda-forge
   - defaults
+  - bioconda
 dependencies:
   - python==3.6
   - anaconda
@@ -15,45 +16,15 @@ dependencies:
   - seaborn
   - statsmodels
   - pandas
-  - nipype>=1.1.1
-  - pyopengl
-  - pillow
-  - lxml
-  - openpyxl
-  - xlrd
-  - configobj
   - pyyaml
-  - gevent
-  - msgpack-python
-  - psutil
-  - pytables
-  - requests[security]
-  - cffi
-  - wxpython
-  - cython
-  - pyzmq
-  - pyserial
-  - pysoundfile
-  - python-bidi
-  - moviepy
+  - nipype>=1.1.1
+  - pillow
   - pyosf
   - osfclient
   - h5py
   - nibabel
   - scikit-learn
   - scikit-image
-  - greenlet==0.4.15
+  - snakemake
   - pip:
       - pybids >= 0.4.2
-      - pyglet
-      - neuropythy
-      - zmq
-      - json-tricks
-      - pyparallel
-      - sounddevice
-      - pygame
-      - pysoundcard
-      - psychopy_ext
-      - psychopy
-      - pydeface
-

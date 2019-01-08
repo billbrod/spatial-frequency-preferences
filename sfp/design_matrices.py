@@ -12,7 +12,7 @@ import pandas as pd
 import os
 import json
 import matplotlib.pyplot as plt
-from bids.grabbids import BIDSLayout
+from bids.layout import BIDSLayout
 from collections import Counter
 
 

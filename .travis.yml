@@ -1,0 +1,11 @@
+language: python
+dist: xenial
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+install:
+  - conda env create -f environment.yml
+  - conda install pytorch-cpu torchvision-cpu -c pytorch
+script:
+  - pytest

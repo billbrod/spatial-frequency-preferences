@@ -5,19 +5,18 @@ import matplotlib as mpl
 # we do this because sometimes we run this without an X-server, and this backend doesn't need one
 mpl.use('svg')
 import argparse
-import utils
+from . import utils
 import warnings
 import os
-import tuning_curves
-import stimuli as sfp_stimuli
-import first_level_analysis
+from . import tuning_curves
+from . import stimuli as sfp_stimuli
+from . import first_level_analysis
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy as sp
 from sklearn import linear_model
-import pyPyrTools as ppt
 
 LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'mixtures', 'angular', 'reverse spiral']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'off-diagonal', 'horizontal',
@@ -463,7 +462,7 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
     stim_num = None
     figsize = kwargs.pop('figsize', None)
     for k, v in kwargs.iteritems():
-        if hasattr(v, "__iter__") and not isinstance(v, basestring):
+        if hasattr(v, "__iter__") and not isinstance(v, str):
             if stim_num is None:
                 stim_num = len(v)
             else:
@@ -665,7 +664,7 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
         raise Exception("Can only plot aligned view if plotting 1 stimulus_superclass")
     df = df.groupby('stimulus_superclass').apply(fit_model)
     windowed_plot = np.zeros((size, size))
-    R = ppt.mkR(size) * (float(max_visual_angle) / size)
+    R = sfp_stimuli.mkR(size) * (float(max_visual_angle) / size)
     ecc_to_pix = pRF_size_slope * (float(size) / max_visual_angle) + pRF_size_offset
     masks = np.zeros((size, size))
     meridian = int(size / 2)

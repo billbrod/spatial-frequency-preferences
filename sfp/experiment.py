@@ -15,7 +15,7 @@ import h5py
 import datetime
 import glob
 import argparse
-from scipy import misc as smisc
+from sklearn.externals._pilutil import bytescale
 
 
 def _create_blanks(blank_sec_length, on_msec_length, off_msec_length, stimulus_shape, blank_loc):
@@ -30,8 +30,8 @@ def _create_blanks(blank_sec_length, on_msec_length, off_msec_length, stimulus_s
                         ". {loc}_blank_sec_length must be a multiple of on_msec_length+"
                         "off_msec_length!".format(loc=blank_loc, length=blank_sec_length))
     nblanks = int(nblanks)
-    blanks = smisc.bytescale(np.zeros((nblanks, stimulus_shape[0], stimulus_shape[1])),
-                             cmin=-1, cmax=1)
+    blanks = bytescale(np.zeros((nblanks, stimulus_shape[0], stimulus_shape[1])),
+                       cmin=-1, cmax=1)
     return nblanks, blanks
 
 
@@ -318,6 +318,8 @@ def expt(stim_path, number_of_runs, first_run, subj_name, output_dir="../data/ra
     print("Will use the following indices:")
     print("\t%s" % "\n\t".join(idx_paths))
     print("Will save at the following location:\n\t%s" % file_path.format(sess=sess_num))
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
     for i, path in enumerate(idx_paths):
         keys, fixation, timings, expt_params, idx = run(stim_path, path, **kwargs)
         with h5py.File(file_path.format(sess=sess_num), 'a') as f:

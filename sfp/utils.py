@@ -7,12 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 from . import stimuli as sfp_stimuli
-from bids.grabbids import BIDSLayout
+from bids.layout import BIDSLayout
 import pandas as pd
-# from . import first_level_analysis
-# from . import tuning_curves
+from . import first_level_analysis
+from . import tuning_curves
 import warnings
-# from . import plotting
+from . import plotting
 
 
 def scatter_heat(x, y, c, **kwargs):
@@ -106,7 +106,8 @@ def fit_log_norm(x, y, **kwargs):
     plot_data = data.groupby(x)[y].mean()
 
     try:
-        popt, pcov = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_data.index, plot_data.values)
+        popt, pcov = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_data.index,
+                                           plot_data.values)
     except RuntimeError:
         # since data is a Series, this is the best way to do this.
         idx = [i for i in data.iloc[0].index if i not in [x, y]]
@@ -144,7 +145,8 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
         color = kwargs.pop('color')
     lines = []
     for boot in data.bootstrap_num.unique():
-        plot_data = data.groupby(x)[[y, 'bootstrap_num']].apply(lambda x, j: x[x.bootstrap_num==j], boot)
+        plot_data = data.groupby(x)[[y, 'bootstrap_num']]
+        plot_data = plot_data.apply(lambda x, j: x[x.bootstrap_num == j], boot)
         plot_idx = plot_data.index.get_level_values(x)
         plot_vals = plot_data[y].values
         try:

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 import warnings
 import glob
-import model as sfp_model
+from . import model as sfp_model
 
 
 def load_single_model(save_path_stem, model_type=None, load_results_df=True):

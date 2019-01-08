@@ -13,8 +13,7 @@ import nibabel as nib
 import itertools
 import re
 from matplotlib import pyplot as plt
-import stimuli as sfp_stimuli
-import pyPyrTools as ppt
+from . import stimuli as sfp_stimuli
 
 
 def _load_mgz(path):
@@ -235,7 +234,7 @@ def find_ecc_range_in_pixels(stim, mid_val=128):
     """
     if stim.ndim == 3:
         stim = stim[0, :, :]
-    R = ppt.mkR(stim.shape)
+    R = sfp_stimuli.mkR(stim.shape)
     x, y = np.where(stim != mid_val)
     return R[x, y].min(), R[x, y].max()
 
@@ -257,7 +256,7 @@ def find_ecc_range_in_degrees(stim, stim_rad_deg, mid_val=128):
     if stim.ndim == 3:
         stim = stim[0, :, :]
     Rmin, Rmax = find_ecc_range_in_pixels(stim, mid_val)
-    R = ppt.mkR(stim.shape)
+    R = sfp_stimuli.mkR(stim.shape)
     # if stim_rad_deg corresponds to the max vertical/horizontal extent, the actual max will be
     # np.sqrt(2*stim_rad_deg**2) (this corresponds to the far corner). this should be the radius of
     # the screen, because R starts from the center and goes to the edge
@@ -439,7 +438,7 @@ def _normalize_amplitude_estimate(df, norm_order=2):
 
 
 def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
-         save_path=None, class_nums=xrange(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
+         save_path=None, class_nums=range(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
          benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
          unshuffled_stim_path="../data/stimuli/unshuffled.npy",
          unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv",
@@ -619,7 +618,7 @@ if __name__ == '__main__':
                  'eccen': '-'.join(str(i) for i in args['eccen_range'])}
     save_name = "v{vareas}_e{eccen}_{df_mode}.csv".format(**save_dict)
     args['save_path'] = os.path.join(save_dir, save_stem+save_name)
-    args['class_nums'] = xrange(args['class_nums'])
+    args['class_nums'] = range(args['class_nums'])
     if not os.path.isdir(os.path.dirname(args['save_path'])):
         os.makedirs(os.path.dirname(args['save_path']))
     main(**args)

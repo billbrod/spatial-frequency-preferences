@@ -7,9 +7,9 @@ mpl.use('svg')
 import argparse
 import pandas as pd
 import numpy as np
-import stimuli as sfp_stimuli
-import first_level_analysis
-import model as sfp_model
+from . import stimuli as sfp_stimuli
+from . import first_level_analysis
+from . import model as sfp_model
 
 
 def quadratic_mean(x):
