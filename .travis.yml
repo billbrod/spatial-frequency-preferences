@@ -20,4 +20,5 @@ install:
   - conda env create -f environment.yml
   - conda install pytorch-cpu torchvision-cpu -c pytorch
 script:
+  - conda activate sfp
   - pytest
