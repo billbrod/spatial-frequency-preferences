@@ -24,26 +24,26 @@ def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num):
     df = unshuffled_stim_description[['index', 'class_idx']].set_index('index')
     if len(df) != len(behavioral_results['run_%02d_shuffled_indices' % run_num]):
         raise Exception("Behavioral results and stimulus description csv have different numbers of stimuli!")
-    df = df.reindex(behavioral_results['run_%02d_shuffled_indices' % run_num].value)
-    timing = behavioral_results['run_%02d_timing_data' % run_num].value
+    df = df.reindex(behavioral_results['run_%02d_shuffled_indices' % run_num][()])
+    timing = behavioral_results['run_%02d_timing_data' % run_num][()]
     # Because we want to skip the first one and drop the last nblanks * 2 (since for each stimuli
     # we have two entries: one for on, one for off). Finally, we only grab every other because we
     # only want the on timing
     try:
         # in this case, it's the initial way we ran the experiment, where we had no (additional)
         # blanks at the beginning of the run, only at the end, and so the field was just nblanks
-        timing = timing[1:-behavioral_results['run_%02d_nblanks' % run_num].value*2:2]
+        timing = timing[1:-behavioral_results['run_%02d_nblanks' % run_num][()]*2:2]
     except KeyError:
         # in this case, it's the later way we ran the experiment, where we had(additional) blanks
         # at the beginning and end of the run
-        timing = timing[behavioral_results['run_%02d_init_nblanks' % run_num].value*2+1:
-                        -behavioral_results['run_%02d_final_nblanks' % run_num].value*2:2]
+        timing = timing[behavioral_results['run_%02d_init_nblanks' % run_num][()]*2+1:
+                        -behavioral_results['run_%02d_final_nblanks' % run_num][()]*2:2]
     # Now we get rid of the first TR
-    initial_TR_time = float(behavioral_results['run_%02d_button_presses' % run_num].value[0][1])
+    initial_TR_time = float(behavioral_results['run_%02d_button_presses' % run_num][()][0][1])
     timing = [float(i[2]) - initial_TR_time for i in timing]
     # and add to our dataframe
     df['Onset time (sec)'] = timing
-    button_presses = behavioral_results['run_%02d_button_presses' % run_num].value.astype(float)
+    button_presses = behavioral_results['run_%02d_button_presses' % run_num][()].astype(float)
     button_presses = button_presses[button_presses[:, 0] != 5]
     button_presses[:, 1] -= initial_TR_time
     return df
@@ -52,7 +52,7 @@ def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num):
 def _find_timing_from_results(results, run_num):
     """find stimulus directly timing from results hdf5
     """
-    timing = pd.DataFrame(results['run_%02d_timing_data' % run_num].value, columns=['stimulus', 'event_type', 'timing'])
+    timing = pd.DataFrame(results['run_%02d_timing_data' % run_num][()], columns=['stimulus', 'event_type', 'timing'])
     timing.timing = timing.timing.astype(float)
     timing.timing = timing.timing.apply(lambda x: x - timing.timing.iloc[0])
     # the first entry is the start, which doesn't correspond to any stimuli
@@ -94,7 +94,7 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path, stimulus_fi
             # we had to store strings as byte-strings to make it hdf5 compliant (see
             # psychopy_example._convert_str for more details), so we need to use byte-strings to
             # double check things
-            n_TRs = sum([b'5' in i[0] for i in results['run_%02d_button_presses' % run_num].value])
+            n_TRs = sum([b'5' in i[0] for i in results['run_%02d_button_presses' % run_num][()]])
             if n_TRs == full_TRs:
                 design_df = create_tsv_df(results, df, run_num)
                 design_df = design_df.reset_index().rename(
@@ -105,7 +105,7 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path, stimulus_fi
                 design_df['duration'] = _find_timing_from_results(results, run_num)
                 if stimulus_file_name is None:
                     # we decode this (from bytes to string) because we want this to be a string
-                    stim_path = results['run_%02d_stim_path' % run_num].value.decode()
+                    stim_path = results['run_%02d_stim_path' % run_num][()].decode()
                     stim_path = stim_path.replace('data/stimuli/', '')
                     design_df['stim_file'] = stim_path
                 else:

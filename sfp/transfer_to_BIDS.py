@@ -63,18 +63,22 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
         warnings.warn("Anatomical data already found, skipping...")
     create_BIDS_tsv.main(
         behavioral_results_path, unshuffled_stim_description_path,
-        os.path.join(base_dir, BIDS_subj, BIDS_ses, "func",
-                     BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"), full_TRs)
+        save_path = os.path.join(base_dir, BIDS_subj, BIDS_ses, "func",
+                                 BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"),
+        full_TRs=full_TRs)
     print("  Successfully moved over events tsv")
     if isinstance(behavioral_results_path, str):
         behavioral_results_path = [behavioral_results_path]
     for res in behavioral_results_path:
-        shutil.copy(res, os.path.join(source_dir, os.path.split(res)[-1]))
+        if not os.path.exists(os.path.join(source_dir, os.path.split(res)[-1])):
+            shutil.copy(res, os.path.join(source_dir, os.path.split(res)[-1]))
     print("  Successfully moved over behavioral data hdf5")
-    shutil.copy(notes_path, os.path.join(source_dir, os.path.split(notes_path)[-1]))
+    if not os.path.exists(os.path.join(source_dir, os.path.split(notes_path)[-1])):
+        shutil.copy(notes_path, os.path.join(source_dir, os.path.split(notes_path)[-1]))
     print("  Successfully moved over notes")
     for f in stimuli_presentation_idx_paths:
-        shutil.copy(f, os.path.join(source_dir, os.path.split(f)[-1]))
+        if not os.path.exists(os.path.join(source_dir, os.path.split(f)[-1])):
+            shutil.copy(f, os.path.join(source_dir, os.path.split(f)[-1]))
     print("  Successfully moved over stimuli presentation indices")
     if not os.path.isfile(os.path.join(base_dir, "stimuli", os.path.split(unshuffled_stim_description_path)[-1])):
         shutil.copy(unshuffled_stim_description_path,
@@ -270,7 +274,7 @@ def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
     """
     for f in glob.glob(raw_behavioral_glob_str):
         res = h5py.File(f)
-        for k, v in res.iteritems():
+        for k, v in res.items():
             if 'stim_path' in k and old_stim_name == os.path.split(v.value)[-1]:
                 del res[k]
                 res.create_dataset(k, data=v.value.replace(old_stim_name, new_stim_name))
@@ -281,7 +285,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=("Move some subjects from prisma to (approximate) BIDS format"))
     parser.add_argument("subject", nargs='+', type=str,
-                        help=("Which subjects / session to run. Must come from this list: wl_subj"
+                        help=("Which subject / session to run. One or more from this list: wl_subj"
                               "001 (pilot in Oct 2017), wl_subj001-01 (Jan 31, 2018, after revising"
                               " stimuli, log-polar stimuli), wl_subj001-02 (Feb 7, 2018, with "
                               "constant stimuli) wl_subj042-0 (pilot in Aug 2017), wl_subj042-1 ("
