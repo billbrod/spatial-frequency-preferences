@@ -316,7 +316,7 @@ rule create_design_matrices:
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}_benchmark.txt")
     params:
-        save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%s_design_matrix.tsv'),
+        save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%02d_design_matrix.tsv'),
         permuted_flag = get_permuted,
         mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", ""),
         data_dir = lambda wildcards: os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session),

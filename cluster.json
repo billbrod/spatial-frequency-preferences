@@ -16,6 +16,11 @@
 	"mem": "{resources.mem}GB",
 	"cpus_per_task": "{resources.cpus_per_task}"
     },
+    "create_design_matrices":
+    {
+	"time": "00:10:00",
+	"mem": "1GB"
+    },
     "report":
     {
 	"mem": "10GB"

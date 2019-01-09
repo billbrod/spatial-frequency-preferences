@@ -2,6 +2,7 @@
 """functions to create the design matrices used in our first-level MRI analysis.
 """
 import matplotlib as mpl
+import re
 # we do this because sometimes we run this without an X-server, and this backend doesn't need one
 mpl.use('svg')
 import numpy as np
@@ -98,7 +99,7 @@ def plot_design_matrix(design_matrix, title, save_path=None):
 
 
 def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False,
-                               save_path="data/MRI_first_level/run-%s_design_matrix.tsv"):
+                               save_path="data/MRI_first_level/run-%02d_design_matrix.tsv"):
     """create and save design matrices for all runs
 
     input_path should be a path to a BIDS directory containing one scanning session. we will then
@@ -137,7 +138,10 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
     TR_lengths = []
     if not os.path.exists(os.path.dirname(save_path)):
         os.makedirs(os.path.dirname(save_path))
-    run_details_save_path = save_path.replace('run-%s_design_matrix.tsv', 'params.json')
+    name_stub = re.findall(r'run.*_design_matrix\.tsv', save_path)
+    if len(name_stub) != 1:
+        raise Exception("Unsure how to convert design matrix save_path to run detail save path!")
+    run_details_save_path = save_path.replace(name_stub[0], 'params.json')
     save_labels = np.array(run_nums).copy()
     if permuted is True:
         if 'permuted' not in save_path:
@@ -161,7 +165,7 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
         tsv_df = tsv_df[::class_size]
         # the note field is either empty or contains the string "blank trial", so we definitely
         # want to grab the indices of the non-blank trials, as they're always included
-        idx = tsv_df[tsv_df.note == ""].index
+        idx = tsv_df[tsv_df.note == "n/a"].index
         if model_blanks:
             # this grabs a sub-sample of the blank trials
             blank_idx = tsv_df[tsv_df.note == 'blank trial'].sample(model_blanks).index
@@ -191,7 +195,9 @@ def create_all_design_matrices(input_path, mat_type="stim_class", permuted=False
     assert ((np.array(TR_lengths) - TR_lengths[0]) == 0).all(), "You have different TR lengths!"
     with open(run_details_save_path, 'w') as f:
         run_details = {"stim_length": stim_lengths[0], 'TR_length': TR_lengths[0],
-                       'save_labels': list(save_labels), 'run_numbers': list(run_nums)}
+                       # this needs to be converted to regular python ints, not numpy's int64,
+                       # which is not JSON-serializable
+                       'save_labels': [int(i) for i in save_labels], 'run_numbers': list(run_nums)}
         json.dump(run_details, f)
 
 
@@ -207,7 +213,7 @@ if __name__ == '__main__':
                               "must have the same TR for GLMdenoise, so we'll through an exception"
                               " if that's not the case."))
     parser.add_argument("--save_path",
-                        default="data/MRI_first_level/run-%s_design_matrix.tsv",
+                        default="data/MRI_first_level/run-%02d_design_matrix.tsv",
                         help=("Template path that we should save the resulting design matrices in."
                               "Must contain at least one string formatting signal (to indicate run"
                               "number) and must end in .tsv."))
