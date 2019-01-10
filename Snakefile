@@ -8,7 +8,7 @@ if not os.path.isdir(config["DATA_DIR"]):
     raise Exception("Cannot find the dataset at %s" % config["DATA_DIR"])
 if os.system("module list") == 0:
     # then we're on the cluster
-    shell.prefix("module purge; module load anaconda2/4.3.1; source activate sfp; "
+    shell.prefix("which python; module purge; which python;module load anaconda3/5.3.1; which python; source activate sfp; which python;"
                  "module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2017a; "
                  "export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 else:
