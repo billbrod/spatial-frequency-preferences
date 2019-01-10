@@ -3,7 +3,7 @@ import warnings
 from glob import glob
 
 configfile:
-    "config.yml"
+    "/home/billbrod/Documents/spatial-frequency-preferences/config.yml"
 if not os.path.isdir(config["DATA_DIR"]):
     raise Exception("Cannot find the dataset at %s" % config["DATA_DIR"])
 if os.system("module list") == 0:
@@ -207,6 +207,39 @@ rule stimuli_idx:
         "python sfp/stimuli.py --subject_name {wildcards.subject} -i -s {params.seed}"
 
 
+def get_permuted(wildcards):
+    if "permuted" in wildcards.mat_type:
+        return "-p"
+    else:
+        return ""
+
+
+def get_design_inputs(wildcards):
+    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
+    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold.nii")
+    return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+            'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
+
+
+rule create_design_matrices:
+    input:
+        unpack(get_design_inputs),
+    output:
+        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{task}_{mat_type}.log")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{task}_{mat_type}_benchmark.txt")
+    params:
+        save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%02d_design_matrix.tsv'),
+        permuted_flag = get_permuted,
+        mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", ""),
+        data_dir = lambda wildcards: os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session),
+    shell:
+        "python sfp/design_matrices.py {params.data_dir} --mat_type {params.mat_type} --save_path "
+        "{params.save_path} {params.permuted_flag}"
+
+
 rule preprocess:
     input:
         lambda wildcards: os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", wildcards.subject.replace('sub-', '')),
@@ -249,6 +282,8 @@ rule rearrange_preprocess_extras:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{filename_ext}")
     log:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_rearrange_extras_{filename_ext}.log")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_rearrange_extras_{filename_ext}_benchmark.txt")
     run:
         import subprocess
         import os
@@ -284,45 +319,14 @@ rule rearrange_preprocess:
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
     log:
-        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{run}_rearrange.log")
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}_rearrange.log")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}_rearrange_benchmark.txt")
     run:
         import shutil
         import os
         shutil.move(input[0], output[0])
         os.removedirs(os.path.dirname(input[0]))
-
-
-def get_permuted(wildcards):
-    if "permuted" in wildcards.mat_type:
-        return "-p"
-    else:
-        return ""
-
-
-def get_design_inputs(wildcards):
-    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
-    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold.nii")
-    return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
-            'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
-
-
-rule create_design_matrices:
-    input:
-        unpack(get_design_inputs),
-    output:
-        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json")
-    log:
-        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}.log")
-    benchmark:
-        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}_benchmark.txt")
-    params:
-        save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%02d_design_matrix.tsv'),
-        permuted_flag = get_permuted,
-        mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", ""),
-        data_dir = lambda wildcards: os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session),
-    shell:
-        "python sfp/design_matrices.py {params.data_dir} --mat_type {params.mat_type} --save_path "
-        "{params.save_path} {params.permuted_flag}"
 
 
 rule GLMdenoise:
@@ -555,9 +559,9 @@ rule plots:
     resources:
         mem = 2
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{plot_name}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{step}_{plot_name}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{plot_name}.log")
+        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{step}_{plot_name}.log")
     shell:
         "python sfp/plotting.py {input.dataframe} {params.stim_dir} --plot_to_make "
         "{wildcards.plot_name}"
@@ -593,9 +597,9 @@ rule tuning_curves_summary:
     params:
         input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{df_mode}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{df_mode}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}.log")
     shell:
         "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode}"
 
@@ -620,12 +624,13 @@ rule tuning_curves_summary_plot:
         sessions = lambda wildcards: wildcards.sessions.split(','),
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
-                     "{atlas_type}_{subjects}_{sessions}_{tasks}_v{plot_varea}_e{eccen_range}_"
-                     "row={row}_col={col}_hue={hue}_{plot_func}_{y}_benchmark.txt")
+                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{sessions}_{tasks}_v"
+                     "{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}_{y}_"
+                     "benchmark.txt")
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
-                     "{atlas_type}_{subjects}_{sessions}_{tasks}_v{plot_varea}_e{eccen_range}_"
-                     "row={row}_col={col}_hue={hue}_{plot_func}_{y}.log")
+                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{sessions}_{tasks}_v"
+                     "{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}_{y}.log")
     shell:
         "python sfp/summary_plots.py {input} --col {params.col} --row {params.row} --hue"
         " {params.hue} --y {params.y} --varea {params.plot_varea} --eccen_range {params.eccen_range}"
