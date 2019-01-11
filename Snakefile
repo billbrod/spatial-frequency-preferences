@@ -3,7 +3,7 @@ import warnings
 from glob import glob
 
 configfile:
-    "/home/billbrod/Documents/spatial-frequency-preferences/config.yml"
+    "/users/broderick/Documents/spatial-frequency-preferences/config.yml"
 if not os.path.isdir(config["DATA_DIR"]):
     raise Exception("Cannot find the dataset at %s" % config["DATA_DIR"])
 if os.system("module list") == 0:
@@ -257,7 +257,7 @@ rule preprocess:
     params:
         plugin = "MultiProc",
         data_dir = lambda wildcards: os.path.join(config['DATA_DIR'], wildcards.subject, wildcards.session),
-        working_dir = lambda wildcards: "/scratch/wfb229/preprocess/%s_%s_%s" % (wildcards.subject, wildcards.session, wildcards.run),
+        working_dir = lambda wildcards: os.path.join(config['WORKING_DIR'], "/%s_%s_%s" % (wildcards.subject, wildcards.session, wildcards.run)),
         plugin_args = lambda wildcards, resources: ",".join("%s:%s" % (k,v) for k,v in {'n_procs': resources.cpus_per_task, 'memory_gb': resources.mem}.items()),
         epi_num = lambda wildcards: int(wildcards.run.replace('run-', '')),
         script_location = os.path.join(config["MRI_TOOLS"], "preprocessing", "prisma_preproc.py")
