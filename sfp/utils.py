@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 from . import stimuli as sfp_stimuli
-from bids.layout import BIDSLayout
+from bids import BIDSLayout
 import pandas as pd
 from . import first_level_analysis
 from . import tuning_curves
@@ -384,19 +384,17 @@ def load_data(subject, session=None, task=None, df_mode='full',
     if 'first_level_binned' not in bids_dir:
         bids_dir = os.path.join(bids_dir, 'first_level_binned')
     stim_dir = os.path.abspath(os.path.join(bids_dir, '..', '..', 'stimuli'))
-    layout = BIDSLayout(bids_dir)
-    if "sub-" in subject:
-        subject = subject.replace('sub-', '')
-    layout = BIDSLayout(bids_dir)
+    subject = subject.replace('sub-', '')
+    layout = BIDSLayout(bids_dir, validate=False)
     if session is not None:
         if "ses-" in str(session):
             session = session.replace("ses-", "")
-        files = layout.get("file", subject=subject, session=session, type=df_mode)
+        files = layout.get("file", subject=subject, session=session, suffix=df_mode)
     else:
         if "task-" in task:
             task = task.replace('task-', '')
         # the bit in session is regex to return a string that doesn't start with pilot
-        files = layout.get("file", subject=subject, type=df_mode, session=r'^((?!pilot).+)')
+        files = layout.get("file", subject=subject, suffix=df_mode, session=r'^((?!pilot).+)')
     for k, v in kwargs.items():
         # we need to treat atlas_type and mat_type, which will show up as a folder in the path,
         # separately from the others, which will just show in the filename of the csv

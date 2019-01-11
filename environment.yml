@@ -26,4 +26,4 @@ dependencies:
   - scikit-learn
   - snakemake>=5.4
   - pip:
-      - pybids >= 0.4.2
+      - pybids >= 0.7.0

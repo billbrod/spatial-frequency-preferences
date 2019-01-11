@@ -234,10 +234,10 @@ rule create_design_matrices:
         save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%02d_design_matrix.tsv'),
         permuted_flag = get_permuted,
         mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", ""),
-        data_dir = lambda wildcards: os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session),
+        BIDS_dir = config["DATA_DIR"],
     shell:
-        "python sfp/design_matrices.py {params.data_dir} --mat_type {params.mat_type} --save_path "
-        "{params.save_path} {params.permuted_flag}"
+        "python sfp/design_matrices.py {params.BIDS_dir} {wildcards.subject} {wildcards.session}"
+        " --mat_type {params.mat_type} --save_path {params.save_path} {params.permuted_flag}"
 
 
 rule preprocess:
