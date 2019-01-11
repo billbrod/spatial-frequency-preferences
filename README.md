@@ -188,6 +188,12 @@ jobs you allow `snakemake` to simultaneously submit to the cluster and
 `cluster.json` is an included configuration file with some reasonable
 values for the cluster (feel free to change these as needed).
 
+I also found that `snakemake>=5.4`, as now required, installs its own
+`mpi4py` on the SLURM cluster. If you attempt to run any python
+command from the environment that includes this `mpi4py` on an
+interactive job (not on a login node), you'll get a very scary-looking
+error. To deal with this, just run `unset $SLURM_NODELIST`.
+
 # Eventual sharing goals
 
 I would like to make this as easy for others to reproduce as
