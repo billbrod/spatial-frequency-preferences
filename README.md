@@ -67,12 +67,8 @@ following is an overview:
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)). This
    is accomplished by the `preprocess`, `rearrange_preprocess_extras`,
    and `rearrange_preprocess` rules in the Snakefile.
-4. Create design matrices for each run (`python sfp/design_matrices.py
-   -s subject_name behavioral_results_path`). The `behavioral_results`
-   h5py file is created when the experiment is run and the
-   `unshuffled_stim_descriptions` csv file is created when the stimuli
-   are created (you can probably trust the default for its path). This
-   is done by the `create_design_matrices` rule
+4. Create design matrices for each run This is done by the
+   `create_design_matrices` rule
 5. Run GLMdenoise (`runGLM.m`) and save out the nifti outputs, done by
    the `GLMdenoise` and `save_results_niftis` rules.
 6. Align to freesurfer anatomy and get into the mgz format, done by
