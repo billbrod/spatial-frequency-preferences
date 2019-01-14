@@ -12,7 +12,7 @@
     },
     "preprocess":
     {
-	"time": "00:30:00",
+	"time": "00:45:00",
 	"mem": "{resources.mem}GB",
 	"cpus_per_task": "{resources.cpus_per_task}"
     },
