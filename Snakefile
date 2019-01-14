@@ -257,7 +257,7 @@ rule preprocess:
     params:
         plugin = "MultiProc",
         data_dir = lambda wildcards: os.path.join(config['DATA_DIR'], wildcards.subject, wildcards.session),
-        working_dir = lambda wildcards: os.path.join(config['WORKING_DIR'], "/%s_%s_%s" % (wildcards.subject, wildcards.session, wildcards.run)),
+        working_dir = lambda wildcards: os.path.join(config['WORKING_DIR'], "%s_%s_%s" % (wildcards.subject, wildcards.session, wildcards.run)),
         plugin_args = lambda wildcards, resources: ",".join("%s:%s" % (k,v) for k,v in {'n_procs': resources.cpus_per_task, 'memory_gb': resources.mem}.items()),
         epi_num = lambda wildcards: int(wildcards.run.replace('run-', '')),
         script_location = os.path.join(config["MRI_TOOLS"], "preprocessing", "prisma_preproc.py")
