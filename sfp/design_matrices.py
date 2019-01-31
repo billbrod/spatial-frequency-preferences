@@ -140,7 +140,7 @@ def create_all_design_matrices(BIDS_directory, subject, session, mat_type="stim_
         raise Exception("Don't know how to handle mat_type %s!" % mat_type)
     # having an issue: https://github.com/bids-standard/pybids/issues/339
     layout = BIDSLayout(BIDS_directory, validate=False)
-    run_nums = layout.get_runs()
+    run_nums = layout.get_runs(subject=subject, session=session)
     stim_lengths = []
     TR_lengths = []
     if not os.path.exists(os.path.dirname(save_path)):
