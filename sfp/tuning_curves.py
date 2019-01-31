@@ -2,8 +2,10 @@
 """fit tuning curves to first level results
 """
 import matplotlib as mpl
-# we do this because sometimes we run this without an X-server, and this backend doesn't need one
-mpl.use('svg')
+# we do this because sometimes we run this without an X-server, and this backend doesn't need
+# one. We set warn=False because the notebook uses a different backend and will spout out a big
+# warning to that effect; that's unnecessarily alarming, so we hide it.
+mpl.use('svg', warn=False)
 import argparse
 import warnings
 import os

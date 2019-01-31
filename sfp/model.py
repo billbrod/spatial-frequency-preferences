@@ -2,8 +2,10 @@
 """2d tuning model
 """
 import matplotlib as mpl
-# we do this because sometimes we run this without an X-server, and this backend doesn't need one
-mpl.use('svg')
+# we do this because sometimes we run this without an X-server, and this backend doesn't need
+# one. We set warn=False because the notebook uses a different backend and will spout out a big
+# warning to that effect; that's unnecessarily alarming, so we hide it.
+mpl.use('svg', warn=False)
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -311,7 +313,7 @@ class LogGaussianDonut(torch.nn.Module):
         # (respectively). to avoid that, we clamp it 1e-6. in practice, if a voxel ends up here
         # that means the model predicts 0 response for it.
         preferred_period = self.preferred_period(sf_angle, vox_ecc, vox_angle)
-        pdf = torch.exp(-((torch.log2(sf_mag) + torch.log2(preferred_period))**2)/ (2*self.sigma**2))
+        pdf = torch.exp(-((torch.log2(sf_mag) + torch.log2(preferred_period))**2) / (2*self.sigma**2))
         amplitude = self.max_amplitude(sf_angle, vox_angle)
         return amplitude * pdf
 
