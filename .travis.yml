@@ -22,5 +22,6 @@ install:
   - conda install pytorch-cpu torchvision-cpu -c pytorch
   - pip freeze
   - which python
+  - which pytest
 script:
   - pytest
