@@ -20,5 +20,7 @@ install:
   - source ~/.bashrc
   - conda activate sfp
   - conda install pytorch-cpu torchvision-cpu -c pytorch
+  - pip freeze
+  - which python
 script:
   - pytest
