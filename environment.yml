@@ -27,3 +27,4 @@ dependencies:
   - snakemake>=5.4
   - pip:
       - pybids >= 0.7.0
+      - neuropythy

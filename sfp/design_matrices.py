@@ -102,7 +102,7 @@ def plot_design_matrix(design_matrix, title, save_path=None):
 
 def create_all_design_matrices(BIDS_directory, subject, session, mat_type="stim_class",
                                permuted=False,
-                               save_path="data/MRI_first_level/run-%02d_design_matrix.tsv"):
+                               save_path="data/MRI_first_level/run-%02d_design.tsv"):
     """create and save design matrices for all runs in a specified scanning session
 
     BIDS_directory should be a path to (base) a BIDS directory. subject and session specify which
@@ -147,7 +147,7 @@ def create_all_design_matrices(BIDS_directory, subject, session, mat_type="stim_
     TR_lengths = []
     if not os.path.exists(os.path.dirname(save_path)):
         os.makedirs(os.path.dirname(save_path))
-    name_stub = re.findall(r'run.*_design_matrix\.tsv', save_path)
+    name_stub = re.findall(r'run.*_design\.tsv', save_path)
     if len(name_stub) != 1:
         raise Exception("Unsure how to convert design matrix save_path to run detail save path!")
     run_details_save_path = save_path.replace(name_stub[0], 'params.json')
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     parser.add_argument("session",
                         help=("The BIDS session to make the design matrices for"))
     parser.add_argument("--save_path",
-                        default="data/MRI_first_level/run-%02d_design_matrix.tsv",
+                        default="data/MRI_first_level/run-%02d_design.tsv",
                         help=("Template path that we should save the resulting design matrices in."
                               "Must contain at least one string formatting signal (to indicate run"
                               "number) and must end in .tsv."))
@@ -251,5 +251,4 @@ if __name__ == '__main__':
                               "when permuted, because you're basically breaking your hypothesized"
                               " connection between the GLM model and brain activity."))
     args = vars(parser.parse_args())
-    print("DESIGN MATRICES")
     create_all_design_matrices(**args)

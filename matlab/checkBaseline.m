@@ -15,8 +15,8 @@ for jj=2:length(subjects)
     [maxR2, argmax] = max(R2.vol(:));
 
     boldTemplate = '/scratch/wfb229/spatial_frequency_preferences/derivatives/preprocessed/sub-wl%s/%s/sub-wl%s_%s_task-sfp_run-%02d_preproc.nii.gz';
-    designTemplate = '/scratch/wfb229/spatial_frequency_preferences/derivatives/design_matrices/stim_class/sub-wl%s/%s/sub-wl%s_%s_task-sfp_run-%02d_design_matrix.tsv';
-    designBlanksTemplate = '/scratch/wfb229/spatial_frequency_preferences/derivatives/design_matrices/stim_class_10_blanks/sub-wl%s/%s/sub-wl%s_%s_task-sfp_run-%02d_design_matrix.tsv';
+    designTemplate = '/scratch/wfb229/spatial_frequency_preferences/derivatives/design_matrices/stim_class/sub-wl%s/%s/sub-wl%s_%s_task-sfp_run-%02d_design.tsv';
+    designBlanksTemplate = '/scratch/wfb229/spatial_frequency_preferences/derivatives/design_matrices/stim_class_10_blanks/sub-wl%s/%s/sub-wl%s_%s_task-sfp_run-%02d_design.tsv';
 
     voxel = cell(1, 12);
     design = cell(1, 12);
