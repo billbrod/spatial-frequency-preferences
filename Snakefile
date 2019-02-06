@@ -415,8 +415,8 @@ rule GLMdenoise:
         "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
         "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
         "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, [], "
-        "'{input.opts_json}', jsonInfo.TR_length); quit;\" "
-        "mv {params.GLM_output} {output.GLM_results}"
+        "'{input.opts_json}', jsonInfo.TR_length); quit;\"; "
+        "mv -v {params.GLM_output} {output.GLM_results}"
 
 
 rule GLMdenoise_fixed_hrf:
@@ -450,7 +450,7 @@ rule GLMdenoise_fixed_hrf:
         "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
         "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, "
         "'{wildcards.mat_type}_fixed_hrf_{input_mat}', '{input.opts_json}', jsonInfo.TR_length);"
-        " quit;\" mv {params.GLM_output} {output.GLM_results}"
+        " quit;\"; mv -v {params.GLM_output} {output.GLM_results}"
 
 
 rule save_results_niftis:
