@@ -421,7 +421,7 @@ rule GLMdenoise:
 
 rule GLMdenoise_fixed_hrf:
     input:
-        preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.nii.gz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+        preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.mgz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
         opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     output:
@@ -439,7 +439,7 @@ rule GLMdenoise_fixed_hrf:
         session = lambda wildcards: wildcards.session.replace('ses-', ''),
         # the bidsGLM script drops its output here, but we want to move it to the location in
         # output
-        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_results.mat").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}",  "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 150
@@ -449,7 +449,7 @@ rule GLMdenoise_fixed_hrf:
         "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
         "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
         "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, "
-        "'{wildcards.mat_type}_fixed_hrf_{input_mat}', '{input.opts_json}', jsonInfo.TR_length);"
+        "'{wildcards.mat_type}_fixed_hrf_{wildcards.input_mat}', '{input.opts_json}', jsonInfo.TR_length);"
         " quit;\"; mv -v {params.GLM_output} {output.GLM_results}"
 
 
