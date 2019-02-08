@@ -512,14 +512,12 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
     symbols (%s; one for hemisphere, one for variable [angle, varea, eccen, sigma]),
     e.g. /mnt/Acadia/Freesurfer_subjects/wl_subj042/surf/%s.benson14_%s.mgz
 
-    results_template_path: template path to the results mgz files (outputs of realign.py),
-    containing two string formatting symbols (%s; one for hemisphere, one for results_names)
+    results_path: path to the results.mat file (output of GLMdenoise)
 
-    df_mode: {'summary', 'full'}. If 'summary', will load in the 'modelmd' and 'modelse' mgz files,
-    using those calculated summary values. If 'full', will load in the 'models_class_##' mgz files,
+    df_mode: {'summary', 'full'}. If 'summary', will load in the 'modelmd' and 'modelse' results fields,
+    using those calculated summary values. If 'full', will load in the bootstrapped 'models' results field,
     containing the info to calculate central tendency and spread directly. In both cases, 'R2' will
-    also be loaded in. Assumes modelmd, modelse, and models_class_## lie directly in
-    results_template_path
+    also be loaded in.
 
     stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli were used in the session
     we're analyzing. This matters because it changes the local spatial frequency and, since that is
@@ -617,11 +615,7 @@ if __name__ == '__main__':
                      "results for a given subject. Note that this can take a rather long time."),
         formatter_class=CustomFormatter)
     parser.add_argument("--results_path", required=True,
-                        help=("template path to the results mgz files (outputs of realign.py), "
-                              "containing two string formatting symbols (one for hemisphere, "
-                              "one specifying results type). Can contain any environment"
-                              "al variable (in all caps, contained within curly brackets, e.g., "
-                              "{SUBJECTS_DIR})"))
+                        help=("path to the results.mat file (output of GLMdenoise) for a single session"))
     parser.add_argument("--benson_template_path", required=True,
                         help=("template path to the Benson14 mgz files, containing two string "
                               "formatting symbols (one for hemisphere, one for variable [angle"
@@ -639,12 +633,10 @@ if __name__ == '__main__':
                               "csv with some identifying information in the path."))
     parser.add_argument("--df_mode", default='summary',
                         help=("{summary, full}. If summary, will load in the 'modelmd' and "
-                              "'modelse' mgz files, and use those calculated summary values. If "
-                              "full, will load in the 'models_class_##' mgz files, which contain "
+                              "'modelse' results fields, and use those calculated summary values. If "
+                              "full, will load in the bootstrapped 'models' field, which contains "
                               "the info to calculate central tendency and spread directly. In both"
-                              " cases, 'R2' will also be loaded in. Assumes modelmd and modelse "
-                              "lie directly in results_template_path and that models_class_## "
-                              "files lie within the subfolder models_niftis"))
+                              " cases, 'R2' will also be loaded in."))
     parser.add_argument("--class_nums", "-c", default=48, type=int,
                         help=("int. if df_mode=='full', will load classes in range(class_nums). If "
                               "df_mode=='summary', then this is ignored."))
