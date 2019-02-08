@@ -453,40 +453,9 @@ rule GLMdenoise_fixed_hrf:
         " quit;\"; mv -v {params.GLM_output} {output.GLM_results}"
 
 
-rule save_results_niftis:
-    input:
-        GLM_results = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat"),
-        preproc_example_file = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_run-01_preproc.nii.gz")
-    output:
-        os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n}.nii.gz")
-    params:
-        freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab'),
-        output_dir = lambda wildcards, output: os.path.dirname(output[0]),
-        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
-        saveN = lambda wildcards: int(wildcards.n)+1
-    benchmark:
-        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_models_class_{n}_benchmark.txt")
-    log:
-        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_models_class_{n}-%j.log")
-    resources:
-        mem = 100,
-        cpus_per_task = 1
-    shell:
-        "cd matlab; matlab -nodesktop -nodisplay -r \"saveout({params.saveN}, '{input.GLM_results}'"
-        ", '{input.preproc_example_file}', '{params.output_dir}', '{params.save_stem}', "
-        "'{params.freesurfer_matlab_dir}'); quit;\""
-
-
 def get_first_level_analysis_input(wildcards):
-    files = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise_reoriented", wildcards.mat_type, wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_{filename}.mgz")
     input_dict = {}
-    input_dict['R2_files'] = expand(files, hemi=['lh', 'rh'], filename=['R2'])
-    if wildcards.df_mode == 'summary':
-        input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=['modelmd', 'modelse'])
-    elif wildcards.df_mode == 'full':
-        class_num = range(get_n_classes(wildcards.session, wildcards.mat_type))
-        models_names = ['models_class_%02d' % i for i in class_num]
-        input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=models_names)
+    input_dict['GLM_results'] = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(**wildcards)
     benson_names = ['angle', 'eccen', 'varea']
     if wildcards.atlas_type == 'prior':
         benson_prefix = 'benson14'
@@ -507,6 +476,7 @@ def get_stim_type(wildcards):
         else:
             return 'logpolar'
 
+
 rule first_level_analysis:
     input:
         unpack(get_first_level_analysis_input),
@@ -521,9 +491,12 @@ rule first_level_analysis:
         save_dir = lambda wildcards, output: os.path.dirname(output[0]),
         vareas = lambda wildcards: wildcards.vareas.split('-'),
         eccen = lambda wildcards: wildcards.eccen.split('-'),
-        results_template = lambda wildcards, input: input.R2_files[0].replace('lh', '%s').replace('R2', '%s'),
-        benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
-        benson_names = lambda wildcards, input: [i.split('_')[-1].replace('.mgz', '') for i in input.benson_paths if 'lh' in i],
+        # for some reason, input.benson_paths only includes the first of the benson_paths (but all
+        # of them are included in input, so snakemake checks for them correctly)
+        benson_template = lambda wildcards, input: input.benson_paths.replace('lh', '%s').replace('angle', '%s'),
+        # ... and fortunately the benson_paths are now the only mgz files we use as input, so this
+        # check will only catch them.
+        benson_names = lambda wildcards, input: [i.split('_')[-1].replace('.mgz', '') for i in input if 'lh' in i],
         class_num = lambda wildcards: get_n_classes(wildcards.session, wildcards.mat_type),
         stim_type = get_stim_type,
         mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
@@ -532,12 +505,12 @@ rule first_level_analysis:
     log:
         os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
     shell:
-        "python sfp/first_level_analysis.py --save_dir {params.save_dir} --vareas {params.vareas} "
+        "python -m sfp.first_level_analysis --save_dir {params.save_dir} --vareas {params.vareas} "
         "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} "
         "--unshuffled_stim_descriptions_path {input.desc_csv} --unshuffled_stim_path {input.stim} "
         "--save_stem {params.save_stem} --class_nums {params.class_num} --stim_type "
         "{params.stim_type} --mid_val {params.mid_val} --benson_template_names "
-        "{params.benson_names} --results_template_path {params.results_template} "
+        "{params.benson_names} --results_path {input.GLM_results} "
         "--benson_template_path {params.benson_template}"
 
 
@@ -567,7 +540,7 @@ rule binning:
     log:
         os.path.join(config["DATA_DIR"], "code", "binning", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
-        "python sfp/binning.py {params.bin_str} {input} {output}"
+        "python -m sfp.binning {params.bin_str} {input} {output}"
 
 
 rule tuning_curves:

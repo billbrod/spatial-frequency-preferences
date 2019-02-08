@@ -7,6 +7,7 @@ import matplotlib as mpl
 # warning to that effect; that's unnecessarily alarming, so we hide it.
 mpl.use('svg', warn=False)
 import argparse
+import warnings
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -14,6 +15,7 @@ import os
 import nibabel as nib
 import itertools
 import re
+import h5py
 from matplotlib import pyplot as plt
 from . import stimuli as sfp_stimuli
 
@@ -44,7 +46,56 @@ def _arrange_helper(hemi, name, template, varea_mask, eccen_mask):
     return "%s-%s" % (res_name, hemi), tmp
 
 
-def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results_names, vareas,
+def _load_mat_file(path, results_names, varea_mask, eccen_mask):
+    """load and reshape data from .mat file, so it's either 1 or 2d instead of 3 or 4d
+
+    this will open the mat file (we assume it's saved by matlab v7.3 and so use h5py to do so). we
+    then need to know the name of the mat_field (e.g., 'models', 'modelmd', 'modelse') to
+    grab. then, some times we don't want to grab the entire corresponding array but only some
+    subset (e.g., we don't want all bootstraps, all stimulus classes, we only want one stimulus
+    class, all bootstraps), so index, if non-None, specifies the index along the second dimension
+    (that's the one that indexes the stimulus classes) to take.
+
+    """
+    mgzs = {}
+    with h5py.File(path) as f:
+        for var, index in results_names:
+            tmp_ref = f['results'][var]
+            if tmp_ref.shape == (2, 1):
+                # this is the case for all the models fields of the .mat file (modelse, modelmd,
+                # models). [0, 0] contains the hrf, and [1, 0] contains the actual results.
+                res = f[tmp_ref[1, 0]][:]
+            else:
+                # that reference thing is only necessary for those models fields, because I think
+                # they're matlab structs
+                res = tmp_ref[:]
+            for idx in index:
+                res_name = var
+                if idx is None:
+                    tmp = res
+                else:
+                    tmp = res[:, idx]
+                    res_name += '_%02d' % idx
+                if tmp.ndim == 3:
+                    tmp = tmp.reshape(max(tmp.shape))
+                elif tmp.ndim == 4:
+                    tmp = tmp.reshape(max(tmp.shape), sorted(tmp.shape)[-2])
+                # because of how bidsGetPreprocData.m loads in the surface files, we know this is the left
+                # and right hemisphere concatenated together, in that order
+                for hemi in ['lh', 'rh']:
+                    if hemi == 'lh':
+                        tmper = tmp[:varea_mask['lh'].shape[0]]
+                    else:
+                        tmper = tmp[-varea_mask['rh'].shape[0]:]
+                    if tmper.ndim == 1:
+                        tmper = tmper[(varea_mask[hemi]) & (eccen_mask[hemi])]
+                    elif tmper.ndim == 2:
+                        tmper = tmper[(varea_mask[hemi]) & (eccen_mask[hemi]), :]
+                    mgzs['%s-%s' % (res_name, hemi)] = tmper
+    return mgzs
+
+
+def _arrange_mgzs_into_dict(benson_template_path, results_path, results_names, vareas,
                             eccen_range, benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
     """load in the mgzs, put in a dictionary, and return that dictionary
 
@@ -70,14 +121,13 @@ def _arrange_mgzs_into_dict(benson_template_path, results_template_path, results
         eccen_mask[hemi] = _load_mgz(benson_template_path % (hemi, 'eccen'))
         eccen_mask[hemi] = (eccen_mask[hemi] > eccen_range[0]) & (eccen_mask[hemi] < eccen_range[1])
 
+    # these are all mgzs
     for hemi, var in itertools.product(['lh', 'rh'], benson_template_names):
         k, v = _arrange_helper(hemi, var, benson_template_path, varea_mask, eccen_mask)
         mgzs[k] = v
 
-    for hemi, var in itertools.product(['lh', 'rh'], results_names):
-        k, v = _arrange_helper(hemi, var, results_template_path, varea_mask, eccen_mask)
-        mgzs[k] = v
-
+    # these all live in the results.mat file produced by GLMdenoise
+    mgzs.update(_load_mat_file(results_path, results_names, varea_mask, eccen_mask))
     return mgzs
 
 
@@ -87,11 +137,11 @@ def _unfold_2d_mgz(mgz, value_name, variable_name, mgz_name, hemi=None):
     if hemi is not None:
         tmp['hemi'] = hemi
     tmp = tmp.rename(columns={'index': 'voxel', 'variable': variable_name, 'value': value_name})
-    if 'models_class' in mgz_name:
+    if 'models_' in mgz_name:
         # then the value name contains which stimulus class this and the actual value_name is
         # amplitude_estimate
-        class_idx = re.search('models_class_([0-9]+)', mgz_name).groups()
-        assert len(class_idx) == 1, "models_class title %s should only contain one number, to identify stimulus class!" % value_name
+        class_idx = re.search('models_([0-9]+)', mgz_name).groups()
+        assert len(class_idx) == 1, "models title %s should only contain one number, to identify stimulus class!" % value_name
         tmp['stimulus_class'] = int(class_idx[0])
     return tmp
 
@@ -182,13 +232,18 @@ def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None,
             elif df_mode == 'full':
                 df = pd.concat([df, tmp])
 
-    df = df.set_index('voxel')
     for brain_name in benson_template_names + ['R2']:
-        tmp = pd.DataFrame(mgzs[mgz_key % brain_name])
-        tmp.index.rename('voxel', True)
-        df[brain_name] = tmp[0]
+        try:
+            tmp = pd.DataFrame(mgzs[mgz_key % brain_name])#.byteswap().newbyteorder())
+            tmp = tmp.reset_index().rename(columns={'index': 'voxel', 0: brain_name})
+            df = df.merge(tmp)
+        except ValueError:
+            # see http://pandas.pydata.org/pandas-docs/version/0.19.1/gotchas.html#byte-ordering-issues
+            warnings.warn("%s had that big-endian error" % brain_name)
+            tmp = pd.DataFrame(mgzs[mgz_key % brain_name].byteswap().newbyteorder())
+            tmp = tmp.reset_index().rename(columns={'index': 'voxel', 0: brain_name})
+            df = df.merge(tmp)
 
-    df = df.reset_index()
     return df
 
 
@@ -439,7 +494,7 @@ def _normalize_amplitude_estimate(df, norm_order=2):
     return df
 
 
-def main(benson_template_path, results_template_path, df_mode='summary', stim_type='logpolar',
+def main(benson_template_path, results_path, df_mode='summary', stim_type='logpolar',
          save_path=None, class_nums=range(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
          benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
          unshuffled_stim_path="../data/stimuli/unshuffled.npy",
@@ -505,17 +560,17 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
     # interested in here
     stim = np.load(unshuffled_stim_path)[0, :, :]
     if df_mode == 'summary':
-        results_names = ['modelse', 'modelmd']
+        results_names = [('modelse', [None]), ('modelmd', [None])]
     elif df_mode == 'full':
-        results_names = ['models_class_%02d' % i for i in class_nums]
+        results_names = [('models', class_nums)]
     else:
         raise Exception("Don't know how to construct df with df_mode %s!" % df_mode)
     if not os.path.isfile(benson_template_path % ('lh', 'varea')):
         raise Exception("Unable to find the Benson visual areas template! Check your "
                         "benson_template_path!")
     else:
-        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_template_path,
-                                       results_names+['R2'], vareas, eccen_range,
+        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_path,
+                                       results_names+[('R2', [None])], vareas, eccen_range,
                                        benson_template_names)
     if save_path is not None:
         fig, axes = plt.subplots(1, 2, figsize=(10, 5))
@@ -527,7 +582,15 @@ def main(benson_template_path, results_template_path, df_mode='summary', stim_ty
             ax.set_title("R2 for %s, data originally contained %s NaNs" % (hemi, num_nans))
         fig.savefig(save_path.replace('.csv', '_R2.svg'))
 
-    results_names = [os.path.split(i)[-1] for i in results_names]
+    if results_names[0][1][0] is None:
+        # then all the results_names have None as their second value in the key tuple, so we can
+        # ignore it
+        results_names = [i[0] for i in results_names]
+    else:
+        # then every entry in results_names is a string followed by a list of
+        # ints. itertools.product will give us what we want, but we need to wrap the string in a
+        # list so that it doesn't iterate through the individual characters in the string
+        results_names = ["%s_%02d" % (k, l) for i, j in results_names for k, l in itertools.product([i], j)]
 
     df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, benson_template_names)
     df.varea = df.varea.astype(int)
@@ -553,7 +616,7 @@ if __name__ == '__main__':
         description=("Load in relevant data and create a DataFrame summarizing the first-level "
                      "results for a given subject. Note that this can take a rather long time."),
         formatter_class=CustomFormatter)
-    parser.add_argument("--results_template_path", required=True,
+    parser.add_argument("--results_path", required=True,
                         help=("template path to the results mgz files (outputs of realign.py), "
                               "containing two string formatting symbols (one for hemisphere, "
                               "one specifying results type). Can contain any environment"
