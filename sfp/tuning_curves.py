@@ -157,7 +157,9 @@ def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
             # curve to them
             continue
         values_to_fit = zip(g.frequency_value.values, g.amplitude_estimate.values)
-        values_to_fit = zip(*sorted(values_to_fit, key=lambda pair: pair[0]))
+        # in python2, zip returned a list. in python3, it returns an iterable. we don't actually
+        # want to iterate through it here, just index into it, so we convert it to a list
+        values_to_fit = list(zip(*sorted(values_to_fit, key=lambda pair: pair[0])))
         fit_success = False
         maxfev = 100000
         tol = 1.5e-08
@@ -169,7 +171,9 @@ def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
                 popt, _ = optimize.curve_fit(log_norm_pdf, values_to_fit[0], values_to_fit[1],
                                              maxfev=maxfev, ftol=tol, xtol=tol,
                                              p0=[1, mode_guess, 1],
-                                             bounds=zip(ampl_bounds, mode_bounds, sigma_bounds))
+                                             # optimize.curve_fit needs to be able to take the
+                                             # len(bounds), and zips have no length
+                                             bounds=list(zip(ampl_bounds, mode_bounds, sigma_bounds)))
                 fit_success = True
             except RuntimeError:
                 fit_warning = True

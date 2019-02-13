@@ -553,7 +553,7 @@ rule tuning_curves:
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
-        "python sfp/tuning_curves.py {input} {output}"
+        "python -m sfp.tuning_curves {input} {output}"
 
 
 rule plots:
