@@ -124,7 +124,7 @@ def scatter_ci_col(x, y, ci, **kwargs):
     plot_data = data.groupby(x)[y].median()
     plot_cis = data.groupby(x)[ci].median()
     plt.scatter(plot_data.index, plot_data.values, **kwargs)
-    for (x, ci), y in zip(plot_cis.iteritems(), plot_data.values):
+    for (x, ci), y in zip(plot_cis.items(), plot_data.values):
         plt.plot([x, x], [y+ci, y-ci], **kwargs)
 
 
@@ -144,7 +144,7 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, **kwargs):
     plot_cis = data.groupby(x)[y].apply(np.percentile, ci_vals)
     x_data = _jitter_data(plot_data.index, x_jitter)
     plt.scatter(x_data, plot_data.values, **kwargs)
-    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.iteritems()):
+    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.items()):
         plt.plot([x, x], [ci_low, ci_high], **kwargs)
 
 
@@ -463,7 +463,7 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
     stim_props = {}
     stim_num = None
     figsize = kwargs.pop('figsize', None)
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
         if hasattr(v, "__iter__") and not isinstance(v, str):
             if stim_num is None:
                 stim_num = len(v)
@@ -475,13 +475,13 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
             stim_props[k] = [v]
     if stim_num is None:
         stim_num = 1
-    for k, v in stim_props.iteritems():
+    for k, v in stim_props.items():
         if len(v) == 1:
             stim_props[k] = stim_num * v
     stim_idx = []
     for i in range(stim_num):
         stim_idx.append(utils.find_stim_idx(stim_df,
-                                            **dict((k, v[i]) for k, v in stim_props.iteritems())))
+                                            **dict((k, v[i]) for k, v in stim_props.items())))
     if figsize is None:
         figsize = (5 * min(stim_num, 4), 5 * np.ceil(stim_num / 4.))
     fig = plt.figure(figsize=figsize)
@@ -518,7 +518,7 @@ def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
 
 
 def _restrict_df(df, **kwargs):
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
         try:
             df = df[df[k].isin(v)]
         except TypeError:
@@ -584,7 +584,7 @@ def check_hypotheses(tuning_df, save_path_template=None, norm=False, ci_vals=[16
         f.add_legend()
         suptitle = title_template.format(n)
         f.fig.suptitle("Median amplitude estimates with tuning curves, %s" % suptitle)
-        sns.plt.subplots_adjust(top=.93)
+        plt.subplots_adjust(top=.93)
         f.set_titles("{row_name} | {col_name}")
         if save_path_template is not None:
             f.fig.savefig(save_path_template % suptitle, bbox_inches='tight')
@@ -732,7 +732,7 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
 def _parse_save_path_for_kwargs(save_path):
     kwargs = dict(i.split('=') for i in save_path.split('_'))
     # we know all are ints
-    return dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in kwargs.iteritems())
+    return dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in kwargs.items())
 
 
 if __name__ == '__main__':

@@ -570,7 +570,7 @@ rule plots:
     log:
         os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{step}_{plot_name}-%j.log")
     shell:
-        "python sfp/plotting.py {input.dataframe} {params.stim_dir} --plot_to_make "
+        "python -m sfp.plotting {input.dataframe} {params.stim_dir} --plot_to_make "
         "{wildcards.plot_name}"
 
 
