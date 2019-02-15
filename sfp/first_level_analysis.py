@@ -21,14 +21,14 @@ from . import stimuli as sfp_stimuli
 
 
 def _load_mgz(path):
-    """load and reshape mgz so it's either 1 or 2d, instead of 3 or 4d
+    """load and reshape mgz so it's either 1d, instead of 3d
+
+    this will also make an mgz 2d instead of 4d, but we also want to rearrange the data some, which
+    this doesn't do
+
     """
     # see http://pandas.pydata.org/pandas-docs/version/0.19.1/gotchas.html#byte-ordering-issues
-    tmp = nib.load(path).get_data().byteswap().newbyteorder()
-    if tmp.ndim == 3:
-        return tmp.reshape(max(tmp.shape))
-    elif tmp.ndim == 4:
-        return tmp.reshape(max(tmp.shape), sorted(tmp.shape)[-2])
+    return nib.load(path).get_data().byteswap().newbyteorder().squeeze()
 
 
 def _arrange_helper(hemi, name, template, varea_mask, eccen_mask):
@@ -76,10 +76,11 @@ def _load_mat_file(path, results_names, varea_mask, eccen_mask):
                 else:
                     tmp = res[:, idx]
                     res_name += '_%02d' % idx
-                if tmp.ndim == 3:
-                    tmp = tmp.reshape(max(tmp.shape))
-                elif tmp.ndim == 4:
-                    tmp = tmp.reshape(max(tmp.shape), sorted(tmp.shape)[-2])
+                tmp = tmp.squeeze()
+                # in this case, the data is stimulus classes or bootstraps by voxels, and we want
+                # voxels first, so we transpose.
+                if tmp.ndim == 2:
+                    tmp = tmp.transpose()
                 # because of how bidsGetPreprocData.m loads in the surface files, we know this is the left
                 # and right hemisphere concatenated together, in that order
                 for hemi in ['lh', 'rh']:
