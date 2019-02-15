@@ -91,8 +91,12 @@ wildcard_constraints:
 #  interpreted that way (because we'll never have a mat_type that includes "fixed_hrf"). However,
 #  we don't want to constrain what mat_type matches because we want to be able to treat the output
 #  folder created by GLMdenoise_fixed_hrf the same as the output folder created by GLMdenoise for
-#  the purpose of later calls.
-ruleorder: GLMdenoise_fixed_hrf > GLMdenoise
+#  the purpose of later calls. Similarly, create_GLMdenoise_fixed_hrf_json needs to happen before
+#  create_GLMdenoise_json. It doesn't matter where the create_*_json rules happen relative to the
+#  GLMdenoise* ones, but they all need to be in a single chain, so this works.
+ruleorder:
+    GLMdenoise_fixed_hrf > GLMdenoise > create_GLMdenoise_fixed_hrf_json > create_GLMdenoise_json
+    
 
 # all: plots_all plots_modeling_blanks plots_VSS_abstract summary_plots_all summary_plots_VSS_abstract
 
@@ -342,45 +346,72 @@ rule to_freesurfer:
         " rm {params.tmp_nifti}"
 
 
+def find_benson_varea(wildcards):
+    if wildcards.atlas_type == 'prior':
+        benson_prefix = 'benson14'
+    elif wildcards.atlas_type == 'posterior':
+        benson_prefix = 'inferred'
+    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', wildcards.subject.replace('sub-', ''), 'surf', '{hemi}.'+benson_prefix+'_varea.mgz')
+    return expand(benson_template, hemi=['lh', 'rh'])
+
+
 rule create_GLMdenoise_json:
     input:
-        os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsOptimize.json')
+        json_template = os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsOptimize.json'),
+        vareas_mgzs = find_benson_varea
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
+        os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}-%j.log')
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_{atlas_type}-%j.log')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_{atlas_type}_benchmark.txt')
     run:
         import json
-        with open(input[0]) as f:
+        import nibabel as nib
+        import numpy as np
+        with open(input.json_template) as f:
             opts = json.load(f)
+        vareas = []
+        for v in input.vareas_mgzs:
+            vareas.append(nib.load(v).get_data().squeeze())
+        vareas = np.concatenate(vareas)
+        vareas = np.isin(vareas, [1, 2, 3])
         opts['opt']['wantsanityfigures'] = True
         opts['opt']['seed'] = SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+        opts['opt']['hrffitmask'] = vareas.tolist()
         with open(output[0], 'w') as f:
             json.dump(opts, f)
 
 
 rule create_GLMdenoise_fixed_hrf_json:
     input:
-        os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsAssume.json'),
-        os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{input_mat}",  "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_results.mat"),
+        json_template = os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsAssume.json'),
+        old_results = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat"),
+        vareas_mgzs = find_benson_varea
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
+        os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}-%j.log')
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}-%j.log')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}_benchmark.txt')
     run:
         import json
         import h5py
-        with open(input[0]) as f:
+        import nibabel as nib
+        import numpy as np
+        with open(input.json_template) as f:
             opts = json.load(f)
-        mat = h5py.File(input[1])
-        hrf_ref = f['results']['modelmd'][0, 0]
+        mat = h5py.File(input.old_results)
+        hrf_ref = mat['results']['modelmd'][0, 0]
+        vareas = []
+        for v in input.vareas_mgzs:
+            vareas.append(nib.load(v).get_data().squeeze())
+        vareas = np.concatenate(vareas)
+        vareas = np.isin(vareas, [1, 2, 3])
         opts['opt']['wantsanityfigures'] = True
         opts['opt']['seed'] = SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
-        opts['hrfknobs'] = np.array(mat[hrf_ref]).flatten().tolist(3)
+        opts['hrfknobs'] = np.array(mat[hrf_ref]).flatten().tolist()
+        opts['opt']['hrffitmask'] = vareas.tolist()
         with open(output[0], 'w') as f:
             json.dump(opts, f)
 
@@ -389,13 +420,13 @@ rule GLMdenoise:
     input:
         preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.mgz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
-        opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
+        opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     output:
-        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
+        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}-%j.log")
     params:
         vistasoft_path = os.path.join(config['VISTASOFT_PATH']),
         GLMdenoise_path = config['GLMDENOISE_PATH'],
@@ -405,7 +436,7 @@ rule GLMdenoise:
         session = lambda wildcards: wildcards.session.replace('ses-', ''),
         # the bidsGLM script drops its output here, but we want to move it to the location in
         # output
-        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_results.mat").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 100
@@ -423,13 +454,13 @@ rule GLMdenoise_fixed_hrf:
     input:
         preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.mgz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
-        opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
+        opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     output:
-        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
+        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}-%j.log")
     params:
         vistasoft_path = os.path.join(config['VISTASOFT_PATH']),
         GLMdenoise_path = config['GLMDENOISE_PATH'],
@@ -439,7 +470,7 @@ rule GLMdenoise_fixed_hrf:
         session = lambda wildcards: wildcards.session.replace('ses-', ''),
         # the bidsGLM script drops its output here, but we want to move it to the location in
         # output
-        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}",  "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}_results.mat").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 150
@@ -455,7 +486,7 @@ rule GLMdenoise_fixed_hrf:
 
 def get_first_level_analysis_input(wildcards):
     input_dict = {}
-    input_dict['GLM_results'] = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(**wildcards)
+    input_dict['GLM_results'] = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(**wildcards)
     benson_names = ['angle', 'eccen', 'varea']
     if wildcards.atlas_type == 'prior':
         benson_prefix = 'benson14'
