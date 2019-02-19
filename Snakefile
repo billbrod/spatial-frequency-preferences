@@ -436,7 +436,10 @@ rule GLMdenoise:
         session = lambda wildcards: wildcards.session.replace('ses-', ''),
         # the bidsGLM script drops its output here, but we want to move it to the location in
         # output
-        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_results.mat").format(**wildcards),
+        GLM_output_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}-{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_tmp_parent_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}-{atlas_type}", "{subject}", "{session}").format(**wildcards),
+        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}-{atlas_type}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 100
@@ -445,8 +448,9 @@ rule GLMdenoise:
         "vistasoft_path}')); addpath(genpath('{params.GLMdenoise_path}')); "
         "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
         "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
-        "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, [], "
-        "'{input.opts_json}', jsonInfo.TR_length); quit;\"; "
+        "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, "
+        "'{wildcards.mat_type}-{wildcards.atlas_type}', '{input.opts_json}', jsonInfo.TR_length); "
+        "quit;\"; mv -v {params.GLM_output_dir} {params.GLM_target_dir}; rmdir -pv {params.GLM_tmp_parent_dir}; "
         "mv -v {params.GLM_output} {output.GLM_results}"
 
 
@@ -470,7 +474,10 @@ rule GLMdenoise_fixed_hrf:
         session = lambda wildcards: wildcards.session.replace('ses-', ''),
         # the bidsGLM script drops its output here, but we want to move it to the location in
         # output
-        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}_results.mat").format(**wildcards),
+        GLM_output_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}-{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_tmp_parent_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}-{atlas_type}", "{subject}", "{session}").format(**wildcards),
+        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}-{atlas_type}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 150
@@ -480,8 +487,10 @@ rule GLMdenoise_fixed_hrf:
         "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
         "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
         "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, "
-        "'{wildcards.mat_type}_fixed_hrf_{wildcards.input_mat}', '{input.opts_json}', jsonInfo.TR_length);"
-        " quit;\"; mv -v {params.GLM_output} {output.GLM_results}"
+        "'{wildcards.mat_type}_fixed_hrf_{wildcards.input_mat}-{wildcards.atlas_type}', "
+        "'{input.opts_json}', jsonInfo.TR_length); quit;\"; "
+        "mv -v {params.GLM_output_dir} {params.GLM_target_dir}; rmdir -pv {params.GLM_tmp_parent_dir}; "
+        "mv -v {params.GLM_output} {output.GLM_results}"
 
 
 def get_first_level_analysis_input(wildcards):
