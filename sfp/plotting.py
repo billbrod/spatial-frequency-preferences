@@ -382,9 +382,9 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=Non
     mid_val = {'pilot': 127}.get(stim_type, 128)
     dx = utils.mask_array_like_grating(grating, dx, mid_val)
     dy = utils.mask_array_like_grating(grating, dy, mid_val)
-    mask_spacing = np.round(size / num_windows)
+    mask_spacing = int(np.round(size / num_windows))
     # for this to work, the gratings must be non-overlapping
-    mask_size = np.round(mask_spacing / 2) - 1
+    mask_size = int(np.round(mask_spacing / 2) - 1)
     masked_grating = np.zeros((size, size))
     masked_approx = np.zeros((size, size))
     masks = np.zeros((size, size))
