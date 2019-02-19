@@ -130,7 +130,7 @@ rule model_all_data:
 
 rule GLMdenoise_all_visual:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "all_visual", "posterior",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
 
 
 rule plots_modeling_blanks:
@@ -176,7 +176,7 @@ rule plots_VSS_abstract:
 
 rule GLMdenoise_all:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "stim_class", "posterior",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
 
 
 rule preprocess_all:
