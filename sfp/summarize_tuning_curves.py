@@ -20,7 +20,7 @@ def main(root_dir, save_path=None, **kwargs):
     the specified value(s)
     """
     limit_kwargs = {}
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
         if isinstance(v, str) or not hasattr(v, '__iter__'):
             limit_kwargs[k] = [v]
         else:
@@ -34,7 +34,7 @@ def main(root_dir, save_path=None, **kwargs):
         info_dict = re.search(PATH_TEMPLATE, p).groupdict()
         # the [True] here ensures that if limit_kwargs is empty, there will be one True and thus
         # np.all will return True.
-        in_limit_kwargs = [True] + [info_dict[k] in v for k, v in limit_kwargs.iteritems()]
+        in_limit_kwargs = [True] + [info_dict[k] in v for k, v in limit_kwargs.items()]
         if not np.all(in_limit_kwargs):
             continue
         tmp_df = pd.read_csv(p)
