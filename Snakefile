@@ -679,7 +679,7 @@ rule tuning_curves_summary_plot:
                      "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{sessions}_{tasks}_v"
                      "{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}_{y}-%j.log")
     shell:
-        "python sfp/summary_plots.py {input} --col {params.col} --row {params.row} --hue"
+        "python -m sfp.summary_plots {input} --col {params.col} --row {params.row} --hue"
         " {params.hue} --y {params.y} --varea {params.plot_varea} --eccen_range {params.eccen_range}"
         " --subject {params.subjects} --task {params.tasks} --session {params.sessions}"
 
