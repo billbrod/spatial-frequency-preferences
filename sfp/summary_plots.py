@@ -8,8 +8,6 @@ import matplotlib as mpl
 mpl.use('svg', warn=False)
 import inspect
 import re
-import os
-import itertools
 import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
