@@ -8,7 +8,7 @@ if not os.path.isdir(config["DATA_DIR"]):
     raise Exception("Cannot find the dataset at %s" % config["DATA_DIR"])
 if os.system("module list") == 0:
     # then we're on the cluster
-    shell.prefix("module purge; module load anaconda2/4.3.1; source activate sfp; "
+    shell.prefix(". /share/apps/anaconda3/5.3.1/etc/profile.d/conda.sh; conda activate sfp; "
                  "module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2017a; "
                  "export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 else:
@@ -78,7 +78,7 @@ wildcard_constraints:
     hue="[a-z-]+",
     y="[a-z-]+",
     binning="[a-z_]+bin",
-    stimulus_class="[0-9,]+",
+    stimulus_class="([0-9,]+|None)",
     orientation_type="[a-z-]+",
     eccentricity_type="[a-z-]+",
     train_amps="[a-z-]+",
@@ -91,8 +91,12 @@ wildcard_constraints:
 #  interpreted that way (because we'll never have a mat_type that includes "fixed_hrf"). However,
 #  we don't want to constrain what mat_type matches because we want to be able to treat the output
 #  folder created by GLMdenoise_fixed_hrf the same as the output folder created by GLMdenoise for
-#  the purpose of later calls.
-ruleorder: GLMdenoise_fixed_hrf > GLMdenoise
+#  the purpose of later calls. Similarly, create_GLMdenoise_fixed_hrf_json needs to happen before
+#  create_GLMdenoise_json. It doesn't matter where the create_*_json rules happen relative to the
+#  GLMdenoise* ones, but they all need to be in a single chain, so this works.
+ruleorder:
+    GLMdenoise_fixed_hrf > GLMdenoise > create_GLMdenoise_fixed_hrf_json > create_GLMdenoise_json
+    
 
 # all: plots_all plots_modeling_blanks plots_VSS_abstract summary_plots_all summary_plots_VSS_abstract
 
@@ -126,11 +130,7 @@ rule model_all_data:
 
 rule GLMdenoise_all_visual:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n:02d}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='all_visual', n=n) for sub in SUBJECTS for ses in SESSIONS[sub] for n in range(get_n_classes(ses, 'all_visual'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "all_visual", "posterior",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
 
 
 rule plots_modeling_blanks:
@@ -176,11 +176,7 @@ rule plots_VSS_abstract:
 
 rule GLMdenoise_all:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class') for sub in SUBJECTS for ses in SESSIONS[sub]],
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n:02d}.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], mat_type='stim_class', n=n) for sub in SUBJECTS for ses in SESSIONS[sub] for n in range(get_n_classes(ses, 'stim_class'))],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "stim_class", "posterior",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
 
 
 rule preprocess_all:
@@ -207,6 +203,39 @@ rule stimuli_idx:
         "python sfp/stimuli.py --subject_name {wildcards.subject} -i -s {params.seed}"
 
 
+def get_permuted(wildcards):
+    if "permuted" in wildcards.mat_type:
+        return "-p"
+    else:
+        return ""
+
+
+def get_design_inputs(wildcards):
+    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
+    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold.nii")
+    return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+            'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
+
+
+rule create_design_matrices:
+    input:
+        unpack(get_design_inputs),
+    output:
+        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{task}_{mat_type}-%j.log")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{task}_{mat_type}_benchmark.txt")
+    params:
+        save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%02d_design.tsv'),
+        permuted_flag = get_permuted,
+        mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", ""),
+        BIDS_dir = config["DATA_DIR"],
+    shell:
+        "python sfp/design_matrices.py {params.BIDS_dir} {wildcards.subject} {wildcards.session}"
+        " --mat_type {params.mat_type} --save_path {params.save_path} {params.permuted_flag}"
+
+
 rule preprocess:
     input:
         lambda wildcards: os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", wildcards.subject.replace('sub-', '')),
@@ -224,14 +253,14 @@ rule preprocess:
     params:
         plugin = "MultiProc",
         data_dir = lambda wildcards: os.path.join(config['DATA_DIR'], wildcards.subject, wildcards.session),
-        working_dir = lambda wildcards: "/scratch/wfb229/preprocess/%s_%s_%s" % (wildcards.subject, wildcards.session, wildcards.run),
+        working_dir = lambda wildcards: os.path.join(config['WORKING_DIR'], "%s_%s_%s" % (wildcards.subject, wildcards.session, wildcards.run)),
         plugin_args = lambda wildcards, resources: ",".join("%s:%s" % (k,v) for k,v in {'n_procs': resources.cpus_per_task, 'memory_gb': resources.mem}.items()),
         epi_num = lambda wildcards: int(wildcards.run.replace('run-', '')),
         script_location = os.path.join(config["MRI_TOOLS"], "preprocessing", "prisma_preproc.py")
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}.log")
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}-%j.log")
     shell:
         # we want to remove the working directory afterwards because it's big and contains many
         # files. it means that re-runs will take slightly longer, but since I was starting to run
@@ -248,7 +277,9 @@ rule rearrange_preprocess_extras:
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{filename_ext}")
     log:
-        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_rearrange_extras_{filename_ext}.log")
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_rearrange_extras_{filename_ext}-%j.log")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_rearrange_extras_{filename_ext}_benchmark.txt")
     run:
         import subprocess
         import os
@@ -284,7 +315,9 @@ rule rearrange_preprocess:
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
     log:
-        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{run}_rearrange.log")
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}_rearrange-%j.log")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}_rearrange_benchmark.txt")
     run:
         import shutil
         import os
@@ -292,163 +325,177 @@ rule rearrange_preprocess:
         os.removedirs(os.path.dirname(input[0]))
 
 
-def get_permuted(wildcards):
-    if "permuted" in wildcards.mat_type:
-        return "-p"
-    else:
-        return ""
-
-
-def get_design_inputs(wildcards):
-    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
-    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold.nii")
-    return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
-            'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
-
-
-rule create_design_matrices:
+rule to_freesurfer:
     input:
-        unpack(get_design_inputs),
+        in_file = os.path.join(config['DATA_DIR'], "derivatives", "preprocessed",  "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
+        tkreg = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distort2anat_tkreg.dat"),
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json")
-    log:
-        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}.log")
+        os.path.join(config['DATA_DIR'], "derivatives", "preprocessed_reoriented", "{subject}", "{session}", "lh.{subject}_{session}_{task}_{run}_preproc.mgz"),
+        os.path.join(config['DATA_DIR'], "derivatives", "preprocessed_reoriented", "{subject}", "{session}", "rh.{subject}_{session}_{task}_{run}_preproc.mgz")
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "design_matrices", "{subject}_{session}_{mat_type}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "to_freesurfer", "{subject}_{session}_{task}_{run}_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "to_freesurfer", "{subject}_{session}_{task}_{run}-%j.log")
     params:
-        save_path = lambda wildcards, output: output[0].replace('params.json', 'run-%s_design_matrix.tsv'),
-        permuted_flag = get_permuted,
-        mat_type = lambda wildcards: wildcards.mat_type.replace("_permuted", ""),
-        data_dir = lambda wildcards: os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session),
+        output_dir = lambda wildcards, output: os.path.dirname(output[0]),
+        script_location = os.path.join(config["MRI_TOOLS"], "preprocessing", "to_freesurfer.py"),
+        # this will also produce a nifti output that we don't want to keep around.
+        tmp_nifti = lambda wildcards, output: output[0].replace('lh.', '').replace('.mgz', '.nii.gz')
     shell:
-        "python sfp/design_matrices.py {params.data_dir} --mat_type {params.mat_type} --save_path "
-        "{params.save_path} {params.permuted_flag}"
+        "python {params.script_location} -v -s -o {params.output_dir} {input.tkreg} {input.in_file};"
+        " rm {params.tmp_nifti}"
+
+
+def find_benson_varea(wildcards):
+    if wildcards.atlas_type == 'prior':
+        benson_prefix = 'benson14'
+    elif wildcards.atlas_type == 'posterior':
+        benson_prefix = 'inferred'
+    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', wildcards.subject.replace('sub-', ''), 'surf', '{hemi}.'+benson_prefix+'_varea.mgz')
+    return expand(benson_template, hemi=['lh', 'rh'])
+
+
+rule create_GLMdenoise_json:
+    input:
+        json_template = os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsOptimize.json'),
+        vareas_mgzs = find_benson_varea
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_{atlas_type}-%j.log')
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_{atlas_type}_benchmark.txt')
+    run:
+        import json
+        import nibabel as nib
+        import numpy as np
+        with open(input.json_template) as f:
+            opts = json.load(f)
+        vareas = []
+        for v in input.vareas_mgzs:
+            vareas.append(nib.load(v).get_data().squeeze())
+        vareas = np.concatenate(vareas)
+        vareas = np.isin(vareas, [1, 2, 3])
+        opts['opt']['wantsanityfigures'] = True
+        opts['opt']['seed'] = SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+        opts['opt']['hrffitmask'] = vareas.tolist()
+        with open(output[0], 'w') as f:
+            json.dump(opts, f)
+
+
+rule create_GLMdenoise_fixed_hrf_json:
+    input:
+        json_template = os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsAssume.json'),
+        old_results = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat"),
+        vareas_mgzs = find_benson_varea
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}-%j.log')
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'GLMdenoise_json', '{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}_benchmark.txt')
+    run:
+        import json
+        import h5py
+        import nibabel as nib
+        import numpy as np
+        with open(input.json_template) as f:
+            opts = json.load(f)
+        mat = h5py.File(input.old_results)
+        hrf_ref = mat['results']['modelmd'][0, 0]
+        vareas = []
+        for v in input.vareas_mgzs:
+            vareas.append(nib.load(v).get_data().squeeze())
+        vareas = np.concatenate(vareas)
+        vareas = np.isin(vareas, [1, 2, 3])
+        opts['opt']['wantsanityfigures'] = True
+        opts['opt']['seed'] = SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+        opts['hrfknobs'] = np.array(mat[hrf_ref]).flatten().tolist()
+        opts['opt']['hrffitmask'] = vareas.tolist()
+        with open(output[0], 'w') as f:
+            json.dump(opts, f)
 
 
 rule GLMdenoise:
     input:
-        preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.nii.gz"), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+        preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.mgz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
+        opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     output:
-        GLM_results_md = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz"),
-        GLM_results_se = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz"),
-        GLM_results_r2 = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz"),
-        GLM_results_r2run = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz"),
-        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
-        GLM_results_detrended = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_denoiseddata.mat")),
-        GLM_results_hrf = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_hrf.json")
+        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}.log")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}-%j.log")
     params:
-        output_dir = lambda wildcards, output: os.path.dirname(output.GLM_results_md),
-        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
-        design_matrix_template = lambda wildcards, input: input.params_file.replace('params.json', 'run-%02d_design_matrix.tsv'),
-        preproc_file_template = lambda wildcards, input: input.preproc_files[0].replace('run-01', 'run-%02d'),
-        runs = lambda wildcards: ",".join(str(i) for i in range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
-        seed = lambda wildcards: SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session],
-        freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab'),
-        GLMdenoise_path = config['GLMDENOISE_PATH']
+        vistasoft_path = os.path.join(config['VISTASOFT_PATH']),
+        GLMdenoise_path = config['GLMDENOISE_PATH'],
+        BIDS_dir = config['DATA_DIR'],
+        GLM_dir = os.path.join(config['MRI_TOOLS'], "BIDS"),
+        subject = lambda wildcards: wildcards.subject.replace('sub-', ''),
+        session = lambda wildcards: wildcards.session.replace('ses-', ''),
+        # the bidsGLM script drops its output here, but we want to move it to the location in
+        # output
+        GLM_output_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}-{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_tmp_parent_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}-{atlas_type}", "{subject}", "{session}").format(**wildcards),
+        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}-{atlas_type}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 100
     shell:
-        "cd matlab; matlab -nodesktop -nodisplay -r \"runGLM('{params.design_matrix_template}', "
-        "'{params.preproc_file_template}', [{params.runs}], [{params.runs}], '{input.params_file}',"
-        "'{params.freesurfer_matlab_dir}', '{params.GLMdenoise_path}', {params.seed}, "
-        "'{params.output_dir}', '{params.save_stem}'); quit;\""
+        "cd {params.GLM_dir}; matlab -nodesktop -nodisplay -r \"addpath(genpath('{params."
+        "vistasoft_path}')); addpath(genpath('{params.GLMdenoise_path}')); "
+        "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
+        "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
+        "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, "
+        "'{wildcards.mat_type}-{wildcards.atlas_type}', '{input.opts_json}', jsonInfo.TR_length); "
+        "quit;\"; mv -v {params.GLM_output_dir} {params.GLM_target_dir}; rmdir -pv {params.GLM_tmp_parent_dir}; "
+        "mv -v {params.GLM_output} {output.GLM_results}"
 
 
 rule GLMdenoise_fixed_hrf:
     input:
-        input_hrf = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{input_mat}",  "{subject}", "{session}", "{subject}_{session}_{task}_hrf.json"),
-        preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", wildcards.subject, wildcards.session, wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.nii.gz"), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
+        preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.mgz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
         params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
+        opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     output:
-        GLM_results_md = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_modelmd.nii.gz"),
-        GLM_results_se = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_modelse.nii.gz"),
-        GLM_results_r2 = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_R2.nii.gz"),
-        GLM_results_r2run = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_R2run.nii.gz"),
-        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
-        GLM_results_detrended = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_denoiseddata.mat")),
-        GLM_results_hrf = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{subject}", "{session}", "{subject}_{session}_{task}_hrf.json"))
+        GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}.log")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}-%j.log")
     params:
-        output_dir = lambda wildcards, output: os.path.dirname(output.GLM_results_md),
-        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
-        design_matrix_template = lambda wildcards, input: input.params_file.replace('params.json', 'run-%02d_design_matrix.tsv'),
-        preproc_file_template = lambda wildcards, input: input.preproc_files[0].replace('run-01', 'run-%02d'),
-        runs = lambda wildcards: ",".join(str(i) for i in range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
-        seed = lambda wildcards: SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session],
-        freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab'),
-        GLMdenoise_path = config['GLMDENOISE_PATH']
+        vistasoft_path = os.path.join(config['VISTASOFT_PATH']),
+        GLMdenoise_path = config['GLMDENOISE_PATH'],
+        BIDS_dir = config['DATA_DIR'],
+        GLM_dir = os.path.join(config['MRI_TOOLS'], "BIDS"),
+        subject = lambda wildcards: wildcards.subject.replace('sub-', ''),
+        session = lambda wildcards: wildcards.session.replace('ses-', ''),
+        # the bidsGLM script drops its output here, but we want to move it to the location in
+        # output
+        GLM_output_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}-{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_tmp_parent_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}-{atlas_type}", "{subject}", "{session}").format(**wildcards),
+        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}-{atlas_type}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 150
     shell:
-        "cd matlab; matlab -nodesktop -nodisplay -r \"runGLM('{params.design_matrix_template}', "
-        "'{params.preproc_file_template}', [{params.runs}], [{params.runs}], '{input.params_file}',"
-        "'{params.freesurfer_matlab_dir}', '{params.GLMdenoise_path}', {params.seed}, "
-        "'{params.output_dir}', '{params.save_stem}', '{input.input_hrf}'); quit;\""
+        "cd {params.GLM_dir}; matlab -nodesktop -nodisplay -r \"addpath(genpath('{params."
+        "vistasoft_path}')); addpath(genpath('{params.GLMdenoise_path}')); "
+        "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
+        "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
+        "'preprocessed_reoriented', '{wildcards.mat_type}', jsonInfo.stim_length, "
+        "'{wildcards.mat_type}_fixed_hrf_{wildcards.input_mat}-{wildcards.atlas_type}', "
+        "'{input.opts_json}', jsonInfo.TR_length); quit;\"; "
+        "mv -v {params.GLM_output_dir} {params.GLM_target_dir}; rmdir -pv {params.GLM_tmp_parent_dir}; "
+        "mv -v {params.GLM_output} {output.GLM_results}"
 
-
-rule save_results_niftis:
-    input:
-        GLM_results = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat"),
-        preproc_example_file = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_run-01_preproc.nii.gz")
-    output:
-        os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_models_class_{n}.nii.gz")
-    params:
-        freesurfer_matlab_dir = os.path.join(config['FREESURFER_DIR'], 'matlab'),
-        output_dir = lambda wildcards, output: os.path.dirname(output[0]),
-        save_stem = lambda wildcards: "{subject}_{session}_{task}_".format(**wildcards),
-        saveN = lambda wildcards: int(wildcards.n)+1
-    benchmark:
-        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_models_class_{n}_benchmark.txt")
-    log:
-        os.path.join(config["DATA_DIR"], "code", "save_results_niftis", "{subject}_{session}_{task}_{mat_type}_models_class_{n}.log")
-    resources:
-        mem = 100,
-        cpus_per_task = 1
-    shell:
-        "cd matlab; matlab -nodesktop -nodisplay -r \"saveout({params.saveN}, '{input.GLM_results}'"
-        ", '{input.preproc_example_file}', '{params.output_dir}', '{params.save_stem}', "
-        "'{params.freesurfer_matlab_dir}'); quit;\""
-
-
-rule to_freesurfer:
-    input:
-        in_file = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_{filename}.nii.gz"),
-        tkreg = os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distort2anat_tkreg.dat"),
-    output:
-        os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "{subject}_{session}_{task}_{filename}.nii.gz"),
-        os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "lh.{subject}_{session}_{task}_{filename}.mgz"),
-        os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise_reoriented", "{mat_type}",  "{subject}", "{session}", "rh.{subject}_{session}_{task}_{filename}.mgz")
-    benchmark:
-        os.path.join(config["DATA_DIR"], "code", "to_freesurfer", "{subject}_{session}_{task}_{mat_type}_{filename}_benchmark.txt")
-    log:
-        os.path.join(config["DATA_DIR"], "code", "to_freesurfer", "{subject}_{session}_{task}_{mat_type}_{filename}.log")
-    params:
-        output_dir = lambda wildcards, output: os.path.dirname(output[0]),
-        script_location = os.path.join(config["MRI_TOOLS"], "preprocessing", "to_freesurfer.py")
-    shell:
-        "python {params.script_location} -v -s -o {params.output_dir} {input.tkreg} {input.in_file}"
-        
 
 def get_first_level_analysis_input(wildcards):
-    files = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise_reoriented", wildcards.mat_type, wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_{filename}.mgz")
     input_dict = {}
-    input_dict['R2_files'] = expand(files, hemi=['lh', 'rh'], filename=['R2'])
-    if wildcards.df_mode == 'summary':
-        input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=['modelmd', 'modelse'])
-    elif wildcards.df_mode == 'full':
-        class_num = range(get_n_classes(wildcards.session, wildcards.mat_type))
-        models_names = ['models_class_%02d' % i for i in class_num]
-        input_dict['GLM_results'] = expand(files, hemi=['lh', 'rh'], filename=models_names)
+    input_dict['GLM_results'] = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(**wildcards)
     benson_names = ['angle', 'eccen', 'varea']
     if wildcards.atlas_type == 'prior':
         benson_prefix = 'benson14'
@@ -469,6 +516,7 @@ def get_stim_type(wildcards):
         else:
             return 'logpolar'
 
+
 rule first_level_analysis:
     input:
         unpack(get_first_level_analysis_input),
@@ -483,23 +531,26 @@ rule first_level_analysis:
         save_dir = lambda wildcards, output: os.path.dirname(output[0]),
         vareas = lambda wildcards: wildcards.vareas.split('-'),
         eccen = lambda wildcards: wildcards.eccen.split('-'),
-        results_template = lambda wildcards, input: input.R2_files[0].replace('lh', '%s').replace('R2', '%s'),
-        benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s'),
-        benson_names = lambda wildcards, input: [i.split('_')[-1].replace('.mgz', '') for i in input.benson_paths if 'lh' in i],
+        # for some reason, input.benson_paths only includes the first of the benson_paths (but all
+        # of them are included in input, so snakemake checks for them correctly)
+        benson_template = lambda wildcards, input: input.benson_paths.replace('lh', '%s').replace('angle', '%s'),
+        # ... and fortunately the benson_paths are now the only mgz files we use as input, so this
+        # check will only catch them.
+        benson_names = lambda wildcards, input: [i.split('_')[-1].replace('.mgz', '') for i in input if 'lh' in i],
         class_num = lambda wildcards: get_n_classes(wildcards.session, wildcards.mat_type),
         stim_type = get_stim_type,
         mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}.log")
+        os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
     shell:
-        "python sfp/first_level_analysis.py --save_dir {params.save_dir} --vareas {params.vareas} "
+        "python -m sfp.first_level_analysis --save_dir {params.save_dir} --vareas {params.vareas} "
         "--df_mode {wildcards.df_mode} --eccen_range {params.eccen} "
         "--unshuffled_stim_descriptions_path {input.desc_csv} --unshuffled_stim_path {input.stim} "
         "--save_stem {params.save_stem} --class_nums {params.class_num} --stim_type "
         "{params.stim_type} --mid_val {params.mid_val} --benson_template_names "
-        "{params.benson_names} --results_template_path {params.results_template} "
+        "{params.benson_names} --results_path {input.GLM_results} "
         "--benson_template_path {params.benson_template}"
 
 
@@ -527,9 +578,9 @@ rule binning:
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "binning", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "binning", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}.log")
+        os.path.join(config["DATA_DIR"], "code", "binning", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
-        "python sfp/binning.py {params.bin_str} {input} {output}"
+        "python -m sfp.binning {params.bin_str} {input} {output}"
 
 
 rule tuning_curves:
@@ -540,9 +591,9 @@ rule tuning_curves:
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
-        "python sfp/tuning_curves.py {input} {output}"
+        "python -m sfp.tuning_curves {input} {output}"
 
 
 rule plots:
@@ -555,11 +606,11 @@ rule plots:
     resources:
         mem = 2
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{plot_name}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{step}_{plot_name}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{plot_name}.log")
+        os.path.join(config['DATA_DIR'], "code", "plots", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_{step}_{plot_name}-%j.log")
     shell:
-        "python sfp/plotting.py {input.dataframe} {params.stim_dir} --plot_to_make "
+        "python -m sfp.plotting {input.dataframe} {params.stim_dir} --plot_to_make "
         "{wildcards.plot_name}"
 
 
@@ -593,9 +644,9 @@ rule tuning_curves_summary:
     params:
         input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{df_mode}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{df_mode}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
         "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode}"
 
@@ -620,21 +671,22 @@ rule tuning_curves_summary_plot:
         sessions = lambda wildcards: wildcards.sessions.split(','),
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
-                     "{atlas_type}_{subjects}_{sessions}_{tasks}_v{plot_varea}_e{eccen_range}_"
-                     "row={row}_col={col}_hue={hue}_{plot_func}_{y}_benchmark.txt")
+                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{sessions}_{tasks}_v"
+                     "{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}_{y}_"
+                     "benchmark.txt")
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
-                     "{atlas_type}_{subjects}_{sessions}_{tasks}_v{plot_varea}_e{eccen_range}_"
-                     "row={row}_col={col}_hue={hue}_{plot_func}_{y}.log")
+                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{sessions}_{tasks}_v"
+                     "{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}_{y}-%j.log")
     shell:
-        "python sfp/summary_plots.py {input} --col {params.col} --row {params.row} --hue"
+        "python -m sfp.summary_plots {input} --col {params.col} --row {params.row} --hue"
         " {params.hue} --y {params.y} --varea {params.plot_varea} --eccen_range {params.eccen_range}"
         " --subject {params.subjects} --task {params.tasks} --session {params.sessions}"
 
 
 def parse_train_amps(wildcards):
     if wildcards.train_amps == 'vary':
-        return '-a'
+        return '-v'
     elif wildcards.train_amps == 'constant':
         return ''
     else:
@@ -651,7 +703,7 @@ rule model:
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log")
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: int(wildcards.gpus),
@@ -662,60 +714,69 @@ rule model:
         stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
         train_amps = parse_train_amps
     shell:
-        "python sfp/model.py {wildcards.orientation_type} {wildcards.eccentricity_type} "
+        "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
         "{params.train_amps} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
         "drop_voxels_with_negative_amplitudes,drop_voxels_near_border -t 1e-8 -e 1000 "
-        "-s {params.stimulus_class}"
+        "-c {params.stimulus_class}"
 
 
 rule simulate_data_uniform_noise:
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-uniform', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-uniform', 'n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-uniform_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-uniform_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-uniform_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}.log')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-uniform_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}-%j.log')
     resources:
         mem=10
+    params:
+        train_amps = parse_train_amps
     shell:
-        "python sfp/simulate_data.py {output} -n {wildcards.num_voxels} "
-        " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope} -mc {wildcards.mode_cardinals} -mo "
-        "{wildcards.mode_obliques} -ac {wildcards.amplitude_cardinals} -ao "
-        "{wildcards.amplitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
-        " -o {wildcards.orientation_type}"
+        "python -m sfp.simulate_data {output} -o {wildcards.orientation_type} -e {wildcards.eccentricity_type} "
+        "{params.train_amps} -n {wildcards.num_voxels} -s {wildcards.sigma} "
+        "-a {wildcards.sf_ecc_slope} -rmc {wildcards.rel_mode_cardinals} -rmo "
+        "{wildcards.rel_mode_obliques} -rac {wildcards.rel_amplitude_cardinals} -rao "
+        "{wildcards.rel_amplitude_obliques} -amc {wildcards.abs_mode_cardinals} -amo "
+        "{wildcards.abs_mode_obliques} -aac {wildcards.abs_amplitude_cardinals} -aao "
+        "{wildcards.abs_amplitude_obliques} -b {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
 
 
 rule simulate_data_voxel_noise:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', '{orientation_type}_noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}.log')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}-%j.log')
     resources:
         mem=10
+    params:
+        train_amps = parse_train_amps
     shell:
-        "python sfp/simulate_data.py {output} -n {wildcards.num_voxels} "
-        " -s {wildcards.sigma} -e {wildcards.sf_ecc_slope} -mc {wildcards.mode_cardinals} -mo "
-        "{wildcards.mode_obliques} -ac {wildcards.amplitude_cardinals} -ao "
-        "{wildcards.amplitude_obliques} -i {wildcards.sf_ecc_intercept} -l {wildcards.noise_level}"
-        " -o {wildcards.orientation_type} --noise_source_path {input}"
+        "python -m sfp.simulate_data {output} -o {wildcards.orientation_type} -e {wildcards.eccentricity_type} "
+        "{params.train_amps} -n {wildcards.num_voxels} -s {wildcards.sigma} "
+        "-a {wildcards.sf_ecc_slope} -rmc {wildcards.rel_mode_cardinals} -rmo "
+        "{wildcards.rel_mode_obliques} -rac {wildcards.rel_amplitude_cardinals} -rao "
+        "{wildcards.rel_amplitude_obliques} -amc {wildcards.abs_mode_cardinals} -amo "
+        "{wildcards.abs_mode_obliques} -aac {wildcards.abs_amplitude_cardinals} -aao "
+        "{wildcards.abs_amplitude_obliques} -b {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} "
+        "--noise_source_path {input}"
 
 
 rule model_simulated_data:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{noise_source}', 'n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_loss.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_results_df.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_simulated', '{orientation_type}', 'noise-{noise_source}', 'n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_model.pt')
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_results_df.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_model.pt"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_simulated', 'noise-{noise_source}_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated", "{orientation_type}_noise-{noise_source}_n{num_voxels}_s{sigma}_e{sf_ecc_slope}_i{sf_ecc_intercept}_mc{mode_cardinals}_mo{mode_obliques}_ac{amplitude_cardinals}_ao{amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{model_type}.log")
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_simulated', 'noise-{noise_source}_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log')
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: int(wildcards.gpus),
@@ -723,30 +784,30 @@ rule model_simulated_data:
         gpus = lambda wildcards: int(wildcards.gpus)
     params:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
-        stimulus_class = lambda wildcards: wildcards.stimulus_class.split(',')
+        stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
+        train_amps = parse_train_amps
     shell:
-        "python sfp/model.py {wildcards.model_type} {input} {params.save_stem} -b "
-        "{wildcards.batch_size} -r {wildcards.learning_rate} -d None -t 1e-8 -e 1000 "
-        "-s {params.stimulus_class}"
+        "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
+        "{params.train_amps} {input} {params.save_stem} -b {wildcards.batch_size} "
+        "-r {wildcards.learning_rate} -d None -t 1e-8 -e 1000 -c {params.stimulus_class}"
 
 
 rule gather_model_results:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_model.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_results_df.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_features.csv"),
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all-%j.log")
     resources:
         mem = 100,
     params:
         base_path_template = lambda wildcards, output: output[0].replace("_all_loss.csv", '\*'),
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
     shell:
-        "python sfp/analyze_model.py {params.base_path_template} {params.save_stem}"
+        "python -m sfp.analyze_model {params.base_path_template} {params.save_stem}"
 
 
 rule report:
@@ -756,7 +817,7 @@ rule report:
     output:
         os.path.join(config['DATA_DIR'], 'code', "{step}", "{step}_report.html")
     log:
-        os.path.join(config["DATA_DIR"], "code", "{step}", "report.log")
+        os.path.join(config["DATA_DIR"], "code", "{step}", "report-%j.log")
     run:
         from snakemake.utils import report
         import pandas as pd

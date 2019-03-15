@@ -2,22 +2,23 @@
 """high-level functions to make relevant plots
 """
 import matplotlib as mpl
-# we do this because sometimes we run this without an X-server, and this backend doesn't need one
-mpl.use('svg')
+# we do this because sometimes we run this without an X-server, and this backend doesn't need
+# one. We set warn=False because the notebook uses a different backend and will spout out a big
+# warning to that effect; that's unnecessarily alarming, so we hide it.
+mpl.use('svg', warn=False)
 import argparse
-import utils
+from . import utils
 import warnings
 import os
-import tuning_curves
-import stimuli as sfp_stimuli
-import first_level_analysis
+from . import tuning_curves
+from . import stimuli as sfp_stimuli
+from . import first_level_analysis
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy as sp
 from sklearn import linear_model
-import pyPyrTools as ppt
 
 LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'mixtures', 'angular', 'reverse spiral']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'off-diagonal', 'horizontal',
@@ -123,7 +124,7 @@ def scatter_ci_col(x, y, ci, **kwargs):
     plot_data = data.groupby(x)[y].median()
     plot_cis = data.groupby(x)[ci].median()
     plt.scatter(plot_data.index, plot_data.values, **kwargs)
-    for (x, ci), y in zip(plot_cis.iteritems(), plot_data.values):
+    for (x, ci), y in zip(plot_cis.items(), plot_data.values):
         plt.plot([x, x], [y+ci, y-ci], **kwargs)
 
 
@@ -143,7 +144,7 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, **kwargs):
     plot_cis = data.groupby(x)[y].apply(np.percentile, ci_vals)
     x_data = _jitter_data(plot_data.index, x_jitter)
     plt.scatter(x_data, plot_data.values, **kwargs)
-    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.iteritems()):
+    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.items()):
         plt.plot([x, x], [ci_low, ci_high], **kwargs)
 
 
@@ -381,9 +382,9 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=Non
     mid_val = {'pilot': 127}.get(stim_type, 128)
     dx = utils.mask_array_like_grating(grating, dx, mid_val)
     dy = utils.mask_array_like_grating(grating, dy, mid_val)
-    mask_spacing = np.round(size / num_windows)
+    mask_spacing = int(np.round(size / num_windows))
     # for this to work, the gratings must be non-overlapping
-    mask_size = np.round(mask_spacing / 2) - 1
+    mask_size = int(np.round(mask_spacing / 2) - 1)
     masked_grating = np.zeros((size, size))
     masked_approx = np.zeros((size, size))
     masks = np.zeros((size, size))
@@ -462,8 +463,8 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
     stim_props = {}
     stim_num = None
     figsize = kwargs.pop('figsize', None)
-    for k, v in kwargs.iteritems():
-        if hasattr(v, "__iter__") and not isinstance(v, basestring):
+    for k, v in kwargs.items():
+        if hasattr(v, "__iter__") and not isinstance(v, str):
             if stim_num is None:
                 stim_num = len(v)
             else:
@@ -474,13 +475,13 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
             stim_props[k] = [v]
     if stim_num is None:
         stim_num = 1
-    for k, v in stim_props.iteritems():
+    for k, v in stim_props.items():
         if len(v) == 1:
             stim_props[k] = stim_num * v
     stim_idx = []
     for i in range(stim_num):
         stim_idx.append(utils.find_stim_idx(stim_df,
-                                            **dict((k, v[i]) for k, v in stim_props.iteritems())))
+                                            **dict((k, v[i]) for k, v in stim_props.items())))
     if figsize is None:
         figsize = (5 * min(stim_num, 4), 5 * np.ceil(stim_num / 4.))
     fig = plt.figure(figsize=figsize)
@@ -517,7 +518,7 @@ def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
 
 
 def _restrict_df(df, **kwargs):
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
         try:
             df = df[df[k].isin(v)]
         except TypeError:
@@ -583,7 +584,7 @@ def check_hypotheses(tuning_df, save_path_template=None, norm=False, ci_vals=[16
         f.add_legend()
         suptitle = title_template.format(n)
         f.fig.suptitle("Median amplitude estimates with tuning curves, %s" % suptitle)
-        sns.plt.subplots_adjust(top=.93)
+        plt.subplots_adjust(top=.93)
         f.set_titles("{row_name} | {col_name}")
         if save_path_template is not None:
             f.fig.savefig(save_path_template % suptitle, bbox_inches='tight')
@@ -665,7 +666,7 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
         raise Exception("Can only plot aligned view if plotting 1 stimulus_superclass")
     df = df.groupby('stimulus_superclass').apply(fit_model)
     windowed_plot = np.zeros((size, size))
-    R = ppt.mkR(size) * (float(max_visual_angle) / size)
+    R = sfp_stimuli.mkR(size) * (float(max_visual_angle) / size)
     ecc_to_pix = pRF_size_slope * (float(size) / max_visual_angle) + pRF_size_offset
     masks = np.zeros((size, size))
     meridian = int(size / 2)
@@ -731,7 +732,7 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
 def _parse_save_path_for_kwargs(save_path):
     kwargs = dict(i.split('=') for i in save_path.split('_'))
     # we know all are ints
-    return dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in kwargs.iteritems())
+    return dict(({'bootstrap': 'bootstrap_num'}.get(k, k), int(v)) for k, v in kwargs.items())
 
 
 if __name__ == '__main__':

@@ -2,14 +2,15 @@
 """create simulated data for testing 2d model fit
 """
 import matplotlib as mpl
-# we do this because sometimes we run this without an X-server, and this backend doesn't need one
-mpl.use('svg')
+# we do this because sometimes we run this without an X-server, and this backend doesn't need
+# one. We set warn=False because the notebook uses a different backend and will spout out a big
+# warning to that effect; that's unnecessarily alarming, so we hide it.
+mpl.use('svg', warn=False)
 import argparse
 import pandas as pd
 import numpy as np
-import stimuli as sfp_stimuli
-import first_level_analysis
-import model as sfp_model
+from . import stimuli as sfp_stimuli
+from . import model as sfp_model
 
 
 def quadratic_mean(x):
@@ -97,21 +98,36 @@ def simulate_data(true_model, num_voxels=100, noise_level=0, noise_source_path=N
     # we want the generating model and its parameters stored here
     df['true_model_type'] = true_model.model_type
     for name, val in true_model.named_parameters():
-        df['true_model_%s'%name] = val.detach().numpy()
+        df['true_model_%s' % name] = val.detach().numpy()
     df['noise_level'] = noise_level
     df['noise_source_df'] = noise_source_path
     return df
 
 
-def main(sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0, mode_cardinals=0, mode_obliques=0,
-         amplitude_cardinals=0, amplitude_obliques=0, orientation_type='absolute', num_voxels=100,
-         noise_level=0, save_path=None, noise_source_path=None):
-    model = sfp_model.LogGaussianDonut(sigma, sf_ecc_slope, sf_ecc_intercept, mode_cardinals,
-                                       mode_obliques, amplitude_cardinals, amplitude_obliques,
-                                       orientation_type)
+def main(model_orientation_type='iso', model_eccentricity_type='full', model_vary_amplitude=True,
+         sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0, abs_mode_cardinals=0, abs_mode_obliques=0,
+         rel_mode_cardinals=0, rel_mode_obliques=0, abs_amplitude_cardinals=0,
+         abs_amplitude_obliques=0, rel_amplitude_cardinals=0, rel_amplitude_obliques=0,
+         num_voxels=100, noise_level=0, save_path=None, noise_source_path=None):
+    """Simulate first level data to be fit with 2d tuning model.
+
+    Note that when calling the function, you can set every parameter individually, but, depending
+    on the values of the model_orientation_type, model_eccentricity_type, and
+    model_vary_amplitude, some of them have specific values (often 0), they will be set to. If this
+    happens, a warning will be raised.
+
+    """
+    model = sfp_model.LogGaussianDonut(model_orientation_type, model_eccentricity_type,
+                                       model_vary_amplitude, sigma, sf_ecc_slope, sf_ecc_intercept,
+                                       abs_mode_cardinals, abs_mode_obliques, rel_mode_cardinals,
+                                       rel_mode_obliques, abs_amplitude_cardinals,
+                                       abs_amplitude_obliques, rel_amplitude_cardinals,
+                                       rel_amplitude_obliques)
     model.eval()
     df = simulate_data(model, num_voxels, noise_level, noise_source_path)
-    df['orientation_type'] = orientation_type
+    df['orientation_type'] = model_orientation_type
+    df['eccentricity_type'] = model_eccentricity_type
+    df['vary_amplitude'] = model_vary_amplitude
     if df is not None:
         df.to_csv(save_path, index=False)
     return df
@@ -121,31 +137,79 @@ if __name__ == '__main__':
     class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter):
         pass
     parser = argparse.ArgumentParser(
-        description=("Simulate first level data to be fit with 2d tuning model."),
+        description=("Simulate first level data to be fit with 2d tuning model. Note that when "
+                     "calling the function, you can set every parameter individually, but, "
+                     "depending on the values of the model_orientation_type, model_eccentricity_"
+                     "type, and model_vary_amplitude, some of them have specific values (often 0),"
+                     "they will be set to. If this happens, a warning will be raised."),
         formatter_class=CustomFormatter)
     parser.add_argument("save_path",
                         help=("Path (should end in .csv) where we'll save the simulated data"))
+    parser.add_argument("--model_orientation_type", '-o', default='iso',
+                        help=("{iso, absolute, relative, full}\n- iso: model is isotropic, "
+                              "predictions identical for all orientations.\n- absolute: model can"
+                              " fit differences in absolute orientation, that is, in Cartesian "
+                              "coordinates, such that sf_angle=0 correponds to 'to the right'\n- "
+                              "relative: model can fit differences in relative orientation, that "
+                              "is, in retinal polar coordinates, such that sf_angle=0 corresponds"
+                              " to 'away from the fovea'\n- full: model can fit differences in "
+                              "both absolute and relative orientations"))
+    parser.add_argument("--model_eccentricity_type", '-e', default='full',
+                        help=("{scaling, constant, full}\n- scaling: model's relationship between"
+                              " preferred period and eccentricity is exactly scaling, that is, the"
+                              " preferred period is equal to the eccentricity.\n- constant: model'"
+                              "s relationship between preferred period and eccentricity is exactly"
+                              " constant, that is, it does not change with eccentricity but is "
+                              "flat.\n- full: model discovers the relationship between "
+                              "eccentricity and preferred period, though it is constrained to be"
+                              " linear (i.e., model solves for a and b in period = a * "
+                              "eccentricity + b)"))
+    parser.add_argument("--model_vary_amplitude", '-v', action="store_true",
+                        help=("Whether to allow the model to fit the parameters that control "
+                              "amplitude as a function of orientation (whether this depends on "
+                              "absolute orientation, relative orientation, or both depends on the"
+                              " value of `model_orientation_type`)"))
     parser.add_argument("--num_voxels", '-n', default=100, help="Number of voxels to simulate",
                         type=int)
     parser.add_argument("--sigma", '-s', default=.4, type=float, help="Sigma of log-Normal donut")
-    parser.add_argument("--sf_ecc_slope", '-e', default=1, type=float,
-                        help=("Slope of relationship between tuning and eccentricity for log-Normal"
-                              " donut"))
-    parser.add_argument("--sf_ecc_intercept", '-i', default=0, type=float,
+    parser.add_argument("--sf_ecc_slope", '-a', default=1, type=float,
+                        help=("Slope of relationship between tuning and eccentricity for log-"
+                              "Normal donut"))
+    parser.add_argument("--sf_ecc_intercept", '-b', default=0, type=float,
                         help=("Intercept of relationship between tuning and eccentricity for "
                               "log-Normal donut"))
-    parser.add_argument("--mode_cardinals", "-mc", default=0, type=float,
-                        help=("The strength of the cardinal-effect of orientation on the mode. "
-                              "That is, the coefficient of cos(2*orientation)"))
-    parser.add_argument("--mode_obliques", "-mo", default=0, type=float,
-                        help=("The strength of the oblique-effect of orientation on the mode. "
-                              "That is, the coefficient of cos(4*orientation)"))
-    parser.add_argument("--amplitude_cardinals", "-ac", default=0, type=float,
-                        help=("The strength of the cardinal-effect of orientation on the amplitude. "
-                              "That is, the coefficient of cos(2*orientation)"))
-    parser.add_argument("--amplitude_obliques", "-ao", default=0, type=float,
-                        help=("The strength of the oblique-effect of orientation on the amplitude. "
-                              "That is, the coefficient of cos(4*orientation)"))
+    parser.add_argument("--rel_mode_cardinals", "-rmc", default=0, type=float,
+                        help=("The strength of the cardinal-effect of the relative orientation (so"
+                              " angle=0 corresponds to away from the fovea) on the mode. That is, "
+                              "the coefficient of cos(2*relative_orientation)"))
+    parser.add_argument("--rel_mode_obliques", "-rmo", default=0, type=float,
+                        help=("The strength of the oblique-effect of the relative orientation (so"
+                              " angle=0 corresponds to away from the fovea) on the mode. That is, "
+                              "the coefficient of cos(4*relative_orientation)"))
+    parser.add_argument("--rel_amplitude_cardinals", "-rac", default=0, type=float,
+                        help=("The strength of the cardinal-effect of the relative orientation (so"
+                              " angle=0 corresponds to away from the fovea) on the amplitude. That"
+                              " is, the coefficient of cos(2*relative_orientation)"))
+    parser.add_argument("--rel_amplitude_obliques", "-rao", default=0, type=float,
+                        help=("The strength of the oblique-effect of the relative orientation (so"
+                              " angle=0 corresponds to away from the fovea) on the amplitude. That"
+                              " is, the coefficient of cos(4*relative_orientation)"))
+    parser.add_argument("--abs_mode_cardinals", "-amc", default=0, type=float,
+                        help=("The strength of the cardinal-effect of the absolute orientation (so"
+                              " angle=0 corresponds to the right) on the mode. That is, "
+                              "the coefficient of cos(2*absolute_orientation)"))
+    parser.add_argument("--abs_mode_obliques", "-amo", default=0, type=float,
+                        help=("The strength of the oblique-effect of the absolute orientation (so"
+                              " angle=0 corresponds to the right) on the mode. That is, "
+                              "the coefficient of cos(4*absolute_orientation)"))
+    parser.add_argument("--abs_amplitude_cardinals", "-aac", default=0, type=float,
+                        help=("The strength of the cardinal-effect of the absolute orientation (so"
+                              " angle=0 corresponds to the right) on the amplitude. That"
+                              " is, the coefficient of cos(2*absolute_orientation)"))
+    parser.add_argument("--abs_amplitude_obliques", "-aao", default=0, type=float,
+                        help=("The strength of the oblique-effect of the absolute orientation (so"
+                              " angle=0 corresponds to the right) on the amplitude. That"
+                              " is, the coefficient of cos(4*absolute_orientation)"))
     parser.add_argument('--noise_source_path', default=None,
                         help=("None or path to a first level summary dataframe. If None, then all "
                               "simulated voxels have the same noise, determined by `noise_level` "
@@ -154,8 +218,8 @@ if __name__ == '__main__':
                               "function for details) and each voxel's noise level is sampled "
                               "independently from that distribution."))
     parser.add_argument("--noise_level", '-l', default=0, type=float,
-                        help=("Noise level. If noise_source_path is None, this is the std dev of a "
-                              "normal distribution with mean 0, which will be added to the "
+                        help=("Noise level. If noise_source_path is None, this is the std dev of a"
+                              " normal distribution with mean 0, which will be added to the "
                               "simulated data. If "
                               "noise_source_path is not None, then we multiply the noise "
                               "distribution obtained from that dataframe by this number (see that"
@@ -163,9 +227,5 @@ if __name__ == '__main__':
                               "responses are normalized to have an L2 norm of 1 before noise is"
                               " added, so this should be interpreted as relative to a unit vector"
                               ". In both cases, a value of 0 means no noise."))
-    parser.add_argument("--orientation_type", '-o', default='absolute',
-                        help=("{'absolute', 'relative'}. Whether orientation should be absolute "
-                              "(so that 0 is to the right) or relative (so that 0 is away from the"
-                              " fovea)"))
     args = vars(parser.parse_args())
     main(**args)

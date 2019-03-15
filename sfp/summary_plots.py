@@ -2,12 +2,12 @@
 """plots from the tuning curve summary dataframe
 """
 import matplotlib as mpl
-# we do this because sometimes we run this without an X-server, and this backend doesn't need one
-mpl.use('svg')
+# we do this because sometimes we run this without an X-server, and this backend doesn't need
+# one. We set warn=False because the notebook uses a different backend and will spout out a big
+# warning to that effect; that's unnecessarily alarming, so we hide it.
+mpl.use('svg', warn=False)
 import inspect
 import re
-import os
-import itertools
 import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -51,11 +51,11 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
     corresponding function. if one of the values is None, that kwarg will not be passed to that
     function.
     """
-    for k, v in kwargs.copy().iteritems():
+    for k, v in kwargs.copy().items():
         if k in summary_df.columns:
             # user can specify None, to mean all
             if v is not None:
-                if isinstance(v, basestring) or not hasattr(v, '__iter__'):
+                if isinstance(v, str) or not hasattr(v, '__iter__'):
                     summary_df = summary_df[summary_df[k] == v]
                 else:
                     summary_df = summary_df[summary_df[k].isin(v)]
@@ -84,7 +84,7 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
         if 'alpha' not in hue_kws:
             hue_kws['alpha'] = [1] * len(legend_keys) + [.5] * len(legend_keys)
         hue_order.extend(['exclude ' + i for i in hue_order])
-        for k, v in palette.copy().iteritems():
+        for k, v in palette.copy().items():
             palette['exclude ' + k] = v
     if not hasattr(plot_func, '__iter__'):
         plot_func = [plot_func]
@@ -144,7 +144,7 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
             elif col is None:
                 titles = titles.replace(" | {col_name}", "")
             g.set_titles(titles)
-        g._legend_data = dict((k, v) for k, v in g._legend_data.iteritems() if k in legend_keys)
+        g._legend_data = dict((k, v) for k, v in g._legend_data.items() if k in legend_keys)
         g.add_legend(label_order=legend_keys)
         if save_path is not None:
             g.fig.savefig(save_path)
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     summary_df = pd.read_csv(tuning_curve_path)
     save_path = SAVE_TEMPLATE
     save_kwargs = {}
-    for k, v in args.iteritems():
+    for k, v in args.items():
         if k in save_path:
             if v is None:
                 save_path = save_path.replace("{%s}" % k, '')

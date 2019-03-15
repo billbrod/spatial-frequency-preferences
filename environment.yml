@@ -1,0 +1,31 @@
+name: sfp
+channels:
+  - conda-forge
+  - defaults
+  - bioconda
+dependencies:
+  - python==3.6
+  - anaconda
+  - pip
+  - jupyter
+  - jupyterlab
+  - ipykernel
+  - numpy
+  - matplotlib
+  - scipy
+  - seaborn
+  - statsmodels
+  - pandas
+  - pyyaml
+  - nipype>=1.1.1
+  - pillow
+  - pyosf
+  - osfclient
+  - h5py
+  - nibabel
+  - scikit-learn
+  - snakemake>=5.4
+  - pip:
+      - pybids >= 0.7.0
+      - neuropythy
+      - pytest

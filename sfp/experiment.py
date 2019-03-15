@@ -15,7 +15,23 @@ import h5py
 import datetime
 import glob
 import argparse
-from scipy import misc as smisc
+
+
+def _create_blanks(blank_sec_length, on_msec_length, off_msec_length, stimulus_shape, blank_loc):
+    """create the blank stimuli
+
+    stimulus_shape: 2-tuple of ints. specifies the shape of a single stimulus.
+    """
+    nblanks = blank_sec_length / ((on_msec_length + off_msec_length) / 1000.)
+    if nblanks != int(nblanks):
+        raise Exception("Because of your timing ({loc}_blank_sec_length, on_msec_length, and "
+                        "off_msec_length), I can't show blanks for the {loc} {length:.02f} seconds"
+                        ". {loc}_blank_sec_length must be a multiple of on_msec_length+"
+                        "off_msec_length!".format(loc=blank_loc, length=blank_sec_length))
+    nblanks = int(nblanks)
+    # 128 corresponds to the mid-value between 0 and 255
+    blanks = (128 * np.ones((nblanks, stimulus_shape[0], stimulus_shape[1]))).astype(np.uint8)
+    return nblanks, blanks
 
 
 def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_length=200,
@@ -29,6 +45,8 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
     idx = np.load(idx_path)
     stimuli = stimuli[idx]
     expt_params = {}
+    # the first dimension of stimuli (retrieved by len) is how many stimuli we have. the next two
+    # are the size of the stimuli
     expt_params['stim_size'] = stimuli.shape[1:]
     if session_length is not None:
         # when session_length is None, we show all of them!
@@ -46,24 +64,10 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
     expt_params['non_blank_stimuli_num'] = stimuli.shape[0]
     # In order to get the right amount of blank time at the end of the run, we insert an
     # appropriate amount of blank stimuli.
-    final_nblanks = final_blank_sec_length / ((on_msec_length + off_msec_length) / 1000.)
-    if final_nblanks != int(final_nblanks):
-        raise Exception("Because of your timing (final_blank_sec_length, on_msec_length, and "
-                        "off_msec_length), I can't show blanks for the final %.02f seconds. "
-                        "final_blank_sec_length must be a multiple of on_msec_length+"
-                        "off_msec_length!" % final_blank_sec_length)
-    final_nblanks = int(final_nblanks)
-    final_blanks = smisc.bytescale(np.zeros((final_nblanks, stimuli.shape[1], stimuli.shape[2])),
-                                   cmin=-1, cmax=1)
-    init_nblanks = init_blank_sec_length / ((on_msec_length + off_msec_length) / 1000.)
-    if init_nblanks != int(init_nblanks):
-        raise Exception("Because of your timing (init_blank_sec_length, on_msec_length, and "
-                        "off_msec_length), I can't show blanks for the initial %.02f seconds. "
-                        "init_blank_sec_length must be a multiple of on_msec_length+"
-                        "off_msec_length!" % init_blank_sec_length)
-    init_nblanks = int(init_nblanks)
-    init_blanks = smisc.bytescale(np.zeros((init_nblanks, stimuli.shape[1], stimuli.shape[2])),
-                                  cmin=-1, cmax=1)
+    final_nblanks, final_blanks = _create_blanks(final_blank_sec_length, on_msec_length,
+                                                 off_msec_length, stimuli.shape[1:], 'final')
+    init_nblanks, init_blanks = _create_blanks(init_blank_sec_length, on_msec_length,
+                                               off_msec_length, stimuli.shape[1:], 'init')
     stimuli = np.concatenate([init_blanks, stimuli, final_blanks])
     expt_params['final_nblanks'] = final_nblanks
     expt_params['init_nblanks'] = init_nblanks
@@ -85,7 +89,7 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
         expt_params['fixation_color'] = iter(colors)
     elif fixation_type == 'digit':
         # we show a digit with every other stimuli.
-        digit_num = stimuli.shape[0] / 2
+        digit_num = int(stimuli.shape[0] / 2)
         probs = np.ones(10)/9
         digits = [int(np.random.uniform(0, 10)), ""]
         for i in range(digit_num-1):
@@ -103,9 +107,7 @@ def _set_params(stim_path, idx_path, session_length=30, on_msec_length=300, off_
         expt_params['fixation_color'] = iter(['white', 'white', 'black', 'black'] * int(np.ceil(digit_num/2.)))
     else:
         raise Exception("Don't know what to do with fixation_type %s!" % fixation_type)
-    # the first dimension of stimuli (retrieved by len) is how many stimuli we have. the next two
-    # are the size of the stimuli
-
+    # these are all a variety of kwargs used by monitor
     monitor_kwargs.update({'size': size, 'monitor': monitor, 'units': units, 'fullscr': fullscr,
                            'screen': screen, 'color': color, 'colorSpace': colorSpace})
     return stimuli, idx, expt_params, monitor_kwargs
@@ -192,6 +194,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
 
     win = visual.Window(**monitor_kwargs)
     win.mouseVisible = False
+    # linear gamma ramp, since the projector at the scanner is linearized
     win.gammaRamp = np.tile(np.linspace(0, 1, 256), (3, 1))
 
     if fix_deg_size is not None:
@@ -201,9 +204,9 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         fixation = visual.GratingStim(win, size=fix_pix_size, pos=[0, 0], sf=0, color=None,
                                       mask='circle')
     else:
-        fixation = visual.TextStim(win, expt_params['fixation_text'].next(), height=fix_pix_size,
+        fixation = visual.TextStim(win, next(expt_params['fixation_text']), height=fix_pix_size,
                                    color=None)
-    fixation.color = expt_params['fixation_color'].next()
+    fixation.color = next(expt_params['fixation_color'])
     # first one is special: we preload it, but we still want to include it in the iterator so the
     # numbers all match up (we don't draw or wait during the on part of the first iteration)
     grating = visual.ImageStim(win, image=imagetools.array2image(stimuli[0]),
@@ -234,9 +237,9 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
             # we don't wait the first time, and all these have been preloaded while we were waiting
             # for the scan trigger
             if "fixation_text" in expt_params:
-                fixation.text = expt_params['fixation_text'].next()
+                fixation.text = next(expt_params['fixation_text'])
             grating.image = imagetools.array2image(stim)
-            fixation.color = expt_params['fixation_color'].next()
+            fixation.color = next(expt_params['fixation_color'])
             grating.draw()
             fixation.draw()
             next_stim_time = (i*on_msec_length + i*off_msec_length - 2)/1000.
@@ -250,7 +253,7 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
         elif fixation_type == 'dot':
             fixation_info.append((fixation.color, clock.getTime()))
             # the dot advances its color and stays drawn during the stimulus off segments
-            fixation.color = expt_params['fixation_color'].next()
+            fixation.color = next(expt_params['fixation_color'])
         fixation.draw()
         next_stim_time = ((i+1)*on_msec_length + i*off_msec_length - 1)/1000.
         core.wait(abs(clock.getTime() - timings[0][2] - next_stim_time))
@@ -271,6 +274,24 @@ def run(stim_path, idx_path, session_length=30, on_msec_length=300, off_msec_len
     return keys_pressed, fixation_info, timings, expt_params, idx
 
 
+def _convert_str(list_of_strs):
+    """convert strs to hdf5-savable format
+
+    python 3 strings are more complicated than python 2, see
+    http://docs.h5py.org/en/latest/strings.html and https://github.com/h5py/h5py/issues/892
+    """
+    list_of_strs = np.array(list_of_strs)
+    saveable_list = []
+    for x in list_of_strs:
+        try:
+            x = x.encode()
+        except AttributeError:
+            # then this is not a string but another list of strings
+            x = [i.encode() for i in x]
+        saveable_list.append(x)
+    return saveable_list
+
+
 def expt(stim_path, number_of_runs, first_run, subj_name, output_dir="../data/raw_behavioral",
          input_dir="../data/stimuli", **kwargs):
     """run a full experiment
@@ -283,7 +304,7 @@ def expt(stim_path, number_of_runs, first_run, subj_name, output_dir="../data/ra
         output_dir += '/'
     if input_dir[-1] != '/':
         input_dir += '/'
-    file_path = "%s%s_%s_sess{sess}.hdf5" % (output_dir, datetime.datetime.now().strftime("%Y-%b-%d"), subj_name)
+    file_path = "%s%s_%s_sess{sess:02d}.hdf5" % (output_dir, datetime.datetime.now().strftime("%Y-%b-%d"), subj_name)
     sess_num = 0
     while glob.glob(file_path.format(sess=sess_num)):
         sess_num += 1
@@ -295,23 +316,26 @@ def expt(stim_path, number_of_runs, first_run, subj_name, output_dir="../data/ra
     print("\t%s" % stim_path)
     print("Will use the following indices:")
     print("\t%s" % "\n\t".join(idx_paths))
+    print("Will save at the following location:\n\t%s" % file_path.format(sess=sess_num))
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
     for i, path in enumerate(idx_paths):
         keys, fixation, timings, expt_params, idx = run(stim_path, path, **kwargs)
         with h5py.File(file_path.format(sess=sess_num), 'a') as f:
-            f.create_dataset("run_%02d_button_presses" % i, data=np.array(keys))
-            f.create_dataset("run_%02d_fixation_data" % i, data=np.array(fixation).astype(str))
-            f.create_dataset("run_%02d_timing_data" % i, data=np.array(timings))
-            f.create_dataset("run_%02d_stim_path" % i, data=stim_path)
-            f.create_dataset("run_%02d_idx_path" % i, data=path)
+            f.create_dataset("run_%02d_button_presses" % i, data=_convert_str(keys))
+            f.create_dataset("run_%02d_fixation_data" % i, data=_convert_str(fixation))
+            f.create_dataset("run_%02d_timing_data" % i, data=_convert_str(timings))
+            f.create_dataset("run_%02d_stim_path" % i, data=stim_path.encode())
+            f.create_dataset("run_%02d_idx_path" % i, data=path.encode())
             f.create_dataset("run_%02d_shuffled_indices" % i, data=idx)
-            for k, v in expt_params.iteritems():
+            for k, v in expt_params.items():
                 if k in ['fixation_color', 'fixation_text']:
                     continue
                 f.create_dataset("run_%02d_%s" % (i, k), data=v)
             # also note differences from default options
-            for k, v in kwargs.iteritems():
+            for k, v in kwargs.items():
                 if v is None:
-                    f.create_dataset("run_%02d_%s" % (i, k), data=str(v))
+                    f.create_dataset("run_%02d_%s" % (i, k), data=str(v).encode())
                 else:
                     f.create_dataset("run_%02d_%s" % (i, k), data=v)
         if 'escape' in [k[0] for k in keys]:

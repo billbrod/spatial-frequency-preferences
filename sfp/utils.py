@@ -6,13 +6,88 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
-import pyPyrTools as ppt
-from bids.grabbids import BIDSLayout
+from . import stimuli as sfp_stimuli
+from bids import BIDSLayout
 import pandas as pd
-import first_level_analysis
-import tuning_curves
+from . import first_level_analysis
+from . import tuning_curves
 import warnings
-import plotting
+from . import plotting
+
+
+def bytescale(data, cmin=None, cmax=None, high=255, low=0):
+    """
+    Byte scales an array (image).
+
+    Byte scaling means converting the input image to uint8 dtype and scaling
+    the range to ``(low, high)`` (default 0-255).
+
+    If the input image already has dtype uint8, no scaling is done.
+
+    This is copied from scipy.misc, where it is deprecated
+
+    Parameters
+    ----------
+    data : ndarray
+        PIL image data array.
+    cmin : scalar, optional
+        Bias scaling of small values. Default is ``data.min()``.
+    cmax : scalar, optional
+        Bias scaling of large values. Default is ``data.max()``.
+    high : scalar, optional
+        Scale max value to `high`.  Default is 255.
+    low : scalar, optional
+        Scale min value to `low`.  Default is 0.
+
+    Returns
+    -------
+    img_array : uint8 ndarray
+        The byte-scaled array.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from sfp.utils import bytescale
+    >>> img = np.array([[ 91.06794177,   3.39058326,  84.4221549 ],
+    ...                 [ 73.88003259,  80.91433048,   4.88878881],
+    ...                 [ 51.53875334,  34.45808177,  27.5873488 ]])
+    >>> bytescale(img)
+    array([[255,   0, 236],
+           [205, 225,   4],
+           [140,  90,  70]], dtype=uint8)
+    >>> bytescale(img, high=200, low=100)
+    array([[200, 100, 192],
+           [180, 188, 102],
+           [155, 135, 128]], dtype=uint8)
+    >>> bytescale(img, cmin=0, cmax=255)
+    array([[91,  3, 84],
+           [74, 81,  5],
+           [52, 34, 28]], dtype=uint8)
+    """
+    if data.dtype == np.uint8:
+        return data
+
+    if high > 255:
+        raise ValueError("`high` should be less than or equal to 255.")
+    if low < 0:
+        raise ValueError("`low` should be greater than or equal to 0.")
+    if high < low:
+        raise ValueError("`high` should be greater than or equal to `low`.")
+
+    if cmin is None:
+        cmin = data.min()
+    if cmax is None:
+        cmax = data.max()
+
+    cscale = cmax - cmin
+    if cscale < 0:
+        raise ValueError("`cmax` should be larger than `cmin`.")
+    elif cscale == 0:
+        cscale = 1
+
+    scale = float(high - low) / cscale
+    bytedata = (data - cmin) * scale + low
+    return (bytedata.clip(low, high) + 0.5).astype(np.uint8)
 
 
 def scatter_heat(x, y, c, **kwargs):
@@ -64,8 +139,8 @@ def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     mid_val=0, with the grating going from -1 to 1 is also likely) and the value that you want to
     set array_to_mask to is val_to_set (same reasonable values as mid_val)
     """
-    R = ppt.mkR(masked.shape) / float(masked.shape[0])
-    R_masking = ppt.mkR(array_to_mask.shape) / float(array_to_mask.shape[0])
+    R = sfp_stimuli.mkR(masked.shape) / float(masked.shape[0])
+    R_masking = sfp_stimuli.mkR(array_to_mask.shape) / float(array_to_mask.shape[0])
     x, y = np.where(masked != mid_val)
     Rmin = R[x, y].min()
     try:
@@ -106,7 +181,8 @@ def fit_log_norm(x, y, **kwargs):
     plot_data = data.groupby(x)[y].mean()
 
     try:
-        popt, pcov = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_data.index, plot_data.values)
+        popt, pcov = sp.optimize.curve_fit(tuning_curves.log_norm_pdf, plot_data.index,
+                                           plot_data.values)
     except RuntimeError:
         # since data is a Series, this is the best way to do this.
         idx = [i for i in data.iloc[0].index if i not in [x, y]]
@@ -144,7 +220,8 @@ def fit_log_norm_ci(x, y, ci_vals=[2.5, 97.5], **kwargs):
         color = kwargs.pop('color')
     lines = []
     for boot in data.bootstrap_num.unique():
-        plot_data = data.groupby(x)[[y, 'bootstrap_num']].apply(lambda x, j: x[x.bootstrap_num==j], boot)
+        plot_data = data.groupby(x)[[y, 'bootstrap_num']]
+        plot_data = plot_data.apply(lambda x, j: x[x.bootstrap_num == j], boot)
         plot_idx = plot_data.index.get_level_values(x)
         plot_vals = plot_data[y].values
         try:
@@ -218,11 +295,11 @@ def find_stim_idx(stim_df, **kwargs):
     stim_df = first_level_analysis._add_freq_metainfo(stim_df)
     props = stim_df.copy()
     key_order = ['stimulus_superclass', 'phi', 'freq_space_angle', 'freq_space_distance']
-    key_order += [k for k in kwargs.iterkeys() if k not in key_order]
+    key_order += [k for k in kwargs.keys() if k not in key_order]
     for k in key_order:
         v = kwargs.get(k, None)
         if v is not None:
-            if isinstance(v, basestring):
+            if isinstance(v, str):
                 val = v
             else:
                 val = props.iloc[np.abs(props[k].values - v).argsort()[0]][k]
@@ -307,20 +384,18 @@ def load_data(subject, session=None, task=None, df_mode='full',
     if 'first_level_binned' not in bids_dir:
         bids_dir = os.path.join(bids_dir, 'first_level_binned')
     stim_dir = os.path.abspath(os.path.join(bids_dir, '..', '..', 'stimuli'))
-    layout = BIDSLayout(bids_dir)
-    if "sub-" in subject:
-        subject = subject.replace('sub-', '')
-    layout = BIDSLayout(bids_dir)
+    subject = subject.replace('sub-', '')
+    layout = BIDSLayout(bids_dir, validate=False)
     if session is not None:
         if "ses-" in str(session):
             session = session.replace("ses-", "")
-        files = layout.get("file", subject=subject, session=session, type=df_mode)
+        files = layout.get("file", subject=subject, session=session, suffix=df_mode)
     else:
         if "task-" in task:
             task = task.replace('task-', '')
         # the bit in session is regex to return a string that doesn't start with pilot
-        files = layout.get("file", subject=subject, type=df_mode, session=r'^((?!pilot).+)')
-    for k, v in kwargs.iteritems():
+        files = layout.get("file", subject=subject, suffix=df_mode, session=r'^((?!pilot).+)')
+    for k, v in kwargs.items():
         # we need to treat atlas_type and mat_type, which will show up as a folder in the path,
         # separately from the others, which will just show in the filename of the csv
         if k in ['atlas_type', 'mat_type']:
@@ -328,12 +403,12 @@ def load_data(subject, session=None, task=None, df_mode='full',
             files = [f for f in files if val in f.split(os.sep)]
         else:
             if k == 'vareas':
-                if not isinstance(v, basestring):
+                if not isinstance(v, str):
                     val = '-'.join([str(i) for i in v])
                 else:
                     val = v
             elif k == 'eccen':
-                if not isinstance(v, basestring):
+                if not isinstance(v, str):
                     val = '-'.join([str(i) for i in v])
                 else:
                     val = v

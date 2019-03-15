@@ -1,6 +1,8 @@
 Spatial frequency preferences
 ==============================
 
+[![Build Status](https://travis-ci.com/billbrod/spatial-frequency-preferences.svg?branch=master)](https://travis-ci.com/billbrod/spatial-frequency-preferences)
+
 An fMRI experiment to determine the relationship between spatial
 frequency and eccentricity in the human early visual cortex.
 
@@ -13,11 +15,27 @@ Matlab:
 
  - Version at or more recent than 2016b (because we need `jsondecode`)
  - [GLMdenoise](https://github.com/kendrickkay/GLMdenoise/)
+ - [vistasoft](https://github.com/vistalab/vistasoft)
  
 Python: 
 
- - 2.7.12
- - see `requirements.txt` file
+ - Python 3.6
+ - use the included conda environment files:
+   - in order to run the experiment, you'll need to create a psychopy
+     environment: `conda env create -f environment-psychopy.yml`. By
+     typing `conda activate psypy`, you'll then be able to run the
+     experiment.
+   - if you only want to analyze / investigate the data, you don't
+     need to set up a psychopy environment, just run: `conda env
+     create -f environment.yml`. Then, type `conda activate sfp` to
+     activate the environment.
+ - You'll also need to install pytorch, but the exact way to do so
+   depends on your machine. See the [pytorch
+   website](https://pytorch.org/) for details, but the command is
+   probably `conda install pytorch torchvision -c pytorch` if you have
+   a GPU on your machine and `conda install pytorch-cpu
+   torchvision-cpu -c pytorch` if you don't (if in doubt, use the
+   second command).
  - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
    (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/))
 
@@ -25,7 +43,7 @@ Other:
 
  - [FreeSurfer](http://freesurfer.net/)
 
-# Overview of analysis
+# Overview
 
 The analysis for this project takes place over several step and makes
 use of Python, Matlab, and command-line tools. The notebooks folder
@@ -33,15 +51,15 @@ contains several Jupyter notebooks which (hopefully) walk through the
 logic of the experiment and analysis.
 
 The Snakefile can perform all of the analysis steps (i.e., from 3 on),
-making sure that all the requirements are met. The following is an
-overview:
+making sure that all the requirements of each step are met. The
+following is an overview:
 
-1. Create the stimuli (`python sfp/stimuli.py subject_name -c
+1. Create the stimuli (`python -m sfp.stimuli subject_name -c
    -i`). After you run this the first time (and thus create the
    unshuffled stimuli), you probably only need the `-i` flag to create
    the index. This can also be done using the `stimuli` and
    `stimuli_idx` rules in the Snakefile.
-2. Run the experiment and gather fMRI data (`python sfp/experiment
+2. Run the experiment and gather fMRI data (`python sfp/experiment.py
    data/stimuli/unshuffled.npy 12 subject_name`). Each run will last 4
    minutes 24 seconds (48 stimulus classes and 10 blank trials, each
    for 4 seconds, gives you 3 minutes 52 seconds, and then each run
@@ -51,12 +69,8 @@ overview:
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)). This
    is accomplished by the `preprocess`, `rearrange_preprocess_extras`,
    and `rearrange_preprocess` rules in the Snakefile.
-4. Create design matrices for each run (`python sfp/design_matrices.py
-   -s subject_name behavioral_results_path`). The `behavioral_results`
-   h5py file is created when the experiment is run and the
-   `unshuffled_stim_descriptions` csv file is created when the stimuli
-   are created (you can probably trust the default for its path). This
-   is done by the `create_design_matrices` rule
+4. Create design matrices for each run This is done by the
+   `create_design_matrices` rule
 5. Run GLMdenoise (`runGLM.m`) and save out the nifti outputs, done by
    the `GLMdenoise` and `save_results_niftis` rules.
 6. Align to freesurfer anatomy and get into the mgz format, done by
@@ -85,14 +99,29 @@ GLMdenoise) should be run on a cluster and will take way too long or
 too much memory to run on laptop.
 
 When running python scripts from the command line, they should be run
-from this directory (and so you should call `python sfp/foo.py` or
-`python -m sfp.foo`), in order for the default paths to work. You can
-run them from somewhere else, but then you'll need to use the optional
-arguments to set the paths yourself.
+from this directory (and so you should call `python -m sfp.foo`), in
+order for the default paths to work. You can run them from somewhere
+else, but then you'll need to use the optional arguments to set the
+paths yourself.
 
 `sfp/transfer_to_BIDS.py` is a file used to get the data from the
 format it came off the scanner into the BIDS structure. As such, you
 will not need it.
+
+# Note on running the experiment
+
+All the steps above except for step 2, running the experiment, should
+be done using the `sfp` environment and using either `snakemake` or
+`python -m sfp.foo` syntax. Running the experiment should be done
+using the `psypy` environment and `python sfp/experiment.py`
+syntax. The difference is that `experiment.py` is a separate script
+which doesn't rely on any of the other scripts in the `sfp` module
+and, because the `psypy` enviroment doesn't contain their
+dependencies, will actually fail if you try to import them (which is
+what the `python -m sfp.foo` syntax does). The other scripts rely on
+each other and share their dependencies, so the `python -m sfp.foo`
+syntax is necessary (they will fail if you try to do `python
+sfp/stimuli.py`, for example).
 
 # Changes to experiment / stimuli
 
@@ -156,6 +185,12 @@ and use the following command: `snakemake --profile slurm --jobs {n}
 jobs you allow `snakemake` to simultaneously submit to the cluster and
 `cluster.json` is an included configuration file with some reasonable
 values for the cluster (feel free to change these as needed).
+
+I also found that `snakemake>=5.4`, as now required, installs its own
+`mpi4py` on the SLURM cluster. If you attempt to run any python
+command from the environment that includes this `mpi4py` on an
+interactive job (not on a login node), you'll get a very scary-looking
+error. To deal with this, just run `unset $SLURM_NODELIST`.
 
 # Eventual sharing goals
 

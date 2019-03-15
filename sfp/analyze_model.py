@@ -2,17 +2,17 @@
 """code to analyze the outputs of our 2d tuning model
 """
 import matplotlib as mpl
-# we do this because sometimes we run this without an X-server, and this backend doesn't need one
-mpl.use('svg')
+# we do this because sometimes we run this without an X-server, and this backend doesn't need
+# one. We set warn=False because the notebook uses a different backend and will spout out a big
+# warning to that effect; that's unnecessarily alarming, so we hide it.
+mpl.use('svg', warn=False)
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import torch
-import warnings
 import argparse
 import glob
 import itertools
-import model as sfp_model
+from . import model as sfp_model
 
 
 def load_single_model(save_path_stem, load_results_df=True):
@@ -38,7 +38,7 @@ def load_single_model(save_path_stem, load_results_df=True):
     model = sfp_model.LogGaussianDonut(ori_type, ecc_type, vary_amps)
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
     model.eval()
-    model.to(device)    
+    model.to(device)
     return model, loss_df, results_df
 
 
@@ -111,7 +111,7 @@ def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi
             data_dict = {'preferred_period': period, 'max_amplitude': max_amp,
                          'retinotopic_angle': a, 'fit_model_type': m.model_type,
                          'eccentricity': eccen, 'orientation': o}
-            for k, v in identity_kwargs.iteritems():
+            for k, v in identity_kwargs.items():
                 data_dict[k] = v[i]
             features.append(pd.DataFrame(data_dict))
     return pd.concat(features)
@@ -119,21 +119,22 @@ def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description="Load in a bunch of model results dataframes and save them",
+        description=("Load in a bunch of model results dataframes and save them. When run from "
+                     "the command-line, we will not save out the combined results_df. If you want "
+                     "to do that, run the combine_models function of this directly"),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("base_path_template",
                         help=("path template where we should find the results. should contain no "
                               "string  formatting symbols (e.g., '{0}' or '%s') but should contain"
                               " at least one '*' because we will use glob to find them (and "
                               "therefore should point to an actual file when passed to glob, one"
-                              " of: the loss df, model df, or model paramters)."))
+                              " of: the loss df, model df, or model parameters)."))
     parser.add_argument("save_path_stem",
                         help=("Path stem (no extension) where we'll save the results"))
     args = vars(parser.parse_args())
     models, loss_df, results_df = combine_models(args['base_path_template'], False)
     models.to_csv(args['save_path_stem'] + "_model.csv")
     loss_df.to_csv(args['save_path_stem'] + "_loss.csv")
-    # results_df.to_csv(args['save_path_stem'] + "_results_df.csv")
     models = models.drop_duplicates('model')
     features = create_feature_df(models.model.values, orientation_n_steps=50,
                                  retinotopic_angle_n_steps=50,

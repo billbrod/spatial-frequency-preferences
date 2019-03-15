@@ -1,0 +1,46 @@
+name: psypy
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python==3.6
+  - anaconda
+  - pip
+  - numpy
+  - matplotlib
+  - scipy
+  - pandas
+  - pyopengl
+  - pillow
+  - lxml
+  - openpyxl
+  - seaborn
+  - xlrd
+  - configobj
+  - pyyaml
+  - gevent
+  - msgpack-python
+  - psutil
+  - pytables
+  - requests[security]
+  - cffi
+  - wxpython
+  - cython
+  - pyzmq
+  - pyserial
+  - pysoundfile
+  - python-bidi
+  - moviepy
+  - pyosf
+  - greenlet==0.4.15
+  - h5py
+  - pip:
+      - pyglet
+      - zmq
+      - json-tricks
+      - pyparallel
+      - sounddevice
+      - pygame
+      - pysoundcard
+      - psychopy_ext
+      - psychopy
