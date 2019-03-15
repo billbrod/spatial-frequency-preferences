@@ -19,6 +19,7 @@ Matlab:
  
 Python: 
 
+ - Python 3.6
  - use the included conda environment files:
    - in order to run the experiment, you'll need to create a psychopy
      environment: `conda env create -f environment-psychopy.yml`. By
