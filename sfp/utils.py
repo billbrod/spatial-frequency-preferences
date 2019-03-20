@@ -310,21 +310,21 @@ def find_stim_idx(stim_df, **kwargs):
 def find_stim_for_first_level(filename, stim_dir):
     if 'pilot00' in filename:
         stim_type = 'pilot'
-        stim = np.load(os.path.join(stim_dir, 'pilot00_unshuffled.npy'))
-        stim_df = pd.read_csv(os.path.join(stim_dir, 'pilot00_unshuffled_stim_description.csv'))
+        stim = np.load(os.path.join(stim_dir, 'task-sfp_ses-pilot00_stimuli.npy'))
+        stim_df = pd.read_csv(os.path.join(stim_dir, 'task-sfp_ses-pilot00_stim_description.csv'))
     elif 'pilot01' in filename:
         stim_type = 'pilot'
-        stim = np.load(os.path.join(stim_dir, 'pilot01_unshuffled.npy'))
-        stim_df = pd.read_csv(os.path.join(stim_dir, 'pilot01_unshuffled_stim_description.csv'))
+        stim = np.load(os.path.join(stim_dir, 'task-sfp_ses-pilot01_stimuli.npy'))
+        stim_df = pd.read_csv(os.path.join(stim_dir, 'task-sfp_ses-pilot01_stim_description.csv'))
     else:
         if 'task-sfpconstant' in filename:
             stim_type = 'constant'
-            stim = np.load(os.path.join(stim_dir, 'constant_unshuffled.npy'))
-            stim_df = pd.read_csv(os.path.join(stim_dir, 'constant_unshuffled_stim_description.csv'))
+            stim = np.load(os.path.join(stim_dir, 'task-sfpconstant_stimuli.npy'))
+            stim_df = pd.read_csv(os.path.join(stim_dir, 'task-sfpconstant_stim_description.csv'))
         else:
             stim_type = 'logpolar'
-            stim = np.load(os.path.join(stim_dir, 'unshuffled.npy'))
-            stim_df = pd.read_csv(os.path.join(stim_dir, 'unshuffled_stim_description.csv'))
+            stim = np.load(os.path.join(stim_dir, 'task-sfp_stimuli.npy'))
+            stim_df = pd.read_csv(os.path.join(stim_dir, 'task-sfp_stim_description.csv'))
     return {'stim': stim, 'stim_df': stim_df, 'stim_type': stim_type}
 
 

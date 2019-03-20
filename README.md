@@ -60,7 +60,7 @@ following is an overview:
    the index. This can also be done using the `stimuli` and
    `stimuli_idx` rules in the Snakefile.
 2. Run the experiment and gather fMRI data (`python sfp/experiment.py
-   data/stimuli/unshuffled.npy 12 subject_name`). Each run will last 4
+   data/stimuli/task-sfp_stimuli.npy 12 subject_name`). Each run will last 4
    minutes 24 seconds (48 stimulus classes and 10 blank trials, each
    for 4 seconds, gives you 3 minutes 52 seconds, and then each run
    starts and ends with 16 seconds of blank screen).

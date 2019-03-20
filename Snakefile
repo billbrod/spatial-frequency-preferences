@@ -42,18 +42,14 @@ def get_n_classes(session, mat_type):
             n += 1
         return n
 def get_stim_files(wildcards):
-    if 'pilot00' in wildcards.session:
-        stim_prefix = 'pilot00_'
-    elif 'pilot01' in wildcards.session:
-        stim_prefix = 'pilot01_'
+    if 'pilot' in wildcards.session:
+        session_prefix = wildcards.session + "_"
     else:
-        if 'constant' in wildcards.task:
-            stim_prefix = 'constant_'
-        else:
-            stim_prefix = ''
-    file_stem = os.path.join(config['DATA_DIR'], 'stimuli', stim_prefix+"unshuffled{rest}")
-    return {'stim': file_stem.format(rest='.npy'),
-            'desc_csv': file_stem.format(rest='_stim_description.csv')}
+        session_prefix = ""
+    task_prefix = wildcards.task
+    file_stem = os.path.join(config['DATA_DIR'], 'stimuli', task_prefix"_"+session_prefix+"{rest}")
+    return {'stim': file_stem.format(rest='stimuli.npy'),
+            'desc_csv': file_stem.format(rest='stim_description.csv')}
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
              'sub-wlsubj014': 5, 'sub-wlsubj004': 6}
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50}
@@ -184,6 +180,7 @@ rule preprocess_all:
         [os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], run="run-%02d"%i) for sub in SUBJECTS for ses in SESSIONS[sub] for i in range(1, NRUNS.get((sub, ses), 12)+1)],
 
 
+# THIS NEEDS TO BE UPDATED
 rule stimuli:
     output:
         "data/stimuli/unshuffled.npy",

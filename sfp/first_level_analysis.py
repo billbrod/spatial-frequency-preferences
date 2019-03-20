@@ -498,8 +498,8 @@ def _normalize_amplitude_estimate(df, norm_order=2):
 def main(benson_template_path, results_path, df_mode='summary', stim_type='logpolar',
          save_path=None, class_nums=range(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
          benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
-         unshuffled_stim_path="../data/stimuli/unshuffled.npy",
-         unshuffled_stim_descriptions_path="../data/stimuli/unshuffled_stim_description.csv",
+         unshuffled_stim_path="../data/stimuli/task-sfp_stimuli.npy",
+         unshuffled_stim_descriptions_path="../data/stimuli/task-sfp_stim_description.csv",
          mid_val=128):
     """this loads in the realigned mgz files and creates a dataframe of their values
 
@@ -656,11 +656,11 @@ if __name__ == '__main__':
                               "Benson retinotopy. For this analysis to work, must contain 'varea'"
                               " and 'eccen'. Note that some subjects might not have sigma."))
     parser.add_argument("--unshuffled_stim_descriptions_path", "-d",
-                        default="data/stimuli/unshuffled_stim_description.csv",
+                        default="data/stimuli/task-sfp_stim_description.csv",
                         help=("Path to the unshuffled_stim_descriptions.csv file that contains the"
                               " pandas Dataframe that specifies each stimulus's frequency"))
     parser.add_argument("--unshuffled_stim_path", "-s",
-                        default="data/stimuli/unshuffled.npy",
+                        default="data/stimuli/task-sfp_stimuli.npy",
                         help=("Path to the unshuffled.npy file that contains the numpy array with"
                               "the stimuli used in the experiment"))
     parser.add_argument("--save_stem", default="",

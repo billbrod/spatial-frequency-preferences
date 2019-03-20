@@ -867,8 +867,8 @@ def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir, sti
 
 
 def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True,
-         seed=None, stimuli_name='unshuffled.npy',
-         stimuli_description_csv_name='unshuffled_stim_description.csv'):
+         seed=None, stimuli_name='task-sfp_stimuli.npy',
+         stimuli_description_csv_name='task-sfp_stim_description.csv'):
     """create the stimuli for the spatial frequency preferences experiment
 
     Our stimuli are constructed from a 2d frequency space, with w_r on the x-axis and w_a on the
@@ -908,6 +908,8 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     returns (one copy) of the (un-shuffled) stimuli, for inspection.
 
     """
+    if 'task-sfp' not in stimuli_name:
+        raise Exception("stimuli_name must contain task-sfp!")
     np.random.seed(seed)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
@@ -951,9 +953,12 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
                 ex_idx.extend(ex_idx_tmp)
             np.save(filename % i, class_idx + ex_idx)
     if create_stim:
-        if os.path.isfile(os.path.join(output_dir, "constant_" + stimuli_name)):
+        if os.path.isfile(os.path.join(output_dir, stimuli_name.replace('task-sfp',
+                                                                        'task-sfpconstant'))):
             raise Exception("unshuffled data already exists!")
-        if os.path.isfile(os.path.join(output_dir, "constant_" + stimuli_description_csv_name)):
+        if os.path.isfile(os.path.join(output_dir,
+                                       stimuli_description_csv_name.replace('task-sfp',
+                                                                            'task-sfpconstant'))):
             raise Exception("unshuffled data already exists!")
         if os.path.isfile(os.path.join(output_dir, stimuli_name)):
             raise Exception("unshuffled data already exists!")
@@ -965,8 +970,8 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
                                   ['w_r', 'w_a', 'phi', 'res', 'index', 'class_idx'], 'logpolar')
         # constant stimuli and csv
         constant_stim, _ = _create_stim(res, constant_freqs, phi, num_blank_trials, n_exemplars,
-                                        output_dir, "constant_" + stimuli_name,
-                                        "constant_" + stimuli_description_csv_name,
+                                        output_dir, stimuli_name.replace('task-sfp', 'task-sfpconstant'),
+                                        stimuli_description_csv_name.replace('task-sfp', 'task-sfpconstant'),
                                         ['w_x', 'w_y', 'phi', 'res', 'index', 'class_idx'],
                                         'constant', mask)
         return stim, constant_stim
@@ -983,10 +988,10 @@ if __name__ == '__main__':
     parser.add_argument("--output_dir", '-o', help="directory to place stimuli and indices in",
                         default="data/stimuli")
     parser.add_argument("--stimuli_name", '-n', help="name for the unshuffled stimuli",
-                        default="unshuffled.npy")
+                        default="task-sfp_stimuli.npy")
     parser.add_argument("--stimuli_description_csv_name", '-d',
                         help="name for the csv that describes unshuffled stimuli",
-                        default="unshuffled_stim_description.csv")
+                        default="task-sfp_stim_description.csv")
     parser.add_argument("--create_stim", '-c', action="store_true",
                         help="Create and save the experiment stimuli and descriptive dataframe")
     parser.add_argument("--create_idx", '-i', action="store_true",
