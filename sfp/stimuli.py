@@ -9,6 +9,7 @@ import seaborn as sns
 from . import utils
 import os
 import argparse
+import pickle
 from . import first_level_analysis
 
 
@@ -668,7 +669,7 @@ def plot_stim_properties(mask_df, x='w_a', y='w_r', data_label='mask_radius_cpp'
 
 
 def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=None,
-                           number_of_fade_pixels=3, combo_stimuli_type=['spiral'], bytescale=True):
+                           number_of_fade_pixels=3, combo_stimuli_type=['spiral']):
     """Generate the specified set of log-polar stimuli and apply the anti-aliasing mask
 
     this function creates the specified log-polar stimuli, calculates what their anti-aliasing
@@ -688,11 +689,6 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
     combo_stimuli_type: list with possible elements {'spiral', 'plaid'}. type of stimuli to create
     when both w_r and w_a are nonzero, as described in the docstring for log_polar_grating (to
     create radial and angular stimuli, just include 0 in w_a or w_r, respectively).
-
-    bytescale: boolean, default True. if True, calls bytescale(cmin=-1, cmax=1) on image to rescale
-    it to between 0 and 255, with dtype uint8. this is done because this is probably sufficient for
-    displays and takes up much less space.
-
 
     Returns
     =============
@@ -723,6 +719,7 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
     stimuli = []
     masked_stimuli = []
     mask = []
+    sf_maps = []
     for w_r, w_a in freqs_ra:
         _, tmp_mask = create_antialiasing_mask(size, w_r, w_a, origin, number_of_fade_pixels)
         mask.append(tmp_mask)
@@ -738,26 +735,23 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
             continue
         if 0 in [w_r, w_a] or 'spiral' in combo_stimuli_type:
             tmp_stimuli = log_polar_grating(size, w_r, w_a, p, A, origin)
-            if bytescale:
-                masked_stimuli.append(utils.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(utils.bytescale(tmp_stimuli, cmin=-1, cmax=1))
-            else:
-                masked_stimuli.append(tmp_stimuli*mask)
-                stimuli.append(tmp_stimuli)
+            masked_stimuli.append(tmp_stimuli*mask)
+            stimuli.append(tmp_stimuli)
+            _, _, tmp_sf, _ = create_sf_maps_cpp(size, origin, w_r=w_r, w_a=w_a)
+            sf_maps.append(tmp_sf*mask)
         if 'plaid' in combo_stimuli_type and 0 not in [w_r, w_a]:
             tmp_stimuli = (log_polar_grating(size, w_r, 0, p, A, origin) +
                            log_polar_grating(size, 0, w_a, p, A, origin))
-            if bytescale:
-                masked_stimuli.append(utils.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(utils.bytescale(tmp_stimuli, cmin=-1, cmax=1))
-            else:
-                masked_stimuli.append(tmp_stimuli*mask)
-                stimuli.append(tmp_stimuli)
-    return masked_stimuli, stimuli, mask
+            # not sure if this works, but I feel like it should
+            _, _, tmp_sf_1, _ = create_sf_maps_cpp(size, origin, w_r=w_r, w_a=0)
+            _, _, tmp_sf_2, _ = create_sf_maps_cpp(size, origin, w_r=0, w_a=w_a)
+            masked_stimuli.append(tmp_stimuli*mask)
+            stimuli.append(tmp_stimuli)
+            sf_maps.append((tmp_sf_1+tmp_sf_2)*mask)
+    return masked_stimuli, stimuli, mask, np.array(sf_maps)
 
 
-def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], origin=None,
-                          bytescale=True):
+def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], origin=None):
     """Generate the specified set of constant grating stimuli and apply the supplied mask
 
     this function creates the specified constant grating stimuli and applies the supplied mask to
@@ -774,15 +768,10 @@ def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], orig
     create. Each entry in the list corresponds to one stimuli, which will use the specified (w_x,
     w_y). They sould be in cycles per pixel.
 
-    bytescale: boolean, default True. if True, calls bytescale(cmin=-1, cmax=1) on image to rescale
-    it to between 0 and 255, with dtype uint8. this is done because this is probably sufficient for
-    displays and takes up much less space.
-
-
     Returns
     =============
 
-    masked stimuli and unmasked stimuli
+    masked stimuli, unmasked stimuli, and spatial frequency (cpp) magnitude maps
 
     """
     # we need to make sure that size, origin, and number_of_fade_pixels are not iterable and the
@@ -802,19 +791,19 @@ def gen_constant_stim_set(size, mask, freqs_xy=[(0, 0)], phi=[0], ampl=[1], orig
         ampl = [ampl]
     stimuli = []
     masked_stimuli = []
+    sf_maps = []
     for (w_x, w_y), p, A in itertools.product(freqs_xy, phi, ampl):
         if w_x == 0 and w_y == 0:
             # this is the empty stimulus
             continue
         else:
             tmp_stimuli = A * utils.create_sin_cpp(size, w_x, w_y, p, origin=origin)
-            if bytescale:
-                masked_stimuli.append(utils.bytescale(tmp_stimuli*mask, cmin=-1, cmax=1))
-                stimuli.append(utils.bytescale(tmp_stimuli, cmin=-1, cmax=1))
-            else:
-                masked_stimuli.append(tmp_stimuli*mask)
-                stimuli.append(tmp_stimuli)
-    return masked_stimuli, stimuli
+            masked_stimuli.append(tmp_stimuli*mask)
+            stimuli.append(tmp_stimuli)
+            _, _, tmp_sf, _ = create_sf_maps_cpp(size, origin, stim_type='constant', w_x=w_x,
+                                                 w_y=w_y)
+            sf_maps.append(tmp_sf*mask)
+    return masked_stimuli, stimuli, np.array(sf_maps)
 
 
 def _gen_freqs(base_freqs, round_flag=True):
@@ -839,21 +828,18 @@ def _gen_freqs(base_freqs, round_flag=True):
     return freqs
 
 
-def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir, stimuli_name,
+def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir,
                  stimuli_description_csv_name, col_names, stim_type, mask=None):
     """helper function to create the stimuli and and stimuli description csv
 
     stim_type: {'logpolar', 'constant'}. which type of stimuli to make. determines which function
-    to call, gen_log_polar_stim_set or gen_constant_stim_set. if constnat, mask must be set
+    to call, gen_log_polar_stim_set or gen_constant_stim_set. if constant, mask must be set
     """
     if stim_type == 'logpolar':
-        stim, _, mask = gen_log_polar_stim_set(res, freqs, phi)
+        stim, _, mask, sf_maps = gen_log_polar_stim_set(res, freqs, phi)
     elif stim_type == 'constant':
-        stim, _ = gen_constant_stim_set(res, mask, freqs, phi)
-    stim = np.concatenate([np.array(stim),
-                           utils.bytescale(np.zeros((num_blank_trials * n_exemplars, res, res)),
-                                           cmin=-1, cmax=1)])
-    np.save(os.path.join(output_dir, stimuli_name), stim)
+        stim, _, sf_maps = gen_constant_stim_set(res, mask, freqs, phi)
+    stim = np.concatenate([np.array(stim), np.zeros((num_blank_trials * n_exemplars, res, res))])
     # log-polar csv
     df = []
     for i, ((w_1, w_2), p) in enumerate(itertools.product(freqs, phi)):
@@ -863,12 +849,12 @@ def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir, sti
         df.append((None, None, None, res, i+max_idx, None))
     df = pd.DataFrame(df, columns=col_names)
     df.to_csv(os.path.join(output_dir, stimuli_description_csv_name), index=False)
-    return stim, mask
+    return stim, mask, sf_maps
 
 
 def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_idx=True,
          seed=None, stimuli_name='task-sfp_stimuli.npy',
-         stimuli_description_csv_name='task-sfp_stim_description.csv'):
+         stimuli_description_csv_name='task-sfp_stim_description.csv', mtf=None):
     """create the stimuli for the spatial frequency preferences experiment
 
     Our stimuli are constructed from a 2d frequency space, with w_r on the x-axis and w_a on the
@@ -900,6 +886,12 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
 
     seed: the random seed to use for this randomization. if unset, defaults to None. (uses
     np.random.seed)
+
+    mtf: None or callable object. If not None, this should be an object that accepts spatial
+    frequencies (in cycles per pixel) and returns the modulation transfer function of a display. We
+    will then construct the stimuli so they invert this MTF, reducing the amplitudes of the low
+    frequencies so that, when projected, they have the same (reduced) contrast as the high
+    frequencies.
 
     NOTE That if create_idx is True and the indices already exist, this will throw an
     exception. Similarly if create_stim is True and either the stimuli .npy file or the descriptive
@@ -965,15 +957,38 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
         if os.path.isfile(os.path.join(output_dir, stimuli_description_csv_name)):
             raise Exception("unshuffled data already exists!")
         # log-polar stimuli and csv
-        stim, mask = _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir,
-                                  stimuli_name, stimuli_description_csv_name,
-                                  ['w_r', 'w_a', 'phi', 'res', 'index', 'class_idx'], 'logpolar')
+        stim, mask, sf_maps = _create_stim(res, freqs, phi, num_blank_trials, n_exemplars,
+                                           output_dir, stimuli_description_csv_name,
+                                           ['w_r', 'w_a', 'phi', 'res', 'index', 'class_idx'],
+                                           'logpolar')
         # constant stimuli and csv
-        constant_stim, _ = _create_stim(res, constant_freqs, phi, num_blank_trials, n_exemplars,
-                                        output_dir, stimuli_name.replace('task-sfp', 'task-sfpconstant'),
-                                        stimuli_description_csv_name.replace('task-sfp', 'task-sfpconstant'),
-                                        ['w_x', 'w_y', 'phi', 'res', 'index', 'class_idx'],
-                                        'constant', mask)
+        constant_stim, _, constant_sf_maps = _create_stim(
+            res, constant_freqs, phi, num_blank_trials, n_exemplars, output_dir,
+            stimuli_description_csv_name.replace('task-sfp', 'task-sfpconstant'),
+            ['w_x', 'w_y', 'phi', 'res', 'index', 'class_idx'], 'constant', mask)
+        if mtf is None:
+            stim = utils.bytescale(stim, cmin=-1, cmax=1)
+            constant_stim = utils.bytescale(constant_stim, cmin=-1, cmax=1)
+        else:
+            inverse_mtf_maps = [1 / mtf(sf) for sf in sf_maps]
+            stim = np.array([m*s for m, s in zip(inverse_mtf_maps, stim)])
+            constant_inverse_mtf_maps = [1 / mtf(sf) for sf in constant_sf_maps]
+            constant_stim = np.array([m*s for m, s in zip(constant_inverse_mtf_maps,
+                                                          constant_stim)])
+            bytescale_lims = (min(stim.min(), constant_stim.min),
+                              max(stim.max(), constant_stim.max()))
+            stim = utils.bytescale(stim, cmin=bytescale_lims[0], cmax=bytescale_lims[1])
+            constant_stim = utils.bytescale(constant_stim, cmin=bytescale_lims[0],
+                                            cmax=bytescale_lims[1])
+            sfs = np.linspace(sf_maps.min(), 1)
+            plt.semilogx(sfs, mtf(sfs), basex=2)
+            plt.xlim((0, 1))
+            plt.savefig(os.path.join(output_dir, 'mtf.svg'))
+            plt.close()
+        # have to save these here so we can bytescale them correctly
+        np.save(os.path.join(output_dir, stimuli_name), stim)
+        np.save(os.path.join(output_dir, stimuli_name.replace('task-sfp', 'task-sfpconstant')),
+                constant_stim)
         return stim, constant_stim
 
 
@@ -999,7 +1014,18 @@ if __name__ == '__main__':
     parser.add_argument("--seed", '-s', default=None, type=int,
                         help=("Seed to initialize randomizer, for stimuli presentation "
                               "randomization"))
+    parser.add_argument("--mtf", default=None,
+                        help=("Path to pkl containing a callable object that accepts spatial "
+                              "frequencies (in cycles per pixel) and returns the modulation "
+                              "transfer function of a display. If not None, we will construct the "
+                              "stimuli to invert this, reducing the amplitude of the low "
+                              "frequencies so that, when projected, they have the same contrast as"
+                              "the high ones. See 02-Stimuli notebook for details."))
     args = vars(parser.parse_args())
+    if args['mtf'] is not None:
+        mtf_path = args.pop('mtf')
+        with open(mtf_path, 'rb') as f:
+            args['mtf'] = pickle.load(f)
     if not args["create_stim"] and not args['create_idx']:
         print("Nothing to create, exiting...")
     else:
