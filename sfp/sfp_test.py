@@ -27,7 +27,7 @@ def test_check_aliasing_with_mask():
 def test_gen_log_polar_stim_set():
     sfp_stimuli.gen_log_polar_stim_set(32, freqs_ra=[(4, 0), (0, 4), (4, 4)],
                                        phi=np.array(range(8))/8.*2*np.pi)
-    sfp_stimuli.gen_log_polar_stim_set(1080, [(0, 128)], bytescale=True)
+    sfp_stimuli.gen_log_polar_stim_set(1080, [(0, 128)])
 
 
 def test_gen_constant_stim_set():
@@ -35,7 +35,7 @@ def test_gen_constant_stim_set():
     sfp_stimuli.gen_constant_stim_set(32, mask, freqs_xy=[(.004, 0), (0, .004), (.004, .004)],
                                       phi=np.array(range(8))/8.*2*np.pi)
     _, mask = sfp_stimuli.create_antialiasing_mask(1080)
-    sfp_stimuli.gen_constant_stim_set(1080, mask, [(0, .1)], bytescale=True)
+    sfp_stimuli.gen_constant_stim_set(1080, mask, [(0, .1)])
 
 
 def test_check_stim_properties():
