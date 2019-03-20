@@ -693,7 +693,8 @@ def gen_log_polar_stim_set(size, freqs_ra=[(0, 0)], phi=[0], ampl=[1], origin=No
     Returns
     =============
 
-    masked stimuli, unmasked stimuli, and the mask used to mask the stimuli
+    masked stimuli, unmasked stimuli, the mask used to mask the stimuli, and spatial frequency
+    (cpp) magnitude maps
 
     """
     # we need to make sure that size, origin, and number_of_fade_pixels are not iterable and the
