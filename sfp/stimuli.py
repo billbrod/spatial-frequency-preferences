@@ -844,7 +844,7 @@ def _create_stim(res, freqs, phi, num_blank_trials, n_exemplars, output_dir,
     # log-polar csv
     df = []
     for i, ((w_1, w_2), p) in enumerate(itertools.product(freqs, phi)):
-        df.append((w_1, w_2, p, res, i, i / n_exemplars))
+        df.append((w_1, w_2, p, res, i, i // n_exemplars))
     max_idx = i+1
     for i, _ in enumerate(itertools.product(range(num_blank_trials), phi)):
         df.append((None, None, None, res, i+max_idx, None))
