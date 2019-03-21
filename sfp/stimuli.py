@@ -882,8 +882,14 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     the properties of a shuffled one, load that DataFrame in as df, and the index as idx, then call
     df.iloc[idx]
 
+    NOTE: We create and hold in memory several large arrays full of floats (6 arrays of shape (464,
+    1080, 1080)), because we convert them to 8-bit integers (np.uint8) after all of them has been
+    created to ensure that they are all scaled the same way. Therefore, this takes a lot of RAM
+    (>20GB) and so may throw a MemoryError on your machine.
+
     if create_stim is False, then we don't create the stim, just create and save the shuffled
-    indices.
+    indices. similarly, if create_idx is False, we don't create the shuffled indices. if both are
+    False, we do nothing.
 
     seed: the random seed to use for this randomization. if unset, defaults to None. (uses
     np.random.seed)
@@ -898,7 +904,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     exception. Similarly if create_stim is True and either the stimuli .npy file or the descriptive
     dataframe .csv file
 
-    returns (one copy) of the (un-shuffled) stimuli, for inspection.
+    returns the (un-shuffled) stimuli and the (un-shuffled) constant stimuli, for inspection.
 
     """
     if 'task-sfp' not in stimuli_name:
@@ -976,7 +982,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
             constant_inverse_mtf_maps = [1 / mtf(sf) for sf in constant_sf_maps]
             constant_stim = np.array([m*s for m, s in zip(constant_inverse_mtf_maps,
                                                           constant_stim)])
-            bytescale_lims = (min(stim.min(), constant_stim.min),
+            bytescale_lims = (min(stim.min(), constant_stim.min()),
                               max(stim.max(), constant_stim.max()))
             stim = utils.bytescale(stim, cmin=bytescale_lims[0], cmax=bytescale_lims[1])
             constant_stim = utils.bytescale(constant_stim, cmin=bytescale_lims[0],
