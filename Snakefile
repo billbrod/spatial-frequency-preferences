@@ -180,15 +180,29 @@ rule preprocess_all:
         [os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], run="run-%02d"%i) for sub in SUBJECTS for ses in SESSIONS[sub] for i in range(1, NRUNS.get((sub, ses), 12)+1)],
 
 
-# THIS NEEDS TO BE UPDATED
 rule stimuli:
     output:
-        "data/stimuli/unshuffled.npy",
-        "data/stimuli/unshuffled_stim_description.csv",
-        "data/stimuli/constant_unshuffled.npy",
-        "data/stimuli/constant_unshuffled_stim_description.csv"
+        "data/stimuli/task-sfp_stimuli.npy",
+        "data/stimuli/task-sfp_stim_description.csv",
+        "data/stimuli/task-sfpconstant_stimuli.npy",
+        "data/stimuli/task-sfpconstant_stim_description.csv"
     shell:
-        "python sfp/stimuli.py -c"
+        "python -m sfp.stimuli -c"
+
+
+rule rescaled_stimuli:
+    input:
+        "data/stimuli/mtf_func.pkl"
+    output:
+        "data/stimuli/task-sfprescaled_stimuli.npy",
+        "data/stimuli/task-sfprescaled_stim_description.csv",
+        "data/stimuli/task-sfpconstantrescaled_stimuli.npy",
+        "data/stimuli/task-sfpconstantrescaled_stim_description.csv"
+    params:
+        stim_name = lambda wildcards: os.path.split(wildcards.output[0])[-1],
+        csv_name = lambda wildcards: os.path.split(wildcards.output[1])[-1],
+    shell:
+        "python -m sfp.stimuli -c --mtf {input} -n {params.stim_name} -d {params.csv_name}"
 
 
 rule stimuli_idx:
@@ -197,7 +211,7 @@ rule stimuli_idx:
     params:
         seed = lambda wildcards: SUB_SEEDS[wildcards.subject]
     shell:
-        "python sfp/stimuli.py --subject_name {wildcards.subject} -i -s {params.seed}"
+        "python -m sfp.stimuli --subject_name {wildcards.subject} -i -s {params.seed}"
 
 
 def get_permuted(wildcards):

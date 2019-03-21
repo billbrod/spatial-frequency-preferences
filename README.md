@@ -159,6 +159,26 @@ two sessions ran out of time because of on-the-fly bug-fixing).
    16 seconds of blank time at the beginning of each run (to improve
    estimation of baseline) and an extra 8 seconds at the end of each
    run. Still task-sfp (only log-polar stimuli).
+5. ses-04 (git commit c7d6ea6543b368f3721ec836e7591f6c86baa438): same
+   experimental design as before, but with new task,
+   task-sfprescaled. We were concerned about the effect of the scanner
+   projector's modulation transfer function, that we might be losing
+   contrast at the higher frequencies (because of the projector's
+   pointspread function, which effectively acts to blur the
+   image). This could result in a lower response to those high spatial
+   frequencies, simply from the reduced contrast (rather than the
+   higher spatial frequency). In order to test this, we measured the
+   projector's MTF (see the
+   [spatial-calibration](https://github.com/WinawerLab/spatial-calibration/)
+   Github repo for more details) and then constructed our stimuli so
+   that their amplitude is rescaled in a spatial frequency-dependent
+   manner; the amplitudes of lower spatial frequencies is reduced such
+   that, when displayed by the scanner projector, both the high and
+   low spatial should have (approximately) the same contrast. We then
+   gather these new measurements and run the same analysis to compare
+   the effect. We also add the stimuli for task-sfpconstantrescaled
+   (same thing for the constant stimuli), but it's unclear if we will
+   gather that data (would be ses-05).
 
 # Snakemake
 
