@@ -977,17 +977,28 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
             stim = utils.bytescale(stim, cmin=-1, cmax=1)
             constant_stim = utils.bytescale(constant_stim, cmin=-1, cmax=1)
         else:
-            inverse_mtf_maps = [1 / mtf(sf) for sf in sf_maps]
-            stim = np.array([m*s for m, s in zip(inverse_mtf_maps, stim)])
-            constant_inverse_mtf_maps = [1 / mtf(sf) for sf in constant_sf_maps]
-            constant_stim = np.array([m*s for m, s in zip(constant_inverse_mtf_maps,
-                                                          constant_stim)])
+            rescaled_stim = []
+            constant_rescaled_stim = []
+            for i, (s, cs) in zip(stim, constant_stim):
+                try:
+                    inverse_mtf = 1 / mtf(sf_maps[i])
+                    rescaled_stim.append(inverse_mtf*s)
+                    inverse_mtf = 1 / mtf(constant_sf_maps[i])
+                    constant_rescaled_stim.append(inverse_mtf*cs)
+                # sf_maps and constant_sf_maps are shorter than stim and constant_stim, since they
+                # don't contain any of the blank stimuli. however, we still want to include those
+                # in the rescaled stimuli, so we use thef ollowing
+                except IndexError:
+                    rescaled_stim.append(s)
+                    constant_rescaled_stim.append(cs)
+            stim = np.array(rescaled_stim)
+            constant_stim = np.array(constant_rescaled_stim)
             bytescale_lims = (min(stim.min(), constant_stim.min()),
                               max(stim.max(), constant_stim.max()))
             stim = utils.bytescale(stim, cmin=bytescale_lims[0], cmax=bytescale_lims[1])
             constant_stim = utils.bytescale(constant_stim, cmin=bytescale_lims[0],
                                             cmax=bytescale_lims[1])
-            sfs = np.linspace(sf_maps.min(), 1)
+            sfs = np.linspace(np.min(sf_maps.min(), constant_sf_maps.min()), 1)
             plt.semilogx(sfs, mtf(sfs), basex=2)
             plt.xlim((0, 1))
             plt.savefig(os.path.join(output_dir, 'mtf.svg'))
