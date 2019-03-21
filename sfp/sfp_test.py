@@ -61,16 +61,17 @@ def test_create_sf_maps():
     sfp_stimuli.create_sf_origin_polar_maps_cpd(1080, 12, w_x=.1, w_y=.5, stim_type='constant')
     sfp_stimuli.create_sf_origin_polar_maps_cpd(1080, 12, w_x=.1, w_y=.1, stim_type='constant')
 
+# THESE REQUIRE MORE MEMORY THAN TRAVIS CI CAN GIVE US
 
-def test_stim_main():
-    sfp_stimuli.main('test', "data/test/")
-    shutil.rmtree('data/test')
+# def test_stim_main():
+#     sfp_stimuli.main('test', "data/test/")
+#     shutil.rmtree('data/test')
 
 
-def test_stim_main_exception():
-    sfp_stimuli.main('test', "data/test/")
-    with pytest.raises(Exception):
-        sfp_stimuli.main('test', "data/test/", create_stim=False)
-    with pytest.raises(Exception):
-        sfp_stimuli.main('test', "data/test/", create_idx=False)
-    shutil.rmtree('data/test')
+# def test_stim_main_exception():
+#     sfp_stimuli.main('test', "data/test/")
+#     with pytest.raises(Exception):
+#         sfp_stimuli.main('test', "data/test/", create_stim=False)
+#     with pytest.raises(Exception):
+#         sfp_stimuli.main('test', "data/test/", create_idx=False)
+#     shutil.rmtree('data/test')
