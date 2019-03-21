@@ -979,7 +979,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
         else:
             rescaled_stim = []
             constant_rescaled_stim = []
-            for i, (s, cs) in zip(stim, constant_stim):
+            for i, (s, cs) in enumerate(zip(stim, constant_stim)):
                 try:
                     inverse_mtf = 1 / mtf(sf_maps[i])
                     rescaled_stim.append(inverse_mtf*s)
@@ -998,9 +998,12 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
             stim = utils.bytescale(stim, cmin=bytescale_lims[0], cmax=bytescale_lims[1])
             constant_stim = utils.bytescale(constant_stim, cmin=bytescale_lims[0],
                                             cmax=bytescale_lims[1])
-            sfs = np.linspace(np.min(sf_maps.min(), constant_sf_maps.min()), 1)
+            sfs = np.linspace(np.min([sf_maps.min(), constant_sf_maps.min()]), 1)
             plt.semilogx(sfs, mtf(sfs), basex=2)
-            plt.xlim((0, 1))
+            plt.ylim((0, 1))
+            plt.title("MTF of display (rescaled stimuli invert this)")
+            plt.xlabel("Spatial frequency (cycles per pixel)")
+            plt.ylabel("Contrast")
             plt.savefig(os.path.join(output_dir, 'mtf.svg'))
             plt.close()
         # have to save these here so we can bytescale them correctly
