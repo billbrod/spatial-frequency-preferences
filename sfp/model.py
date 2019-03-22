@@ -603,7 +603,8 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
             loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history,
                                                 max_epochs, batch_size, learning_rate,
                                                 train_thresh, t, test_loss_history, test_dataset)
-            save_outputs(model, loss_df, results_df, save_path_stem)
+            # don't save results_df when cross-validating
+            save_outputs(model, loss_df, None, save_path_stem)
         print("Average train loss on epoch %s: %s" % (t, np.mean(train_loss_history[-1])))
         print("Average test loss on epoch %s: %s" % (t, np.mean(test_loss_history[-1])))
         print(model)
