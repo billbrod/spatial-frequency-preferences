@@ -47,7 +47,7 @@ def get_stim_files(wildcards):
     else:
         session_prefix = ""
     task_prefix = wildcards.task
-    file_stem = os.path.join(config['DATA_DIR'], 'stimuli', task_prefix"_"+session_prefix+"{rest}")
+    file_stem = os.path.join(config['DATA_DIR'], 'stimuli', task_prefix+"_"+session_prefix+"{rest}")
     return {'stim': file_stem.format(rest='stimuli.npy'),
             'desc_csv': file_stem.format(rest='stim_description.csv')}
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
