@@ -677,8 +677,9 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
     if random_seed is not None:
         np.random.seed(int(random_seed))
     # all the parameters are bounded below by 0. they're not bounded above by anything. However,
-    # they will probably be small, so we use a max of 2.
-    param_inits = np.random.uniform(0, 2, 11)
+    # they will probably be small, so we use a max of 1 (things get weird when the orientation
+    # effect parameters get too large).
+    param_inits = np.random.uniform(0, 1, 11)
     model = LogGaussianDonut(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
                              *param_inits)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
