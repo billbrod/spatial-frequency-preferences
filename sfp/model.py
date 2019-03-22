@@ -9,6 +9,7 @@ mpl.use('svg', warn=False)
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 import torch
 import warnings
 import argparse
@@ -424,7 +425,8 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
 
 
 def construct_dfs(model, dataset, train_loss_history, max_epochs, batch_size, learning_rate,
-                  train_thresh, current_epoch, test_loss_history=None, test_dataset=None):
+                  train_thresh, current_epoch, start_time, test_loss_history=None,
+                  test_dataset=None):
     """construct the loss and results dataframes and add metadata
     """
     loss_df = construct_loss_df(train_loss_history)
@@ -435,6 +437,7 @@ def construct_dfs(model, dataset, train_loss_history, max_epochs, batch_size, le
     loss_df['learning_rate'] = learning_rate
     loss_df['train_thresh'] = train_thresh
     loss_df['epochs_trained'] = current_epoch
+    loss_df['time_elapsed'] = time.time() - start_time
     # we reload the first level dataframe because the one in dataset may be filtered in some way
     results_df = combine_first_level_df_with_performance(pd.read_csv(dataset.df_path),
                                                          check_performance(model, dataset,
@@ -518,6 +521,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
     optimizer = torch.optim.Adam(training_parameters, lr=learning_rate, amsgrad=True)
     dataloader = torchdata.DataLoader(dataset, batch_size)
     loss_history = []
+    start_time = time.time()
     for t in range(max_epochs):
         loss_history.append([])
         for i, (features, target, precision) in enumerate(dataloader):
@@ -537,7 +541,8 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
             optimizer.step()
         if (t % 100) == 0:
             loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs,
-                                                batch_size, learning_rate, train_thresh, t)
+                                                batch_size, learning_rate, train_thresh, t,
+                                                start_time)
             save_outputs(model, loss_df, results_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         print(model)
@@ -548,7 +553,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                 print("Epoch loss appears to have stopped declining, so we stop training")
                 break
     loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs, batch_size,
-                                        learning_rate, train_thresh, t)
+                                        learning_rate, train_thresh, t, start_time)
     return model, loss_df, results_df
 
 
@@ -565,6 +570,7 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
     test_dataloader = torchdata.DataLoader(test_dataset, batch_size)
     train_loss_history = []
     test_loss_history = []
+    start_time = time.time()
     for t in range(max_epochs):
         train_loss_history.append([])
         for i, (train_stuff, test_stuff) in enumerate(zip(train_dataloader, test_dataloader)):
@@ -602,7 +608,8 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
         if (t % 100) == 0:
             loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history,
                                                 max_epochs, batch_size, learning_rate,
-                                                train_thresh, t, test_loss_history, test_dataset)
+                                                train_thresh, t, start_time, test_loss_history,
+                                                test_dataset)
             # don't save results_df when cross-validating
             save_outputs(model, loss_df, None, save_path_stem)
         print("Average train loss on epoch %s: %s" % (t, np.mean(train_loss_history[-1])))
@@ -615,7 +622,7 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
                 print("Training loss appears to have stopped declining, so we stop training")
                 break
     loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history, max_epochs,
-                                        batch_size, learning_rate, train_thresh, t,
+                                        batch_size, learning_rate, train_thresh, t, start_time,
                                         test_loss_history, test_dataset)
     return model, loss_df, results_df
 
