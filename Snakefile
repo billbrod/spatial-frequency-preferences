@@ -52,7 +52,8 @@ def get_stim_files(wildcards):
             'desc_csv': file_stem.format(rest='stim_description.csv')}
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
              'sub-wlsubj014': 5, 'sub-wlsubj004': 6}
-SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50}
+SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50,
+             'ses-04': 60}
 wildcard_constraints:
     subject="sub-[a-z0-9]+",
     subjects="(sub-[a-z0-9]+,?)+",
@@ -205,13 +206,25 @@ rule rescaled_stimuli:
         "python -m sfp.stimuli -c --mtf {input} -n {params.stim_name} -d {params.csv_name}"
 
 
-rule stimuli_idx:
+# old way of generating stimuli, only used subject name
+rule stimuli_idx_old:
     output:
         ["data/stimuli/{subject}_run%02d_idx.npy" % i for i in range(12)]
     params:
         seed = lambda wildcards: SUB_SEEDS[wildcards.subject]
     shell:
         "python -m sfp.stimuli --subject_name {wildcards.subject} -i -s {params.seed}"
+
+
+# current way of generating stimuli, uses both subject and session name
+rule stimuli_idx:
+    output:
+        ["data/stimuli/{subject}_{session}_run%02d_idx.npy" % i for i in range(12)]
+    params:
+        seed = lambda wildcards: SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+    shell:
+        "python -m sfp.stimuli --subject_name {wildcards.subject}_{wildcards.session}"
+        " -i -s {params.seed}"
 
 
 def get_permuted(wildcards):
