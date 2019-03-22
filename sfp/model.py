@@ -221,21 +221,17 @@ class LogGaussianDonut(torch.nn.Module):
         else:
             amp_vary_label = 'vary'
         if eccentricity_type == 'scaling':
-            if kwargs['sf_ecc_slope'] != 1 or kwargs['sf_ecc_intercept'] != 0:
-                warnings.warn("When eccentricity_type is scaling, sf_ecc_slope must be 1 and "
-                              "sf_ecc_intercept must be 0! correcting...")
-                kwargs['sf_ecc_slope'] = 1
+            if kwargs['sf_ecc_intercept'] != 0:
+                warnings.warn("When eccentricity_type is scaling, sf_ecc_intercept must be 0! "
+                              "correcting...")
                 kwargs['sf_ecc_intercept'] = 0
-            train_kwargs['sf_ecc_slope'] = False
             train_kwargs['sf_ecc_intercept'] = False
         elif eccentricity_type == 'constant':
-            if kwargs['sf_ecc_slope'] != 0 or kwargs['sf_ecc_intercept'] != 1:
-                warnings.warn("When eccentricity_type is constant, sf_ecc_slope must be 0 and "
-                              "sf_ecc_intercept must be 1! correcting...")
+            if kwargs['sf_ecc_slope'] != 0:
+                warnings.warn("When eccentricity_type is constant, sf_ecc_slope must be 0! "
+                              "correcting...")
                 kwargs['sf_ecc_slope'] = 0
-                kwargs['sf_ecc_intercept'] = 1
             train_kwargs['sf_ecc_slope'] = False
-            train_kwargs['sf_ecc_intercept'] = False
         elif eccentricity_type != 'full':
             raise Exception("Don't know how to handle eccentricity_type %s!" % eccentricity_type)
         self.eccentricity_type = eccentricity_type
