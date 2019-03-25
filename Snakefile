@@ -201,7 +201,7 @@ rule plots_VSS_abstract:
 
 rule GLMdenoise_all:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "stim_class", "posterior",  "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "stim_class", "posterior",  "{subject}", "{session}", "figures_{task}", "FinalModel_maps.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
 
 
 rule preprocess_all:
@@ -490,8 +490,8 @@ rule GLMdenoise:
         # output
         GLM_output_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}-{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
         GLM_tmp_parent_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}-{atlas_type}", "{subject}", "{session}").format(**wildcards),
-        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
-        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}-{atlas_type}_results.mat").format(**wildcards),
+        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures_{task}").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures_{task}", "{subject}_{session}_{mat_type}-{atlas_type}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 100
@@ -528,8 +528,8 @@ rule GLMdenoise_fixed_hrf:
         # output
         GLM_output_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}-{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
         GLM_tmp_parent_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}-{atlas_type}", "{subject}", "{session}").format(**wildcards),
-        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures").format(**wildcards),
-        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}-{atlas_type}_results.mat").format(**wildcards),
+        GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures_{task}").format(**wildcards),
+        GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "figures_{task}", "{subject}_{session}_{mat_type}_fixed_hrf_{input_mat}-{atlas_type}_results.mat").format(**wildcards),
     resources:
         cpus_per_task = 1,
         mem = 150
@@ -543,6 +543,25 @@ rule GLMdenoise_fixed_hrf:
         "'{input.opts_json}', jsonInfo.TR_length); quit;\"; "
         "mv -v {params.GLM_output_dir} {params.GLM_target_dir}; rmdir -pv {params.GLM_tmp_parent_dir}; "
         "mv -v {params.GLM_output} {output.GLM_results}"
+
+
+rule GLMdenoise_png_process:
+    # this crawls through the GLMdenoise figure directory and converts all the pngs, which
+    # otherwise are created incorrectly because they're surface outputs, see
+    # https://github.com/kendrickkay/GLMdenoise/issues/6
+    input:
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")
+    output:
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures_{task}", "FinalModel_maps.png")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_png_process_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_png_process-%j.log")
+    params:
+        GLM_figure_dir = lambda wildcards, output: os.path.dirname(output[0]),
+        script_location = os.path.join(config["MRI_TOOLS"], "BIDS", "GLMdenoisePNGprocess.py"),
+    shell:
+        "python {params.script_location} {params.GLM_figure_dir}"
 
 
 def get_first_level_analysis_input(wildcards):
