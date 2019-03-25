@@ -63,8 +63,8 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
         warnings.warn("Anatomical data already found, skipping...")
     create_BIDS_tsv.main(
         behavioral_results_path, unshuffled_stim_description_path,
-        save_path = os.path.join(base_dir, BIDS_subj, BIDS_ses, "func",
-                                 BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"),
+        save_path=os.path.join(base_dir, BIDS_subj, BIDS_ses, "func",
+                               BIDS_subj+"_"+BIDS_ses+"_"+BIDS_task+"_run-%02d_events.tsv"),
         full_TRs=full_TRs)
     print("  Successfully moved over events tsv")
     if isinstance(behavioral_results_path, str):
@@ -95,10 +95,10 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
 
 
 def wlsubj001_oct(base_dir, acadia_projects_dir):
-    print("Moving wl_subj001's data from 20171007_prisma")
+    print("Moving wlsubj001's data from 20171007_prisma")
     anat_dir = os.path.join(acadia_projects_dir, "Anatomy", "wlsubj001", "RAS", 'raw',
                             "EK_2013_12_17_T1")
-    _BIDSify(base_dir, "wl_subj001", "20171007_prisma", [10, 12, 14, 16, 18, 20, 22, 24, 26],
+    _BIDSify(base_dir, "wlsubj001", "20171007_prisma", [10, 12, 14, 16, 18, 20, 22, 24, 26],
              [9, 11, 13, 15, 17, 19, 21, 23, 25], "sfp", "pilot01", 'j', 6, 5, anat_dir, [2, 3, 4], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Oct-09_wl_subj001_sess1.hdf5"),
              os.path.join(SFP_PATH, "data", "stimuli", "task-sfp_ses-pilot01_stim_description.csv"),
@@ -108,10 +108,10 @@ def wlsubj001_oct(base_dir, acadia_projects_dir):
 
 
 def wlsubj042_aug(base_dir, acadia_projects_dir):
-    print("Moving wl_subj042's data from 20170823_prisma_pilot")
+    print("Moving wlsubj042's data from 20170823_prisma_pilot")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj042",
                             "20170713_PrismaPilot", "RAW")
-    _BIDSify(base_dir, "wl_subj042", "20170823_prisma_pilot", [10, 12, 14, 16, 18, 20, 22, 24],
+    _BIDSify(base_dir, "wlsubj042", "20170823_prisma_pilot", [10, 12, 14, 16, 18, 20, 22, 24],
              [9, 11, 13, 15, 17, 19, 21, 23], "sfp", "pilot00", 'j', 6, 5, anat_dir, [15, 16], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Aug-23_wl_subj042_sess1.hdf5"),
              os.path.join(SFP_PATH, "data", "stimuli", "task-sfp_ses-pilot00_stim_description.csv"),
@@ -121,10 +121,10 @@ def wlsubj042_aug(base_dir, acadia_projects_dir):
 
 
 def wlsubj042_nov(base_dir, acadia_projects_dir):
-    print("Moving wl_subj042's data from 20171107")
+    print("Moving wlsubj042's data from 20171107")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj042",
                             "20170713_PrismaPilot", "RAW")
-    _BIDSify(base_dir, "wl_subj042", "20171107", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj042", "20171107", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "pilot01", 'j', 6, 5, anat_dir,
              [15, 16], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj042_sess0.hdf5"),
@@ -135,10 +135,10 @@ def wlsubj042_nov(base_dir, acadia_projects_dir):
 
 
 def wlsubj045_nov(base_dir, acadia_projects_dir):
-    print("Moving wl_subj045's data from 20171107")
+    print("Moving wlsubj045's data from 20171107")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj045",
                             "20171031_Anatomy", "RAW")
-    _BIDSify(base_dir, "wl_subj045", "20171107", [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
+    _BIDSify(base_dir, "wlsubj045", "20171107", [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
              [9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31], "sfp", "pilot01", 'j', 6, 5, anat_dir,
              [5, 6, 7], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2017-Nov-07_wl_subj045_sess0.hdf5"),
@@ -149,10 +149,10 @@ def wlsubj045_nov(base_dir, acadia_projects_dir):
 
 
 def wlsubj001_01(base_dir, acadia_projects_dir):
-    print("Moving wl_subj001's data from 20180131")
+    print("Moving wlsubj001's data from 20180131")
     anat_dir = os.path.join(acadia_projects_dir, "Anatomy", "wlsubj001", "RAS", 'raw',
                             "EK_2013_12_17_T1")
-    _BIDSify(base_dir, "wl_subj001", "20180131", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj001", "20180131", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "01", 'j', 6, 5, anat_dir,
              [2, 3, 4], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Jan-31_sub-wlsubj001_sess0.hdf5"),
@@ -163,10 +163,10 @@ def wlsubj001_01(base_dir, acadia_projects_dir):
 
 
 def wlsubj042_01(base_dir, acadia_projects_dir):
-    print("Moving wl_subj042's data from 20180201")
+    print("Moving wlsubj042's data from 20180201")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj042",
                             "20170713_PrismaPilot", "RAW")
-    _BIDSify(base_dir, "wl_subj042", "20180201", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj042", "20180201", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfpconstant", "01", 'j', 6, 5,
              anat_dir, [15, 16], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-01_sub-wlsubj042_sess0.hdf5"),
@@ -177,10 +177,10 @@ def wlsubj042_01(base_dir, acadia_projects_dir):
 
 
 def wlsubj001_02(base_dir, acadia_projects_dir):
-    print("Moving wl_subj001's data from 20180207")
+    print("Moving wlsubj001's data from 20180207")
     anat_dir = os.path.join(acadia_projects_dir, "Anatomy", "wlsubj001", "RAS", 'raw',
                             "EK_2013_12_17_T1")
-    _BIDSify(base_dir, "wl_subj001", "20180207", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj001", "20180207", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfpconstant", "02", 'j', 6, 5,
              anat_dir, [2, 3, 4], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-07_sub-wlsubj001_sess0.hdf5"),
@@ -191,11 +191,11 @@ def wlsubj001_02(base_dir, acadia_projects_dir):
 
 
 def wlsubj042_02(base_dir, acadia_projects_dir):
-    print("Moving wl_subj042's data from 20180209")
+    print("Moving wlsubj042's data from 20180209")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj042",
                             "20170713_PrismaPilot", "RAW")
     # number 24 is the incomplete run
-    _BIDSify(base_dir, "wl_subj042", "20180209", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj042", "20180209", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "02", 'j', 6, 5,
              anat_dir, [15, 16], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-09_sub-wlsubj042_sess0.hdf5"),
@@ -206,10 +206,10 @@ def wlsubj042_02(base_dir, acadia_projects_dir):
 
 
 def wlsubj045_01(base_dir, acadia_projects_dir):
-    print("Moving wl_subj045's data from 20180216")
+    print("Moving wlsubj045's data from 20180216")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj045",
                             "20171031_Anatomy", "RAW")
-    _BIDSify(base_dir, "wl_subj045", "20180216", [8, 10, 12, 14, 16, 18, 20, 22, 26, 28, 30, 32],
+    _BIDSify(base_dir, "wlsubj045", "20180216", [8, 10, 12, 14, 16, 18, 20, 22, 26, 28, 30, 32],
              [7, 9, 11, 13, 15, 17, 19, 21, 25, 27, 29, 31], "sfpconstant", "01", 'j', 6, 5,
              anat_dir, [5, 6, 7], "T1w",
              [os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-16_sub-wlsubj045_sess0.hdf5"),
@@ -221,10 +221,10 @@ def wlsubj045_01(base_dir, acadia_projects_dir):
 
 
 def wlsubj045_02(base_dir, acadia_projects_dir):
-    print("Moving wl_subj045's data from 20180227")
+    print("Moving wlsubj045's data from 20180227")
     anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj045",
                             "20171031_Anatomy", "RAW")
-    _BIDSify(base_dir, "wl_subj045", "20180227", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj045", "20180227", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "02", 'j', 6, 5,
              anat_dir, [5, 6, 7], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Feb-27_sub-wlsubj045_sess0.hdf5"),
@@ -235,9 +235,9 @@ def wlsubj045_02(base_dir, acadia_projects_dir):
 
 
 def wlsubj014_03(base_dir, acadia_projects_dir):
-    print("Moving wl_subj014's data from 20180320")
+    print("Moving wlsubj014's data from 20180320")
     anat_dir = os.path.join(acadia_projects_dir, "Anatomy", "wlsubj014", "Raw")
-    _BIDSify(base_dir, "wl_subj014", "20180320", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj014", "20180320", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "03", 'j', 6, 5,
              anat_dir, [3, 4], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Mar-20_sub-wlsubj014_sess0.hdf5"),
@@ -248,9 +248,9 @@ def wlsubj014_03(base_dir, acadia_projects_dir):
 
 
 def wlsubj004_03(base_dir, acadia_projects_dir):
-    print("Moving wl_subj004's data from 20180322")
+    print("Moving wlsubj004's data from 20180322")
     anat_dir = os.path.join(acadia_projects_dir, "Anatomy", "wlsubj004")
-    _BIDSify(base_dir, "wl_subj004", "20180322", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+    _BIDSify(base_dir, "wlsubj004", "20180322", [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
              [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29], "sfp", "03", 'j', 6, 5,
              anat_dir, [1], "T1w",
              os.path.join(SFP_PATH, "data", "raw_behavioral", "2018-Mar-22_sub-wlsubj004_sess0.hdf5"),
@@ -289,17 +289,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=("Move some subjects from prisma to (approximate) BIDS format"))
     parser.add_argument("subject", nargs='+', type=str,
-                        help=("Which subject / session to run. One or more from this list: wl_subj"
-                              "001 (pilot in Oct 2017), wl_subj001-01 (Jan 31, 2018, after revising"
-                              " stimuli, log-polar stimuli), wl_subj001-02 (Feb 7, 2018, with "
-                              "constant stimuli) wl_subj042-0 (pilot in Aug 2017), wl_subj042-1 ("
-                              "pilot in Nov 2017), wl_subj042-01 (Feb 1, 2018, after revising "
-                              "stimuli, constant stimuli), wl_subj042-02 (Feb 9, 2018 with log-"
-                              "polar stimuli), wl_subj045 (pilot in Nov 2017), wl_subj045-01 (Feb "
-                              "16, 2018, after revising stimuli, constant stimuli), wl_subj045-02"
+                        help=("Which subject / session to run. One or more from this list: wlsubj"
+                              "001 (pilot in Oct 2017), wlsubj001-01 (Jan 31, 2018, after revising"
+                              " stimuli, log-polar stimuli), wlsubj001-02 (Feb 7, 2018, with "
+                              "constant stimuli) wlsubj042-0 (pilot in Aug 2017), wlsubj042-1 ("
+                              "pilot in Nov 2017), wlsubj042-01 (Feb 1, 2018, after revising "
+                              "stimuli, constant stimuli), wlsubj042-02 (Feb 9, 2018 with log-"
+                              "polar stimuli), wlsubj045 (pilot in Nov 2017), wlsubj045-01 (Feb "
+                              "16, 2018, after revising stimuli, constant stimuli), wlsubj045-02"
                               " (Feb 27, 2018, after revising stimuli, log-polar stimuli), "
-                              "wl_subj014-03 (Mar 20, 2018, after revising stimuli, log-polar "
-                              "stimuli, with extra time added before and after run), wl_subj004-03"
+                              "wlsubj014-03 (Mar 20, 2018, after revising stimuli, log-polar "
+                              "stimuli, with extra time added before and after run), wlsubj004-03"
                               " (Mar 22, 2018, after revising stimuli, log-polar stimuli, with "
                               "extra time added before and after run)"))
     parser.add_argument("--base_dir", default='..',
@@ -309,27 +309,27 @@ if __name__ == '__main__':
                         help=("Path to the winawerlab Projects directory. Necessary to find the "
                               "anatomical data"))
     args = vars(parser.parse_args())
-    if 'wl_subj001' in args['subject']:
+    if 'wlsubj001' in args['subject']:
         wlsubj001_oct(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj001-01' in args['subject']:
+    if 'wlsubj001-01' in args['subject']:
         wlsubj001_01(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj001-02' in args['subject']:
+    if 'wlsubj001-02' in args['subject']:
         wlsubj001_02(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj042-0' in args['subject']:
+    if 'wlsubj042-0' in args['subject']:
         wlsubj042_aug(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj042-1' in args['subject']:
+    if 'wlsubj042-1' in args['subject']:
         wlsubj042_nov(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj042-01' in args['subject']:
+    if 'wlsubj042-01' in args['subject']:
         wlsubj042_01(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj042-02' in args['subject']:
+    if 'wlsubj042-02' in args['subject']:
         wlsubj042_02(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj045' in args['subject']:
+    if 'wlsubj045' in args['subject']:
         wlsubj045_nov(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj045-01' in args['subject']:
+    if 'wlsubj045-01' in args['subject']:
         wlsubj045_01(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj045-02' in args['subject']:
+    if 'wlsubj045-02' in args['subject']:
         wlsubj045_02(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj014-03' in args['subject']:
+    if 'wlsubj014-03' in args['subject']:
         wlsubj014_03(args['base_dir'], args['acadia_projects_dir'])
-    if 'wl_subj004-03' in args['subject']:
+    if 'wlsubj004-03' in args['subject']:
         wlsubj004_03(args['base_dir'], args['acadia_projects_dir'])
