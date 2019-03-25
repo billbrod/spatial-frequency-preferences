@@ -19,7 +19,7 @@ SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045', 
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj004': ['ses-03'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
-            'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02'],
+            'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02', 'ses-04'],
             'sub-wlsubj014': ['ses-03']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
@@ -27,17 +27,18 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj042', 'ses-01'): 'task-sfpconstant', ('sub-wlsubj042', 'ses-02'): 'task-sfp',
          ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp',
          ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp',
-         ('sub-wlsubj014', 'ses-03'): 'task-sfp',
-         ('sub-wlsubj004', 'ses-03'): 'task-sfp'}
+         ('sub-wlsubj014', 'ses-03'): 'task-sfp', ('sub-wlsubj004', 'ses-03'): 'task-sfp',
+         ('sub-wlsubj045', 'ses-04'): 'task-sfprescaled'}
 # every sub/ses pair that's not in here has the full number of runs, 12
-NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8}
+NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
+         ('sub-wlsubj045', 'ses-04'): 7}
 VAREAS = [1]
 def get_n_classes(session, mat_type):
     if mat_type == 'all_visual':
         return 1
     else:
         n = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48,
-             'ses-03': 48}[session]
+             'ses-03': 48, 'ses-04': 48}[session]
         if 'blanks' in mat_type:
             n += 1
         return n
@@ -263,8 +264,14 @@ def get_permuted(wildcards):
 
 
 def get_design_inputs(wildcards):
-    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
-    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func", wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold.nii")
+    if wildcards.session == 'ses-04':
+        ext = 'nii.gz'
+    else:
+        ext = 'nii'
+    tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
+                             wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
+    func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
+                              wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold."+ext)
     return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
             'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
 
@@ -288,10 +295,22 @@ rule create_design_matrices:
         " --mat_type {params.mat_type} --save_path {params.save_path} {params.permuted_flag}"
 
 
+def get_preprocess_inputs(wildcards):
+    input_dict = {}
+    input_dict['freesurfer_files'] = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer",
+                                                  wildcards.subject.replace('sub-', ''))
+    if wildcards.session == 'ses-04':
+        ext = 'nii.gz'
+    else:
+        ext = 'nii'
+    input_dict['func_files'] = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func",
+                                            "{subject}_{session}_{task}_{run}_bold.{ext}").format(ext=ext, **wildcards)
+    return input_dict
+
+
 rule preprocess:
     input:
-        lambda wildcards: os.path.join(config["DATA_DIR"], "derivatives", "freesurfer", wildcards.subject.replace('sub-', '')),
-        func_files = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}_{session}_{task}_{run}_bold.nii")
+        unpack(get_preprocess_inputs)
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "session.json"),
