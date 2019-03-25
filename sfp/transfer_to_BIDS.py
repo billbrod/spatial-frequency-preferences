@@ -40,21 +40,29 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
         full_TRs = 256
     elif BIDS_ses in ['ses-01', 'ses-02']:
         full_TRs = 240
-    elif BIDS_ses in ['ses-03']:
+    elif BIDS_ses in ['ses-03', 'ses-04']:
         full_TRs = 264
-    try:
-        prisma_to_BIDS.copy_func(source_dir, base_dir, epis, sbrefs, task_label, PEdim,
-                                 session_label)
-        print("  Successfully moved over functional data")
-    except IOError:
-        warnings.warn("Functional data already found, skipping...")
+    if epis is not None and sbrefs is not None:
+        try:
+            prisma_to_BIDS.copy_func(source_dir, base_dir, epis, sbrefs, task_label, PEdim,
+                                     session_label)
+            print("  Successfully moved over functional data")
+        except IOError:
+            warnings.warn("Functional data already found, skipping...")
+    else:
+        warnings.warn("epis and sbrefs specified as None, assuming they're already in proper "
+                      "location and BIDS-organized")
     prisma_to_BIDS.json_check(os.path.join(base_dir, BIDS_subj, BIDS_ses, "func"))
-    try:
-        prisma_to_BIDS.copy_fmap(source_dir, base_dir, distortPE, distortrevPE, PEdim,
-                                 session_label)
-        print("  Successfully moved over field map data")
-    except IOError:
-        warnings.warn("Field map data already found, skipping...")
+    if distortPE is not None and distortrevPE is not None:
+        try:
+            prisma_to_BIDS.copy_fmap(source_dir, base_dir, distortPE, distortrevPE, PEdim,
+                                     session_label)
+            print("  Successfully moved over field map data")
+        except IOError:
+            warnings.warn("Field map data already found, skipping...")
+    else:
+        warnings.warn("distortPE and distortrevPE specified as None, assuming field map data "
+                      "already in proper location and BIDS-organized")
     prisma_to_BIDS.json_check(os.path.join(base_dir, BIDS_subj, BIDS_ses, "fmap"))
     try:
         prisma_to_BIDS.copy_anat(anatomy_directory, base_dir, anat_nums, anat_modality_label)
@@ -260,6 +268,19 @@ def wlsubj004_03(base_dir, acadia_projects_dir):
              os.path.join(SFP_PATH, "data", "stimuli", "task-sfp_stimuli.npy"))
 
 
+def wlsubj045_04(base_dir, acadia_projects_dir):
+    print("Moving wlsubj045's data from 20190322")
+    anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj045",
+                            "20171031_Anatomy", "RAW")
+    _BIDSify(base_dir, "wlsubj045", "20190322", None, None, "sfprescaled", "04", 'j', None, None,
+             anat_dir, [5, 6, 7], "T1w",
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2019-Mar-22_sub-wlsubj045_ses-04_sess00.hdf5"),
+             os.path.join(SFP_PATH, "data", "stimuli", "task-sfprescaled_stim_description.csv"),
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2019-Mar-22_sub-wlsubj045_ses-04.md"),
+             glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj045_ses-04_run*_idx.npy")),
+             os.path.join(SFP_PATH, "data", "stimuli", "task-sfprescaled_stimuli.npy"))
+
+
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
                    raw_behavioral_glob_str="data/raw_behavioral/2017-Aug*.hdf5"):
     """renames the stimuli in hdf5 file from old_stim_name to new_stim_name
@@ -301,7 +322,10 @@ if __name__ == '__main__':
                               "wlsubj014-03 (Mar 20, 2018, after revising stimuli, log-polar "
                               "stimuli, with extra time added before and after run), wlsubj004-03"
                               " (Mar 22, 2018, after revising stimuli, log-polar stimuli, with "
-                              "extra time added before and after run)"))
+                              "extra time added before and after run), wlsubj045-04 (Mar 22, 2019,"
+                              " new rescaled stimuli (amplitude reduced for lower frequencies to "
+                              "try and correct projector's MTF), log-polar stimuli, with extra "
+                              "time before and after run"))
     parser.add_argument("--base_dir", default='..',
                         help=("Base directory for the BIDS project. If unset, will assume this is"
                               "being run from the code directory within the BIDS structure."))
@@ -333,3 +357,5 @@ if __name__ == '__main__':
         wlsubj014_03(args['base_dir'], args['acadia_projects_dir'])
     if 'wlsubj004-03' in args['subject']:
         wlsubj004_03(args['base_dir'], args['acadia_projects_dir'])
+    if 'wlsubj045-04' in args['subject']:
+        wlsubj045_04(args['base_dir'], args['acadia_projects_dir'])
