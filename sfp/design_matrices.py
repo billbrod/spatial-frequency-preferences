@@ -161,7 +161,8 @@ def create_all_design_matrices(BIDS_directory, subject, session, mat_type="stim_
         if 'permuted' not in run_details_save_path:
             run_details_save_path = run_details_save_path.replace('.json', '_permuted.json')
     for run_num, save_num in zip(run_nums, save_labels):
-        tsv_file = layout.get(suffix='events', run=run_num, subject=subject, session=session)
+        tsv_file = layout.get(suffix='events', run=run_num, subject=subject, session=session,
+                              extensions='tsv')
         if len(tsv_file) != 1:
             raise IOError("Need one tsv for run %s, but found %d!" % (run_num, len(tsv_file)))
         # by default, pandas interprets empty fields as NaNs. We have some empty strings in the
@@ -181,7 +182,8 @@ def create_all_design_matrices(BIDS_directory, subject, session, mat_type="stim_
             # and adds it to the index we're using, making sure it's in the right order
             idx = idx.append(blank_idx).sort_values()
         tsv_df = tsv_df.loc[idx]
-        nii_file = layout.get(suffix='bold', run=run_num, subject=subject, session=session)
+        nii_file = layout.get(suffix='bold', run=run_num, subject=subject, session=session,
+                              extensions=['nii', 'nii.gz'])
         if len(nii_file) != 1:
             raise IOError("Need one nifti for run %s, but found %d!" % (run_num, len(nii_file)))
         nii = nib.load(nii_file[0].path)
