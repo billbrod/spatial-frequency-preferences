@@ -227,8 +227,10 @@ if __name__ == '__main__':
                               "'_problems.html"))
     args = vars(parser.parse_args())
     df = pd.read_csv(args.pop('first_level_results_path'))
-    # bounds should be task-dependent
-    if 'task-sfp' in args['save_path'].split('_'):
+    # bounds should be task-dependent, task-sfp and task-sfprescaled have the same frequency
+    # information
+    if ('task-sfp' in args['save_path'].split('_') or
+        'task-sfprescaled' in args['save_path'].split('_')):
         bounds = (2**(-5), 2**11)
     elif 'task-sfpconstant' in args['save_path'].split('_'):
         bounds = (2**(-15), 2**8)
