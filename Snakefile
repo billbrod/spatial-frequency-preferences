@@ -133,6 +133,10 @@ rule model_recovery_initial:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recovery", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_cNone_absolute_full_vary_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recovery", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_cNone_relative_full_vary_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recovery", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_cNone_full_full_vary_loss.csv"),
+
+
+rule model_recovery_cv_initial:
+    input:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recover_cv", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_c{:02d}_iso_constant_constant_loss.csv").format(n) for n in range(get_n_classes('ses-02', 'stim_class'))],
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recover_cv", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_c{:02d}_iso_scaling_constant_loss.csv").format(n) for n in range(get_n_classes('ses-02', 'stim_class'))],
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recover_cv", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_c{:02d}_iso_full_constant_loss.csv").format(n) for n in range(get_n_classes('ses-02', 'stim_class'))],
@@ -142,6 +146,7 @@ rule model_recovery_initial:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recover_cv", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_c{:02d}_absolute_full_vary_loss.csv").format(n) for n in range(get_n_classes('ses-02', 'stim_class'))],
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recover_cv", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_c{:02d}_relative_full_vary_loss.csv").format(n) for n in range(get_n_classes('ses-02', 'stim_class'))],
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "model_recover_cv", "n100_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_c{:02d}_full_full_vary_loss.csv").format(n) for n in range(get_n_classes('ses-02', 'stim_class'))],
+
 
 rule model_all_data:
     input:
