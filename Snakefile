@@ -8,10 +8,12 @@ if not os.path.isdir(config["DATA_DIR"]):
     raise Exception("Cannot find the dataset at %s" % config["DATA_DIR"])
 if os.system("module list") == 0:
     # then we're on the cluster
+    ON_CLUSTER = True
     shell.prefix(". /share/apps/anaconda3/5.3.1/etc/profile.d/conda.sh; conda activate sfp; "
                  "module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2017a; "
                  "export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 else:
+    ON_CLUSTER = False
     shell.prefix("export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 
 
@@ -792,6 +794,15 @@ def parse_train_amps(wildcards):
         raise Exception("train_amps must be either 'vary' or 'constant'!")
 
 
+def to_log_or_not(wildcards):
+    """we only log directly if we're not on the cluster, otherwise we trust the cluster to handle it
+    """
+    if ON_CLUSTER:
+        return "; echo"
+    else:
+        return "&> "
+
+
 rule model:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
@@ -810,13 +821,14 @@ rule model:
     params:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
         stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
-        train_amps = parse_train_amps
+        train_amps = parse_train_amps,
+        logging = to_log_or_not,
     shell:
         "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
         "{params.train_amps} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
         "drop_voxels_with_negative_amplitudes,drop_voxels_near_border -t 1e-8 -e 1000 "
-        "-c {params.stimulus_class}"
+        "-c {params.stimulus_class} {params.logging} {log}"
 
 
 rule simulate_data_uniform_noise:
@@ -878,15 +890,17 @@ rule model_simulated_data:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: int(wildcards.gpus),
         mem = 10,
-        gpus = lambda wildcards: int(wildcards.gpus)
+        gpus = lambda wildcards: int(wildcards.gpus),
     params:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
         stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
-        train_amps = parse_train_amps
+        train_amps = parse_train_amps,
+        logging = to_log_or_not,
     shell:
         "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
         "{params.train_amps} {input} {params.save_stem} -b {wildcards.batch_size} "
-        "-r {wildcards.learning_rate} -d None -t 1e-8 -e 1000 -c {params.stimulus_class}"
+        "-r {wildcards.learning_rate} -d None -t 1e-12 -e 1000 -c {params.stimulus_class} "
+        "{params.logging} {log}"
 
 
 rule gather_model_results:
