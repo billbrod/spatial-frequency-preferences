@@ -778,7 +778,6 @@ class NewLinesHelpFormatter(argparse.HelpFormatter):
         lines = []
         for t in text:
             lines.extend(super()._split_lines(t, width))
-        print(lines)
         return lines
 
 
