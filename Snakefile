@@ -845,7 +845,7 @@ rule model:
         "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
         "{params.train_amps} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
-        "drop_voxels_with_negative_amplitudes,drop_voxels_near_border -t 1e-8 -e 1000 "
+        "drop_voxels_with_negative_amplitudes,drop_voxels_near_border -t 1e-12 -e 1000 "
         "-c {params.stimulus_class} {params.logging} {log}"
 
 
