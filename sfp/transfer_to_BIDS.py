@@ -281,6 +281,19 @@ def wlsubj045_04(base_dir, acadia_projects_dir):
              os.path.join(SFP_PATH, "data", "stimuli", "task-sfprescaled_stimuli.npy"))
 
 
+def wlsubj045_03(base_dir, acadia_projects_dir):
+    print("Moving wlsubj045's data from 20190329")
+    anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj045",
+                            "20171031_Anatomy", "RAW")
+    _BIDSify(base_dir, "wlsubj045", "20190329", None, None, "sfp", "03", 'j', None, None,
+             anat_dir, [5, 6, 7], "T1w",
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2019-Mar-29_sub-wlsubj045_ses-03_sess00.hdf5"),
+             os.path.join(SFP_PATH, "data", "stimuli", "task-sfp_stim_description.csv"),
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2019-Mar-29_sub-wlsubj045_ses-03.md"),
+             glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj045_ses-03_run*_idx.npy")),
+             os.path.join(SFP_PATH, "data", "stimuli", "task-sfp_stimuli.npy"))
+
+
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
                    raw_behavioral_glob_str="data/raw_behavioral/2017-Aug*.hdf5"):
     """renames the stimuli in hdf5 file from old_stim_name to new_stim_name
@@ -359,3 +372,5 @@ if __name__ == '__main__':
         wlsubj004_03(args['base_dir'], args['acadia_projects_dir'])
     if 'wlsubj045-04' in args['subject']:
         wlsubj045_04(args['base_dir'], args['acadia_projects_dir'])
+    if 'wlsubj045-03' in args['subject']:
+        wlsubj045_03(args['base_dir'], args['acadia_projects_dir'])

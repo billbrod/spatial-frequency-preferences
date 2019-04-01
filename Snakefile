@@ -21,7 +21,7 @@ SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045', 
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj004': ['ses-03'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
-            'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02', 'ses-04'],
+            'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02', 'ses-04', 'ses-03'],
             'sub-wlsubj014': ['ses-03']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
@@ -30,7 +30,7 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj045', 'ses-pilot01'): 'task-sfp',
          ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp',
          ('sub-wlsubj014', 'ses-03'): 'task-sfp', ('sub-wlsubj004', 'ses-03'): 'task-sfp',
-         ('sub-wlsubj045', 'ses-04'): 'task-sfprescaled'}
+         ('sub-wlsubj045', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj045', 'ses-03'): 'task-sfp'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
          ('sub-wlsubj045', 'ses-04'): 7}
@@ -293,10 +293,11 @@ def get_permuted(wildcards):
 
 
 def get_design_inputs(wildcards):
-    if wildcards.session == 'ses-04':
-        ext = 'nii.gz'
-    else:
+    if (wildcards.session in ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'] or
+        (wildcards.subject, wildcards.session) in [('sub-wlsubj004', 'ses-03'), ('sub-wlsubj014', 'ses-03')]):
         ext = 'nii'
+    else:
+        ext = 'nii.gz'
     tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
                              wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
     func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
@@ -328,10 +329,11 @@ def get_preprocess_inputs(wildcards):
     input_dict = {}
     input_dict['freesurfer_files'] = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer",
                                                   wildcards.subject.replace('sub-', ''))
-    if wildcards.session == 'ses-04':
-        ext = 'nii.gz'
-    else:
+    if (wildcards.session in ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'] or
+        (wildcards.subject, wildcards.session) in [('sub-wlsubj004', 'ses-03'), ('sub-wlsubj014', 'ses-03')]):
         ext = 'nii'
+    else:
+        ext = 'nii.gz'
     input_dict['func_files'] = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func",
                                             "{subject}_{session}_{task}_{run}_bold.{ext}").format(ext=ext, **wildcards)
     return input_dict
