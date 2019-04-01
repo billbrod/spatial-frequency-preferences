@@ -9,6 +9,8 @@ mpl.use('svg', warn=False)
 import pandas as pd
 import numpy as np
 import torch
+import re
+import os
 import argparse
 import glob
 import itertools
@@ -66,8 +68,23 @@ def combine_models(base_path_template, load_results_df=True):
         # both its loss.csv and its results_df.csv, for example)
         if path_stem in path_stems:
             continue
+        # based on how these are saved, we can make some assumptions and grab extra info from their
+        # paths
+        metadata = {}
+        if 'tuning_2d_simulated' in path_stem:
+            metadata['modeling_goal'] = path_stem.split(os.sep)[-2]
+        elif 'tuning_2d_model' in path_stem:
+            metadata['session'] = path_stem.split(os.sep)[-2]
+            metadata['subject'] = path_stem.split(os.sep)[-3]
+            metadata['modeling_goal'] = path_stem.split(os.sep)[-4]
+            metadata['mat_type'] = path_stem.split(os.sep)[-5]
+            metadata['atlas_type'] = path_stem.split(os.sep)[-6]
+            metadata['task'] = re.search('_(task-[a-z0-9]+)_', path_stem).groups()[0]
         path_stems.append(path_stem)
         model, loss, results = load_single_model(path_stem, load_results_df=load_results_df)
+        for k, v in metadata.items():
+            results[k] = v
+            loss[k] = v
         results_df.append(results)
         loss_df.append(loss)
         tmp = loss.head(1)
