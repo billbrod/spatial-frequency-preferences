@@ -140,6 +140,50 @@ class FirstLevelDataset(torchdata.Dataset):
         return self.df.voxel.nunique()
 
 
+def _check_log_gaussian_params(param_vals, train_params, orientation_type, eccentricity_type,
+                               vary_amplitude):
+        if orientation_type in ['relative', 'iso']:
+            for param, angle in itertools.product(['mode', 'amplitude'],
+                                                  ['cardinals', 'obliques']):
+                if param_vals['abs_%s_%s' % (param, angle)] != 0:
+                    warnings.warn("When orientation_type is %s, all absolute variables must"
+                                  " be 0, correcting this..." % orientation_type)
+                    param_vals['abs_%s_%s' % (param, angle)] = 0
+                train_params['abs_%s_%s' % (param, angle)] = False
+        if orientation_type in ['absolute', 'iso']:
+            for param, angle in itertools.product(['mode', 'amplitude'],
+                                                  ['cardinals', 'obliques']):
+                if param_vals['rel_%s_%s' % (param, angle)] != 0:
+                    warnings.warn("When orientation_type is %s, all relative variables must"
+                                  " be 0, correcting this..." % orientation_type)
+                    param_vals['rel_%s_%s' % (param, angle)] = 0
+                train_params['rel_%s_%s' % (param, angle)] = False
+        if orientation_type not in ['relative', 'absolute', 'iso', 'full']:
+            raise Exception("Don't know how to handle orientation_type %s!" % orientation_type)
+        if not vary_amplitude:
+            for ori, angle in itertools.product(['abs', 'rel'], ['cardinals', 'obliques']):
+                if param_vals['%s_amplitude_%s' % (ori, angle)] != 0:
+                    warnings.warn("When vary_amplitude is False, all amplitude variables must"
+                                  " be 0, correcting this...")
+                    param_vals['%s_amplitude_%s' % (ori, angle)] = 0
+                train_params['%s_amplitude_%s' % (ori, angle)] = False
+        if eccentricity_type == 'scaling':
+            if param_vals['sf_ecc_intercept'] != 0:
+                warnings.warn("When eccentricity_type is scaling, sf_ecc_intercept must be 0! "
+                              "correcting...")
+                param_vals['sf_ecc_intercept'] = 0
+            train_params['sf_ecc_intercept'] = False
+        elif eccentricity_type == 'constant':
+            if param_vals['sf_ecc_slope'] != 0:
+                warnings.warn("When eccentricity_type is constant, sf_ecc_slope must be 0! "
+                              "correcting...")
+                param_vals['sf_ecc_slope'] = 0
+            train_params['sf_ecc_slope'] = False
+        elif eccentricity_type != 'full':
+            raise Exception("Don't know how to handle eccentricity_type %s!" % eccentricity_type)
+        return param_vals, train_params
+
+
 class LogGaussianDonut(torch.nn.Module):
     """simple LogGaussianDonut in pytorch
 
@@ -192,49 +236,11 @@ class LogGaussianDonut(torch.nn.Module):
         for var in ['slope', 'intercept']:
             train_kwargs['sf_ecc_%s' % var] = True
             kwargs['sf_ecc_%s' % var] = eval("sf_ecc_%s" % var)
-        if orientation_type in ['relative', 'iso']:
-            for param, angle in itertools.product(['mode', 'amplitude'],
-                                                  ['cardinals', 'obliques']):
-                if kwargs['abs_%s_%s' % (param, angle)] != 0:
-                    warnings.warn("When orientation_type is %s, all absolute variables must"
-                                  " be 0, correcting this..." % orientation_type)
-                    kwargs['abs_%s_%s' % (param, angle)] = 0
-                train_kwargs['abs_%s_%s' % (param, angle)] = False
-        if orientation_type in ['absolute', 'iso']:
-            for param, angle in itertools.product(['mode', 'amplitude'],
-                                                  ['cardinals', 'obliques']):
-                if kwargs['rel_%s_%s' % (param, angle)] != 0:
-                    warnings.warn("When orientation_type is %s, all relative variables must"
-                                  " be 0, correcting this..." % orientation_type)
-                    kwargs['rel_%s_%s' % (param, angle)] = 0
-                train_kwargs['rel_%s_%s' % (param, angle)] = False
-        if orientation_type not in ['relative', 'absolute', 'iso', 'full']:
-            raise Exception("Don't know how to handle orientation_type %s!" % orientation_type)
+        kwargs, train_kwargs = _check_log_gaussian_params(kwargs, train_kwargs, orientation_type,
+                                                          eccentricity_type, vary_amplitude)
+
         self.orientation_type = orientation_type
-        if not vary_amplitude:
-            amp_vary_label = 'constant'
-            for ori, angle in itertools.product(['abs', 'rel'], ['cardinals', 'obliques']):
-                if kwargs['%s_amplitude_%s' % (ori, angle)] != 0:
-                    warnings.warn("When vary_amplitude is False, all amplitude variables must"
-                                  " be 0, correcting this...")
-                    kwargs['%s_amplitude_%s' % (ori, angle)] = 0
-                train_kwargs['%s_amplitude_%s' % (ori, angle)] = False
-        else:
-            amp_vary_label = 'vary'
-        if eccentricity_type == 'scaling':
-            if kwargs['sf_ecc_intercept'] != 0:
-                warnings.warn("When eccentricity_type is scaling, sf_ecc_intercept must be 0! "
-                              "correcting...")
-                kwargs['sf_ecc_intercept'] = 0
-            train_kwargs['sf_ecc_intercept'] = False
-        elif eccentricity_type == 'constant':
-            if kwargs['sf_ecc_slope'] != 0:
-                warnings.warn("When eccentricity_type is constant, sf_ecc_slope must be 0! "
-                              "correcting...")
-                kwargs['sf_ecc_slope'] = 0
-            train_kwargs['sf_ecc_slope'] = False
-        elif eccentricity_type != 'full':
-            raise Exception("Don't know how to handle eccentricity_type %s!" % eccentricity_type)
+        amp_vary_label = {False: 'constant', True: 'vary'}[vary_amplitude]
         self.eccentricity_type = eccentricity_type
         self.vary_amplitude = vary_amplitude
         self.model_type = '%s_donut_%s_amps-%s' % (eccentricity_type, orientation_type,
@@ -742,9 +748,11 @@ def construct_df_filter(df_filter_string):
     """construct df_filter from string (as used in our command-line parser)
 
     the string should be a single string containing at least one of the following, separated by
-    commas: 'drop_voxels_with_negative_amplitudes', 'reduce_num_voxels:n' (where n is an integer),
-    'None'. This will then construct the function that will chain them together in the order
-    specified (if None is one of the entries, we will simply return None)
+    commas: 'drop_voxels_with_negative_amplitudes', 'drop_voxels_near_border',
+    'reduce_num_voxels:n' (where n is an integer), 'None'. This will then construct the function
+    that will chain them together in the order specified (if None is one of the entries, we will
+    simply return None)
+
     """
     df_filters = []
     for f in df_filter_string.split(','):
