@@ -14,6 +14,7 @@ import os
 import argparse
 import glob
 import itertools
+import warnings
 from . import model as sfp_model
 
 
@@ -23,10 +24,15 @@ def load_single_model(save_path_stem, load_results_df=True):
     we also send the model to the appropriate device
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    if load_results_df:
-        results_df = pd.read_csv(save_path_stem + '_results_df.csv')
-    else:
-        results_df = pd.read_csv(save_path_stem + '_results_df.csv', nrows=1)
+    try:
+        if load_results_df:
+            results_df = pd.read_csv(save_path_stem + '_results_df.csv')
+        else:
+            results_df = pd.read_csv(save_path_stem + '_results_df.csv', nrows=1)
+    except FileNotFoundError as e:
+        if load_results_df:
+            raise e
+        results_df = None
     loss_df = pd.read_csv(save_path_stem + '_loss.csv')
     # we try and infer model type from the path name, which we can do assuming we used the
     # Snakefile to generate saved model.
@@ -83,7 +89,8 @@ def combine_models(base_path_template, load_results_df=True):
         path_stems.append(path_stem)
         model, loss, results = load_single_model(path_stem, load_results_df=load_results_df)
         for k, v in metadata.items():
-            results[k] = v
+            if results is not None:
+                results[k] = v
             loss[k] = v
         results_df.append(results)
         loss_df.append(loss)
@@ -94,8 +101,9 @@ def combine_models(base_path_template, load_results_df=True):
             tmper = tmp.copy()
             tmper['model_parameter'] = name
             tmper['fit_value'] = val.cpu().detach().numpy()
-            if 'true_model_%s' % name in results.columns:
-                tmper['true_value'] = results['true_model_%s' % name].unique()[0]
+            if results is not None:
+                if 'true_model_%s' % name in results.columns:
+                    tmper['true_value'] = results['true_model_%s' % name].unique()[0]
             models.append(tmper)
     loss_df = pd.concat(loss_df).reset_index(drop=True)
     if load_results_df:
