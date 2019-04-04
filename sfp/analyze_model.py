@@ -136,8 +136,12 @@ def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi
             data_dict = {'preferred_period': period, 'max_amplitude': max_amp,
                          'retinotopic_angle': a, 'fit_model_type': m.model_type,
                          'eccentricity': eccen, 'orientation': o}
+            identifier = []
             for k, v in identity_kwargs.items():
                 data_dict[k] = v[i]
+                identifier.append(v[i])
+            if identifier:
+                data_dict['identifier'] = identifier
             features.append(pd.DataFrame(data_dict))
     return pd.concat(features)
 
