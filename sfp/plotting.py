@@ -287,7 +287,7 @@ def local_spatial_frequency(df, save_path=None, **kwargs):
 
 
 def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 84],
-              save_path=None, **kwargs):
+              save_path=None, row='varea', **kwargs):
     """plot the raw amplitude estimates, either with or without confidence intervals
 
     if df is the summary dataframe, we'll use the amplitude_estimate_std_error column as the
@@ -311,9 +311,9 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     ylim = kwargs.pop('ylim', None)
     xlim = kwargs.pop('xlim', None)
     aspect = kwargs.pop('aspect', 1)
-    g = sns.FacetGrid(df, hue='eccen', palette='Reds', size=5, row='varea', col_order=col_order,
+    g = sns.FacetGrid(df, hue='eccen', palette='Reds', height=5, row=row, col_order=col_order,
                       hue_order=sorted(df.eccen.unique()), col='stimulus_superclass', ylim=ylim,
-                      xlim=xlim, aspect=aspect)
+                      xlim=xlim, aspect=aspect, row_order=sorted(df[row].unique()))
     if 'amplitude_estimate_std_error' in df.columns:
         g.map_dataframe(plot_median, x_col, 'amplitude_estimate_median')
         if not median_only:
@@ -545,7 +545,7 @@ def check_tuning_curves(tuning_df, save_path_template, **kwargs):
     mode_bounds = (tuning_df.mode_bound_lower.unique()[0], tuning_df.mode_bound_upper.unique()[0])
     for n, g in tuning_df.groupby(gb_cols):
         f = sns.FacetGrid(g, row='eccen', col='stimulus_superclass', hue='frequency_type',
-                          xlim=mode_bounds, aspect=.7, size=5)
+                          xlim=mode_bounds, aspect=.7, height=5)
         f.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
         f.map_dataframe(plot_tuning_curve)
         f.map_dataframe(plot_median, 'frequency_value', 'baseline', linestyle='--')
@@ -570,7 +570,7 @@ def check_hypotheses(tuning_df, save_path_template=None, norm=False, ci_vals=[16
     col_order = [i for i in LOGPOLAR_SUPERCLASS_ORDER+CONSTANT_SUPERCLASS_ORDER
                  if i in tuning_df.stimulus_superclass.unique()]
     for n, g in tuning_df.groupby(gb_cols):
-        f = sns.FacetGrid(g, hue='eccen', palette='Reds', size=5, row='frequency_type',
+        f = sns.FacetGrid(g, hue='eccen', palette='Reds', height=5, row='frequency_type',
                           col='stimulus_superclass', col_order=col_order)
         if plot_data:
             f.map_dataframe(plot_median, 'frequency_value', 'amplitude_estimate',
