@@ -26,6 +26,7 @@ import prisma_to_BIDS
 from sfp import create_BIDS_tsv
 import warnings
 import glob
+from bids import BIDSLayout
 
 
 def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label, session_label,
@@ -51,7 +52,30 @@ def _BIDSify(base_dir, wl_subject_name, prisma_session, epis, sbrefs, task_label
             warnings.warn("Functional data already found, skipping...")
     else:
         warnings.warn("epis and sbrefs specified as None, assuming they're already in proper "
-                      "location and BIDS-organized")
+                      "location and BIDS-organized; just checking name formatting")
+        # we want names to have the format subject_session_task_run_sbref/bold.extension
+        bids_format_string = ("{subject}_{session}_{task}_run-{run:02d}_{suffix}{ext}")
+        layout = BIDSLayout(os.path.join(base_dir, BIDS_subj, BIDS_ses, 'func'), validate=False)
+        for k, v in layout.files.items():
+            current_path_name = v.filename
+            # this whole rigamarole is because os.path.splitext will only grab the "last"
+            # extension, so with a gzipped file (e.g., one that ends ".nii.gz"), it will only grab
+            # the ".gz", instead of the full extension. this recursion will catch the full
+            # extension.
+            filename_for_recursing = current_path_name
+            ext = []
+            while filename_for_recursing != os.path.splitext(filename_for_recursing)[0]:
+                filename_for_recursing, ext_tmp = os.path.splitext(filename_for_recursing)
+                ext.append(ext_tmp)
+            ext = ''.join(reversed(ext))
+            target_path_name = bids_format_string.format(subject=BIDS_subj, session=BIDS_ses,
+                                                         task=BIDS_task, run=v.entities['run'],
+                                                         suffix=v.entities['suffix'], ext=ext)
+            if current_path_name != target_path_name:
+                warnings.warn("run %02d, suffix %s, ext %s not properly formatted, moving from %s "
+                              "to %s" % (v.entities['run'], v.entities['suffix'], ext,
+                                         current_path_name, target_path_name))
+                shutil.move(k, os.path.join(os.path.dirname(k), target_path_name))
     prisma_to_BIDS.json_check(os.path.join(base_dir, BIDS_subj, BIDS_ses, "func"))
     if distortPE is not None and distortrevPE is not None:
         try:
@@ -294,6 +318,19 @@ def wlsubj045_03(base_dir, acadia_projects_dir):
              os.path.join(SFP_PATH, "data", "stimuli", "task-sfp_stimuli.npy"))
 
 
+def wlsubj064_04(base_dir, acadia_projects_dir):
+    print("Moving wlsubj064's data from 20190405")
+    anat_dir = os.path.join(acadia_projects_dir, "Retinotopy", "wlsubj064",
+                            "20181022_ColorRetinotopy", "Raw")
+    _BIDSify(base_dir, "wlsubj064", "20190405", None, None, "sfprescaled", "04", 'j', None, None,
+             anat_dir, [19, 20], "T1w",
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2019-Apr-05_sub-wlsubj064_ses-04_sess00.hdf5"),
+             os.path.join(SFP_PATH, "data", "stimuli", "task-sfprescaled_stim_description.csv"),
+             os.path.join(SFP_PATH, "data", "raw_behavioral", "2019-Apr-05_sub-wlsubj064_ses-04.md"),
+             glob.glob(os.path.join(SFP_PATH, "data", "stimuli", "sub-wlsubj064_ses-04_run*_idx.npy")),
+             os.path.join(SFP_PATH, "data", "stimuli", "task-sfprescaled_stimuli.npy"))
+
+
 def rename_stimuli(new_stim_name, old_stim_name="unshuffled.npy",
                    raw_behavioral_glob_str="data/raw_behavioral/2017-Aug*.hdf5"):
     """renames the stimuli in hdf5 file from old_stim_name to new_stim_name
@@ -374,3 +411,5 @@ if __name__ == '__main__':
         wlsubj045_04(args['base_dir'], args['acadia_projects_dir'])
     if 'wlsubj045-03' in args['subject']:
         wlsubj045_03(args['base_dir'], args['acadia_projects_dir'])
+    if 'wlsubj064-04' in args['subject']:
+        wlsubj064_04(args['base_dir'], args['acadia_projects_dir'])
