@@ -589,6 +589,9 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
         H = hessian(loss_func(model(full_data), full_target),
                     [p for p in model.parameters() if p.requires_grad])
         model.eval()
+        # the inverse of the square root of the diagonal of the Hessian is an estimate of the
+        # standard error of the maximum likelihood estimates of our parameters:
+        # https://stats.stackexchange.com/a/68095
         hessian_item = tuple(zip([p[0] for p in model.named_parameters() if p[1].requires_grad],
                                  1./np.sqrt(H.diag()).cpu().detach().numpy()))
         model.train()
