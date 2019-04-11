@@ -414,12 +414,13 @@ def weighted_normed_loss(predictions, target, predictions_for_norm=None, target_
         # this will also contain the target and precision, but (as long as we have every voxel in
         # both train and test sets), the precision is redundant with the other precision we grab
         # above, so we just ignore it.
-        target_for_norm = target.select(-1, 0)
+        target_for_norm = target_for_norm.select(-1, 0)
     # we occasionally have an issue where the predictions are really small (like 1e-200), which
     # gives us a norm of 0 and thus a normed_predictions of infinity, and thus an infinite loss.
     # the point of renorming is that multiplying by a scale factor won't change our loss, so we do
     # that here to avoid this issue
     if 0 in predictions_for_norm.norm(2, -1, True):
+        warnings.warn("Predictions too small to normalize correctly, multiplying it be 1e100")
         predictions_for_norm = predictions_for_norm * 1e100
         predictions = predictions * 1e100
     # we norm / average along the last dimension, since that means we do it across all stimulus
