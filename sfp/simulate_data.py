@@ -48,7 +48,7 @@ def simulate_voxel(true_model, freqs, noise_level=0, ecc_range=(1, 12),
         _, _, m, d = sfp_stimuli.sf_cpd(pix_diam, deg_diam, vox_ecc, vox_angle, w_r=w_r, w_a=w_a)
         mags.append(m)
         direcs.append(d)
-    resps = true_model(mags, direcs, vox_ecc, vox_angle)
+    resps = true_model.evaluate(mags, direcs, vox_ecc, vox_angle)
     resps = resps.detach().numpy()
     resps_norm = np.linalg.norm(resps, 2)
     normed_resps = resps / resps_norm

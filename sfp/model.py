@@ -16,6 +16,7 @@ import argparse
 import itertools
 import functools
 from torch.utils import data as torchdata
+from hessian import hessian
 
 
 def reduce_num_voxels(df, n_voxels=200):
@@ -50,7 +51,8 @@ def drop_voxels_near_border(df, inner_border=.96, outer_border=12):
 def _cast_as_tensor(x):
     if type(x) == pd.Series:
         x = x.values
-    return torch.tensor(x, dtype=torch.float64)
+    # needs to be float32 to work with the Hessian calculations
+    return torch.tensor(x, dtype=torch.float32)
 
 
 def _cast_as_param(x, requires_grad=True):
@@ -126,7 +128,8 @@ class FirstLevelDataset(torchdata.Dataset):
         except KeyError:
             target = _cast_as_tensor(row['amplitude_estimate_median'])
         precision = _cast_as_tensor(row['precision'])
-        return (feature.to(self.device), target.to(self.device), precision.to(self.device))
+        return (feature.to(self.device),
+                torch.stack([target.to(self.device), precision.to(self.device)], -1))
 
     def __getitem__(self, idx):
         vox_idx = self.df[self.df.voxel_reindexed == idx].index
@@ -340,15 +343,19 @@ class LogGaussianDonut(torch.nn.Module):
         amplitude = self.max_amplitude(sf_angle, vox_angle)
         return amplitude * pdf
 
-    def forward(self, spatial_frequency_magnitude, spatial_frequency_theta, voxel_eccentricity,
-                voxel_angle):
+    def forward(self, inputs):
         """
         In the forward function we accept a Tensor of input data and we must return
         a Tensor of output data. We can use Modules defined in the constructor as
         well as arbitrary operators on Tensors.
         """
-        return self.evaluate(spatial_frequency_magnitude, spatial_frequency_theta,
-                             voxel_eccentricity, voxel_angle)
+        # the different features will always be indexed along the last axis (we don't know whether
+        # this is 2d (stimulus_class, features) or 3d (voxels, stimulus_class, features))
+        sf_mag = inputs.select(-1, 0)
+        sf_angle = inputs.select(-1, 1)
+        vox_ecc = inputs.select(-1, 2)
+        vox_angle = inputs.select(-1, 3)
+        return self.evaluate(sf_mag, sf_angle, vox_ecc, vox_angle)
 
 
 def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_samps=1001,
@@ -382,37 +389,94 @@ def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_sam
     return ax
 
 
-def construct_loss_df(loss_history, subset='train'):
-    """constructs loss dataframe from array of lost history
+def weighted_normed_loss(predictions, target, predictions_for_norm=None, target_for_norm=None):
+    """takes in the predictions and target, returns weighted norm loss
 
-    loss_history: 2d list or array, as constructed in `train_model`, n_epochs by batch_size
+    note all of these must be tensors, not numpy arrays
+
+    target must contain both the targets and the precision (along the last axis)
+
+    predictions_for_norm, target_for_norm: normally, this should be called such that predictions
+    and target each contain all the values for the voxels investigated. however, during
+    cross-validation, predictions and target will contain a subset of the stimulus classes, so we
+    need to pass the predictions and targets for all stimulus classes as well in order to normalize
+    them properly (for an intuition as to why this is important, consider the extreme case: if both
+    predictions and target have length 1 and are normalized with respect to themselves, the loss
+    will always be 0)
     """
-    loss_df = pd.DataFrame(np.array(loss_history))
-    loss_df = pd.melt(loss_df.reset_index(), id_vars='index', var_name='batch_num',
-                      value_name='loss')
-    loss_df['data_subset'] = subset
-    return loss_df.rename(columns={'index': 'epoch_num'})
+    precision = target.select(-1, 1)
+    target = target.select(-1, 0)
+    if predictions_for_norm is None:
+        assert target_for_norm is None, "Both target_for_norm and predictions_for_norm must be unset"
+        predictions_for_norm = predictions
+        target_for_norm = target
+    else:
+        # this will also contain the target and precision, but (as long as we have every voxel in
+        # both train and test sets), the precision is redundant with the other precision we grab
+        # above, so we just ignore it.
+        target_for_norm = target.select(-1, 0)
+    # we occasionally have an issue where the predictions are really small (like 1e-200), which
+    # gives us a norm of 0 and thus a normed_predictions of infinity, and thus an infinite loss.
+    # the point of renorming is that multiplying by a scale factor won't change our loss, so we do
+    # that here to avoid this issue
+    if 0 in predictions_for_norm.norm(2, -1, True):
+        predictions_for_norm = predictions_for_norm * 1e100
+        predictions = predictions * 1e100
+    # we norm / average along the last dimension, since that means we do it across all stimulus
+    # classes for a given voxel. we don't know whether these tensors will be 1d (single voxel, as
+    # returned by our FirstLevelDataset) or 2d (multiple voxels, as returned by the DataLoader)
+    normed_predictions = predictions / predictions_for_norm.norm(2, -1, True)
+    normed_target = target / target_for_norm.norm(2, -1, True)
+    # this isn't really necessary (all the values along that dimension should be identical, based
+    # on how we calculated it), but just in case. and this gets it in the right shape
+    precision = precision.mean(-1, True)
+    squared_error = precision * (normed_predictions - normed_target)**2
+    return squared_error.mean()
 
 
-def check_performance(trained_model, dataset, test_dataset=None):
+def construct_history_df(history, var_name='batch_num', value_name='loss', subset='train'):
+    """constructs loss dataframe from array of loss or time history
+
+    history: 2d list or array, as constructed in `train_model` for loss and time elapsed, n_epochs
+    by batch_size
+
+    """
+    if np.array(history).ndim == 3:
+        # then this is parameter value or Hessian history
+        labels = np.array(history)[:, :, 0]
+        assert (labels[0] == labels).all(), "%s history constructed incorrectly!" % value_name
+        labels = labels[0]
+        values = np.array(history)[:, :, 1].astype(np.float)
+        df = pd.DataFrame(values, columns=labels)
+    elif np.array(history).ndim == 2:
+        df = pd.DataFrame(np.array(history))
+    df = pd.melt(df.reset_index(), id_vars='index', var_name=var_name, value_name=value_name)
+    if subset is not None:
+        df['data_subset'] = subset
+    return df.rename(columns={'index': 'epoch_num'})
+
+
+def check_performance(trained_model, dataset, test_dataset=None, loss_func=weighted_normed_loss):
     """check performance of trained_model for each voxel in the dataset
 
     this assumes both model and dataset are on the same device
     """
     performance = []
     for i in dataset.df.voxel.unique():
-        features, targets, precision = dataset.get_voxel(i)
-        predictions = trained_model(*features.transpose(1, 0))
+        features, targets = dataset.get_voxel(i)
+        predictions = trained_model(features)
         if test_dataset is not None:
-            test_features, test_target, test_precision = test_dataset.get_voxel(i)
-            test_predictions = trained_model(*test_features.transpose(1, 0))
-            cv_loss = weighted_normed_loss(test_predictions, test_target, test_precision,
-                                           torch.cat([test_predictions, predictions]),
-                                           torch.cat([test_target, targets])).item()
+            test_features, test_target = test_dataset.get_voxel(i)
+            test_predictions = trained_model(test_features)
+            cv_loss = loss_func(test_predictions, test_target,
+                                torch.cat([test_predictions, predictions]),
+                                torch.cat([test_target, targets])).item()
         else:
             cv_loss = None
-        corr = np.corrcoef(targets.cpu().detach().numpy(), predictions.cpu().detach().numpy())
-        loss = weighted_normed_loss(predictions, targets, precision).item()
+        # targets[:, 0] contains the actual targets, targets[:, 1] contains the precision,
+        # unimportant right here
+        corr = np.corrcoef(targets[:, 0].cpu().detach().numpy(), predictions.cpu().detach().numpy())
+        loss = loss_func(predictions, targets).item()
         performance.append(pd.DataFrame({'voxel': i, 'stimulus_class': range(len(targets)),
                                          'model_prediction_correlation': corr[0, 1],
                                          'model_prediction_loss': loss,
@@ -430,43 +494,48 @@ def combine_first_level_df_with_performance(first_level_df, performance_df):
     return results_df.reset_index()
 
 
-def construct_dfs(model, dataset, train_loss_history, max_epochs, batch_size, learning_rate,
-                  train_thresh, current_epoch, start_time, test_loss_history=None,
-                  test_dataset=None):
+def construct_dfs(model, dataset, train_loss_history, time_history, model_history, hessian_history,
+                  max_epochs, batch_size, learning_rate, train_thresh, current_epoch,
+                  test_loss_history=None, test_dataset=None, loss_func=weighted_normed_loss):
     """construct the loss and results dataframes and add metadata
     """
-    loss_df = construct_loss_df(train_loss_history)
+    loss_df = construct_history_df(train_loss_history)
+    time_df = construct_history_df(time_history, value_name='time', subset=None)
+    model_history_df = pd.merge(construct_history_df(model_history, 'parameter', 'value'),
+                                construct_history_df(hessian_history, 'parameter', 'hessian'),
+                                'outer')
+    model_history_df = pd.merge(model_history_df,
+                                time_df.groupby('epoch_num').time.max().reset_index())
     if test_loss_history is not None:
-        loss_df = pd.concat([loss_df, construct_loss_df(test_loss_history, 'test')])
-    loss_df['max_epochs'] = max_epochs
-    loss_df['batch_size'] = batch_size
-    loss_df['learning_rate'] = learning_rate
-    loss_df['train_thresh'] = train_thresh
-    loss_df['epochs_trained'] = current_epoch
-    loss_df['time_elapsed'] = time.time() - start_time
+        loss_df = pd.concat([loss_df, construct_history_df(test_loss_history, subset='test')])
+    loss_df = pd.merge(loss_df, time_df)
     # we reload the first level dataframe because the one in dataset may be filtered in some way
-    results_df = combine_first_level_df_with_performance(pd.read_csv(dataset.df_path),
-                                                         check_performance(model, dataset,
-                                                                           test_dataset))
+    results_df = combine_first_level_df_with_performance(
+        pd.read_csv(dataset.df_path),
+        check_performance(model, dataset, test_dataset, loss_func))
     if type(model) == torch.nn.DataParallel:
         # in this case, we need to access model.module in order to get the various custom
         # attributes we set in our LogGaussianDonut
         model = model.module
-    results_df['fit_model_type'] = model.model_type
-    loss_df['fit_model_type'] = model.model_type
     # this is the case if the data is simulated
     for col in ['true_model_type', 'noise_level', 'noise_source_df']:
         if col in results_df.columns:
             loss_df[col] = results_df[col].unique()[0]
+            model_history_df[col] = results_df[col].unique()[0]
     for name, val in model.named_parameters():
         results_df['fit_model_%s' % name] = val.cpu().detach().numpy()
-    results_df['epochs_trained'] = current_epoch
-    results_df['batch_size'] = batch_size
-    results_df['learning_rate'] = learning_rate
-    return loss_df, results_df
+    metadata_names = ['max_epochs', 'batch_size', 'learning_rate', 'train_thresh', 'loss_func',
+                      'dataset_df_path', 'epochs_trained', 'fit_model_type']
+    metadata_vals = [max_epochs, batch_size, learning_rate, train_thresh, loss_func.__name__,
+                     dataset.df_path, current_epoch, model.model_type]
+    for name, val in zip(metadata_names, metadata_vals):
+        loss_df[name] = val
+        results_df[name] = val
+        model_history_df[name] = val
+    return loss_df, results_df, model_history_df
 
 
-def save_outputs(model, loss_df, results_df, save_path_stem):
+def save_outputs(model, loss_df, results_df, model_history_df, save_path_stem):
     """save outputs (if save_path_stem is not None)
 
     results_df can be None, in which case we don't save it.
@@ -477,48 +546,13 @@ def save_outputs(model, loss_df, results_df, save_path_stem):
     if save_path_stem is not None:
         torch.save(model.state_dict(), save_path_stem + "_model.pt")
         loss_df.to_csv(save_path_stem + "_loss.csv", index=False)
+        model_history_df.to_csv(save_path_stem + "_model_history.csv", index=False)
         if results_df is not None:
             results_df.to_csv(save_path_stem + "_results_df.csv", index=False)
 
 
-def weighted_normed_loss(predictions, target, precision, predictions_for_norm=None,
-                         target_for_norm=None):
-    """takes in the predictions and target
-
-    note all of these must be tensors, not numpy arrays
-
-    predictions_for_norm, target_for_norm: normally, this should be called such that predictions
-    and target each contain all the values for the voxels investigated. however, during
-    cross-validation, predictions and target will contain a subset of the stimulus classes, so we
-    need to pass the predictions and targets for all stimulus classes as well in order to normalize
-    them properly (for an intuition as to why this is important, consider the extreme case: if both
-    predictions and target have length 1 and are normalized with respect to themselves, the loss
-    will always be 0)
-    """
-    # we occasionally have an issue where the predictions are really small (like 1e-200), which
-    # gives us a norm of 0 and thus a normed_predictions of infinity, and thus an infinite loss.
-    # the point of renorming is that multiplying by a scale factor won't change our loss, so we do
-    # that here to avoid this issue
-    if 0 in predictions.norm(2, -1, True):
-        predictions = predictions * 1e100
-    if predictions_for_norm is None:
-        assert target_for_norm is None, "Both target_for_norm and predictions_for_norm must be unset"
-        predictions_for_norm = predictions
-        target_for_norm = target
-    # we norm / average along the last dimension, since that means we do it across all stimulus
-    # classes for a given voxel. we don't know whether these tensors will be 1d (single voxel, as
-    # returned by our FirstLevelDataset) or 2d (multiple voxels, as returned by the DataLoader)
-    normed_predictions = predictions / predictions_for_norm.norm(2, -1, True)
-    normed_target = target / target_for_norm.norm(2, -1, True)
-    # this isn't really necessary (all the values along that dimension should be identical, based
-    # on how we calculated it), but just in case. and this gets it in the right shape
-    precision = precision.mean(-1, True)
-    squared_error = precision * (normed_predictions - normed_target)**2
-    return squared_error.mean()
-
-
 def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
-                learning_rate=1e-2, save_path_stem=None):
+                learning_rate=1e-2, save_path_stem=None, loss_func=weighted_normed_loss):
     """train the model
     """
     training_parameters = [p for p in model.parameters() if p.requires_grad]
@@ -528,15 +562,21 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
     dataloader = torchdata.DataLoader(dataset, batch_size)
     loss_history = []
     start_time = time.time()
+    time_history = []
+    model_history = []
+    hessian_history = []
+    full_data, full_target = next(iter(torchdata.DataLoader(dataset, len(dataset))))
     for t in range(max_epochs):
         loss_history.append([])
-        for i, (features, target, precision) in enumerate(dataloader):
+        time_history.append([])
+        for i, (features, target) in enumerate(dataloader):
             # these transposes get features from the dimensions (voxels, stimulus class, features)
             # into (features, voxels, stimulus class) so that the predictions are shape (voxels,
             # stimulus class), just like the targets are
-            predictions = model(*features.transpose(2, 0).transpose(2, 1))
-            loss = weighted_normed_loss(predictions, target, precision)
+            predictions = model(features)
+            loss = loss_func(predictions, target)
             loss_history[t].append(loss.item())
+            time_history[t].append(time.time() - start_time)
             if np.isnan(loss.item()) or np.isinf(loss.item()):
                 print("Loss is nan or inf on epoch %s, batch %s! We won't update parameters on "
                       "this batch" % (t, i))
@@ -545,11 +585,19 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        model_history.append([(k, v.clone().cpu().detach().numpy()) for k, v in model.named_parameters()])
+        H = hessian(loss_func(model(full_data), full_target),
+                    [p for p in model.parameters() if p.requires_grad])
+        model.eval()
+        hessian_item = tuple(zip([p[0] for p in model.named_parameters() if p[1].requires_grad],
+                                 1./np.sqrt(H.diag()).cpu().detach().numpy()))
+        model.train()
+        hessian_history.append(hessian_item)
         if (t % 100) == 0:
-            loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs,
-                                                batch_size, learning_rate, train_thresh, t,
-                                                start_time)
-            save_outputs(model, loss_df, results_df, save_path_stem)
+            loss_df, results_df, model_history_df = construct_dfs(
+                model, dataset, loss_history, time_history, model_history, hessian_history,
+                max_epochs, batch_size, learning_rate, train_thresh, t, loss_func=loss_func)
+            save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         print(model)
         if len(loss_history) > 3:
@@ -558,14 +606,15 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                 (np.abs(np.mean(loss_history[-3]) - np.mean(loss_history[-4])) < train_thresh)):
                 print("Epoch loss appears to have stopped declining, so we stop training")
                 break
-    loss_df, results_df = construct_dfs(model, dataset, loss_history, max_epochs, batch_size,
-                                        learning_rate, train_thresh, t, start_time)
-    return model, loss_df, results_df
+    loss_df, results_df, model_history_df = construct_dfs(
+        model, dataset, loss_history, time_history, model_history, hessian_history, max_epochs,
+        batch_size, learning_rate, train_thresh, t, loss_func=loss_func)
+    return model, loss_df, results_df, model_history_df
 
 
 def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_epochs=5,
                           batch_size=1, train_thresh=1e-8, learning_rate=1e-2,
-                          save_path_stem=None):
+                          save_path_stem=None, loss_func=weighted_normed_loss):
     """train the model with separate train and test sets
     """
     training_parameters = [p for p in model.parameters() if p.requires_grad]
@@ -577,20 +626,27 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
     train_loss_history = []
     test_loss_history = []
     start_time = time.time()
+    time_history = []
+    model_history = []
+    hessian_history = []
+    # calculate the hessian based on the training dataset
+    full_data, full_target = next(iter(torchdata.DataLoader(train_dataset, len(train_dataset))))
     for t in range(max_epochs):
         train_loss_history.append([])
+        time_history.append([])
         for i, (train_stuff, test_stuff) in enumerate(zip(train_dataloader, test_dataloader)):
-            features, target, precision = train_stuff
-            test_features, test_target, _ = test_stuff
+            features, target = train_stuff
+            test_features, test_target = test_stuff
             # these transposes get features from the dimensions (voxels, stimulus class, features)
             # into (features, voxels, stimulus class) so that the predictions are shape (voxels,
             # stimulus class), just like the targets are
-            predictions = model(*features.transpose(2, 0).transpose(2, 1))
-            test_predictions = model(*test_features.transpose(2, 0).transpose(2, 1))
-            loss = weighted_normed_loss(predictions, target, precision,
-                                        torch.cat([test_predictions, predictions], 1),
-                                        torch.cat([test_target, target], 1))
+            predictions = model(features)
+            test_predictions = model(test_features)
+            loss = loss_func(predictions, target,
+                             torch.cat([test_predictions, predictions], 1),
+                             torch.cat([test_target, target], 1))
             train_loss_history[t].append(loss.item())
+            time_history[t].append(time.time() - start_time)
             if np.isnan(loss.item()) or np.isinf(loss.item()):
                 print("Loss is nan or inf on epoch %s, batch %s! We won't update parameters on "
                       "this batch" % (t, i))
@@ -600,24 +656,30 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
             loss.backward()
             optimizer.step()
         model.eval()
+        model_history.append([(k, v.clone().cpu().detach().numpy()) for k, v in model.named_parameters()])
+        H = hessian(loss_func(model(full_data), full_target),
+                    [p for p in model.parameters() if p.requires_grad])
+        hessian_item = tuple(zip([p[0] for p in model.named_parameters() if p[1].requires_grad],
+                                 1./np.sqrt(H.diag()).cpu().detach().numpy()))
+        hessian_history.append(hessian_item)
         test_loss_history.append([])
-        for v in test_dataset.df.voxel.unique():
-            test_features, test_target, test_precision = test_dataset.get_voxel(v)
-            train_features, train_target, _ = train_dataset.get_voxel(v)
-            test_predictions = model(*test_features.transpose(1, 0))
-            train_predictions = model(*train_features.transpose(1, 0))
-            loss = weighted_normed_loss(test_predictions, test_target, test_precision,
-                                        torch.cat([test_predictions, train_predictions]),
-                                        torch.cat([test_target, train_target]))
+        for i, (train_stuff, test_stuff) in enumerate(zip(train_dataloader, test_dataloader)):
+            test_features, test_target = test_stuff
+            train_features, train_target = train_stuff
+            test_predictions = model(test_features)
+            train_predictions = model(train_features)
+            loss = loss_func(test_predictions, test_target,
+                             torch.cat([test_predictions, train_predictions], 1),
+                             torch.cat([test_target, train_target], 1))
             test_loss_history[t].append(loss.item())
         model.train()
         if (t % 100) == 0:
-            loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history,
-                                                max_epochs, batch_size, learning_rate,
-                                                train_thresh, t, start_time, test_loss_history,
-                                                test_dataset)
+            loss_df, results_df, model_history_df = construct_dfs(
+                model, full_dataset, train_loss_history, time_history, model_history,
+                hessian_history, max_epochs, batch_size, learning_rate, train_thresh, t,
+                test_loss_history, test_dataset, loss_func)
             # don't save results_df when cross-validating
-            save_outputs(model, loss_df, None, save_path_stem)
+            save_outputs(model, loss_df, None, model_history_df, save_path_stem)
         print("Average train loss on epoch %s: %s" % (t, np.mean(train_loss_history[-1])))
         print("Average test loss on epoch %s: %s" % (t, np.mean(test_loss_history[-1])))
         print(model)
@@ -627,16 +689,17 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
                 (np.abs(np.mean(train_loss_history[-3]) - np.mean(train_loss_history[-4])) < train_thresh)):
                 print("Training loss appears to have stopped declining, so we stop training")
                 break
-    loss_df, results_df = construct_dfs(model, full_dataset, train_loss_history, max_epochs,
-                                        batch_size, learning_rate, train_thresh, t, start_time,
-                                        test_loss_history, test_dataset)
-    return model, loss_df, results_df
+    loss_df, results_df, model_history_df = construct_dfs(
+        model, full_dataset, train_loss_history, time_history, model_history, hessian_history,
+        max_epochs, batch_size, learning_rate, train_thresh, t, test_loss_history, test_dataset,
+        loss_func)
+    return model, loss_df, results_df, model_history_df
 
 
 def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
          first_level_results_path, random_seed=None, max_epochs=100, train_thresh=1e-8,
-         batch_size=1, df_filter=None, learning_rate=1e-2, stimulus_class=None,
-         save_path_stem="pytorch"):
+         batch_size=1, df_filter=None, learning_rate=1e-2, test_set_stimulus_class=None,
+         save_path_stem="pytorch", loss_func=weighted_normed_loss):
     """create, train, and save a model on the given first_level_results dataframe
 
     model_orientation_type, model_eccentricity_type, model_vary_amplitude: together specify what
@@ -676,10 +739,11 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
     returns one (most likely, a subset of the original) as output. See
     `drop_voxels_with_negative_amplitudes` for an example.
 
-    stimulus_class: list of ints or None. What subset of the stimulus_class should be used. these
-    are numbers between 0 and 47 (inclusive) and then the dataset will only include data from those
-    stimulus classes. this is used for cross-validation purposes (i.e., train on 0 through 46, test
-    on 47).
+    test_set_stimulus_class: list of ints or None. What subset of the stimulus_class should be
+    considered the test set. these are numbers between 0 and 47 (inclusive) and then the test
+    dataset will include data from those stimulus classes (train dataset will use the rest). this
+    is used for cross-validation purposes (i.e., train on 0 through 46, test on 47). If None, will
+    not have a test set, and will train on all data.
 
     save_path_stem: string or None. a string to save the trained model and loss_df at (should have
     no extension because we'll add it ourselves). If None, will not save the output.
@@ -700,48 +764,41 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
         model = torch.nn.DataParallel(model)
     model.to(device)
     dataset = FirstLevelDataset(first_level_results_path, device, df_filter)
-    if stimulus_class is None:
+    if test_set_stimulus_class is None:
         print("Beginning training!")
         # use all stimulus classes
-        model, loss_df, results_df = train_model(model, dataset, max_epochs, batch_size,
-                                                 train_thresh, learning_rate, save_path_stem)
+        model, loss_df, results_df, model_history_df = train_model(
+            model, dataset, max_epochs, batch_size, train_thresh, learning_rate, save_path_stem,
+            loss_func)
         test_subset = 'none'
     else:
         df = pd.read_csv(first_level_results_path)
         all_stimulus_class = df.stimulus_class.unique()
-        other_stimulus_class = [i for i in all_stimulus_class if i not in stimulus_class]
+        train_set_stimulus_class = [i for i in all_stimulus_class if i not in test_set_stimulus_class]
         # split into test and train
-        if len(other_stimulus_class) > len(stimulus_class):
-            # we assume that test set should be smaller than train
-            train_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
-                                              other_stimulus_class)
-            test_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
-                                             stimulus_class)
-            test_subset = stimulus_class
-        else:
-            train_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
-                                              stimulus_class)
-            test_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
-                                             other_stimulus_class)
-            test_subset = other_stimulus_class
+        train_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
+                                          train_set_stimulus_class)
+        test_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
+                                         test_set_stimulus_class)
+        test_subset = test_set_stimulus_class
         print("Beginning training, treating stimulus classes %s as test "
               "set!" % test_subset)
-        model, loss_df, results_df = train_model_traintest(model, train_dataset, test_dataset,
-                                                           dataset, max_epochs, batch_size,
-                                                           train_thresh, learning_rate,
-                                                           save_path_stem)
+        model, loss_df, results_df, model_history_df = train_model_traintest(
+            model, train_dataset, test_dataset, dataset, max_epochs, batch_size, train_thresh,
+            learning_rate, save_path_stem, loss_func)
     test_subset = str(test_subset).replace('[', '').replace(']', '')
     if len(test_subset) == 1:
         test_subset = int(test_subset)
     results_df['test_subset'] = test_subset
     loss_df['test_subset'] = test_subset
+    model_history_df['test_subset'] = test_subset
     print("Finished training!")
-    if stimulus_class is None:
-        save_outputs(model, loss_df, results_df, save_path_stem)
+    if test_set_stimulus_class is None:
+        save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
     else:
-        save_outputs(model, loss_df, None, save_path_stem)
+        save_outputs(model, loss_df, None, model_history_df, save_path_stem)
     model.eval()
-    return model, loss_df, results_df
+    return model, loss_df, results_df, model_history_df
 
 
 def construct_df_filter(df_filter_string):
@@ -855,19 +912,19 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", '-r', default=1e-2, type=float,
                         help=("Learning rate for Adam optimizer (should change inversely with "
                               "batch size)."))
-    parser.add_argument("--stimulus_class", '-c', default=None, nargs='+',
+    parser.add_argument("--test_set_stimulus_class", '-c', default=None, nargs='+',
                         help=("Which stimulus class(es) to consider part of the test set. should "
                               "probably only be one, but should work if you pass more than one as "
                               "well"))
     args = vars(parser.parse_args())
-    # stimulus_class can be either None or some ints. argparse will hand us a list, so we have to
-    # parse it appropriately
-    stimulus_class = args.pop('stimulus_class')
+    # test_set_stimulus_class can be either None or some ints. argparse will hand us a list, so we
+    # have to parse it appropriately
+    test_set_stimulus_class = args.pop('test_set_stimulus_class')
     try:
-        stimulus_class = [int(i) for i in stimulus_class]
+        test_set_stimulus_class = [int(i) for i in test_set_stimulus_class]
     except ValueError:
         # in this case, we can't cast one of the strs in the list to an int, so we assume it must
         # just contain None.
-        stimulus_class = None
+        test_set_stimulus_class = None
     df_filter = construct_df_filter(args.pop('df_filter'))
-    main(stimulus_class=stimulus_class, df_filter=df_filter, **args)
+    main(test_set_stimulus_class=test_set_stimulus_class, df_filter=df_filter, **args)

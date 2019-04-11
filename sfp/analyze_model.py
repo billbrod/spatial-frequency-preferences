@@ -47,7 +47,8 @@ def load_single_model(save_path_stem, load_results_df=True):
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
     model.eval()
     model.to(device)
-    return model, loss_df, results_df
+    model_history_df = pd.read_csv(save_path_stem + "_model_history_df.csv")
+    return model, loss_df, results_df, model_history_df
 
 
 def combine_models(base_path_template, load_results_df=True):
@@ -67,9 +68,11 @@ def combine_models(base_path_template, load_results_df=True):
     models = []
     loss_df = []
     results_df = []
+    model_history_df = []
     path_stems = []
     for p in glob.glob(base_path_template):
-        path_stem = p.replace('_loss.csv', '').replace('_model.pt', '').replace('_results_df.csv', '')
+        path_stem = (p.replace('_loss.csv', '').replace('_model.pt', '')
+                     .replace('_results_df.csv', '').replace('_model_history.csv', ''))
         # we do this to make sure we're not loading in the outputs of a model twice (by finding
         # both its loss.csv and its results_df.csv, for example)
         if path_stem in path_stems:
@@ -87,13 +90,15 @@ def combine_models(base_path_template, load_results_df=True):
             metadata['atlas_type'] = path_stem.split(os.sep)[-6]
             metadata['task'] = re.search('_(task-[a-z0-9]+)_', path_stem).groups()[0]
         path_stems.append(path_stem)
-        model, loss, results = load_single_model(path_stem, load_results_df=load_results_df)
+        model, loss, results, model_history = load_single_model(path_stem,
+                                                                load_results_df=load_results_df)
         for k, v in metadata.items():
             if results is not None:
                 results[k] = v
             loss[k] = v
         results_df.append(results)
         loss_df.append(loss)
+        model_history_df.append(model_history)
         tmp = loss.head(1)
         tmp = tmp.drop(['epoch_num', 'batch_num', 'loss'], 1)
         tmp['model'] = model
@@ -106,12 +111,13 @@ def combine_models(base_path_template, load_results_df=True):
                     tmper['true_value'] = results['true_model_%s' % name].unique()[0]
             models.append(tmper)
     loss_df = pd.concat(loss_df).reset_index(drop=True)
+    model_history_df = pd.concat(model_history_df).reset_index(drop=True)
     if load_results_df:
         results_df = pd.concat(results_df).reset_index(drop=True).drop('index', 1)
     else:
         results_df = None
     models = pd.concat(models)
-    return models, loss_df, results_df
+    return models, loss_df, results_df, model_history_df
 
 
 def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi),
@@ -157,12 +163,15 @@ if __name__ == '__main__':
                               "string  formatting symbols (e.g., '{0}' or '%s') but should contain"
                               " at least one '*' because we will use glob to find them (and "
                               "therefore should point to an actual file when passed to glob, one"
-                              " of: the loss df, model df, or model parameters)."))
+                              " of: the loss df, model history df, results df, or model "
+                              "parameters)."))
     parser.add_argument("save_path_stem",
                         help=("Path stem (no extension) where we'll save the results"))
     args = vars(parser.parse_args())
-    models, loss_df, results_df = combine_models(args['base_path_template'], False)
+    models, loss_df, results_df, model_history_df = combine_models(args['base_path_template'],
+                                                                   False)
     models.to_csv(args['save_path_stem'] + "_model.csv")
+    model_history_df.to_csv(args['save_path_stem'] + "_model_history.csv")
     loss_df.to_csv(args['save_path_stem'] + "_loss.csv")
     models = models.drop_duplicates('model')
     features = create_feature_df(models.model.values, orientation_n_steps=50,
