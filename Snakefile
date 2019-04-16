@@ -910,7 +910,7 @@ rule model:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log")
     resources:
         # need the same number of cpus and gpus
-        cpus_per_task = lambda wildcards: int(wildcards.gpus),
+        cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 4),
         mem = 10,
         gpus = lambda wildcards: int(wildcards.gpus)
     params:
@@ -984,7 +984,7 @@ rule model_simulated_data:
         os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_simulated', 'noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_orientation_type}_{sim_eccentricity_type}_{sim_train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log')
     resources:
         # need the same number of cpus and gpus
-        cpus_per_task = lambda wildcards: int(wildcards.gpus),
+        cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 4),
         mem = 10,
         gpus = lambda wildcards: int(wildcards.gpus),
     params:
