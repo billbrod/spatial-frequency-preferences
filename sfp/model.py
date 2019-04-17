@@ -552,12 +552,16 @@ def save_outputs(model, loss_df, results_df, model_history_df, save_path_stem):
             results_df.to_csv(save_path_stem + "_results_df.csv", index=False)
 
 
-def _check_convergence(history, thresh, history_name):
+def _check_convergence(history, thresh):
     if len(history) > 3:
-        if ((np.abs(np.mean(history[-1]) - np.mean(history[-2])) < thresh) and
-            (np.abs(np.mean(history[-2]) - np.mean(history[-3])) < thresh) and
-            (np.abs(np.mean(history[-3]) - np.mean(history[-4])) < thresh)):
-            return True
+        if np.array(history).ndim == 3:
+            history = np.array(history)[:, :, 1].astype(np.float)
+            if (np.abs(np.diff(history, axis=0))[-3:] < thresh).all():
+                return True
+        else:
+            history = np.array(history)
+            if (np.abs(np.diff(np.mean(history, 1)))[-3:] < thresh).all():
+                return True
     return False
 
 
