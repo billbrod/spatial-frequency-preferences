@@ -901,7 +901,7 @@ if __name__ == '__main__':
                         help=("we initialize the model with random parameters in order to try and"
                               " avoid local optima. we set the seed before generating all those "
                               "random numbers. If not specified, then we don't set it."))
-    parser.add_argument("--train_thresh", '-t', default=1e-8, type=float,
+    parser.add_argument("--train_thresh", '-t', default=1e-6, type=float,
                         help=("How little the loss can change with successive epochs to be "
                               "considered done training."))
     parser.add_argument("--df_filter", '-d', default='drop_voxels_with_negative_amplitudes',
@@ -916,11 +916,11 @@ if __name__ == '__main__':
                               "negative response amplitude. If 'reduce_num_voxels:n', will drop "
                               "all but the first n voxels. If 'None', fit on all data (obviously,"
                               " this cannot be chained with any of the others)."))
-    parser.add_argument("--batch_size", "-b", default=1, type=int,
+    parser.add_argument("--batch_size", "-b", default=10, type=int,
                         help=("Size of the batches for training"))
     parser.add_argument("--max_epochs", '-e', default=100, type=int,
                         help=("Maximum number of training epochs (full runs through the data)"))
-    parser.add_argument("--learning_rate", '-r', default=1e-2, type=float,
+    parser.add_argument("--learning_rate", '-r', default=1e-3, type=float,
                         help=("Learning rate for Adam optimizer (should change inversely with "
                               "batch size)."))
     parser.add_argument("--test_set_stimulus_class", '-c', default=None, nargs='+',
