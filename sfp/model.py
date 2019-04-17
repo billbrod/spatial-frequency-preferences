@@ -552,6 +552,15 @@ def save_outputs(model, loss_df, results_df, model_history_df, save_path_stem):
             results_df.to_csv(save_path_stem + "_results_df.csv", index=False)
 
 
+def _check_convergence(history, thresh, history_name):
+    if len(history) > 3:
+        if ((np.abs(np.mean(history[-1]) - np.mean(history[-2])) < thresh) and
+            (np.abs(np.mean(history[-2]) - np.mean(history[-3])) < thresh) and
+            (np.abs(np.mean(history[-3]) - np.mean(history[-4])) < thresh)):
+            return True
+    return False
+
+
 def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                 learning_rate=1e-2, save_path_stem=None, loss_func=weighted_normed_loss):
     """train the model
@@ -604,11 +613,10 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
             save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         print(model)
-        if len(loss_history) > 3:
-            if ((np.abs(np.mean(loss_history[-1]) - np.mean(loss_history[-2])) < train_thresh) and
-                (np.abs(np.mean(loss_history[-2]) - np.mean(loss_history[-3])) < train_thresh) and
-                (np.abs(np.mean(loss_history[-3]) - np.mean(loss_history[-4])) < train_thresh)):
-                print("Epoch loss appears to have stopped declining, so we stop training")
+        if _check_convergence(loss_history, train_thresh):
+            if _check_convergence(model_history, train_thresh):
+                print("Epoch loss and parameter values appear to have converged, so we stop "
+                      "training")
                 break
     loss_df, results_df, model_history_df = construct_dfs(
         model, dataset, loss_history, time_history, model_history, hessian_history, max_epochs,
@@ -687,11 +695,10 @@ def train_model_traintest(model, train_dataset, test_dataset, full_dataset, max_
         print("Average train loss on epoch %s: %s" % (t, np.mean(train_loss_history[-1])))
         print("Average test loss on epoch %s: %s" % (t, np.mean(test_loss_history[-1])))
         print(model)
-        if len(train_loss_history) > 3:
-            if ((np.abs(np.mean(train_loss_history[-1]) - np.mean(train_loss_history[-2])) < train_thresh) and
-                (np.abs(np.mean(train_loss_history[-2]) - np.mean(train_loss_history[-3])) < train_thresh) and
-                (np.abs(np.mean(train_loss_history[-3]) - np.mean(train_loss_history[-4])) < train_thresh)):
-                print("Training loss appears to have stopped declining, so we stop training")
+        if _check_convergence(train_loss_history, train_thresh):
+            if _check_convergence(model_history, train_thresh):
+                print("Epoch loss and parameter values appear to have converged, so we stop "
+                      "training")
                 break
     loss_df, results_df, model_history_df = construct_dfs(
         model, full_dataset, train_loss_history, time_history, model_history, hessian_history,
