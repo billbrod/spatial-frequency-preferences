@@ -47,7 +47,7 @@ def load_single_model(save_path_stem, load_results_df=True):
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
     model.eval()
     model.to(device)
-    model_history_df = pd.read_csv(save_path_stem + "_model_history_df.csv")
+    model_history_df = pd.read_csv(save_path_stem + "_model_history.csv")
     return model, loss_df, results_df, model_history_df
 
 
