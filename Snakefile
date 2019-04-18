@@ -41,6 +41,9 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
          ('sub-wlsubj045', 'ses-04'): 7}
 VAREAS = [1]
+MODEL_TYPES = ['iso_constant_constant', 'iso_scaling_constant', 'iso_full_constant',
+               'absolute_full_constant', 'relative_full_constant', 'full_full_constant',
+               'absolute_full_vary', 'relative_full_vary', 'full_full_vary']
 def get_n_classes(session, mat_type):
     if mat_type == 'all_visual':
         return 1
@@ -88,7 +91,7 @@ wildcard_constraints:
     orientation_type="[a-z-]+",
     eccentricity_type="[a-z-]+",
     train_amps="[a-z-]+",
-    model_type="[a-z-]+"
+    model_type="[a-z-_]+"
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -203,39 +206,28 @@ rule model_recovery_cv_initial:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_full_full_vary_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
 
 
-rule model_subj_initial:
-    input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_iso_constant_constant_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_iso_scaling_constant_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_iso_full_constant_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_absolute_full_constant_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_relative_full_constant_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_full_full_constant_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_absolute_full_vary_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_relative_full_vary_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "initial", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_summary_b1_r1e-2_g0_cNone_full_full_vary_loss.csv").format(subject=subj, session=ses, task=task) for subj, ses, task in zip(['sub-wlsubj001', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'], ['ses-01', 'ses-02', 'ses-03', 'ses-04'], ['task-sfp', 'task-sfp', 'task-sfp', 'task-sfprescaled'])],
+def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, learning_rate=1e-3,
+                           crossval_seed=None):
+    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                               "posterior", "initial", "{subject}", "{session}",
+                               "{subject}_{session}_{task}_v1_e1-12_summary_b{batch}_r{lr}_g0_"
+                               "c{{crossval}}_{model_type}_loss.csv")
+    output_path = output_path.format(subject=subject, session=session, task=task, batch=batch_size,
+                                     lr=learning_rate, model_type=model_type)
+    if crossval_seed is None:
+        return output_path.format(crossval=None)
+    else:
+        return [output_path.format(crossval=n) for n in create_crossval_idx(4, session, task, crossval_seed)]
 
 
-rule model_all_data:
+rule model_subj045_ses04_initial:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_scaling_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_constant_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj001", "ses-01", "sub-wlsubj001_ses-01_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-01", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_scaling_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_iso_constant_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_constant_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_absolute_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_relative_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "posterior", "sub-wlsubj045", "ses-02", "sub-wlsubj045_ses-02_task-sfp_v1_e1-12_summary_b1_r1e-3_g1_c{num:02d}_full_full_vary_loss.csv").format(num=n) for n in range(get_n_classes("ses-02", 'stim_class'))],
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled', crossval_seed=0) for m in MODEL_TYPES]
+
+
+rule model_subj045_ses03_initial:
+    input:
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
 
 
 rule GLMdenoise_all_visual:
