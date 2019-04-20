@@ -115,20 +115,27 @@ def plot_ci(x, y, ci_vals=[16, 84], **kwargs):
     plt.fill_between(plot_data.index, plot_values[:, 0], plot_values[:, 1], alpha=alpha, **kwargs)
 
 
-def scatter_ci_col(x, y, ci, x_order=None, **kwargs):
+def scatter_ci_col(x, y, ci, x_order=None, x_jitter=None, **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
     based on seaborn.linearmodels.scatterplot. CIs are taken from a column in this function.
     """
     data = kwargs.pop('data')
+    ax = plt.gca()
     plot_data = data.groupby(x)[y].median()
     plot_cis = data.groupby(x)[ci].median()
     if x_order is not None:
         plot_data = plot_data.reindex(x_order)
         plot_cis = plot_cis.reindex(x_order)
-    plt.scatter(plot_data.index, plot_data.values, **kwargs)
-    for (x, ci), y in zip(plot_cis.items(), plot_data.values):
-        plt.plot([x, x], [y+ci, y-ci], **kwargs)
+    for i, ((x_data, group_data), (_, group_cis)) in enumerate(zip(plot_data.items(), plot_cis.items())):
+        try:
+            x_data = _jitter_data(x_data, x_jitter)
+        except TypeError:
+            x_data = np.ones(1) * i
+            x_data = _jitter_data(x_data, x_jitter)
+        ax.scatter(x_data, group_data, **kwargs)
+        ax.plot([x_data, x_data], [group_data+group_cis, group_data-group_cis], **kwargs)
+    ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
 
 
 def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, **kwargs):
