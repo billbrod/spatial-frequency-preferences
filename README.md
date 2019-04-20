@@ -29,8 +29,8 @@ Python:
      need to set up a psychopy environment, just run: `conda env
      create -f environment.yml`. Then, type `conda activate sfp` to
      activate the environment.
- - You'll also need to install pytorch, but the exact way to do so
-   depends on your machine. See the [pytorch
+ - You'll also need to install pytorch (version 1.0.1 or newer), but
+   the exact way to do so depends on your machine. See the [pytorch
    website](https://pytorch.org/) for details, but the command is
    probably `conda install pytorch torchvision -c pytorch` if you have
    a GPU on your machine and `conda install pytorch-cpu
