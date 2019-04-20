@@ -46,7 +46,6 @@
     },
     "model":
     {
-	"time": "02:00:00",
 	"mem": "{resources.mem}GB",
 	"cpus_per_task": "{resources.cpus_per_task}",
 	"gres": "gpu:{resources.gpus}"
