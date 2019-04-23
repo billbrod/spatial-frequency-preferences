@@ -68,6 +68,7 @@ def simulate_voxel(true_model, freqs, noise_level=0, ecc_range=(1, 12),
                          'amplitude_estimate_std_error': noise_level,
                          'true_amplitude_estimate_median': resps,
                          'amplitude_estimate_median_normed': normed_resps,
+                         'amplitude_estimate_std_error_normed': noise_level * resps_norm,
                          'amplitude_estimate_norm': resps_norm,
                          'precision': precision,
                          'stimulus_class': range(len(freqs))})

@@ -11,3 +11,5 @@ from . import binning
 from . import model
 from . import simulate_data
 from . import analyze_model
+from . import monte_carlo
+
