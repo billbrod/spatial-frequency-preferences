@@ -1016,6 +1016,29 @@ rule gather_model_results:
         "python -m sfp.analyze_model {params.base_path_template} {params.save_stem}"
 
 
+rule mcmc:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "mcmc", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_s{samples}_c{chains}_n{nuts_kwargs}_mcmc.nc"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "mcmc", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_s{samples}_c{chains}_n{nuts_kwargs}_benchmark.txt"),
+    log:
+        os.path.join(config['DATA_DIR'], "code", "mcmc", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_s{samples}_c{chains}_n{nuts_kwargs}-%j.log"),
+    resources:
+        cpus_per_task = lambda wildcards: int(wildcards.chains),
+    params:
+        logging = to_log_or_not,
+        # need to have a different seed for each chain
+        random_seed = lambda wildcards: ' '.join([str(i) for i in range(int(wildcards.chains))]),
+        nuts_kwargs = lambda wildcards: ' '.join(wildcards.nuts_kwargs.split(','))
+    shell:
+        "python -m sfp.monte_carlo {input} {output} --random_seed {params.random_seed} -s "
+        "{wildcards.samples} -c {wildcards.chains} -n {resources.cpus_per_task} "
+        "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border --nuts_kwargs "
+        "{params.nuts_kwargs} {params.logging} {log}"
+
+        
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),

@@ -209,7 +209,7 @@ if __name__ == '__main__':
                               "fit."))
     parser.add_argument("save_path",
                         help=("Path stem (with '.nc' extension) where we'll save the results"))
-    parser.add_argument("--random_seed", default=None,
+    parser.add_argument("--random_seed", default=None, nargs='+', type=int,
                         help=("Random seed for the MCMC sampler. If None, we don't set it"))
     parser.add_argument("--n_samples", '-s', type=int, default=1000,
                         help=("The number of MCMC samples to draw"))
@@ -246,5 +246,4 @@ if __name__ == '__main__':
                 except ValueError:
                     pass
             nuts_kwargs[k] = v
-    print(nuts_kwargs)
     main(**args, **nuts_kwargs)
