@@ -170,11 +170,11 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
     models, loss_df, results_df, model_history_df = combine_models(args['base_path_template'],
                                                                    False)
-    models.to_csv(args['save_path_stem'] + "_model.csv")
-    model_history_df.to_csv(args['save_path_stem'] + "_model_history.csv")
-    loss_df.to_csv(args['save_path_stem'] + "_loss.csv")
+    models.to_csv(args['save_path_stem'] + "_model.csv", index=False)
+    model_history_df.to_csv(args['save_path_stem'] + "_model_history.csv", index=False)
+    loss_df.to_csv(args['save_path_stem'] + "_loss.csv", index=False)
     models = models.drop_duplicates('model')
     features = create_feature_df(models.model.values, orientation_n_steps=50,
                                  retinotopic_angle_n_steps=50,
                                  test_subset=models.test_subset.values)
-    features.to_csv(args['save_path_stem'] + '_features.csv')
+    features.to_csv(args['save_path_stem'] + '_features.csv', index=False)

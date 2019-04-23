@@ -207,17 +207,44 @@ rule model_recovery_cv_initial:
 
 
 def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, learning_rate=1e-3,
-                           crossval_seed=None):
-    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
-                               "posterior", "initial", "{subject}", "{session}",
-                               "{subject}_{session}_{task}_v1_e1-12_summary_b{batch}_r{lr}_g0_"
-                               "c{{crossval}}_{model_type}_loss.csv")
+                           crossval_seed=None, vareas=1, eccen='1-12', df_mode='summary', gpus=0,
+                           mat_type='stim_class', atlas_type='posterior', modeling_goal='initial'):
+    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                               "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                               "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch}_"
+                               "r{lr}_g{gpus}_c{{crossval}}_{model_type}_loss.csv")
     output_path = output_path.format(subject=subject, session=session, task=task, batch=batch_size,
-                                     lr=learning_rate, model_type=model_type)
+                                     lr=learning_rate, model_type=model_type, vareas=vareas,
+                                     eccen=eccen, df_mode=df_mode, gpus=gpus, atlas_type=atlas_type,
+                                     mat_type=mat_type, modeling_goal=modeling_goal)
     if crossval_seed is None:
         return output_path.format(crossval=None)
     else:
-        return [output_path.format(crossval=n) for n in create_crossval_idx(4, session, task, crossval_seed)]
+        return [output_path.format(crossval=n) for n in create_crossval_idx(4, session, task, int(crossval_seed))]
+
+
+def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
+                   df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='posterior',
+                   modeling_goal='initial'):
+        subjects = ['sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj001', 'sub-wlsubj064',
+                    'sub-wlsubj014', 'sub-wlsubj004', 'sub-wlsubj042']
+        sessions = ['ses-04', 'ses-03', 'ses-01', 'ses-04', 'ses-03', 'ses-03', 'ses-02']
+        output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                                   "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
+                                   "{{subject}}_{{session}}_{{task}}_v{vareas}_e{eccen}_{df_mode}_b{batch"
+                                   "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_models.csv")
+        output_path = output_path.format(vareas=vareas, mat_type=mat_type, batch_size=batch_size,
+                                         eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
+                                         modeling_goal=modeling_goal, gpus=gpus,
+                                         crossval_seed=crossval_seed, learning_rate=learning_rate)
+        return [output_path.format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj, ses in zip(subjects, sessions)]
+
+
+rule summarize_initial_subj_cv:
+    input:
+        # if we don't do this, it passes wildcards as the first argument of the function. since we
+        # don't have any wildcards, this sets crossval_seed=None
+        lambda wildcards: get_cv_summary(),
 
 
 rule model_subj045_ses04_initial:
@@ -922,6 +949,41 @@ rule model:
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
         "drop_voxels_with_negative_amplitudes,drop_voxels_near_border -t 1e-6 -e 1000 "
         "-c {params.stimulus_class} {params.logging} {log}"
+
+
+rule summarize_model_cv:
+    input:
+        # this will return a list of lists of strings, so we need to flatten it
+        lambda wildcards: np.array([get_model_subj_outputs(m, **wildcards) for m in MODEL_TYPES]).flatten(),
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_timing.csv"),
+    run:
+        import sfp
+        import os
+        import pandas as pd
+        models, loss_df, results_df, model_history = sfp.analyze_model.combine_models(os.path.dirname(input[0])+"/*", False)
+        metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
+                    'fit_model_type', 'test_subset']
+        timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
+        grouped_loss = loss_df.groupby(metadata + ['data_subset', 'epoch_num', 'time']).loss.mean().reset_index()
+        grouped_loss = grouped_loss.groupby(metadata + ['data_subset']).last().reset_index()
+        final_model_history = model_history.groupby(['fit_model_type', 'parameter']).last().reset_index().rename(columns={'parameter': 'model_parameter'})
+        models = pd.merge(models, final_model_history[['fit_model_type', 'model_parameter', 'hessian']])
+        models = models.fillna(0)
+        models.to_csv(output[0], index=False)
+        grouped_loss.to_csv(output[1], index=False)
+        timing_df.to_csv(output[2], index=False)
 
 
 rule simulate_data_uniform_noise:
