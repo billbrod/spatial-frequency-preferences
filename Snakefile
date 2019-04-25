@@ -1100,7 +1100,21 @@ rule mcmc:
         "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border --nuts_kwargs "
         "{params.nuts_kwargs} {params.logging} {log}"
 
-        
+
+rule prepare_image_computable:
+    input:
+        stim = os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stimuli.npy'),
+        stim_df = os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stim_description.csv')
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'stimuli_energy', '{task}_n{ori}_energy.npy'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'stimuli_energy', '{task}_n{ori}_filters.npy')
+    params:
+        save_path_template = lambda wildcards, output: output[1].replace('filters', '%s')
+    shell:
+        "python -m sfp.image_computable {input.stim} {input.stim_df} {params.save_path_template} "
+        "-n {wildcards.ori}"
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),
