@@ -35,3 +35,4 @@ dependencies:
       # sure the version I use stays constant
       - git+https://github.com/billbrod/hessian.git@master#egg=hessian
       - arviz
+      - pyrtools
