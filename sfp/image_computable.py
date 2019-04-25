@@ -74,7 +74,8 @@ def calc_energy_and_filters(stim, stim_df, n_orientations=6, save_path_template=
     img_size = stim.shape[1:]
     # this computation comes from the SteerablePyramidFreq code
     max_ht = int(np.floor(np.log2(min(img_size))) - 2)
-    energy = np.zeros((stim_df.class_idx.nunique(), max_ht, n_orientations, *img_size))
+    energy = np.zeros((stim_df.class_idx.nunique(), max_ht, n_orientations, *img_size),
+                      dtype=np.float32)
     filters = np.zeros_like(energy)
     for i, g in stim_df.groupby('class_idx'):
         idx = g.index
