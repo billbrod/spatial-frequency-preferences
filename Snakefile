@@ -247,39 +247,57 @@ rule summarize_initial_subj_cv:
         lambda wildcards: get_cv_summary(),
 
 
-rule model_subj045_ses04_initial:
+rule model_all_subj_initial:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
 
 
-rule model_subj045_ses03_initial:
+rule model_subj045_ses04_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj001_ses01_initial:
+rule model_subj045_ses03_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj064_ses04_initial:
+rule model_subj001_ses01_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj014_ses03_initial:
+rule model_subj064_ses04_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj004_ses03_initial:
+rule model_subj014_ses03_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj042_ses02_initial:
+rule model_subj004_ses03_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
+
+
+rule model_subj042_ses02_initial_cv:
+    input:
+        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
 rule GLMdenoise_all_visual:
