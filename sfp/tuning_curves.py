@@ -18,15 +18,12 @@ import numpy as np
 
 def log_norm_pdf(x, a, mode, sigma):
     """the pdf of the log normal distribution, with a scale factor
-
-    we parameterize this using the mode instead of mu because we place constraints on the mode
-    during optimization
     """
-    mu = np.log(mode) + sigma**2
-    # the normalizing term isn't necessary, but we keep it here for propriety's sake
-    pdf = (1/(x*sigma*np.sqrt(2*np.pi))) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
-    pdf /= pdf.max()
-    return a * pdf
+    # note that mode here is the actual mode, for us, the peak spatial frequency. this differs from
+    # the 2d version we have, where we we have np.log2(x)+np.log2(p), so that p is the inverse of
+    # the preferred period, the ivnerse of the mode / the peak spatial frequency.
+    pdf = a * np.exp(-(np.log2(x)-np.log2(mode))**2/(2*sigma**2))
+    return pdf
 
 
 def get_tuning_curve_xy(a, mode, sigma, x=None, norm=False):
@@ -53,7 +50,7 @@ def get_tuning_curve_xy_from_df(df, x=None, norm=False):
 def log_norm_describe_full(a, mode, sigma):
     """calculate and return many descriptions of the log normal distribution
 
-    returns the mu parameter, bandwidth (in octaves), low and high half max values of log normal
+    returns the bandwidth (in octaves), low and high half max values of log normal
     curve, inf_warning, x and y.
 
     inf_warning is a boolean which indicates whether we calculate the variance to be infinite. this
@@ -91,14 +88,7 @@ def log_norm_describe_full(a, mode, sigma):
     low_half_max = np.min(x[half_max_idx[:2]])
     high_half_max = np.max(x[half_max_idx[:2]])
     bandwidth = np.log2(high_half_max) - np.log2(low_half_max)
-    return mu, bandwidth, low_half_max, high_half_max, inf_warning, x, y
-
-
-def log_norm_describe(a, mode, sigma):
-    """same as log_norm_describe_full, except we only return the mode and bandwidth
-    """
-    m, bw, lhm, hhm, inf, x, y = log_norm_describe_full(a, mode, sigma)
-    return m, bw
+    return bandwidth, low_half_max, high_half_max, inf_warning, x, y
 
 
 def create_problems_report(fit_problems, inf_problems, save_path):
@@ -180,15 +170,13 @@ def main(df, save_path=None, mode_bounds=(2**(-5), 2**11), ampl_bounds=(0, 10),
                 maxfev *= 10
                 tol /= np.sqrt(10)
         # popt contains a, mode, and sigma, in that order
-        mu, bandwidth, lhm, hhm, inf_warning, x, y = log_norm_describe_full(popt[0], popt[1],
-                                                                            popt[2])
+        bandwidth, lhm, hhm, inf_warning, x, y = log_norm_describe_full(popt[0], popt[1], popt[2])
         tuning_df.append(g.assign(tuning_curve_amplitude=popt[0], tuning_curve_peak=popt[1],
-                         tuning_curve_sigma=popt[2], tuning_curve_mu=mu,
-                         tuning_curve_bandwidth=bandwidth, preferred_period=1./popt[1],
-                         high_half_max=hhm, low_half_max=lhm, fit_warning=fit_warning,
-                         inf_warning=inf_warning, tol=tol, maxfev=maxfev,
+                         tuning_curve_sigma=popt[2], preferred_period=1./popt[1],
+                         tuning_curve_bandwidth=bandwidth, high_half_max=hhm, low_half_max=lhm,
+                         fit_warning=fit_warning, inf_warning=inf_warning, tol=tol, maxfev=maxfev,
                          mode_bound_lower=mode_bounds[0], mode_bound_upper=mode_bounds[1]))
-        warning_cols = gb_columns + ['tol', 'maxfev', 'tuning_curve_mu', 'tuning_curve_amplitude',
+        warning_cols = gb_columns + ['tol', 'maxfev', 'tuning_curve_amplitude',
                                      'tuning_curve_sigma', 'tuning_curve_peak',
                                      'tuning_curve_bandwidth']
         if fit_warning:
