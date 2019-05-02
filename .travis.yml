@@ -12,11 +12,12 @@ matrix:
           packages:
             - g++-6
 before_install:
-  - export CC=gcc-6
-  - export CXX=g++-6
+  - export CC=/usr/bin/gcc-6
+  - export CXX=/usr/bin/g++-6
   - which gcc
   - gcc --version
-  - ls /usr/bin/
+  - ls /usr/bin/ | grep gcc
+  - ls /usr/bin/ | grep g++
 language: python
 dist: xenial
 python:
