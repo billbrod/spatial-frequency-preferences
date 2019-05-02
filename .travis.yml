@@ -1,6 +1,22 @@
+matrix:
+  # from https://docs.travis-ci.com/user/languages/c/#gcc-on-linux.
+  # pyrtools requires gcc >= 6 because of this issue:
+  # https://stackoverflow.com/questions/46504700/gcc-compiler-not-recognizing-fno-plt-option
+  include:
+    # works on Precise and Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
 before_install:
-    - export CC=gcc-6
-    - export CXX=g++-6
+  - export CC=gcc-6
+  - export CXX=g++-6
+  - which gcc
+  - gcc --version
+  - ls /usr/bin/
 language: python
 dist: xenial
 python:
@@ -12,6 +28,7 @@ install:
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
+  - which gcc
   - gcc --version
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
