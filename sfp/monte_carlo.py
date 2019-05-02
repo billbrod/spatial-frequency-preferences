@@ -15,11 +15,23 @@ def get_data_dict_from_df(df):
     """get a dict of arrays from the first level results dataframe
     """
     data = {}
-    data_labels = ['sf_mag', 'sf_angle', 'vox_ecc', 'vox_angle', 'targets', 'std_error']
-    df_labels = ['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle',
-                 'amplitude_estimate_median_normed', 'amplitude_estimate_std_error_normed']
+    data_labels = ['sf_mag', 'sf_angle', 'vox_ecc', 'vox_angle']
+    df_labels = ['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']
+    groupby_labels = ['voxel', 'stimulus_class']
+    if 'amplitude_estimate_median_normed' in df.columns:
+        df_labels += ['amplitude_estimate_median_normed', 'amplitude_estimate_std_error_normed']
+        data_labels += ['targets', 'std_error']
+    else:
+        df_labels += ['amplitude_estimate_normed']
+        data_labels += ['targets']
+        std = df.groupby(groupby_labels)[['amplitude_estimate_normed']].std().reset_index().groupby('voxel')[['amplitude_estimate_normed']].mean().unstack().to_numpy()
+        # std will be a 1d array with one value for each voxel. the following expands it to the proper shape
+        std = np.expand_dims(np.expand_dims(std, 1).repeat(df['stimulus_class'].nunique(), 1), 2).repeat(df['bootstrap_num'].nunique(), 2)
+        data['std_error'] = std.astype(np.float32)
+        groupby_labels += ['bootstrap_num']
     for data_name, df_name in zip(data_labels, df_labels):
-        arr = df.groupby(['voxel', 'stimulus_class'])[[df_name]].mean().unstack().to_numpy()
+        arr = df.groupby(groupby_labels)[[df_name]].mean().unstack().to_numpy()
+        arr = arr.reshape([df[i].nunique() for i in groupby_labels])
         data[data_name] = arr.astype(np.float32)
     return data
 
@@ -37,7 +49,7 @@ def _parse_distrib_dict(distrib_dict):
 def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_error, voxel_norm=None,
                          sigma=None, sf_ecc_slope=None, sf_ecc_intercept=None):
     """this is just the PyMC3 implementation of our PyTorch model of the log-normal 2d tuning curve
-
+    
     the only difference is we have one additional parameter, voxel_norm, for rescaling the overall
     response magnitude to be the same as in the data. we expect all targets to have already been
     rescaled to have an L2-norm of 1, and for the std_error to have been rescaled using that same
@@ -64,19 +76,27 @@ def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_erro
         else:
             voxel_norm = _parse_distrib_dict(voxel_norm)('voxel_norm')
         if sigma is None:
-            sigma = pm.Wald('sigma', mu=1, lam=3)
+            sigma = pm.Gamma('sigma', mu=2, sd=1)
         else:
             sigma = _parse_distrib_dict(sigma)('sigma')
         if sf_ecc_slope is None:
-            sf_ecc_slope = pm.Wald('sf_ecc_slope', mu=1, lam=3)
+            sf_ecc_slope = pm.Gamma('sf_ecc_slope', mu=1, sd=1)
         else:
             sf_ecc_slope = _parse_distrib_dict(sf_ecc_slope)('sf_ecc_slope')
         if sf_ecc_intercept is None:
-            sf_ecc_intercept = pm.Wald('sf_ecc_intercept', mu=1, lam=3)
+            sf_ecc_intercept = pm.Gamma('sf_ecc_intercept', mu=1, sd=1)
         else:
             sf_ecc_intercept = _parse_distrib_dict(sf_ecc_intercept)('sf_ecc_intercept')
-        # can use the sfp.model._check_log_gaussian_parmas to check whether you want to set the
-        # different parameters, based on orientation_type, etc.        
+        # abs_mode_cardinals = pm.Normal('abs_mode_cardinals', mu=0, sd=.1)
+        # abs_mode_obliques = pm.Normal('abs_mode_obliques', mu=0, sd=.1)
+        # rel_mode_cardinals = pm.Normal('rel_mode_cardinals', mu=0, sd=.1)
+        # rel_mode_obliques = pm.Normal('rel_mode_obliques', mu=0, sd=.1)
+        # abs_amplitude_cardinals = pm.Normal('abs_amplitude_cardinals', mu=0, sd=.1)
+        # abs_amplitude_obliques = pm.Normal('abs_amplitude_obliques', mu=0, sd=.1)
+        # rel_amplitude_cardinals = pm.Normal('rel_amplitude_cardinals', mu=0, sd=.1)
+        # rel_amplitude_obliques = pm.Normal('rel_amplitude_obliques', mu=0, sd=.1)
+        # # can use the sfp.model._check_log_gaussian_parmas to check whether you want to set the
+        # # different parameters, based on orientation_type, etc.        
         # rel_sf_angle = sf_angle - vox_angle
         # orientation_effect = (1 + abs_mode_cardinals * tt.cos(2 * sf_angle) +
         #                       abs_mode_obliques * tt.cos(4 * sf_angle) +
@@ -84,8 +104,8 @@ def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_erro
         #                       rel_mode_obliques * tt.cos(4 * rel_sf_angle))
         # if you set your priors intelligently, you probably don't need the clip call, but just in
         # case.
-        # preferred_period = pm.math.clip(eccentricity_effect * orientation_effect, 1e-6, 1e6)
         eccentricity_effect = sf_ecc_slope * vox_ecc + sf_ecc_intercept
+        # preferred_period = pm.math.clip(eccentricity_effect * orientation_effect, 1e-6, 1e6)
         preferred_period = eccentricity_effect
         
         # if you set your priors intelligently, you probably don't need the clip call, but just in
@@ -136,7 +156,7 @@ def setup_model(df, voxel_norm=None, sigma=None, sf_ecc_intercept=None, sf_ecc_s
 
 def main(first_level_results_path, voxel_norm=None, sigma=None, sf_ecc_intercept=None,
          sf_ecc_slope=None, n_samples=1000, n_chains=4, n_cores=None, save_path=None,
-         random_seed=None, df_filter_string=None, **nuts_kwargs):
+         random_seed=None, df_filter_string=None, init='auto', **nuts_kwargs):
     """run MCMC sampling to fit 2d log-normal tuning curve model
 
     first_level_results_path: str. Path to the first level results dataframe containing the data to
@@ -167,6 +187,8 @@ def main(first_level_results_path, voxel_norm=None, sigma=None, sf_ecc_intercept
     then construct the function that will chain them together in the order specified (if None is
     one of the entries, we will simply return None)
 
+    init: str. How to initialize the NUTS sampler.
+
     nuts_kwargs: additional arguments to pass to the NUTS sampler. Some examples: target_accept,
     step_scale, max_treedepth. See pymc3.NUTS for a list of all arguments and their accepted
     values.
@@ -180,7 +202,7 @@ def main(first_level_results_path, voxel_norm=None, sigma=None, sf_ecc_intercept
     n_cores = min(n_cores, n_chains)
     with model:
         trace = pm.sample(n_samples, chains=n_chains, cores=n_cores, random_seed=random_seed,
-                          nuts_kwargs=nuts_kwargs)
+                          nuts_kwargs=nuts_kwargs, tune=1500, init=init)
         prior = pm.sample_prior_predictive(n_samples)
         post = pm.sample_posterior_predictive(trace, n_samples)
     inference_data = az.from_pymc3(trace, prior=prior, posterior_predictive=post)
@@ -217,6 +239,8 @@ if __name__ == '__main__':
                         help=("The number of MCMC chains to run"))
     parser.add_argument("--n_cores", '-n', type=int, default=4,
                         help=("The number of cores to use when sampling."))
+    parser.add_argument("--init", default='auto',
+                        help=("How to initialize the sampler"))
     parser.add_argument("--df_filter_string", '-d', default='drop_voxels_with_negative_amplitudes',
                         help=("{'drop_voxels_near_border', 'drop_voxels_with_negative_amplitudes',"
                               " 'reduce_num_voxels:n', 'None'}."
