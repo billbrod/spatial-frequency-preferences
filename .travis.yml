@@ -12,7 +12,7 @@ matrix:
           packages:
             - g++-6
       env:
-        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+        - MATRIX_EVAL="CC=/usr/bin/gcc-6 && CXX=/usr/bin/g++-6"
 before_install:
     - eval "${MATRIX_EVAL}"
 language: python
@@ -26,6 +26,7 @@ install:
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
+  - gcc --version
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
