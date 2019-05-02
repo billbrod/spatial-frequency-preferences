@@ -1,20 +1,6 @@
-matrix:
-  # from https://docs.travis-ci.com/user/languages/c/#gcc-on-linux.
-  # pyrtools requires gcc >= 6 because of this issue:
-  # https://stackoverflow.com/questions/46504700/gcc-compiler-not-recognizing-fno-plt-option
-  include:
-    # works on Precise and Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env:
-        - MATRIX_EVAL="CC=/usr/bin/gcc-6 && CXX=/usr/bin/g++-6"
 before_install:
-    - eval "${MATRIX_EVAL}"
+    - export CC=gcc-6
+    - export CXX=g++-6
 language: python
 dist: xenial
 python:
