@@ -15,6 +15,7 @@ import warnings
 import argparse
 import itertools
 import functools
+from scipy import stats
 from torch.utils import data as torchdata
 from hessian import hessian
 
@@ -95,7 +96,8 @@ class FirstLevelDataset(torchdata.Dataset):
     stimulus classes. this is used for cross-validation purposes (i.e., train on 0 through 46, test
     on 47).
     """
-    def __init__(self, df_path, device, df_filter=None, stimulus_class=None):
+    def __init__(self, df_path, device, df_filter=None, stimulus_class=None,
+                 model_mode='tuning_curve'):
         df = pd.read_csv(df_path)
         if df_filter is not None:
             # we want the index to be reset so we can use iloc in get_single_item below. this
@@ -118,10 +120,19 @@ class FirstLevelDataset(torchdata.Dataset):
         self.device = device
         self.df_path = df_path
         self.stimulus_class = df.stimulus_class.unique()
+        if model_mode not in ['tuning_curve', 'image-computable']:
+            raise Exception("Don't know how to handle model_mode %s!" % model_mode)
+        self.model_mode = model_mode
 
     def get_single_item(self, idx):
         row = self.df.iloc[idx]
-        vals = row[['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']].values
+        if self.model_mode == 'tuning_curve':
+            vals = row[['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']].values
+        elif self.model_mode == 'image-computable':
+            # in this case, we'll grab spatial frequency information directly from the saved energy
+            # arrays, so we need to tell it which stimulus class this belongs to and we need the
+            # pRF size, sigma.
+            vals = row[['stimulus_class', 'eccen', 'angle', 'sigma']].values
         feature = _cast_as_tensor(vals.astype(float))
         try:
             target = _cast_as_tensor(row['amplitude_estimate'])
@@ -285,6 +296,44 @@ class LogGaussianDonut(torch.nn.Module):
 
     def __repr__(self):
         return self.__str__()
+    
+    def prepare_image_computable(self, energy, filters, stim_radius_degree=12):
+        """prepare for the image computable version of the model
+
+        Parameters
+        ----------
+        energy : np.ndarray
+            energy has shape (num_classes, n_scales, n_orientations, *img_size) and 
+            contains the energy (square and absolute value the complex valued output of 
+            SteerablePyramidFreq; equivalently, square and sum the output of the quadrature pair of 
+            filters that make up the pyramid) for each image, at each scale and orientation. the energy
+            has all been upsampled to the size of the initial image.
+        filters : np.ndarray
+            filters has shape (max_ht, n_orientations, *img_size) and is the fourier transform of the 
+            filters at each scale and orientation, zero-padded so they all have the same size. we only 
+            have one set of filters (instead of one per stimulus class) because the same pyramid was 
+            used for each of them; we ensure this by getting the filters for each stimulus class and 
+            checking that they're individually equal to the average across classes.
+        stim_radius_degree : int
+            the radius of the stimuli (in degrees), necessary for converting between pixels and 
+            degrees.
+
+        """
+        self.stim_radius_degree = stim_radius_degree
+        if energy.shape[-2] != energy.shape[-1]:
+            raise Exception("For now, this only works on square input images!")
+        self.image_size = energy.shape[-1]
+        filters, energy = _cast_args_as_tensors([filters, energy], self.sigma.is_cuda)
+        self.energy = energy.unsqueeze(0)
+        # this is the l1 norm
+        norm_weights = filters.abs().sum((2,3), keepdim=True)
+        norm_weights = norm_weights[0] / norm_weights
+        self.filters = filters * norm_weights
+        x = np.linspace(-self.stim_radius_degree, self.stim_radius_degree, self.image_size)
+        x, y = np.meshgrid(x, x)
+        # we want to try and delete things to save memory
+        del norm_weights, energy, filters
+        self.visual_space = np.dstack((x, y))
 
     def _create_mag_angle(self, extent=(-10, 10), n_samps=1001):
         x = torch.linspace(extent[0], extent[1], n_samps)
@@ -293,9 +342,18 @@ class LogGaussianDonut(torch.nn.Module):
         th = torch.atan2(y, x)
         return r, th
 
-    def create_image(self, vox_ecc, vox_angle, extent=None, n_samps=1001):
+    def create_image(self, vox_ecc, vox_angle, extent=None, n_samps=None):
+        vox_ecc, vox_angle = _cast_args_as_tensors([vox_ecc, vox_angle], self.sigma.is_cuda)
+        if vox_ecc.ndimension() == 0:
+            vox_ecc = vox_ecc.unsqueeze(-1)
+            vox_angle = vox_angle.unsqueeze(-1)
+        if extent is None:
+            extent = (-self.stim_radius_degree, self.stim_radius_degree)
+        if n_samps is None:
+            n_samps = self.image_size
         r, th = self._create_mag_angle(extent, n_samps)
-        return self.evaluate(r, th, vox_ecc, vox_angle)
+        return self.evaluate(r.repeat(len(vox_ecc), 1, 1), th.repeat(len(vox_ecc), 1, 1),
+                             vox_ecc, vox_angle)
 
     def preferred_period(self, sf_angle, vox_ecc, vox_angle):
         """return preferred period for specified voxel at given orientation
@@ -342,6 +400,58 @@ class LogGaussianDonut(torch.nn.Module):
                         (2*self.sigma**2))
         amplitude = self.max_amplitude(sf_angle, vox_angle)
         return amplitude * pdf
+
+    def image_computable_weights(self, vox_ecc, vox_angle):
+        vox_ecc, vox_angle = _cast_args_as_tensors([vox_ecc, vox_angle], self.sigma.is_cuda)
+        vox_tuning = self.create_image(vox_ecc.unsqueeze(-1).unsqueeze(-1),
+                                       vox_angle.unsqueeze(-1).unsqueeze(-1),
+                                       (-self.stim_radius_degree, self.stim_radius_degree),
+                                       self.image_size)
+        vox_tuning = vox_tuning.unsqueeze(1).unsqueeze(1)
+        return torch.sum(vox_tuning * self.filters, (-1, -2), keepdim=True).unsqueeze(1)
+
+    def create_prfs(self, vox_ecc, vox_angle, vox_sigma):
+        vox_ecc, vox_angle, vox_sigma = _cast_args_as_tensors([vox_ecc, vox_angle, vox_sigma],
+                                                              self.sigma.is_cuda)
+        if vox_ecc.ndimension() == 0:
+            vox_ecc = vox_ecc.unsqueeze(-1)
+        if vox_angle.ndimension() == 0:
+            vox_angle = vox_angle.unsqueeze(-1)
+        if vox_sigma.ndimension() == 0:
+            vox_sigma = vox_sigma.unsqueeze(-1)
+        vox_x = vox_ecc * np.cos(vox_angle)
+        vox_y = vox_ecc * np.sin(vox_angle)
+        prfs = []
+        for x, y, s in zip(vox_x, vox_y, vox_sigma):
+            prf = stats.multivariate_normal((x, y), s)
+            prfs.append(prf.pdf(self.visual_space))
+        return _cast_args_as_tensors([prfs], self.sigma.is_cuda)[0].unsqueeze(1)
+    
+    def image_computable(self, inputs):
+        # the different features will always be indexed along the last axis (we don't know whether
+        # this is 2d (stimulus_class, features) or 3d (voxels, stimulus_class, features))
+        # to be used as index, must be long type
+        stim_class = inputs.select(-1, 0)
+        if stim_class.ndimension() == 2:
+            stim_class = stim_class.mean(0)
+        stim_class = torch.as_tensor(stim_class, dtype=torch.long)
+        vox_ecc = inputs.select(-1, 1).mean(-1)
+        if vox_ecc.ndimension() == 0:
+            vox_ecc = vox_ecc.unsqueeze(-1)
+        vox_angle = inputs.select(-1, 2).mean(-1)
+        if vox_angle.ndimension() == 0:
+            vox_angle = vox_angle.unsqueeze(-1)
+        vox_sigma = inputs.select(-1, 3).mean(-1)
+        if vox_sigma.ndimension() == 0:
+            vox_sigma = vox_sigma.unsqueeze(-1)
+        weights = self.image_computable_weights(vox_ecc, vox_angle)
+        reweighted_energy = torch.sum(weights * self.energy[:, stim_class], (2, 3))
+
+        prfs = self.create_prfs(vox_ecc, vox_angle, vox_sigma)
+        predictions = torch.sum(prfs * reweighted_energy, (-1, -2))
+        # reweighted_energy is big, so we want to delete it to try and save memory
+        del reweighted_energy
+        return predictions
 
     def forward(self, inputs):
         """
