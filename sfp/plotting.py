@@ -611,7 +611,7 @@ def check_hypotheses_normalized(tuning_df, save_path_template=None, ci_vals=[16,
 def tuning_params(tuning_df, save_path=None, **kwargs):
     tuning_df = _restrict_df(tuning_df, **kwargs)
     tuning_df = tuning_df[['frequency_type', 'tuning_curve_amplitude', 'tuning_curve_sigma',
-                           'tuning_curve_mu', 'tuning_curve_peak', 'tuning_curve_bandwidth']]
+                           'tuning_curve_peak', 'tuning_curve_bandwidth']]
     tuning_df['tuning_curve_peak'] = np.log2(tuning_df.tuning_curve_peak)
     g = sns.PairGrid(tuning_df, hue='frequency_type', aspect=1)
     g.map_offdiag(plt.scatter)

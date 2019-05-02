@@ -19,14 +19,13 @@ else:
 
 
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj014',
-            'sub-wlsubj064', 'sub-wlsubj081']
+            'sub-wlsubj064', 'sub-wlsubj081', 'sub-wlsubj095', 'sub-wlsubj007', 'sub-wlsubj062']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj004': ['ses-03'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02', 'ses-04', 'ses-03'],
-            'sub-wlsubj014': ['ses-03'],
-            'sub-wlsubj064': ['ses-04'],
-            'sub-wlsubj081': ['ses-04']}
+            'sub-wlsubj014': ['ses-03'], 'sub-wlsubj064': ['ses-04'], 'sub-wlsubj081': ['ses-04'],
+            'sub-wlsubj095': ['ses-04'], 'sub-wlsubj007': ['ses-04'], 'sub-wlsubj062': ['ses-04']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
@@ -35,8 +34,9 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj045', 'ses-01'): 'task-sfpconstant',  ('sub-wlsubj045', 'ses-02'): 'task-sfp',
          ('sub-wlsubj014', 'ses-03'): 'task-sfp', ('sub-wlsubj004', 'ses-03'): 'task-sfp',
          ('sub-wlsubj045', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj045', 'ses-03'): 'task-sfp',
-         ('sub-wlsubj064', 'ses-04'): 'task-sfprescaled',
-         ('sub-wlsubj081', 'ses-04'): 'task-sfprescaled'}
+         ('sub-wlsubj064', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj081', 'ses-04'): 'task-sfprescaled',
+         ('sub-wlsubj095', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj007', 'ses-04'): 'task-sfprescaled',
+         ('sub-wlsubj062', 'ses-04'): 'task-sfprescaled'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
          ('sub-wlsubj045', 'ses-04'): 7}
@@ -63,7 +63,8 @@ def get_stim_files(wildcards):
     return {'stim': file_stem.format(rest='stimuli.npy'),
             'desc_csv': file_stem.format(rest='stim_description.csv')}
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
-             'sub-wlsubj014': 5, 'sub-wlsubj004': 6, 'sub-wlsubj064': 7, 'sub-wlsubj081': 8}
+             'sub-wlsubj014': 5, 'sub-wlsubj004': 6, 'sub-wlsubj064': 7, 'sub-wlsubj081': 8,
+             'sub-wlsubj095': 9, 'sub-wlsubj062': 0, 'sub-wlsubj007': 100}
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50,
              'ses-04': 60}
 wildcard_constraints:
@@ -247,39 +248,57 @@ rule summarize_initial_subj_cv:
         lambda wildcards: get_cv_summary(),
 
 
-rule model_subj045_ses04_initial:
+rule model_all_subj_initial:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
 
 
-rule model_subj045_ses03_initial:
+rule model_subj045_ses04_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj001_ses01_initial:
+rule model_subj045_ses03_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj064_ses04_initial:
+rule model_subj001_ses01_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj014_ses03_initial:
+rule model_subj064_ses04_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj004_ses03_initial:
+rule model_subj014_ses03_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
-rule model_subj042_ses02_initial:
+rule model_subj004_ses03_initial_cv:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp', crossval_seed=0) for m in MODEL_TYPES]
+        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
+
+
+rule model_subj042_ses02_initial_cv:
+    input:
+        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp', crossval_seed=0,
+                                modeling_goal='initial_cv') for m in MODEL_TYPES]
 
 
 rule GLMdenoise_all_visual:

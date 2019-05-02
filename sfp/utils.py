@@ -270,7 +270,7 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=Non
     w_y = 2 * np.pi * dy[loc_y, loc_x]
 
     # the local phase is just the value of the actual grating at that point (see the explanation in
-    # sfp.stimuli.create_sf_maps_cpp about why this works).
+    # sfp.stimuli._calc_sf_analytically about why this works).
     if stim_type == 'constant':
         if w_r is not None or w_a is not None:
             raise Exception("If stim_type is constant, w_r / w_a must be None!")
