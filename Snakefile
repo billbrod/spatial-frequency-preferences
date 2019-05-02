@@ -92,7 +92,9 @@ wildcard_constraints:
     orientation_type="[a-z-]+",
     eccentricity_type="[a-z-]+",
     train_amps="[a-z-]+",
-    model_type="[a-z-_]+"
+    model_type="[a-z-_]+",
+    crossval_seed="[0-9]+",
+    gpus="[0-9]+"
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -226,14 +228,14 @@ def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, le
 
 def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
                    df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='posterior',
-                   modeling_goal='initial'):
+                   modeling_goal='initial_cv'):
         subjects = ['sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj001', 'sub-wlsubj064',
                     'sub-wlsubj014', 'sub-wlsubj004', 'sub-wlsubj042']
         sessions = ['ses-04', 'ses-03', 'ses-01', 'ses-04', 'ses-03', 'ses-03', 'ses-02']
         output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                                    "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
                                    "{{subject}}_{{session}}_{{task}}_v{vareas}_e{eccen}_{df_mode}_b{batch"
-                                   "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_models.csv")
+                                   "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
         output_path = output_path.format(vareas=vareas, mat_type=mat_type, batch_size=batch_size,
                                          eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
                                          modeling_goal=modeling_goal, gpus=gpus,
@@ -970,10 +972,54 @@ rule model:
         "-c {params.stimulus_class} {params.logging} {log}"
 
 
+# this correctly calculates the CV error, in a way we don't get otherwise
+rule calc_cv_error:
+    input:
+        loss_files = lambda wildcards: get_model_subj_outputs(**wildcards),
+        dataset_path = os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                                    '{mat_type}', '{atlas_type}', '{subject}', '{session}',
+                                    '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv")
+    run:
+        import sfp
+        import torch
+        import pandas as pd
+        from torch.utils import data as torchdata
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        ds = sfp.model.FirstLevelDataset(input.dataset_path, device=device)
+        dl = torchdata.DataLoader(ds, len(ds))
+        features, targets = next(iter(dl))
+        preds = torch.empty(targets.shape[:2], dtype=targets.dtype)
+        for path in input.loss_files:
+            m, l, _, _ = sfp.analyze_model.load_single_model(path.replace('_loss.csv', ''), False)
+            test_subset = l.test_subset.unique()
+            test_subset = [int(i) for i in test_subset[0].split(',')]
+            pred = m(features[:, test_subset, :])
+            preds[:, test_subset] = pred
+        cv_loss = sfp.model.weighted_normed_loss(preds, targets).item()
+        data = dict(wildcards)
+        data['loss_func'] = 'weighted_normed_loss'
+        data['dataset_df_path'] = input.dataset_path
+        data['fit_model_type'] = data.pop('model_type')
+        data['cv_loss'] = cv_loss
+        cv_loss_csv = pd.DataFrame(data, index=[0])
+        cv_loss_csv.to_csv(output[0], index=False)
+
+
 rule summarize_model_cv:
     input:
         # this will return a list of lists of strings, so we need to flatten it
-        lambda wildcards: np.array([get_model_subj_outputs(m, **wildcards) for m in MODEL_TYPES]).flatten(),
+        loss_files = lambda wildcards: np.array([get_model_subj_outputs(m, **wildcards) for m in MODEL_TYPES]).flatten(),
+        cv_loss = lambda wildcards: [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                                                  "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                                                  "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                                                  "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv").format(model_type=m, **wildcards)
+                                     for m in MODEL_TYPES]
+
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
                      "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
@@ -987,11 +1033,15 @@ rule summarize_model_cv:
                      "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
                      "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
                      "s{crossval_seed}_all_timing.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_cv_loss.csv"),
     run:
         import sfp
         import os
         import pandas as pd
-        models, loss_df, results_df, model_history = sfp.analyze_model.combine_models(os.path.dirname(input[0])+"/*", False)
+        models, loss_df, results_df, model_history = sfp.analyze_model.combine_models(os.path.dirname(input.loss_files[0])+"/*c*.pt", False)
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
                     'fit_model_type', 'test_subset']
         timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
@@ -1000,9 +1050,14 @@ rule summarize_model_cv:
         final_model_history = model_history.groupby(['fit_model_type', 'parameter']).last().reset_index().rename(columns={'parameter': 'model_parameter'})
         models = pd.merge(models, final_model_history[['fit_model_type', 'model_parameter', 'hessian']])
         models = models.fillna(0)
+        cv_loss = []
+        for path in input.cv_loss:
+            cv_loss.append(pd.read_csv(path))
+        cv_loss = pd.concat(cv_loss)
         models.to_csv(output[0], index=False)
         grouped_loss.to_csv(output[1], index=False)
         timing_df.to_csv(output[2], index=False)
+        cv_loss.to_csv(output[3], index=False)
 
 
 rule simulate_data_uniform_noise:
