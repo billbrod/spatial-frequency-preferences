@@ -18,22 +18,10 @@ import warnings
 from . import model as sfp_model
 
 
-def load_single_model(save_path_stem, load_results_df=True):
-    """load in the model, loss df, and model df found at the save_path_stem
-
-    we also send the model to the appropriate device
+def load_LogGaussianDonut(save_path_stem):
+    """this loads and returns the actual model, given the saved parameters, for analysis
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    try:
-        if load_results_df:
-            results_df = pd.read_csv(save_path_stem + '_results_df.csv')
-        else:
-            results_df = pd.read_csv(save_path_stem + '_results_df.csv', nrows=1)
-    except FileNotFoundError as e:
-        if load_results_df:
-            raise e
-        results_df = None
-    loss_df = pd.read_csv(save_path_stem + '_loss.csv')
     # we try and infer model type from the path name, which we can do assuming we used the
     # Snakefile to generate saved model.
     vary_amps_label = save_path_stem.split('_')[-1]
@@ -47,7 +35,26 @@ def load_single_model(save_path_stem, load_results_df=True):
     model.load_state_dict(torch.load(save_path_stem + '_model.pt', map_location=device.type))
     model.eval()
     model.to(device)
+    return model
+
+
+def load_single_model(save_path_stem, load_results_df=True):
+    """load in the model, loss df, and model df found at the save_path_stem
+
+    we also send the model to the appropriate device
+    """
+    try:
+        if load_results_df:
+            results_df = pd.read_csv(save_path_stem + '_results_df.csv')
+        else:
+            results_df = pd.read_csv(save_path_stem + '_results_df.csv', nrows=1)
+    except FileNotFoundError as e:
+        if load_results_df:
+            raise e
+        results_df = None
+    loss_df = pd.read_csv(save_path_stem + '_loss.csv')
     model_history_df = pd.read_csv(save_path_stem + "_model_history.csv")
+    model = load_LogGaussianDonut(save_path_stem)
     return model, loss_df, results_df, model_history_df
 
 
