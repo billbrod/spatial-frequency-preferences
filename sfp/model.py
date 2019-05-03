@@ -672,7 +672,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
             time_history[t].append(time.time() - start_time)
             if np.isnan(loss.item()) or np.isinf(loss.item()):
                 # we raise an exception here and then try again.
-                raise Exception("Loss is nan or inf on epoch %s, batch %s!")
+                raise Exception("Loss is nan or inf on epoch %s, batch %s!" % (t, i))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -684,7 +684,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
         # standard error of the maximum likelihood estimates of our parameters:
         # https://stats.stackexchange.com/a/68095
         hessian_item = tuple(zip([p[0] for p in model.named_parameters() if p[1].requires_grad],
-                                 1./np.sqrt(H.diag()).cpu().detach().numpy()))
+                                 1./torch.sqrt(H.diag()).cpu().detach().numpy()))
         model.train()
         hessian_history.append(hessian_item)
         if (t % 100) == 0:
