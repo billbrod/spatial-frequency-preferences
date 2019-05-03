@@ -1004,7 +1004,8 @@ rule calc_cv_error:
         data = dict(wildcards)
         data['loss_func'] = 'weighted_normed_loss'
         data['dataset_df_path'] = input.dataset_path
-        data['fit_model_type'] = data.pop('model_type')
+        data.pop('model_type')
+        data['fit_model_type'] = l.fit_model_type.unique()[0]
         data['cv_loss'] = cv_loss
         cv_loss_csv = pd.DataFrame(data, index=[0])
         cv_loss_csv.to_csv(output[0], index=False)
@@ -1041,7 +1042,7 @@ rule summarize_model_cv:
         import sfp
         import os
         import pandas as pd
-        models, loss_df, results_df, model_history = sfp.analyze_model.combine_models(os.path.dirname(input.loss_files[0])+"/*c*.pt", False)
+        models, loss_df, _, model_history = sfp.analyze_model.combine_models(os.path.dirname(input.loss_files[0])+"/*c*.pt", False)
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
                     'fit_model_type', 'test_subset']
         timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
