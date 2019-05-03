@@ -54,6 +54,15 @@ def load_single_model(save_path_stem, load_results_df=True):
         results_df = None
     loss_df = pd.read_csv(save_path_stem + '_loss.csv')
     model_history_df = pd.read_csv(save_path_stem + "_model_history.csv")
+    if 'test_subset' not in loss_df.columns or 'test_subset' not in model_history_df.columns:
+        # unclear why this happens, it's really strange
+        assert save_path_stem.split('_')[-4].startswith('c'), "Can't grab test_subset from path!"
+        # this will give it the same spacing as the original version
+        test_subset = ', '.join(save_path_stem.split('_')[-4][1:].split(','))
+        if "test_subset" not in loss_df.columns:
+            loss_df['test_subset'] = test_subset
+        if "test_subset" not in model_history_df.columns:
+            model_history_df['test_subset'] = test_subset
     model = load_LogGaussianDonut(save_path_stem)
     return model, loss_df, results_df, model_history_df
 
