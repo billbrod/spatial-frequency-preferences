@@ -1046,8 +1046,8 @@ rule summarize_model_cv:
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
                     'fit_model_type', 'test_subset']
         timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
-        grouped_loss = loss_df.groupby(metadata + ['data_subset', 'epoch_num', 'time']).loss.mean().reset_index()
-        grouped_loss = grouped_loss.groupby(metadata + ['data_subset']).last().reset_index()
+        grouped_loss = loss_df.groupby(metadata + ['epoch_num', 'time']).loss.mean().reset_index()
+        grouped_loss = grouped_loss.groupby(metadata).last().reset_index()
         final_model_history = model_history.groupby(['fit_model_type', 'parameter']).last().reset_index().rename(columns={'parameter': 'model_parameter'})
         models = pd.merge(models, final_model_history[['fit_model_type', 'model_parameter', 'hessian']])
         models = models.fillna(0)
