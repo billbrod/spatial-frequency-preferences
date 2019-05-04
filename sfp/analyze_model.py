@@ -153,7 +153,7 @@ def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi
     angles = np.linspace(*orientation_range, num=retinotopic_angle_n_steps, endpoint=False)
     for i, m in enumerate(models):
         for o, a in itertools.product(orientations, angles):
-            period = m.preferred_period(o, eccen, a).detach().cpu().numpy()
+            period = m.preferred_period(eccen, a, o).detach().cpu().numpy()
             max_amp = m.max_amplitude(o, a).detach().cpu().numpy()
             data_dict = {'preferred_period': period, 'max_amplitude': max_amp,
                          'retinotopic_angle': a, 'fit_model_type': m.model_type,
