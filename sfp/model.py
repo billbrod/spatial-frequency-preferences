@@ -644,8 +644,8 @@ def _check_convergence(history, thresh):
     return False
 
 
-def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8, cv_flag=False,
-                learning_rate=1e-2, save_path_stem=None, loss_func=weighted_normed_loss):
+def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8, learning_rate=1e-2,
+                save_path_stem=None, loss_func=weighted_normed_loss, cv_flag=False):
     """train the model
     """
     training_parameters = [p for p in model.parameters() if p.requires_grad]
