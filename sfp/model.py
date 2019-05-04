@@ -14,6 +14,7 @@ import torch
 import warnings
 import argparse
 import itertools
+import re
 import functools
 from scipy import stats
 from torch.utils import data as torchdata
@@ -282,6 +283,26 @@ class LogGaussianDonut(torch.nn.Module):
         self.sf_ecc_intercept = _cast_as_param(kwargs['sf_ecc_intercept'],
                                                train_kwargs['sf_ecc_intercept'])
 
+    @classmethod
+    def init_from_df(cls, df):
+        """initialize from the dataframe we make summarizing the models
+
+        the df must only contain a single model (that is, it should only have 11 rows, one for each
+        parameter value, and a unique value for the column fit_model_type)
+
+        """
+        fit_model_type = df.fit_model_type.unique()
+        if len(fit_model_type) > 1 or len(df) != 11:
+            raise Exception("df must contain exactly one model!")
+        params = {}
+        for i, row in df.iterrows():
+            params[row.model_parameter] = row.fit_value
+        parse_string = r'([a-z]+)_donut_([a-z]+)_amps-([a-z]+)'
+        eccentricity_type, orientation_type, amp_vary_label = re.findall(parse_string,
+                                                                         fit_model_type[0])[0]
+        return cls(orientation_type, eccentricity_type,
+                   {'vary': True, 'constant': False}[amp_vary_label], **params)
+
     def __str__(self):
         # so we can see the parameters
         return ("{0}(sigma: {1:.03f}, sf_ecc_slope: {2:.03f}, sf_ecc_intercept: {3:.03f}, "
@@ -355,9 +376,53 @@ class LogGaussianDonut(torch.nn.Module):
         return self.evaluate(r.repeat(len(vox_ecc), 1, 1), th.repeat(len(vox_ecc), 1, 1),
                              vox_ecc, vox_angle)
 
-    def preferred_period(self, sf_angle, vox_ecc, vox_angle):
+    def preferred_period_contour(self, preferred_period, vox_angle, sf_angle=None,
+                                 rel_sf_angle=None):
+        """return eccentricity that has specified preferred_period for given sf_angle, vox_angle
+
+        either sf_angle or rel_sf_angle can be set
+        """
+        if ((sf_angle is None and rel_sf_angle is None) or
+            (sf_angle is not None and rel_sf_angle is not None)):
+            raise Exception("Either sf_angle or rel_sf_angle must be set!")
+        if sf_angle is None:
+            sf_angle = rel_sf_angle
+            rel_flag = True
+        else:
+            rel_flag = False
+        preferred_period, sf_angle, vox_angle = _cast_args_as_tensors(
+            [preferred_period, sf_angle, vox_angle], self.sigma.is_cuda)
+        # we can allow up to two of these variables to be non-singletons.
+        if sf_angle.ndimension() == 1 and preferred_period.ndimension() == 1 and vox_angle.ndimension() == 1:
+            # if this is False, then all of them are the same shape and we have no issues
+            if sf_angle.shape != preferred_period.shape != vox_angle.shape:
+                raise Exception("Only two of these variables can be non-singletons!")
+        else:
+            sf_angle, preferred_period = _check_and_reshape_tensors(sf_angle, preferred_period)
+            preferred_period, vox_angle = _check_and_reshape_tensors(preferred_period, vox_angle)
+            sf_angle, vox_angle = _check_and_reshape_tensors(sf_angle, vox_angle)
+        if not rel_flag:
+            rel_sf_angle = sf_angle - vox_angle
+        else:
+            rel_sf_angle = sf_angle
+            sf_angle = rel_sf_angle + vox_angle
+        orientation_effect = (1 + self.abs_mode_cardinals * torch.cos(2 * sf_angle) +
+                              self.abs_mode_obliques * torch.cos(4 * sf_angle) +
+                              self.rel_mode_cardinals * torch.cos(2 * rel_sf_angle) +
+                              self.rel_mode_obliques * torch.cos(4 * rel_sf_angle))
+        return (preferred_period / orientation_effect - self.sf_ecc_intercept) / self.sf_ecc_slope
+
+    def preferred_period(self, vox_ecc, vox_angle, sf_angle=None, rel_sf_angle=None):
         """return preferred period for specified voxel at given orientation
         """
+        if ((sf_angle is None and rel_sf_angle is None) or
+            (sf_angle is not None and rel_sf_angle is not None)):
+            raise Exception("Either sf_angle or rel_sf_angle must be set!")
+        if sf_angle is None:
+            sf_angle = rel_sf_angle
+            rel_flag = True
+        else:
+            rel_flag = False
         sf_angle, vox_ecc, vox_angle = _cast_args_as_tensors([sf_angle, vox_ecc, vox_angle],
                                                              self.sigma.is_cuda)
         # we can allow up to two of these variables to be non-singletons.
@@ -369,7 +434,11 @@ class LogGaussianDonut(torch.nn.Module):
             sf_angle, vox_ecc = _check_and_reshape_tensors(sf_angle, vox_ecc)
             vox_ecc, vox_angle = _check_and_reshape_tensors(vox_ecc, vox_angle)
             sf_angle, vox_angle = _check_and_reshape_tensors(sf_angle, vox_angle)
-        rel_sf_angle = sf_angle - vox_angle
+        if not rel_flag:
+            rel_sf_angle = sf_angle - vox_angle
+        else:
+            rel_sf_angle = sf_angle
+            sf_angle = rel_sf_angle + vox_angle
         eccentricity_effect = self.sf_ecc_slope * vox_ecc + self.sf_ecc_intercept
         orientation_effect = (1 + self.abs_mode_cardinals * torch.cos(2 * sf_angle) +
                               self.abs_mode_obliques * torch.cos(4 * sf_angle) +
@@ -378,7 +447,7 @@ class LogGaussianDonut(torch.nn.Module):
         return torch.clamp(eccentricity_effect * orientation_effect, min=1e-6)
 
     def preferred_sf(self, sf_angle, vox_ecc, vox_angle):
-        return 1. / self.preferred_period(sf_angle, vox_ecc, vox_angle)
+        return 1. / self.preferred_period(vox_ecc, vox_angle, sf_angle)
 
     def max_amplitude(self, sf_angle, vox_angle):
         sf_angle, vox_angle = _cast_args_as_tensors([sf_angle, vox_angle], self.sigma.is_cuda)
@@ -395,7 +464,7 @@ class LogGaussianDonut(torch.nn.Module):
         # if ecc_effect is 0 or below, then log2(ecc_effect) is infinity or undefined
         # (respectively). to avoid that, we clamp it 1e-6. in practice, if a voxel ends up here
         # that means the model predicts 0 response for it.
-        preferred_period = self.preferred_period(sf_angle, vox_ecc, vox_angle)
+        preferred_period = self.preferred_period(vox_ecc, vox_angle, sf_angle)
         pdf = torch.exp(-((torch.log2(sf_mag) + torch.log2(preferred_period))**2) /
                         (2*self.sigma**2))
         amplitude = self.max_amplitude(sf_angle, vox_angle)
