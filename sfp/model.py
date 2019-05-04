@@ -644,7 +644,7 @@ def _check_convergence(history, thresh):
     return False
 
 
-def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
+def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8, cv_flag=False,
                 learning_rate=1e-2, save_path_stem=None, loss_func=weighted_normed_loss):
     """train the model
     """
@@ -687,11 +687,14 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                                  1./torch.sqrt(H.diag()).cpu().detach().numpy()))
         model.train()
         hessian_history.append(hessian_item)
-        if (t % 100) == 0:
+        if (t % 100) == 99:
             loss_df, results_df, model_history_df = construct_dfs(
                 model, dataset, loss_history, time_history, model_history, hessian_history,
                 max_epochs, batch_size, learning_rate, train_thresh, t, loss_func=loss_func)
-            save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
+            if not cv_flag:
+                save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
+            else:
+                save_outputs(model, loss_df, None, model_history_df, save_path_stem)
         print("Average loss on epoch %s: %s" % (t, np.mean(loss_history[-1])))
         print(model)
         if _check_convergence(loss_history, train_thresh):
@@ -792,7 +795,7 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
         print("Beginning training, treating stimulus classes %s as test set!" % test_subset)
         model, loss_df, results_df, model_history_df = train_model(
             model, train_dataset, max_epochs, batch_size, train_thresh, learning_rate,
-            save_path_stem, loss_func)
+            save_path_stem, loss_func, True)
     test_subset = str(test_subset).replace('[', '').replace(']', '')
     if len(test_subset) == 1:
         test_subset = int(test_subset)

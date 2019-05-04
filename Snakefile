@@ -956,7 +956,7 @@ rule model:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log")
     resources:
         # need the same number of cpus and gpus
-        cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 4),
+        cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 1),
         mem = 10,
         gpus = lambda wildcards: int(wildcards.gpus)
     params:
