@@ -687,7 +687,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8,
                                  1./np.sqrt(H.diag()).cpu().detach().numpy()))
         model.train()
         hessian_history.append(hessian_item)
-        if (t % 100) == 0:
+        if (t % 100) == 99:
             loss_df, results_df, model_history_df = construct_dfs(
                 model, dataset, loss_history, time_history, model_history, hessian_history,
                 max_epochs, batch_size, learning_rate, train_thresh, t, loss_func=loss_func)
