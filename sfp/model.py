@@ -482,13 +482,13 @@ def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_sam
     """
     if ax is None:
         plt.imshow(
-            donut.create_image(voxel_eccentricity, voxel_angle, extent, n_samps=n_samps).detach(),
+            donut.create_image(voxel_eccentricity, voxel_angle, extent, n_samps=n_samps).detach()[0],
             extent=(extent[0], extent[1], extent[0], extent[1]), cmap=cmap,
             origin='lower', **kwargs)
         ax = plt.gca()
     else:
         ax.imshow(
-            donut.create_image(voxel_eccentricity, voxel_angle, extent, n_samps=n_samps).detach(),
+            donut.create_image(voxel_eccentricity, voxel_angle, extent, n_samps=n_samps).detach()[0],
             extent=(extent[0], extent[1], extent[0], extent[1]), cmap=cmap,
             origin='lower', **kwargs)
     ax.axes.xaxis.set_visible(False)
