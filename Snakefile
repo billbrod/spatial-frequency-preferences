@@ -987,13 +987,12 @@ rule calc_cv_error:
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
                      "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
-                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{orientation_type}_"
-                     "{eccentricity_type}_{train_amps}-%j.log")
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
                      "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
-                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{orientation_type}_"
-                     "{eccentricity_type}_{train_amps}_benchmark.txt")
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_"
+                     "benchmark.txt")
     run:
         import sfp
         import torch
