@@ -984,6 +984,16 @@ rule calc_cv_error:
                      "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
                      "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
                      "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
+                     "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{orientation_type}_"
+                     "{eccentricity_type}_{train_amps}-%j.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
+                     "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{orientation_type}_"
+                     "{eccentricity_type}_{train_amps}_benchmark.txt")
     run:
         import sfp
         import torch
@@ -1038,6 +1048,14 @@ rule summarize_model_cv:
                      "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
                      "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
                      "s{crossval_seed}_all_cv_loss.csv"),
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_summarize", "{subject}_{session}_"
+                     "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}-%j.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_summarize", "{subject}_{session}_"
+                     "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_benchmark.txt")
     run:
         import sfp
         import os
