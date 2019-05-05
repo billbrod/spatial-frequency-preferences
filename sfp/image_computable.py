@@ -83,7 +83,7 @@ def calc_energy_and_filters(stim, stim_df, n_orientations=6, save_path_template=
         for j in idx:
             pyr = pt.pyramids.SteerablePyramidFreq(stim[j], order=n_orientations-1, is_complex=True)
             for k, l in itertools.product(range(max_ht), range(n_orientations)):
-                energy[int(i),k,l,:,:] = upsample(np.abs(pyr.pyr_coeffs[(k, l)])**2, img_size)
+                energy[int(i), k, l, :, :] += upsample(np.abs(pyr.pyr_coeffs[(k, l)])**2, img_size)
                 # we only want to run this once per stimulus class
                 if not filled_filters:
                     if k > 0:
