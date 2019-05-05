@@ -993,6 +993,8 @@ rule calc_cv_error:
                      "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
                      "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_"
                      "benchmark.txt")
+    resources:
+        mem = 10
     run:
         import sfp
         import torch
