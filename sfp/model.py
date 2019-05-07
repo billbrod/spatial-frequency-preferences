@@ -449,10 +449,22 @@ class LogGaussianDonut(torch.nn.Module):
     def preferred_sf(self, sf_angle, vox_ecc, vox_angle):
         return 1. / self.preferred_period(vox_ecc, vox_angle, sf_angle)
 
-    def max_amplitude(self, sf_angle, vox_angle):
+    def max_amplitude(self, vox_angle, sf_angle=None, rel_sf_angle=None):
+        if ((sf_angle is None and rel_sf_angle is None) or
+            (sf_angle is not None and rel_sf_angle is not None)):
+            raise Exception("Either sf_angle or rel_sf_angle must be set!")
+        if sf_angle is None:
+            sf_angle = rel_sf_angle
+            rel_flag = True
+        else:
+            rel_flag = False
         sf_angle, vox_angle = _cast_args_as_tensors([sf_angle, vox_angle], self.sigma.is_cuda)
         sf_angle, vox_angle = _check_and_reshape_tensors(sf_angle, vox_angle)
-        rel_sf_angle = sf_angle - vox_angle
+        if not rel_flag:
+            rel_sf_angle = sf_angle - vox_angle
+        else:
+            rel_sf_angle = sf_angle
+            sf_angle = rel_sf_angle + vox_angle
         amplitude = (1 + self.abs_amplitude_cardinals * torch.cos(2*sf_angle) +
                      self.abs_amplitude_obliques * torch.cos(4*sf_angle) +
                      self.rel_amplitude_cardinals * torch.cos(2*rel_sf_angle) +
@@ -467,7 +479,7 @@ class LogGaussianDonut(torch.nn.Module):
         preferred_period = self.preferred_period(vox_ecc, vox_angle, sf_angle)
         pdf = torch.exp(-((torch.log2(sf_mag) + torch.log2(preferred_period))**2) /
                         (2*self.sigma**2))
-        amplitude = self.max_amplitude(sf_angle, vox_angle)
+        amplitude = self.max_amplitude(vox_angle, sf_angle)
         return amplitude * pdf
 
     def image_computable_weights(self, vox_ecc, vox_angle):
