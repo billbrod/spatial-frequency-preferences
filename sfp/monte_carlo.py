@@ -2,6 +2,8 @@
 """run MCMC to fit the parameters of our model
 """
 import argparse
+import os
+import re
 import logging
 import numpy as np
 import pandas as pd
@@ -9,45 +11,49 @@ import pymc3 as pm
 import arviz as az
 import theano.tensor as tt
 from .model import construct_df_filter
+from sklearn import preprocessing
 
 
 def get_data_dict_from_df(df):
     """get a dict of arrays from the first level results dataframe
     """
     data = {}
-    data_labels = ['sf_mag', 'sf_angle', 'vox_ecc', 'vox_angle']
-    df_labels = ['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle']
-    groupby_labels = ['voxel', 'stimulus_class']
-    if 'amplitude_estimate_median_normed' in df.columns:
-        df_labels += ['amplitude_estimate_median_normed', 'amplitude_estimate_std_error_normed']
-        data_labels += ['targets', 'std_error']
-    else:
-        df_labels += ['amplitude_estimate_normed']
-        data_labels += ['targets']
-        std = df.groupby(groupby_labels)[['amplitude_estimate_normed']].std().reset_index().groupby('voxel')[['amplitude_estimate_normed']].mean().unstack().to_numpy()
-        # std will be a 1d array with one value for each voxel. the following expands it to the proper shape
-        std = np.expand_dims(np.expand_dims(std, 1).repeat(df['stimulus_class'].nunique(), 1), 2).repeat(df['bootstrap_num'].nunique(), 2)
-        data['std_error'] = std.astype(np.float32)
-        groupby_labels += ['bootstrap_num']
+    data_labels = ['sf_mag', 'sf_angle', 'vox_ecc', 'vox_angle', 'targets', 'std_error']
+    df_labels = ['local_sf_magnitude', 'local_sf_xy_direction', 'eccen', 'angle',
+                 'amplitude_estimate_median_normed', 'amplitude_estimate_std_error_normed']
     for data_name, df_name in zip(data_labels, df_labels):
-        arr = df.groupby(groupby_labels)[[df_name]].mean().unstack().to_numpy()
-        arr = arr.reshape([df[i].nunique() for i in groupby_labels])
-        data[data_name] = arr.astype(np.float32)
+        data[data_name] = df[df_name].values.astype(np.float32)
+    if 'indicator' in df:
+        le = preprocessing.LabelEncoder()
+        data['scan_session_label'] = le.fit_transform(df.indicator.values)
+    else:
+        data['scan_session_label'] = np.zeros_like(data[data_name], dtype=np.int)
     return data
 
 
 def _parse_distrib_dict(distrib_dict):
     """returns a lambda function that accepts name to finalize
     """
+    distrib_dict = distrib_dict.copy()
     distrib = distrib_dict.pop("distribution")
     if distrib not in pm.distributions.__all__:
         raise Exception("Can't find distribution %s" % distrib)
     distrib = eval("pm.distributions.%s" % distrib)
-    return lambda x: distrib(x, **distrib_dict)
+    return lambda x, shape: distrib(x, shape=shape, **distrib_dict)
 
 
-def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_error, voxel_norm=None,
-                         sigma=None, sf_ecc_slope=None, sf_ecc_intercept=None):
+def hyperparam(param_name, mu_mu, mu_sd, sd_sd, shape):
+    param_mu = pm.Gamma("%s_mu" % param_name, mu=mu_mu, sd=mu_sd)
+    param_sd = pm.HalfNormal("%s_sd" % param_name, sd=sd_sd)
+    return pm.Bound(pm.Normal, lower=0)(param_name, mu=param_mu, sd=param_sd, shape=shape)
+
+
+def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_error,
+                         scan_session_label, hierarchy_type='unpooled',
+                         voxel_norm={'distribution': 'Normal', 'mu': 1, 'sd': .25},
+                         sigma={'distribution': 'Gamma', 'mu': 2, 'sd': 1},
+                         sf_ecc_slope={'distribution': 'Gamma', 'mu': .5, 'sd': .5},
+                         sf_ecc_intercept={'distribution': 'Gamma', 'mu': .5, 'sd': .5}):
     """this is just the PyMC3 implementation of our PyTorch model of the log-normal 2d tuning curve
     
     the only difference is we have one additional parameter, voxel_norm, for rescaling the overall
@@ -68,25 +74,45 @@ def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_erro
     specifying the name of the distribution, and the other keys must specify the parameters for
     that distribution.
 
+    scan_session_label: must be a 1d array with as many elements as voxels, which labels the
+    different scan sessions (which will be fit separately) (or an array of 0s, if only one scan
+    session)
+
     """
+    logger = logging.getLogger("pymc3")
     model = pm.Model()
+    num_scan_sessions = len(set(scan_session_label))
     with model:
-        if voxel_norm is None:
-            voxel_norm = pm.Normal('voxel_norm', mu=1, sd=.25, )
+        if hierarchy_type == 'unpooled':
+            logger.info("Will fit unpooled model, separate parameters for each of %d sessions" %
+                        num_scan_sessions)
+        elif hierarchy_type == 'pooled':
+            logger.info("Will fit completely pooled model, one parameter for all %d sessions" %
+                        num_scan_sessions)
+            num_scan_sessions = 1
+            scan_session_label = np.zeros_like(vox_ecc, dtype=np.int)
+        elif hierarchy_type == 'partially pooled':
+            logger.info("Will fit partially pooled model, parameters for all %d sessions share "
+                        "hyperparams!" % num_scan_sessions)
+            sigma = hyperparam('sigma', 2, .5, 1, num_scan_sessions)
+            sf_ecc_slope = hyperparam('sf_ecc_slope', .5, .3, 1, num_scan_sessions)
+            sf_ecc_intercept = hyperparam('sf_ecc_intercept', .5, .3, 1, num_scan_sessions)
         else:
-            voxel_norm = _parse_distrib_dict(voxel_norm)('voxel_norm')
-        if sigma is None:
-            sigma = pm.Gamma('sigma', mu=2, sd=1)
-        else:
-            sigma = _parse_distrib_dict(sigma)('sigma')
-        if sf_ecc_slope is None:
-            sf_ecc_slope = pm.Gamma('sf_ecc_slope', mu=1, sd=1)
-        else:
-            sf_ecc_slope = _parse_distrib_dict(sf_ecc_slope)('sf_ecc_slope')
-        if sf_ecc_intercept is None:
-            sf_ecc_intercept = pm.Gamma('sf_ecc_intercept', mu=1, sd=1)
-        else:
-            sf_ecc_intercept = _parse_distrib_dict(sf_ecc_intercept)('sf_ecc_intercept')
+            raise Exception("Don't know how to handle hierarchy_type %s!" % hierarchy_type)
+        if 'voxel_norm' not in model.named_vars.keys():
+            voxel_norm = _parse_distrib_dict(voxel_norm)('voxel_norm', num_scan_sessions)
+        if 'sigma' not in model.named_vars.keys():
+            sigma = _parse_distrib_dict(sigma)('sigma', num_scan_sessions)
+        if 'sf_ecc_slope' not in model.named_vars.keys():
+            sf_ecc_slope = _parse_distrib_dict(sf_ecc_slope)('sf_ecc_slope', num_scan_sessions)
+        if 'sf_ecc_intercept' not in model.named_vars.keys():
+            sf_ecc_intercept = _parse_distrib_dict(sf_ecc_intercept)('sf_ecc_intercept',
+                                                                     num_scan_sessions)
+        # I think just set the params in the hierarchy type if statements, because if they're
+        # unpooled/pooled, we want to use Gamma or similar distribution to avoid negative
+        # values. If they're partially pooled, do we want to just say they're normally distributed
+        # around a mean which is pulled from a Gamma or something similar? but we still need it to
+        # be positive
         # abs_mode_cardinals = pm.Normal('abs_mode_cardinals', mu=0, sd=.1)
         # abs_mode_obliques = pm.Normal('abs_mode_obliques', mu=0, sd=.1)
         # rel_mode_cardinals = pm.Normal('rel_mode_cardinals', mu=0, sd=.1)
@@ -104,7 +130,8 @@ def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_erro
         #                       rel_mode_obliques * tt.cos(4 * rel_sf_angle))
         # if you set your priors intelligently, you probably don't need the clip call, but just in
         # case.
-        eccentricity_effect = sf_ecc_slope * vox_ecc + sf_ecc_intercept
+        eccentricity_effect = (sf_ecc_slope[scan_session_label] * vox_ecc +
+                               sf_ecc_intercept[scan_session_label])
         # preferred_period = pm.math.clip(eccentricity_effect * orientation_effect, 1e-6, 1e6)
         preferred_period = eccentricity_effect
         
@@ -114,15 +141,18 @@ def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_erro
         #                              abs_amplitude_obliques * tt.cos(4*sf_angle) +
         #                              rel_amplitude_cardinals * tt.cos(2*rel_sf_angle) +
         #                              rel_amplitude_obliques * tt.cos(4*rel_sf_angle), 1e-6, 1e6)
-        pdf = tt.exp(-((tt.log2(sf_mag) + tt.log2(preferred_period))**2) / (2*sigma**2))
-        predicted_response = voxel_norm * pdf #* max_amplitude
+        pdf = tt.exp(-((tt.log2(sf_mag) + tt.log2(preferred_period))**2) / (2*sigma[scan_session_label]**2))
+        predicted_response = voxel_norm[scan_session_label] * pdf #* max_amplitude
         noisy_response = pm.Normal('noisy_response', mu=predicted_response, sd=std_error,
                                    observed=targets)
     return model
 
 
-def setup_model(df, voxel_norm=None, sigma=None, sf_ecc_intercept=None, sf_ecc_slope=None,
-                df_filter_string=None):
+def setup_model(df, df_filter_string=None, hierarchy_type='unpooled',
+                voxel_norm={'distribution': 'Normal', 'mu': 1, 'sd': .25},
+                sigma={'distribution': 'Gamma', 'mu': 2, 'sd': 1},
+                sf_ecc_slope={'distribution': 'Gamma', 'mu': .5, 'sd': .5},
+                sf_ecc_intercept={'distribution': 'Gamma', 'mu': .5, 'sd': .5}):
     """setup and return the model
 
     the parameters (voxel_norm, sigma, sf_ecc_slope, and sf_ecc_intercept) are provided as
@@ -150,7 +180,8 @@ def setup_model(df, voxel_norm=None, sigma=None, sf_ecc_intercept=None, sf_ecc_s
                 (pre_voxels, df_filter_string, post_voxels))
     data = get_data_dict_from_df(df)
     model = pymc_log_gauss_donut(sigma=sigma, voxel_norm=voxel_norm, sf_ecc_slope=sf_ecc_slope,
-                                 sf_ecc_intercept=sf_ecc_intercept, **data)
+                                 sf_ecc_intercept=sf_ecc_intercept, hierarchy_type=hierarchy_type,
+                                 **data)
     return model
 
 
@@ -194,7 +225,18 @@ def main(first_level_results_path, voxel_norm=None, sigma=None, sf_ecc_intercept
     values.
 
     """
-    df = pd.read_csv(first_level_results_path)
+    if not isinstance(first_level_results_path, list):
+        first_level_results_path = [first_level_results_path]
+    df = []
+    for path in first_level_results_path:
+        tmp = pd.read_csv(path)
+        if 'first_level_results' in path:
+            tmp['session'] = path.split(os.sep)[-2]
+            tmp['subject'] = path.split(os.sep)[-3]
+            tmp['task'] = re.search('_(task-[a-z0-9]+)_', path).groups()[0]
+            tmp['indicator'] = tmp.apply(lambda x: str((x.subject, x.session, x.task)), 1)
+        df.append(tmp)
+    df = pd.concat(df)
     model = setup_model(df, voxel_norm, sigma, sf_ecc_intercept, sf_ecc_slope, df_filter_string)
     if n_cores is None:
         n_cores = n_chains
@@ -226,11 +268,11 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description=("Load in the first level results Dataframe and use MCMC to train a 2d tuning "
                      "model on it. Will save the arviz inference data."))
-    parser.add_argument("first_level_results_path",
-                        help=("Path to the first level results dataframe containing the data to "
-                              "fit."))
     parser.add_argument("save_path",
                         help=("Path stem (with '.nc' extension) where we'll save the results"))
+    parser.add_argument("first_level_results_path", nargs='+',
+                        help=("Path to the first level results dataframe containing the data to "
+                              "fit."))
     parser.add_argument("--random_seed", default=None, nargs='+', type=int,
                         help=("Random seed for the MCMC sampler. If None, we don't set it"))
     parser.add_argument("--n_samples", '-s', type=int, default=1000,
