@@ -33,10 +33,13 @@ def reduce_num_voxels(df, n_voxels=200):
 def drop_voxels_with_negative_amplitudes(df):
     """drop all voxels that have at least one negative amplitude
     """
+    groupby_col = ['voxel']
+    if 'indicator' in df.columns:
+        groupby_col += ['indicator']
     try:
-        df = df.groupby('voxel').filter(lambda x: (x.amplitude_estimate_normed >= 0).all())
+        df = df.groupby(groupby_col).filter(lambda x: (x.amplitude_estimate_normed >= 0).all())
     except AttributeError:
-        df = df.groupby('voxel').filter(lambda x: (x.amplitude_estimate_median_normed >= 0).all())
+        df = df.groupby(groupby_col).filter(lambda x: (x.amplitude_estimate_median_normed >= 0).all())
     return df
 
 
@@ -45,8 +48,11 @@ def drop_voxels_near_border(df, inner_border=.96, outer_border=12):
 
     where the sigma is the sigma of the Gaussian pRF
     """
-    df = df.groupby('voxel').filter(lambda x: (x.eccen + x.sigma <= outer_border).all())
-    df = df.groupby('voxel').filter(lambda x: (x.eccen - x.sigma >= inner_border).all())
+    groupby_col = ['voxel']
+    if 'indicator' in df.columns:
+        groupby_col += ['indicator']
+    df = df.groupby(groupby_col).filter(lambda x: (x.eccen + x.sigma <= outer_border).all())
+    df = df.groupby(groupby_col).filter(lambda x: (x.eccen - x.sigma >= inner_border).all())
     return df
 
 

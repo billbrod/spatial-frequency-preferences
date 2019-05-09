@@ -170,12 +170,18 @@ def setup_model(df, df_filter_string=None, hierarchy_type='unpooled',
 
     """
     logger = logging.getLogger("pymc3")
-    pre_voxels = df.voxel.nunique()
+    if 'indicator' in df.columns:
+        pre_voxels = len(df.groupby(['indicator', 'voxel']).size())
+    else:
+        pre_voxels = df.voxel.nunique()
     if df_filter_string is not None:
         df_filter = construct_df_filter(df_filter_string)
         if df_filter is not None:
             df = df_filter(df).reset_index()
-    post_voxels = df.voxel.nunique()
+    if 'indicator' in df.columns:
+        post_voxels = len(df.groupby(['indicator', 'voxel']).size())
+    else:
+        post_voxels = df.voxel.nunique()
     logger.info("Started with %d voxels, after filtering with df_filter_string %s have %d voxels" %
                 (pre_voxels, df_filter_string, post_voxels))
     data = get_data_dict_from_df(df)
@@ -185,8 +191,12 @@ def setup_model(df, df_filter_string=None, hierarchy_type='unpooled',
     return model
 
 
-def main(first_level_results_path, voxel_norm=None, sigma=None, sf_ecc_intercept=None,
-         sf_ecc_slope=None, n_samples=1000, n_chains=4, n_cores=None, save_path=None,
+def main(first_level_results_path, hierarchy_type='unpooled',
+         voxel_norm={'distribution': 'Normal', 'mu': 1, 'sd': .25},
+         sigma={'distribution': 'Gamma', 'mu': 2, 'sd': 1},
+         sf_ecc_slope={'distribution': 'Gamma', 'mu': .5, 'sd': .5},
+         sf_ecc_intercept={'distribution': 'Gamma', 'mu': .5, 'sd': .5},
+         n_samples=1000, n_chains=4, n_cores=None, save_path=None,
          random_seed=None, df_filter_string=None, init='auto', **nuts_kwargs):
     """run MCMC sampling to fit 2d log-normal tuning curve model
 
@@ -225,19 +235,21 @@ def main(first_level_results_path, voxel_norm=None, sigma=None, sf_ecc_intercept
     values.
 
     """
+    hierarchy_type = hierarchy_type.replace('-', ' ')
     if not isinstance(first_level_results_path, list):
         first_level_results_path = [first_level_results_path]
     df = []
     for path in first_level_results_path:
         tmp = pd.read_csv(path)
-        if 'first_level_results' in path:
+        if 'first_level_analysis' in path:
             tmp['session'] = path.split(os.sep)[-2]
             tmp['subject'] = path.split(os.sep)[-3]
             tmp['task'] = re.search('_(task-[a-z0-9]+)_', path).groups()[0]
             tmp['indicator'] = tmp.apply(lambda x: str((x.subject, x.session, x.task)), 1)
         df.append(tmp)
     df = pd.concat(df)
-    model = setup_model(df, voxel_norm, sigma, sf_ecc_intercept, sf_ecc_slope, df_filter_string)
+    model = setup_model(df, df_filter_string, hierarchy_type, voxel_norm, sigma, sf_ecc_intercept,
+                        sf_ecc_slope)
     if n_cores is None:
         n_cores = n_chains
     # n_cores cannot be larger than n_chains, or things get weird
@@ -298,6 +310,8 @@ if __name__ == '__main__':
     parser.add_argument("--nuts_kwargs", nargs='+',
                         help=("Additional arguments to pass to the NUTS sampler. Should be "
                               "key=value, with multiple arguments separated by a space"))
+    parser.add_argument("--hierarchy_type",
+                        help="Hierarchy type: pooled, unpooled, or partially pooled")
     args = vars(parser.parse_args())
     nuts_kwargs_tmp = args.pop('nuts_kwargs')
     nuts_kwargs = {}

@@ -1177,9 +1177,9 @@ def get_first_level_for_mcmc(mat_type, atlas_type, vareas, eccen, **kwargs):
                                  '{mat_type}', '{atlas_type}', '{subject}', '{session}',
                                  '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
     identity_list = [['sub-wlsubj001', 'ses-01', 'task-sfp'],
-                     ['sub-wlsubj045', 'ses-04', 'task-sfpconstant']]
-    paths = [path_template.format(mat_type=mat_type, atlas_type=atlas_type, vareas=vareas,
-                                  eccen=eccen, subject=subj, session=ses, task=t) for subj, ses, t in identity_list]
+                     ['sub-wlsubj045', 'ses-04', 'task-sfprescaled']]
+    return [path_template.format(mat_type=mat_type, atlas_type=atlas_type, vareas=vareas,
+                                 eccen=eccen, subject=subj, session=ses, task=t) for subj, ses, t in identity_list]
 
 
 rule mcmc:
@@ -1188,11 +1188,15 @@ rule mcmc:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "mcmc", "{mat_type}", "{atlas_type}",
                      "{modeling_goal}", "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_"
-                     "n{nuts_kwargs}_mcmc.nc"),
+                     "n{nuts_kwargs}_{hierarchy}_mcmc.nc"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}_benchmark.txt"),
+        os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_"
+                     "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}_"
+                     "{hierarchy}_benchmark.txt"),
     log:
-        os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}-%j.log"),
+        os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_"
+                     "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}_"
+                     "{hierarchy}-%j.log"),
     resources:
         cpus_per_task = lambda wildcards: int(wildcards.chains),
     params:
@@ -1204,7 +1208,8 @@ rule mcmc:
         "python -m sfp.monte_carlo {output} {input} -s "
         "{wildcards.samples} -c {wildcards.chains} -n {resources.cpus_per_task} "
         "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border --init {wildcards.init}"
-        " --nuts_kwargs {params.nuts_kwargs} {params.logging} {log}"
+        " --nuts_kwargs {params.nuts_kwargs} --hierarchy_type {wildcards.hierarchy} "
+        "{params.logging} {log}"
 
 
 rule prepare_image_computable:
