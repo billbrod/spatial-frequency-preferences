@@ -37,7 +37,7 @@ def calc_energy_and_filters(stim, stim_df, n_orientations=6, save_path_template=
 
     Note that this will take a while to run (~10 or 20 minutes). Since it only needs to run once
     per experiment, didn't bother to make it efficient at all. The outputs will also be very large,
-    totalling about 21GB
+    totalling about 11GB
 
     Parameters
     ----------
