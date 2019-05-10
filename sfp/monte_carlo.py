@@ -257,9 +257,8 @@ def main(first_level_results_path, hierarchy_type='unpooled',
     with model:
         trace = pm.sample(n_samples, chains=n_chains, cores=n_cores, random_seed=random_seed,
                           nuts_kwargs=nuts_kwargs, tune=1500, init=init)
-        prior = pm.sample_prior_predictive(n_samples)
         post = pm.sample_posterior_predictive(trace, n_samples)
-    inference_data = az.from_pymc3(trace, prior=prior, posterior_predictive=post)
+    inference_data = az.from_pymc3(trace, posterior_predictive=post)
     metadata = {}
     for k in ['first_level_results_path', 'n_cores', 'random_seed', 'df_filter_string']:
         if eval(k) is None:
