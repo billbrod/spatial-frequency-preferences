@@ -204,7 +204,7 @@ def main(first_level_results_path, hierarchy_type='unpooled',
          sf_ecc_slope={'distribution': 'Gamma', 'mu': .5, 'sd': .5},
          sf_ecc_intercept={'distribution': 'Gamma', 'mu': .5, 'sd': .5},
          n_samples=1000, n_chains=4, n_cores=None, save_path=None,
-         random_seed=None, df_filter_string=None, init='auto', **nuts_kwargs):
+         random_seed=None, df_filter_string=None, init='auto', sampler='NUTS', **nuts_kwargs):
     """run MCMC sampling to fit 2d log-normal tuning curve model
 
     first_level_results_path: str. Path to the first level results dataframe containing the data to
@@ -237,6 +237,8 @@ def main(first_level_results_path, hierarchy_type='unpooled',
 
     init: str. How to initialize the NUTS sampler.
 
+    sampler: {'NUTS', 'Metroplis'}. whether to use the NUTS or metropolis sampler.
+
     nuts_kwargs: additional arguments to pass to the NUTS sampler. Some examples: target_accept,
     step_scale, max_treedepth. See pymc3.NUTS for a list of all arguments and their accepted
     values.
@@ -262,8 +264,12 @@ def main(first_level_results_path, hierarchy_type='unpooled',
     # n_cores cannot be larger than n_chains, or things get weird
     n_cores = min(n_cores, n_chains)
     with model:
-        trace = pm.sample(n_samples, chains=n_chains, cores=n_cores, random_seed=random_seed,
-                          nuts_kwargs=nuts_kwargs, tune=1500, init=init)
+        if sampler == 'NUTS':
+            trace = pm.sample(n_samples, chains=n_chains, cores=n_cores, random_seed=random_seed,
+                              nuts_kwargs=nuts_kwargs, tune=1500, init=init)
+        elif sampler == 'Metropolis':
+            trace = pm.sample(n_samples, step=pm.Metropolis(), chains=n_chains, cores=n_cores,
+                              random_seed=random_seed, tune=5000, discard_tuned_samples=False)
         post = pm.sample_posterior_predictive(trace, n_samples)
     inference_data = az.from_pymc3(trace, posterior_predictive=post)
     metadata = {}
@@ -318,18 +324,27 @@ if __name__ == '__main__':
                               "key=value, with multiple arguments separated by a space"))
     parser.add_argument("--hierarchy_type",
                         help="Hierarchy type: pooled, unpooled, or partially pooled")
+    parser.add_argument("--sampler",
+                        help=("The MCMC sampler to use: Metropolis or NUTS. Note if Metropolis, "
+                              "will need way more samples (but each sample will be faster)"))
     args = vars(parser.parse_args())
     nuts_kwargs_tmp = args.pop('nuts_kwargs')
     nuts_kwargs = {}
+    logger = logging.getLogger("pymc3")
     if nuts_kwargs_tmp is not None:
         for val in nuts_kwargs_tmp:
-            k, v = val.split('=')
             try:
-                v = float(v)
+                k, v = val.split('=')
             except ValueError:
+                logger.warn("Unable to get nuts_kwargs, assuming there are none")
+                break
+            else:
                 try:
-                    v = bool(v)
+                    v = float(v)
                 except ValueError:
-                    pass
-            nuts_kwargs[k] = v
+                    try:
+                        v = bool(v)
+                    except ValueError:
+                        pass
+                nuts_kwargs[k] = v
     main(**args, **nuts_kwargs)

@@ -1188,15 +1188,15 @@ rule mcmc:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "mcmc", "{mat_type}", "{atlas_type}",
                      "{modeling_goal}", "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_"
-                     "n{nuts_kwargs}_{hierarchy}_mcmc.nc"),
+                     "n{nuts_kwargs}_{hierarchy}_{sampler}_mcmc.nc"),
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_"
                      "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}_"
-                     "{hierarchy}_benchmark.txt"),
+                     "{hierarchy}_{sampler}_benchmark.txt"),
     log:
         os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_"
                      "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}_"
-                     "{hierarchy}-%j.log"),
+                     "{hierarchy}_{sampler}_-%j.log"),
     resources:
         cpus_per_task = lambda wildcards: int(wildcards.chains),
     params:
@@ -1208,7 +1208,8 @@ rule mcmc:
         "python -m sfp.monte_carlo {output} {input} -s "
         "{wildcards.samples} -c {wildcards.chains} -n {resources.cpus_per_task} "
         "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border --init {wildcards.init}"
-        " --nuts_kwargs {params.nuts_kwargs} --hierarchy_type {wildcards.hierarchy} "
+        " --nuts_kwargs {params.nuts_kwargs} --hierarchy_type {wildcards.hierarchy} --sampler "
+        "{wildcards.sampler}"
         "{params.logging} {log}"
 
 
