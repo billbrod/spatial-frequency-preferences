@@ -270,7 +270,7 @@ def main(first_level_results_path, hierarchy_type='unpooled',
         elif sampler == 'Metropolis':
             trace = pm.sample(n_samples, step=pm.Metropolis(), chains=n_chains, cores=n_cores,
                               random_seed=random_seed, tune=5000, discard_tuned_samples=False)
-        post = pm.sample_posterior_predictive(trace, n_samples)
+        post = pm.sample_posterior_predictive(trace, 500)
     inference_data = az.from_pymc3(trace, posterior_predictive=post)
     metadata = {}
     for k in ['first_level_results_path', 'n_cores', 'random_seed', 'df_filter_string']:
