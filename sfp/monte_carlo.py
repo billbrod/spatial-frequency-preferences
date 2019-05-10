@@ -42,10 +42,16 @@ def _parse_distrib_dict(distrib_dict):
     return lambda x, shape: distrib(x, shape=shape, **distrib_dict)
 
 
-def hyperparam(param_name, mu_mu, mu_sd, sd_sd, shape):
+def hyperparam(param_name, mu_mu, mu_sd, sd_sd, shape, mode='centered'):
     param_mu = pm.Gamma("%s_mu" % param_name, mu=mu_mu, sd=mu_sd)
     param_sd = pm.HalfNormal("%s_sd" % param_name, sd=sd_sd)
-    return pm.Bound(pm.Normal, lower=0)(param_name, mu=param_mu, sd=param_sd, shape=shape)
+    if mode == 'centered':
+        param = pm.Bound(pm.Normal, lower=0)(param_name, mu=param_mu, sd=param_sd, shape=shape)
+    elif mode == 'non-centered':
+        param_offset = pm.Normal('%s_offset' % param_name, mu=0, sd=1, shape=shape)
+        param = param_mu + param_offset * param_sd
+        param = pm.Deterministic(param_name, tt.switch(tt.lt(param, 1e-12), 1e-12, param))
+    return param
 
 
 def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_error,
@@ -94,9 +100,10 @@ def pymc_log_gauss_donut(sf_mag, sf_angle, vox_ecc, vox_angle, targets, std_erro
         elif hierarchy_type == 'partially pooled':
             logger.info("Will fit partially pooled model, parameters for all %d sessions share "
                         "hyperparams!" % num_scan_sessions)
-            sigma = hyperparam('sigma', 2, .5, 1, num_scan_sessions)
-            sf_ecc_slope = hyperparam('sf_ecc_slope', .5, .3, 1, num_scan_sessions)
-            sf_ecc_intercept = hyperparam('sf_ecc_intercept', .5, .3, 1, num_scan_sessions)
+            sigma = hyperparam('sigma', 2, .5, 1, num_scan_sessions, 'non-centered')
+            sf_ecc_slope = hyperparam('sf_ecc_slope', .5, .3, 1, num_scan_sessions, 'non-centered')
+            sf_ecc_intercept = hyperparam('sf_ecc_intercept', .5, .3, 1, num_scan_sessions,
+                                          'non-centered')
         else:
             raise Exception("Don't know how to handle hierarchy_type %s!" % hierarchy_type)
         if 'voxel_norm' not in model.named_vars.keys():
