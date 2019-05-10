@@ -1209,8 +1209,7 @@ rule mcmc:
         "{wildcards.samples} -c {wildcards.chains} -n {resources.cpus_per_task} "
         "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border --init {wildcards.init}"
         " --nuts_kwargs {params.nuts_kwargs} --hierarchy_type {wildcards.hierarchy} --sampler "
-        "{wildcards.sampler}"
-        "{params.logging} {log}"
+        "{wildcards.sampler} {params.logging} {log}"
 
 
 rule prepare_image_computable:
