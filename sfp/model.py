@@ -30,6 +30,13 @@ def reduce_num_voxels(df, n_voxels=200):
     return df[df.voxel < n_voxels]
 
 
+def randomly_reduce_num_voxels(df, n_voxels=200):
+    """drop voxels randomly so that we end up with n_voxels
+    """
+    voxels = np.random.choice(df.voxel.unique(), n_voxels, replace=False)
+    return df.query('voxel in @voxels')
+
+
 def drop_voxels_with_negative_amplitudes(df):
     """drop all voxels that have at least one negative amplitude
     """
@@ -919,6 +926,9 @@ def construct_df_filter(df_filter_string):
             df_filters = [None]
             break
         elif f.startswith('reduce_num_voxels:'):
+            n_voxels = int(f.split(':')[-1])
+            df_filters.append(lambda x: reduce_num_voxels(x, n_voxels))
+        elif f.startswith('randomly_reduce_num_voxels:'):
             n_voxels = int(f.split(':')[-1])
             df_filters.append(lambda x: reduce_num_voxels(x, n_voxels))
         else:
