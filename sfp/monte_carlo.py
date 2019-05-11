@@ -264,12 +264,17 @@ def main(first_level_results_path, hierarchy_type='unpooled',
     # n_cores cannot be larger than n_chains, or things get weird
     n_cores = min(n_cores, n_chains)
     with model:
+        if save_path is not None:
+            db = pm.backends.Text(os.path.splitext(save_path)[0])
+        # not sure if this will work
+        else:
+            db = pm.backends.NDArray()
         if sampler == 'NUTS':
             trace = pm.sample(n_samples, chains=n_chains, cores=n_cores, random_seed=random_seed,
-                              nuts_kwargs=nuts_kwargs, tune=1500, init=init)
+                              nuts_kwargs=nuts_kwargs, tune=1500, init=init, trace=db)
         elif sampler == 'Metropolis':
             trace = pm.sample(n_samples, step=pm.Metropolis(), chains=n_chains, cores=n_cores,
-                              random_seed=random_seed, tune=5000, discard_tuned_samples=False)
+                              random_seed=random_seed, tune=10000, trace=db)
         post = pm.sample_posterior_predictive(trace, 500)
     inference_data = az.from_pymc3(trace, posterior_predictive=post)
     metadata = {}
