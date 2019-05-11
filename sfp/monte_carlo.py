@@ -176,21 +176,6 @@ def setup_model(df, df_filter_string=None, hierarchy_type='unpooled',
     one of the entries, we will simply return None)
 
     """
-    logger = logging.getLogger("pymc3")
-    if 'indicator' in df.columns:
-        pre_voxels = len(df.groupby(['indicator', 'voxel']).size())
-    else:
-        pre_voxels = df.voxel.nunique()
-    if df_filter_string is not None:
-        df_filter = construct_df_filter(df_filter_string)
-        if df_filter is not None:
-            df = df_filter(df).reset_index()
-    if 'indicator' in df.columns:
-        post_voxels = len(df.groupby(['indicator', 'voxel']).size())
-    else:
-        post_voxels = df.voxel.nunique()
-    logger.info("Started with %d voxels, after filtering with df_filter_string %s have %d voxels" %
-                (pre_voxels, df_filter_string, post_voxels))
     data = get_data_dict_from_df(df)
     model = pymc_log_gauss_donut(sigma=sigma, voxel_norm=voxel_norm, sf_ecc_slope=sf_ecc_slope,
                                  sf_ecc_intercept=sf_ecc_intercept, hierarchy_type=hierarchy_type,
@@ -247,7 +232,9 @@ def main(first_level_results_path, hierarchy_type='unpooled',
     hierarchy_type = hierarchy_type.replace('-', ' ')
     if not isinstance(first_level_results_path, list):
         first_level_results_path = [first_level_results_path]
+    logger = logging.getLogger("pymc3")
     df = []
+    df_filter = construct_df_filter(df_filter_string)
     for path in first_level_results_path:
         tmp = pd.read_csv(path)
         if 'first_level_analysis' in path:
@@ -255,8 +242,15 @@ def main(first_level_results_path, hierarchy_type='unpooled',
             tmp['subject'] = path.split(os.sep)[-3]
             tmp['task'] = re.search('_(task-[a-z0-9]+)_', path).groups()[0]
             tmp['indicator'] = tmp.apply(lambda x: str((x.subject, x.session, x.task)), 1)
+        if df_filter is not None:
+            tmp = df_filter(tmp).reset_index()
         df.append(tmp)
     df = pd.concat(df)
+    if 'indicator' in df.columns:
+        n_voxels = len(df.groupby(['indicator', 'voxel']).size())
+    else:
+        n_voxels = df.voxel.nunique()
+    logger.info("Will fit %d voxels" % (n_voxels))
     model = setup_model(df, df_filter_string, hierarchy_type, voxel_norm, sigma, sf_ecc_intercept,
                         sf_ecc_slope)
     if n_cores is None:
