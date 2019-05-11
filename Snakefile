@@ -1177,7 +1177,13 @@ def get_first_level_for_mcmc(mat_type, atlas_type, vareas, eccen, **kwargs):
                                  '{mat_type}', '{atlas_type}', '{subject}', '{session}',
                                  '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
     identity_list = [['sub-wlsubj001', 'ses-01', 'task-sfp'],
-                     ['sub-wlsubj045', 'ses-04', 'task-sfprescaled']]
+                     ['sub-wlsubj045', 'ses-04', 'task-sfprescaled'],
+                     ['sub-wlsubj014', 'ses-03', 'task-sfp'],
+                     ['sub-wlsubj045', 'ses-03', 'task-sfp'],
+                     ['sub-wlsubj004', 'ses-03', 'task-sfp'],
+                     ['sub-wlsubj042', 'ses-02', 'task-sfp'],
+                     ['sub-wlsubj064', 'ses-04', 'task-sfprescaled'],
+                     ]
     return [path_template.format(mat_type=mat_type, atlas_type=atlas_type, vareas=vareas,
                                  eccen=eccen, subject=subj, session=ses, task=t) for subj, ses, t in identity_list]
 
@@ -1201,13 +1207,13 @@ rule mcmc:
         cpus_per_task = lambda wildcards: int(wildcards.chains),
     params:
         logging = to_log_or_not,
-        # need to have a different seed for each chain
-        random_seed = lambda wildcards: ' '.join([str(i) for i in range(int(wildcards.chains))]),
+        random_seed = 0,
         nuts_kwargs = lambda wildcards: ' '.join(wildcards.nuts_kwargs.split(','))
     shell:
         "python -m sfp.monte_carlo {output} {input} -s "
         "{wildcards.samples} -c {wildcards.chains} -n {resources.cpus_per_task} "
-        "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border --init {wildcards.init}"
+        "--random_seed {params.random_seed} --init {wildcards.init} "
+        "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border,randomly_reduce_num_voxels:200"
         " --nuts_kwargs {params.nuts_kwargs} --hierarchy_type {wildcards.hierarchy} --sampler "
         "{wildcards.sampler} {params.logging} {log}"
 

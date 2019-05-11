@@ -930,7 +930,7 @@ def construct_df_filter(df_filter_string):
             df_filters.append(lambda x: reduce_num_voxels(x, n_voxels))
         elif f.startswith('randomly_reduce_num_voxels:'):
             n_voxels = int(f.split(':')[-1])
-            df_filters.append(lambda x: reduce_num_voxels(x, n_voxels))
+            df_filters.append(lambda x: randomly_reduce_num_voxels(x, n_voxels))
         else:
             raise Exception("Don't know what to do with df_filter %s" % f)
     if len(df_filters) > 1:

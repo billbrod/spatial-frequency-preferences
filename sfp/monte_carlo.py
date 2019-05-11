@@ -234,6 +234,7 @@ def main(first_level_results_path, hierarchy_type='unpooled',
         first_level_results_path = [first_level_results_path]
     logger = logging.getLogger("pymc3")
     df = []
+    np.random.seed(random_seed)
     df_filter = construct_df_filter(df_filter_string)
     for path in first_level_results_path:
         tmp = pd.read_csv(path)
@@ -264,11 +265,11 @@ def main(first_level_results_path, hierarchy_type='unpooled',
         else:
             db = pm.backends.NDArray()
         if sampler == 'NUTS':
-            trace = pm.sample(n_samples, chains=n_chains, cores=n_cores, random_seed=random_seed,
+            trace = pm.sample(n_samples, chains=n_chains, cores=n_cores,
                               nuts_kwargs=nuts_kwargs, tune=1500, init=init, trace=db)
         elif sampler == 'Metropolis':
             trace = pm.sample(n_samples, step=pm.Metropolis(), chains=n_chains, cores=n_cores,
-                              random_seed=random_seed, tune=10000, trace=db)
+                              tune=10000, trace=db)
         post = pm.sample_posterior_predictive(trace, 500)
     inference_data = az.from_pymc3(trace, posterior_predictive=post)
     metadata = {}
