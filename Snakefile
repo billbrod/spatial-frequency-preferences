@@ -1181,7 +1181,6 @@ def get_first_level_for_mcmc(mat_type, atlas_type, vareas, eccen, **kwargs):
                      ['sub-wlsubj014', 'ses-03', 'task-sfp'],
                      ['sub-wlsubj045', 'ses-03', 'task-sfp'],
                      ['sub-wlsubj004', 'ses-03', 'task-sfp'],
-                     ['sub-wlsubj042', 'ses-02', 'task-sfp'],
                      ['sub-wlsubj064', 'ses-04', 'task-sfprescaled'],
                      ]
     return [path_template.format(mat_type=mat_type, atlas_type=atlas_type, vareas=vareas,
@@ -1207,7 +1206,7 @@ rule mcmc:
         cpus_per_task = lambda wildcards: int(wildcards.chains),
     params:
         logging = to_log_or_not,
-        random_seed = 0,
+        random_seed = 2,
         nuts_kwargs = lambda wildcards: ' '.join(wildcards.nuts_kwargs.split(','))
     shell:
         "python -m sfp.monte_carlo {output} {input} -s "
