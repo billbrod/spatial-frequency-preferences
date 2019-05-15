@@ -1172,51 +1172,6 @@ rule gather_model_results:
         "python -m sfp.analyze_model {params.base_path_template} {params.save_stem}"
 
 
-def get_first_level_for_mcmc(mat_type, atlas_type, vareas, eccen, **kwargs):
-    path_template = os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
-                                 '{mat_type}', '{atlas_type}', '{subject}', '{session}',
-                                 '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
-    identity_list = [['sub-wlsubj001', 'ses-01', 'task-sfp'],
-                     ['sub-wlsubj045', 'ses-04', 'task-sfprescaled'],
-                     ['sub-wlsubj014', 'ses-03', 'task-sfp'],
-                     ['sub-wlsubj045', 'ses-03', 'task-sfp'],
-                     ['sub-wlsubj004', 'ses-03', 'task-sfp'],
-                     ['sub-wlsubj064', 'ses-04', 'task-sfprescaled'],
-                     ]
-    return [path_template.format(mat_type=mat_type, atlas_type=atlas_type, vareas=vareas,
-                                 eccen=eccen, subject=subj, session=ses, task=t) for subj, ses, t in identity_list]
-
-
-rule mcmc:
-    input:
-        lambda wildcards: get_first_level_for_mcmc(**wildcards)
-    output:
-        os.path.join(config['DATA_DIR'], "derivatives", "mcmc", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_"
-                     "n{nuts_kwargs}_{hierarchy}_{sampler}_mcmc.nc"),
-    benchmark:
-        os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_"
-                     "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}_"
-                     "{hierarchy}_{sampler}_benchmark.txt"),
-    log:
-        os.path.join(config['DATA_DIR'], "code", "mcmc", "{mat_type}_{atlas_type}_{modeling_goal}_"
-                     "v{vareas}_e{eccen}_s{samples}_c{chains}_i-{init}_n{nuts_kwargs}_"
-                     "{hierarchy}_{sampler}_-%j.log"),
-    resources:
-        cpus_per_task = lambda wildcards: int(wildcards.chains),
-    params:
-        logging = to_log_or_not,
-        random_seed = 2,
-        nuts_kwargs = lambda wildcards: ' '.join(wildcards.nuts_kwargs.split(','))
-    shell:
-        "python -m sfp.monte_carlo {output} {input} -s "
-        "{wildcards.samples} -c {wildcards.chains} -n {resources.cpus_per_task} "
-        "--random_seed {params.random_seed} --init {wildcards.init} "
-        "-d drop_voxels_with_negative_amplitudes,drop_voxels_near_border,randomly_reduce_num_voxels:200"
-        " --nuts_kwargs {params.nuts_kwargs} --hierarchy_type {wildcards.hierarchy} --sampler "
-        "{wildcards.sampler} {params.logging} {log}"
-
-
 rule prepare_image_computable:
     input:
         stim = os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stimuli.npy'),
