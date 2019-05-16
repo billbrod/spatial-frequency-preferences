@@ -31,16 +31,20 @@ def _load_mgz(path):
     return nib.load(path).get_data().byteswap().newbyteorder().squeeze()
 
 
-def _arrange_helper(hemi, name, template, varea_mask, eccen_mask):
+def _arrange_helper(prf_dir, hemi, name, template, varea_mask, eccen_mask):
     """this small helper function is just to be called in a generator by _arrange_mgzs_into_dict
     """
-    tmp = _load_mgz(template % (hemi, name))
+    tmp = _load_mgz(template % (prf_dir, hemi, name))
     if tmp.ndim == 1:
         tmp = tmp[(varea_mask[hemi]) & (eccen_mask[hemi])]
     elif tmp.ndim == 2:
         tmp = tmp[(varea_mask[hemi]) & (eccen_mask[hemi]), :]
     if os.sep in name:
         res_name = os.path.split(name)[-1]
+    elif '_' in name:
+        res_name = name.split('_')[-1]
+    elif '-' in name:
+        res_name = name.split('-')[-1]
     else:
         res_name = name
     return "%s-%s" % (res_name, hemi), tmp
@@ -97,7 +101,8 @@ def _load_mat_file(path, results_names, varea_mask, eccen_mask):
 
 
 def _arrange_mgzs_into_dict(benson_template_path, results_path, results_names, vareas,
-                            eccen_range, benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
+                            eccen_range, benson_template_names=['varea', 'angle', 'eccen'],
+                            prf_data_names=['sigma'], benson_atlas_type='bayesian_retinotopy'):
     """load in the mgzs, put in a dictionary, and return that dictionary
 
     vareas: list of ints. which visual areas (as defined in the Benson visual area template) to
@@ -110,21 +115,29 @@ def _arrange_mgzs_into_dict(benson_template_path, results_path, results_names, v
     retinotopy. The complete list is the default, ['varea', 'angle', 'sigma', 'eccen']. For this
     analysis to work, must contain 'varea' and 'eccen'.
     """
-    if 'varea' not in benson_template_names or 'eccen' not in benson_template_names:
+    varea_name = [i for i in benson_template_names if 'varea' in i]
+    eccen_name = [i for i in benson_template_names if 'eccen' in i]
+    if len(varea_name) != 1 or len(eccen_name) != 1:
         raise Exception("Need Benson retinotopy files 'eccen' and 'varea'!")
     mgzs = {}
 
     varea_mask = {}
     eccen_mask = {}
     for hemi in ['lh', 'rh']:
-        varea_mask[hemi] = _load_mgz(benson_template_path % (hemi, 'varea'))
+        varea_mask[hemi] = _load_mgz(benson_template_path % (benson_atlas_type, hemi, varea_name[0]))
         varea_mask[hemi] = np.isin(varea_mask[hemi], vareas)
-        eccen_mask[hemi] = _load_mgz(benson_template_path % (hemi, 'eccen'))
+        eccen_mask[hemi] = _load_mgz(benson_template_path % (benson_atlas_type, hemi, eccen_name[0]))
         eccen_mask[hemi] = (eccen_mask[hemi] > eccen_range[0]) & (eccen_mask[hemi] < eccen_range[1])
 
     # these are all mgzs
     for hemi, var in itertools.product(['lh', 'rh'], benson_template_names):
-        k, v = _arrange_helper(hemi, var, benson_template_path, varea_mask, eccen_mask)
+        k, v = _arrange_helper(benson_atlas_type, hemi, var, benson_template_path, varea_mask,
+                               eccen_mask)
+        mgzs[k] = v
+
+    # these are all mgzs
+    for hemi, var in itertools.product(['lh', 'rh'], prf_data_names):
+        k, v = _arrange_helper('data', hemi, var, benson_template_path, varea_mask, eccen_mask)
         mgzs[k] = v
 
     # these all live in the results.mat file produced by GLMdenoise
@@ -207,7 +220,8 @@ def _add_freq_metainfo(stim_df):
 
 
 def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None,
-                       benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
+                       benson_template_names=['varea', 'angle', 'eccen'],
+                       prf_data_names=['sigma']):
     df = None
     if hemi is None:
         mgz_key = '%s'
@@ -233,26 +247,36 @@ def _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi=None,
             elif df_mode == 'full':
                 df = pd.concat([df, tmp])
 
-    for brain_name in benson_template_names + ['R2']:
+    for brain_name_full in benson_template_names + ['R2'] + prf_data_names:
+        brain_name = brain_name_full.replace('inferred_', '').replace('benson14_', '')
+        brain_name = brain_name.replace('all00-', '').replace('full-', '')
+        if brain_name == 'R2':
+            df_name = 'GLM_R2'
+        elif brain_name == 'vexpl':
+            df_name = 'prf_vexpl'
+        else:
+            df_name = brain_name
         try:
-            tmp = pd.DataFrame(mgzs[mgz_key % brain_name])#.byteswap().newbyteorder())
-            tmp = tmp.reset_index().rename(columns={'index': 'voxel', 0: brain_name})
+            tmp = pd.DataFrame(mgzs[mgz_key % brain_name])
+            tmp = tmp.reset_index().rename(columns={'index': 'voxel', 0: df_name})
             df = df.merge(tmp)
         except ValueError:
             # see http://pandas.pydata.org/pandas-docs/version/0.19.1/gotchas.html#byte-ordering-issues
             warnings.warn("%s had that big-endian error" % brain_name)
             tmp = pd.DataFrame(mgzs[mgz_key % brain_name].byteswap().newbyteorder())
-            tmp = tmp.reset_index().rename(columns={'index': 'voxel', 0: brain_name})
+            tmp = tmp.reset_index().rename(columns={'index': 'voxel', 0: df_name})
             df = df.merge(tmp)
 
     return df
 
 
 def _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode,
-                           benson_template_names=['varea', 'angle', 'eccen', 'sigma']):
+                           benson_template_names=['varea', 'angle', 'eccen'],
+                           prf_data_names=['sigma']):
     df = {}
     for hemi in ['lh', 'rh']:
-        df[hemi] = _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi, benson_template_names)
+        df[hemi] = _setup_mgzs_for_df(mgzs, results_names, df_mode, hemi, benson_template_names,
+                                      prf_data_names)
 
     # because python 0-indexes, the minimum voxel number is 0. thus if we were to just add the
     # max, the min in the right hemi would be the same as the max in the left hemi
@@ -497,7 +521,8 @@ def _normalize_amplitude_estimate(df, norm_order=2):
 
 def main(benson_template_path, results_path, df_mode='summary', stim_type='logpolar',
          save_path=None, class_nums=range(48), vareas=[1], eccen_range=(1, 12), stim_rad_deg=12,
-         benson_template_names=['varea', 'angle', 'eccen', 'sigma'],
+         benson_template_names=['inferred_varea', 'inferred_angle', 'inferred_eccen'],
+         benson_atlas_type='bayesian_posterior', prf_data_names=['all00-sigma'],
          unshuffled_stim_path="../data/stimuli/task-sfp_stimuli.npy",
          unshuffled_stim_descriptions_path="../data/stimuli/task-sfp_stim_description.csv",
          mid_val=128):
@@ -509,16 +534,17 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
     should be surfaces, not volumes. this will take a while to run, which is why it's recommended
     to provide save_path so the resulting dataframe can be saved.
 
-    benson_template_path: template path to the Benson14 mgz files, containing two string formatting
-    symbols (%s; one for hemisphere, one for variable [angle, varea, eccen, sigma]),
-    e.g. /mnt/Acadia/Freesurfer_subjects/wl_subj042/surf/%s.benson14_%s.mgz
+    benson_template_path: template path to the Benson14 mgz files, containing three string
+    formatting symbols (%s; one for retinotopy type [data, atlas, bayesian_posterior], one for
+    hemisphere, one for variable [angle, varea, eccen, sigma]),
+    e.g. /mnt/winawerlab/Projects/spatial_frequency_preferences/BIDS/derivatives/prf_solutions/sub-wlsubj042/%s/%s.%s.mgz
 
     results_path: path to the results.mat file (output of GLMdenoise)
 
-    df_mode: {'summary', 'full'}. If 'summary', will load in the 'modelmd' and 'modelse' results fields,
-    using those calculated summary values. If 'full', will load in the bootstrapped 'models' results field,
-    containing the info to calculate central tendency and spread directly. In both cases, 'R2' will
-    also be loaded in.
+    df_mode: {'summary', 'full'}. If 'summary', will load in the 'modelmd' and 'modelse' results
+    fields, using those calculated summary values. If 'full', will load in the bootstrapped
+    'models' results field, containing the info to calculate central tendency and spread
+    directly. In both cases, 'R2' will also be loaded in.
 
     stim_type: {'logpolar', 'constant', 'pilot'}. which type of stimuli were used in the session
     we're analyzing. This matters because it changes the local spatial frequency and, since that is
@@ -537,8 +563,13 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
     stim_rad_deg: float, the radius of the stimulus, in degrees of visual angle
 
     benson_template_names: list of labels that specify which output files to get from the Benson
-    retinotopy. The complete list is the default, ['varea', 'angle', 'sigma', 'eccen']. For this
-    analysis to work, must contain 'varea' and 'eccen'.
+    retinotopy. The complete list is ['varea', 'angle', 'sigma', 'eccen'] (plus either "benson14_"
+    or "inferred_" beforehand). For this analysis to work, must contain 'varea' and 'eccen'.
+
+    prf_data_names: list of labels that specify which output files to get from the pRF fits
+    (without Bayesian retinotopy); we look for these in the directory found by inserting "data" as
+    the first string for benson_template_path. The complete list is ['varea', 'angle', 'sigma',
+    'eccen'] (plus either "all00-" or "full-" beforehand).
 
     unshuffled_stim_path: path to the unshuffled stimuli.
 
@@ -547,6 +578,7 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
 
     mid_val: int. the value of mid-grey in the stimuli, should be 127 (for pilot stimuli) or 128
     (for actual stimuli)
+
     """
     # This contains the information on each stimulus, allowing us to determine whether some stimuli
     # are part of the same class or a separate one.
@@ -564,13 +596,20 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
         results_names = [('models', class_nums)]
     else:
         raise Exception("Don't know how to construct df with df_mode %s!" % df_mode)
-    if not os.path.isfile(benson_template_path % ('lh', 'varea')):
-        raise Exception("Unable to find the Benson visual areas template! Check your "
-                        "benson_template_path!")
-    else:
-        mgzs = _arrange_mgzs_into_dict(benson_template_path, results_path,
-                                       results_names+[('R2', [None])], vareas, eccen_range,
-                                       benson_template_names)
+    for i in benson_template_names:
+        if i in prf_data_names:
+            raise Exception("Can only load variable from either Bayesian retinotopy or prf data, "
+                            "not both! %s" % i)
+        # we do this because it's possible that benson_template_names contains more than just
+        # "varea", e.g., "inferred_varea"
+        if 'varea' in i:
+            if not os.path.isfile(benson_template_path % (benson_atlas_type, 'lh', i)):
+                raise Exception("Unable to find the Benson visual areas template! Check your "
+                                "benson_template_path! Checked %s" % (benson_template_path %
+                                                                      (benson_atlas_type, 'lh', i)))
+    mgzs = _arrange_mgzs_into_dict(benson_template_path, results_path,
+                                   results_names+[('R2', [None])], vareas, eccen_range,
+                                   benson_template_names, prf_data_names, benson_atlas_type)
     if save_path is not None:
         fig, axes = plt.subplots(1, 2, figsize=(10, 5))
         for ax, hemi in zip(axes, ['lh', 'rh']):
@@ -591,7 +630,8 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
         # list so that it doesn't iterate through the individual characters in the string
         results_names = ["%s_%02d" % (k, l) for i, j in results_names for k, l in itertools.product([i], j)]
 
-    df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, benson_template_names)
+    df = _put_mgzs_dict_into_df(mgzs, stim_df, results_names, df_mode, benson_template_names,
+                                prf_data_names)
     df.varea = df.varea.astype(int)
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     if stim_type in ['logpolar', 'pilot']:
@@ -618,10 +658,11 @@ if __name__ == '__main__':
     parser.add_argument("--results_path", required=True,
                         help=("path to the results.mat file (output of GLMdenoise) for a single session"))
     parser.add_argument("--benson_template_path", required=True,
-                        help=("template path to the Benson14 mgz files, containing two string "
-                              "formatting symbols (one for hemisphere, one for variable [angle"
-                              ", varea, eccen]). Can contain any environmental variable (in all "
-                              "caps, contained within curly brackets, e.g., {SUBJECTS_DIR})"))
+                        help=("template path to the Benson14 mgz files, containing three string "
+                              "formatting symbols (one for retinotopy type [data, atlas, bayesian_"
+                              "posterior], one for hemisphere, one for variable [angle, varea, "
+                              "eccen]). Can contain any environmental variable (in all caps, "
+                              "contained within curly brackets, e.g., {SUBJECTS_DIR})"))
     parser.add_argument("--stim_type", default='logpolar',
                         help=("{'logpolar', 'constant', 'pilot'}. which type of stimuli were used "
                               "in the session we're analyzing. This matters because it changes the"
@@ -634,12 +675,12 @@ if __name__ == '__main__':
                               "csv with some identifying information in the path."))
     parser.add_argument("--df_mode", default='summary',
                         help=("{summary, full}. If summary, will load in the 'modelmd' and "
-                              "'modelse' results fields, and use those calculated summary values. If "
-                              "full, will load in the bootstrapped 'models' field, which contains "
-                              "the info to calculate central tendency and spread directly. In both"
-                              " cases, 'R2' will also be loaded in."))
+                              "'modelse' results fields, and use those calculated summary values. "
+                              "If full, will load in the bootstrapped 'models' field, which "
+                              "contains the info to calculate central tendency and spread directly"
+                              ". In both cases, 'R2' will also be loaded in."))
     parser.add_argument("--class_nums", "-c", default=48, type=int,
-                        help=("int. if df_mode=='full', will load classes in range(class_nums). If "
+                        help=("int. if df_mode=='full', will load classes in range(class_nums). If"
                               "df_mode=='summary', then this is ignored."))
     parser.add_argument("--vareas", "-v", nargs='+', default=[1], type=int,
                         help=("list of ints. Which visual areas to include. the Benson14 template "
@@ -650,19 +691,27 @@ if __name__ == '__main__':
                               "include."))
     parser.add_argument("--stim_rad_deg", default=12, type=float,
                         help="float, the radius of the stimulus, in degrees of visual angle")
+    parser.add_argument("--benson_atlas_type", default="bayesian_posterior",
+                        help=("{atlas, bayesian_posterior}. Type of Benson atlas. Will be the "
+                              "first string inserted into benson_template_path"))
     parser.add_argument("--benson_template_names", nargs='+',
-                        default=['varea', 'angle', 'eccen', 'sigma'],
+                        default=['inferred_varea', 'inferred_angle', 'inferred_eccen'],
                         help=("list of labels that specify which output files to get from the "
                               "Benson retinotopy. For this analysis to work, must contain 'varea'"
                               " and 'eccen'. Note that some subjects might not have sigma."))
+    parser.add_argument("--prf_data_names", nargs='+',
+                        default=['all00-sigma'],
+                        help=("list of labels that specify which output files to get from the "
+                              "pRF fits (will insert 'data' into the benson_template_path to find)"
+                              "."))
     parser.add_argument("--unshuffled_stim_descriptions_path", "-d",
                         default="data/stimuli/task-sfp_stim_description.csv",
-                        help=("Path to the unshuffled_stim_descriptions.csv file that contains the"
-                              " pandas Dataframe that specifies each stimulus's frequency"))
+                        help=("Path to the csv file that contains the  pandas Dataframe that "
+                              "specifies each stimulus's frequency"))
     parser.add_argument("--unshuffled_stim_path", "-s",
                         default="data/stimuli/task-sfp_stimuli.npy",
-                        help=("Path to the unshuffled.npy file that contains the numpy array with"
-                              "the stimuli used in the experiment"))
+                        help=("Path to the npy file that contains the numpy array with the stimuli"
+                              " used in the experiment"))
     parser.add_argument("--save_stem", default="",
                         help=("String to prefix the filename of output csv with. Useful for making"
                               " this BIDS-like"))
