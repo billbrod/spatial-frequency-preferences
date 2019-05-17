@@ -779,7 +779,7 @@ def _check_convergence(history, thresh):
     return False
 
 
-def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8, learning_rate=1e-2,
+def train_model(model, dataset, max_epochs=5, batch_size=10, train_thresh=1e-6, learning_rate=1e-3,
                 save_path_stem=None, loss_func=weighted_normed_loss, cv_flag=False):
     """train the model
     """
@@ -844,8 +844,8 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8, l
 
 
 def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
-         first_level_results_path, random_seed=None, max_epochs=100, train_thresh=1e-8,
-         batch_size=1, df_filter=None, learning_rate=1e-2, test_set_stimulus_class=None,
+         first_level_results_path, random_seed=None, max_epochs=100, train_thresh=1e-6,
+         batch_size=10, df_filter=None, learning_rate=1e-3, test_set_stimulus_class=None,
          bootstrap_num=None, save_path_stem="pytorch", loss_func=weighted_normed_loss):
     """create, train, and save a model on the given first_level_results dataframe
 
