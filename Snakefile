@@ -948,6 +948,15 @@ def to_log_or_not(wildcards):
         return "&> "
 
 
+def visual_field_part(wildcards):
+    """if modeling_goal specifies it, add the string to reduce part of visual field
+    """
+    vis_field = ""
+    if wildcards.modeling_goal.startswith("visual_field"):
+        vis_field += ",restrict_to_part_of_visual_field:" + wildcards.modeling_goal.split('_')[-1]
+    return vis_field
+
+
 rule model:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
@@ -969,12 +978,13 @@ rule model:
         stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
         train_amps = parse_train_amps,
         logging = to_log_or_not,
+        vis_field = visual_field_part,
     shell:
         "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
         "{params.train_amps} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
-        "drop_voxels_with_negative_amplitudes,drop_voxels_near_border -t 1e-6 -e 1000 "
-        "-c {params.stimulus_class} {params.logging} {log}"
+        "drop_voxels_with_negative_amplitudes,drop_voxels_near_border{params.vis_field} -t 1e-6 -e"
+        " 1000 -c {params.stimulus_class} {params.logging} {log}"
 
 
 # this correctly calculates the CV error, in a way we don't get otherwise

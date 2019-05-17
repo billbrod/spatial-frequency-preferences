@@ -63,6 +63,29 @@ def drop_voxels_near_border(df, inner_border=.96, outer_border=12):
     return df
 
 
+def restrict_to_part_of_visual_field(df, restriction):
+    """restrict to voxels that lie in one part of visual field
+
+    restriction: {"upper", "lower", "left", "right", "inner", "outer"}
+
+    """
+    pi = np.pi
+    eccen_lim = df.eccen.max() / 2
+    if restriction == 'right':
+        restriction_str = 'angle<=@pi/2 | angle>=3*@pi/2'
+    elif restriction == 'left':
+        restriction_str = 'angle>@pi/2 & angle<3*@pi/2'
+    elif restriction == 'upper':
+        restriction_str = 'angle<@pi'
+    elif restriction == 'lower':
+        restriction_str = 'angle>=@pi'
+    elif restriction == 'inner':
+        restriction_str = 'eccen<@eccen_lim'
+    elif restriction == 'outer':
+        restriction_str = 'eccen>=@eccen_lim'
+    return df.query(restriction_str)
+
+
 def _cast_as_tensor(x):
     if type(x) == pd.Series:
         x = x.values
@@ -600,6 +623,9 @@ def weighted_normed_loss(predictions, target):
 
     target must contain both the targets and the precision (along the last axis)
 
+    if we weren't multiplying by the precision, this would be equivalent to cosine distance (times
+    a constant: num_classes / 2)
+
     """
     precision = target.select(-1, 1)
     target = target.select(-1, 0)
@@ -931,6 +957,9 @@ def construct_df_filter(df_filter_string):
         elif f.startswith('randomly_reduce_num_voxels:'):
             n_voxels = int(f.split(':')[-1])
             df_filters.append(lambda x: randomly_reduce_num_voxels(x, n_voxels))
+        elif f.startswith('restrict_to_part_of_visual_field:'):
+            location = f.split(':')[-1]
+            df_filters.append(lambda x: restrict_to_part_of_visual_field(x, location))
         else:
             raise Exception("Don't know what to do with df_filter %s" % f)
     if len(df_filters) > 1:
@@ -1002,16 +1031,20 @@ if __name__ == '__main__':
                               "considered done training."))
     parser.add_argument("--df_filter", '-d', default='drop_voxels_with_negative_amplitudes',
                         help=("{'drop_voxels_near_border', 'drop_voxels_with_negative_amplitudes',"
-                              " 'reduce_num_voxels:n', 'None'}."
-                              " How to filter the first level dataframe. Can be multiple of these,"
-                              " separated by a comma, in which case they will be chained in the "
-                              "order provided (so the first one will be applied to the dataframe "
-                              "first). If 'drop_voxels_near_border', will drop all voxels whose "
-                              "pRF center is one sigma away from the stimulus borders. If "
-                              "'drop_voxels_with_negative_amplitudes', drop any voxel that has a "
-                              "negative response amplitude. If 'reduce_num_voxels:n', will drop "
-                              "all but the first n voxels. If 'None', fit on all data (obviously,"
-                              " this cannot be chained with any of the others)."))
+                              " 'reduce_num_voxels:n', 'randomly_reduce_num_voxels:n', 'restrict_"
+                              "to_part_of_visual_field:loc', 'None'}. How to filter the first "
+                              "level dataframe. Can be multiple of these, separated by a comma, in"
+                              " which case they will be chained in the order provided (so the "
+                              "first one will be applied to the dataframe first). If 'drop_voxels_"
+                              "near_border', will drop all voxels whose pRF center is one sigma "
+                              "away from the stimulus borders. If 'drop_voxels_with_negative_"
+                              "amplitudes', drop any voxel that has a negative response amplitude."
+                              " If 'reduce_num_voxels:n', will drop all but the first n voxels. If"
+                              " 'randomly_reduce_num_voxels:n', will randomly drop voxels so we "
+                              "end up with n. If 'restrict_to_part_of_visual_field:loc', will drop"
+                              " all voxels outside of loc, which must be one of {'upper', 'lower',"
+                              " 'left', 'right', 'inner', 'outer'}. If 'None', fit on all data ("
+                              "obviously, this cannot be chained with any of the others)."))
     parser.add_argument("--batch_size", "-b", default=10, type=int,
                         help=("Size of the batches for training"))
     parser.add_argument("--max_epochs", '-e', default=100, type=int,
