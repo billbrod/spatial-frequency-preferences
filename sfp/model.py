@@ -161,6 +161,11 @@ class FirstLevelDataset(torchdata.Dataset):
             df = df.query("stimulus_class in @stimulus_class")
         if bootstrap_num is not None:
             df = df.query("bootstrap_num in @bootstrap_num")
+            if len(bootstrap_num) > 1:
+                raise Exception("For now, bootstrap_num must only have 1 number in it. Major issue"
+                                " is the construction of the performance_df in check_performance, "
+                                "would need to get bootstrap_num as another column there (and set "
+                                "it as an index when joining with results_df)")
         else:
             if 'bootstrap_num' in df.columns:
                 raise Exception("Since dataframe contains multiple bootstraps, `bootstrap_num` arg"
@@ -726,8 +731,12 @@ def construct_dfs(model, dataset, train_loss_history, time_history, model_histor
                                 time_df.groupby('epoch_num').time.max().reset_index())
     loss_df = pd.merge(loss_df, time_df)
     # we reload the first level dataframe because the one in dataset may be filtered in some way
+    results_df = pd.read_csv(dataset.df_path)
+    # however we still want to filter this by bootstrap_num if the dataset was filtered that way
+    if dataset.bootstrap_num is not None:
+        results_df = results_df.query("bootstrap_num in @dataset.bootstrap_num")
     results_df = combine_first_level_df_with_performance(
-        pd.read_csv(dataset.df_path), check_performance(model, dataset, loss_func))
+        results_df, check_performance(model, dataset, loss_func))
     if type(model) == torch.nn.DataParallel:
         # in this case, we need to access model.module in order to get the various custom
         # attributes we set in our LogGaussianDonut
@@ -740,9 +749,9 @@ def construct_dfs(model, dataset, train_loss_history, time_history, model_histor
     for name, val in model.named_parameters():
         results_df['fit_model_%s' % name] = val.cpu().detach().numpy()
     metadata_names = ['max_epochs', 'batch_size', 'learning_rate', 'train_thresh', 'loss_func',
-                      'dataset_df_path', 'epochs_trained', 'fit_model_type', 'bootstrap_num']
+                      'dataset_df_path', 'epochs_trained', 'fit_model_type']
     metadata_vals = [max_epochs, batch_size, learning_rate, train_thresh, loss_func.__name__,
-                     dataset.df_path, current_epoch, model.model_type, dataset.bootstrap_num]
+                     dataset.df_path, current_epoch, model.model_type]
     for name, val in zip(metadata_names, metadata_vals):
         loss_df[name] = val
         results_df[name] = val
@@ -936,12 +945,13 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
         model, loss_df, results_df, model_history_df = train_model(
             model, train_dataset, max_epochs, batch_size, train_thresh, learning_rate,
             save_path_stem, loss_func, True)
-    test_subset = str(test_subset).replace('[', '').replace(']', '')
-    if len(test_subset) == 1:
-        test_subset = int(test_subset)
-    results_df['test_subset'] = test_subset
-    loss_df['test_subset'] = test_subset
-    model_history_df['test_subset'] = test_subset
+    for name, metadata in zip(['test_subset', 'bootstrap_num'], [test_subset, bootstrap_num]):
+        metadata_str = str(metadata).replace('[', '').replace(']', '')
+        if len(metadata_str) == 1:
+            metadata_str = int(metadata_str)
+        results_df[name] = metadata_str
+        loss_df[name] = metadata_str
+        model_history_df[name] = metadata_str
     print("Finished training!")
     model.eval()
     if test_set_stimulus_class is None:
