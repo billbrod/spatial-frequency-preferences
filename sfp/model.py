@@ -132,8 +132,16 @@ class FirstLevelDataset(torchdata.Dataset):
     are numbers between 0 and 47 (inclusive) and then the dataset will only include data from those
     stimulus classes. this is used for cross-validation purposes (i.e., train on 0 through 46, test
     on 47).
+
+    bootstrap_num: list of ints or None. Which bootstrap(s) to select. If the dataframe
+    contains multiple bootstraps and this is not set, we raise an exception; if the dataframe
+    doesn't contain multiple bootstraps and this is set, we raise an exception.
+
+    model_mode: {'tuning_curve', 'image-computable'}. whether we're fitting the tuning curve or
+    image-computable version of the model (will change what info we return)
+
     """
-    def __init__(self, df_path, device, df_filter=None, stimulus_class=None,
+    def __init__(self, df_path, device, df_filter=None, stimulus_class=None, bootstrap_num=None,
                  model_mode='tuning_curve'):
         df = pd.read_csv(df_path)
         if df_filter is not None:
@@ -150,13 +158,20 @@ class FirstLevelDataset(torchdata.Dataset):
         df = df.set_index('voxel')
         df['voxel_reindexed'] = new_idx
         if stimulus_class is not None:
-            df = df[df.stimulus_class.isin(stimulus_class)]
+            df = df.query("stimulus_class in @stimulus_class")
+        if bootstrap_num is not None:
+            df = df.query("bootstrap_num in @bootstrap_num")
+        else:
+            if 'bootstrap_num' in df.columns:
+                raise Exception("Since dataframe contains multiple bootstraps, `bootstrap_num` arg"
+                                " must be set!")
         if df.empty:
             raise Exception("Dataframe is empty!")
         self.df = df.reset_index()
         self.device = device
         self.df_path = df_path
         self.stimulus_class = df.stimulus_class.unique()
+        self.bootstrap_num = bootstrap_num
         if model_mode not in ['tuning_curve', 'image-computable']:
             raise Exception("Don't know how to handle model_mode %s!" % model_mode)
         self.model_mode = model_mode
@@ -725,9 +740,9 @@ def construct_dfs(model, dataset, train_loss_history, time_history, model_histor
     for name, val in model.named_parameters():
         results_df['fit_model_%s' % name] = val.cpu().detach().numpy()
     metadata_names = ['max_epochs', 'batch_size', 'learning_rate', 'train_thresh', 'loss_func',
-                      'dataset_df_path', 'epochs_trained', 'fit_model_type']
+                      'dataset_df_path', 'epochs_trained', 'fit_model_type', 'bootstrap_num']
     metadata_vals = [max_epochs, batch_size, learning_rate, train_thresh, loss_func.__name__,
-                     dataset.df_path, current_epoch, model.model_type]
+                     dataset.df_path, current_epoch, model.model_type, dataset.bootstrap_num]
     for name, val in zip(metadata_names, metadata_vals):
         loss_df[name] = val
         results_df[name] = val
@@ -831,7 +846,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=1, train_thresh=1e-8, l
 def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
          first_level_results_path, random_seed=None, max_epochs=100, train_thresh=1e-8,
          batch_size=1, df_filter=None, learning_rate=1e-2, test_set_stimulus_class=None,
-         save_path_stem="pytorch", loss_func=weighted_normed_loss):
+         bootstrap_num=None, save_path_stem="pytorch", loss_func=weighted_normed_loss):
     """create, train, and save a model on the given first_level_results dataframe
 
     model_orientation_type, model_eccentricity_type, model_vary_amplitude: together specify what
@@ -877,6 +892,10 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
     is used for cross-validation purposes (i.e., train on 0 through 46, test on 47). If None, will
     not have a test set, and will train on all data.
 
+    bootstrap_num: list of ints or None. What subset of bootstrap_num we should fit the model
+    to. Must be set if the first level results dataframe's df_mode "full", must not be set if its
+    df_mode is "summary".
+
     save_path_stem: string or None. a string to save the trained model and loss_df at (should have
     no extension because we'll add it ourselves). If None, will not save the output.
 
@@ -896,7 +915,8 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
         model = torch.nn.DataParallel(model)
     model.to(device)
     if test_set_stimulus_class is None:
-        dataset = FirstLevelDataset(first_level_results_path, device, df_filter)
+        dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
+                                    bootstrap_num=bootstrap_num)
         print("Beginning training!")
         # use all stimulus classes
         model, loss_df, results_df, model_history_df = train_model(
@@ -910,7 +930,7 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
                                     test_set_stimulus_class]
         # split into test and train
         train_dataset = FirstLevelDataset(first_level_results_path, device, df_filter,
-                                          train_set_stimulus_class)
+                                          train_set_stimulus_class, bootstrap_num)
         test_subset = test_set_stimulus_class
         print("Beginning training, treating stimulus classes %s as test set!" % test_subset)
         model, loss_df, results_df, model_history_df = train_model(
@@ -1056,6 +1076,10 @@ if __name__ == '__main__':
                         help=("Which stimulus class(es) to consider part of the test set. should "
                               "probably only be one, but should work if you pass more than one as "
                               "well."))
+    parser.add_argument("--bootstrap_num", '-n', default=None, nargs='+',
+                        help=("What subset of bootstrap_num we should fit the model to. Must be "
+                              "set if the first level results dataframe's df_mode 'full', must not"
+                              " be set if its df_mode is 'summary'."))
     args = vars(parser.parse_args())
     # test_set_stimulus_class can be either None or some ints. argparse will hand us a list, so we
     # have to parse it appropriately
@@ -1066,5 +1090,13 @@ if __name__ == '__main__':
         # in this case, we can't cast one of the strs in the list to an int, so we assume it must
         # just contain None.
         test_set_stimulus_class = None
+    bootstrap_num = args.pop('bootstrap_num')
+    try:
+        bootstrap_num = [int(i) for i in bootstrap_num]
+    except ValueError:
+        # in this case, we can't cast one of the strs in the list to an int, so we assume it must
+        # just contain None.
+        bootstrap_num = None
     df_filter = construct_df_filter(args.pop('df_filter'))
-    main(test_set_stimulus_class=test_set_stimulus_class, df_filter=df_filter, **args)
+    main(test_set_stimulus_class=test_set_stimulus_class, bootstrap_num=bootstrap_num,
+         df_filter=df_filter, **args)

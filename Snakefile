@@ -89,6 +89,7 @@ wildcard_constraints:
     y="[a-z-]+",
     binning="[a-z_]+bin",
     stimulus_class="([0-9,]+|None)",
+    bootstrap_num="([0-9,]+|None)",
     orientation_type="[a-z-]+",
     eccentricity_type="[a-z-]+",
     train_amps="[a-z-]+",
@@ -961,13 +962,13 @@ rule model:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_model_history.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_model.pt"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_model_history.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_model.pt"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log")
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 1),
@@ -976,6 +977,7 @@ rule model:
     params:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
         stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
+        bootstrap_num = lambda wildcards: wildcards.bootstrap_num.split(','),
         train_amps = parse_train_amps,
         logging = to_log_or_not,
         vis_field = visual_field_part,
@@ -984,7 +986,7 @@ rule model:
         "{params.train_amps} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
         "drop_voxels_with_negative_amplitudes,drop_voxels_near_border{params.vis_field} -t 1e-6 -e"
-        " 1000 -c {params.stimulus_class} {params.logging} {log}"
+        " 1000 -c {params.stimulus_class} -n {params.bootstrap_num} {params.logging} {log}"
 
 
 # this correctly calculates the CV error, in a way we don't get otherwise
