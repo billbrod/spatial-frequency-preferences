@@ -50,7 +50,7 @@ use of Python, Matlab, and command-line tools. The notebooks folder
 contains several Jupyter notebooks which (hopefully) walk through the
 logic of the experiment and analysis.
 
-The Snakefile can perform all of the analysis steps (i.e., from 3 on),
+The Snakefile can perform all of the analysis steps (i.e., from 5 on),
 making sure that all the requirements of each step are met. The
 following is an overview:
 
@@ -64,23 +64,27 @@ following is an overview:
    minutes 24 seconds (48 stimulus classes and 10 blank trials, each
    for 4 seconds, gives you 3 minutes 52 seconds, and then each run
    starts and ends with 16 seconds of blank screen).
-3. Pre-process your fMRI data
+3. Extract from NYU CBI's WebDB, which will run `heudiconv` on the
+   data, getting it into the BIDS format.
+4. Transfer the data for this scanning session from `Tesla` to the
+   BIDS directory (`move_off_tesla` rule) and create the correct
+   `events.tsv` files (`create_BIDS_tsv` rule).
+5. Pre-process your fMRI data
    (using
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)). This
    is accomplished by the `preprocess`, `rearrange_preprocess_extras`,
    and `rearrange_preprocess` rules in the Snakefile.
-4. Create design matrices for each run This is done by the
-   `create_design_matrices` rule
-5. Run GLMdenoise (`runGLM.m`) and save out the nifti outputs, done by
-   the `GLMdenoise` and `save_results_niftis` rules.
-6. Align to freesurfer anatomy and get into the mgz format, done by
+8. Align to freesurfer anatomy and get into the mgz format, done by
    the `to_freesurfer` rule, which uses the `to_freesurfer.py` script
    found in
    the
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
-7. Arrange the outputs into a pandas dataframe for ease of further
+6. Create design matrices for each run This is done by the
+   `create_design_matrices` rule
+7. Run GLMdenoise (`runGLM.m`) done by the `GLMdenoise` rule.
+9. Arrange the outputs into a pandas dataframe for ease of further
    analysis. This is done using the `first_level_analysis` rule.
-8. Construct tuning curves, using the `tuning_curves` rule.
+10. Construct tuning curves, using the `tuning_curves` rule.
     - Note that for this to work, I currently require Noah Benson's
       retinotopy templates. These can be created by running
       this
@@ -91,7 +95,7 @@ following is an overview:
       eccentricity of its population receptive field in the visual
       field and what is it visual area?), so we could pretty easily
       extend this to use other sources for that.
-9. Collect tuning curves across subjects and scanning sessions, to
+11. Collect tuning curves across subjects and scanning sessions, to
    compare. This is done using the `tuning_curves_summary` rule.
 
 Note that several of these steps (preprocessing and running
