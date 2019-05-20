@@ -79,7 +79,7 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path, stimulus_fi
     run number and should end in .tsv
 
     full_TRs: int. the number of TRs in a run if it went to completion. 256 for the pilot sessions,
-    240 for the sessions 1 and 2, 264 for session 3.
+    240 for the sessions 1 and 2, 264 for sessions 3 and 4.
     """
     if isinstance(behavioral_results_path, str):
         behavioral_results_path = [behavioral_results_path]
@@ -128,10 +128,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description=("Create and save BIDS events tsv for all runs."))
-    parser.add_argument("behavioral_results_path",
+    parser.add_argument("behavioral_results_path", nargs='+',
                         help=("The path to the hdf5 raw behavioral file created by the "
                               "psychopy_example.py script when running the experiment"))
-    parser.add_argument("unshuffled_stim_descriptions_path",
+    parser.add_argument("--unshuffled_stim_descriptions_path", '-d',
                         help=("Path to the csv that describes the stimuli (we use this to determine"
                               "which stimuli are in which stimulus class)"))
     parser.add_argument("--stimulus_file_name", "-s", default=None,
@@ -147,5 +147,9 @@ if __name__ == '__main__':
                         help=("Template path that specifies where we should save the created tsv"
                               " file. This should contain %%02d so we can indicate the run number"
                               " and should end in .tsv"))
+    parser.add_argument('--full_TRS', '-t', default=264,
+                        help=("full_TRs: int. the number of TRs in a run if it went to completion."
+                              " 256 for the pilot sessions, 240 for the sessions 1 and 2, 264 for "
+                              "session 3."))
     args = vars(parser.parse_args())
     main(**args)
