@@ -367,6 +367,19 @@ rule preprocess_all:
         [os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz").format(subject=sub, session=ses, task=TASKS[(sub, ses)], run="run-%02d"%i) for sub in SUBJECTS for ses in SESSIONS[sub] for i in range(1, NRUNS.get((sub, ses), 12)+1)],
 
 
+rule move_all:
+    input:
+        [os.path.join(config['DATA_DIR'], '{subject}', '{session}').format(subject=subj, session=ses) for subj, ses in
+         zip(['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'],
+             ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04'])],
+
+
+rule create_tsv_all:
+    input:
+        [os.path.join(config['DATA_DIR'], 'sourcedata', '{subject}', '{session}', '{subject}_{session}_{task}_notes.md').format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj, ses in
+         zip(['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'],
+             ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04'])]
+
 rule stimuli:
     output:
         "data/stimuli/task-sfp_stimuli.npy",
