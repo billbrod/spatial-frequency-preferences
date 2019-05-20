@@ -840,7 +840,7 @@ def get_first_level_analysis_input(wildcards):
         benson_prefix = 'benson14'
     elif wildcards.atlas_type == 'bayesian_posterior':
         benson_prefix = 'inferred'
-    if wildcards.subject in ['sub-wlsubj064']:
+    if wildcards.subject in ['sub-wlsubj064', 'sub-wlsubj007']:
         prf_prefix = 'full'
     else:
         prf_prefix = 'all00'
