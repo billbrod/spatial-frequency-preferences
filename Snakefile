@@ -426,8 +426,8 @@ rule move_off_tesla:
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "move_off_tesla", "{subject}_{session}_benchmark.txt")
     params:
-        wrong_task = lambda wildcards: WRONG_TASKS.get((wildcards.subject, wildcards.session), None).replace('task-', ''),
-        right_task = lambda wildcards: TASKS[(wildcards.subject, wildcards.session)].replace('task-', '')
+        wrong_task = lambda wildcards: WRONG_TASKS.get((wildcards.subject, wildcards.session), None),
+        right_task = lambda wildcards: TASKS[(wildcards.subject, wildcards.session)]
     run:
         import glob
         import shutil
@@ -450,8 +450,10 @@ rule move_off_tesla:
             for f in glob.glob(os.path.join(output[2], '*'+params.wrong_task+'*')):
                 shutil.move(f, f.replace(params.wrong_task, params.right_task))
             # and go through and edit all the text as well
-            shell('grep -rl --exclude \*nii.gz "{params.wrong_task}" {output[0]} | xargs sed -i "s/{params.wrong_task}/{params.right_task}/g"')
-            shell('grep -rl --exclude \*nii.gz "{params.wrong_task}" {output[2]} | xargs sed -i "s/{params.wrong_task}/{params.right_task}/g"')
+            wrong_task = params.wrong_task.replace('task-', '')
+            right_task = params.right_task.replace('task-', '')
+            shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[0]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
+            shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[2]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
 
 
 def get_raw_behavioral_results(wildcards):
@@ -470,14 +472,14 @@ def get_raw_behavioral_results(wildcards):
         ('sub-wlsubj045', 'ses-02'): ["2018-Feb-27_sub-wlsubj045_sess0.hdf5"],
         ('sub-wlsubj014', 'ses-03'): ["2018-Mar-20_sub-wlsubj014_sess0.hdf5"],
         ('sub-wlsubj004', 'ses-03'): ["2018-Mar-22_sub-wlsubj004_sess0.hdf5"],
-        ('sub-wlsubj045', 'ses-04'): ["2019-Mar-22_sub-wlsubj045_ses-04_sess0.hdf5"],
-        ('sub-wlsubj045', 'ses-03'): ["2019-Mar-29_sub-wlsubj045_ses-03_sess0.hdf5"],
-        ('sub-wlsubj064', 'ses-04'): ["2019-Apr-05_sub-wlsubj064_ses-04_sess0.hdf5"],
-        ('sub-wlsubj081', 'ses-04'): ["2019-Apr-09_sub-wlsubj081_ses-04_sess0.hdf5"],
-        ('sub-wlsubj007', 'ses-04'): ["2019-May-01_sub-wlsubj007_ses-04_sess0.hdf5"],
-        ('sub-wlsubj062', 'ses-04'): ["2019-May-01_sub-wlsubj062_ses-04_sess0.hdf5"],
-        ('sub-wlsubj095', 'ses-04'): ["2019-May-03_sub-wlsubj095_ses-04_sess0.hdf5",
-                                      "2019-May-03_sub-wlsubj095_ses-04_sess1.hdf5"],
+        ('sub-wlsubj045', 'ses-04'): ["2019-Mar-22_sub-wlsubj045_ses-04_sess00.hdf5"],
+        ('sub-wlsubj045', 'ses-03'): ["2019-Mar-29_sub-wlsubj045_ses-03_sess00.hdf5"],
+        ('sub-wlsubj064', 'ses-04'): ["2019-Apr-05_sub-wlsubj064_ses-04_sess00.hdf5"],
+        ('sub-wlsubj081', 'ses-04'): ["2019-Apr-09_sub-wlsubj081_ses-04_sess00.hdf5"],
+        ('sub-wlsubj007', 'ses-04'): ["2019-May-01_sub-wlsubj007_ses-04_sess00.hdf5"],
+        ('sub-wlsubj062', 'ses-04'): ["2019-May-01_sub-wlsubj062_ses-04_sess00.hdf5"],
+        ('sub-wlsubj095', 'ses-04'): ["2019-May-03_sub-wlsubj095_ses-04_sess00.hdf5",
+                                      "2019-May-03_sub-wlsubj095_ses-04_sess01.hdf5"],
     }
     behavioral_results['hdf5_file'] = [os.path.join(config['EXTRA_FILES_DIR'], p) for p in
                                        hdf5_name_dict[(wildcards.subject, wildcards.session)]]
