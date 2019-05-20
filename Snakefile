@@ -37,6 +37,13 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj064', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj081', 'ses-04'): 'task-sfprescaled',
          ('sub-wlsubj095', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj007', 'ses-04'): 'task-sfprescaled',
          ('sub-wlsubj062', 'ses-04'): 'task-sfprescaled'}
+# these are the subject, session pairs where I didn't add the task to the protocol name and so some
+# extra work is necessary.
+WRONG_TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-TASK',
+               ('sub-wlsubj042', 'ses-01'): 'task-TASK', ('sub-wlsubj014', 'ses-03'): 'task-TASK',
+               ('sub-wlsubj042', 'ses-pilot00'): 'task-TASK',
+               ('sub-wlsubj042', 'ses-pilot01'): 'task-spatialfrequency',
+               ('sub-wlsubj045', 'ses-pilot01'): 'task-spatialfrequency'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
          ('sub-wlsubj045', 'ses-04'): 7}
@@ -406,6 +413,103 @@ rule stimuli_idx:
         " -i -s {params.seed}"
 
 
+rule move_off_tesla:
+    input:
+        os.path.join(config["TESLA_DIR"], "{subject}", "{session}"),
+        os.path.join(config["TESLA_DIR"], "sourcedata", "{subject}", "{session}"),
+    output:
+        directory(os.path.join(config["DATA_DIR"], "{subject}", "{session}")),
+        directory(os.path.join(config["DATA_DIR"], "sourcedata", "{subject}", "{session}")),
+        directory(os.path.join(config["DATA_DIR"], "derivatives", "mriqc_reports", "{subject}", "{session}")),
+    log:
+        os.path.join(config["DATA_DIR"], "code", "move_off_tesla", "{subject}_{session}-%j.log")
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "move_off_tesla", "{subject}_{session}_benchmark.txt")
+    params:
+        wrong_task = lambda wildcards: WRONG_TASKS.get((wildcards.subject, wildcards.session), None).replace('task-', ''),
+        right_task = lambda wildcards: TASKS[(wildcards.subject, wildcards.session)].replace('task-', '')
+    run:
+        import glob
+        import shutil
+        import os
+        os.makedirs(output[2])
+        reports_path = os.path.join(config["TESLA_DIR"], "derivatives", "mriqc_reports", "{subject}_{session}_*").format(**wildcards)
+        for f in glob.glob(reports_path):
+            shutil.copy(f, output[2])
+        shell("rsync --exclude=*events.tsv -avPLuz %s/ %s" % (input[0], output[0]))
+        shell("rsync -avPLuz %s/ %s" % (input[1], output[1]))
+        # for some scanning sessions, I put the wrong task name in the scanning protocol, so the
+        # automatic BIDS extractor put the wrong name in...
+        if params.wrong_task is not None:
+            # we rename all the files that contain the wrong_task
+            for f in glob.glob(os.path.join(output[0], '*', '*'+params.wrong_task+'*')):
+                shutil.move(f, f.replace(params.wrong_task, params.right_task))
+            # we rename all the files that contain the wrong_task
+            for f in glob.glob(os.path.join(output[1], '*', '*'+params.wrong_task+'*')):
+                shutil.move(f, f.replace(params.wrong_task, params.right_task))
+            for f in glob.glob(os.path.join(output[2], '*'+params.wrong_task+'*')):
+                shutil.move(f, f.replace(params.wrong_task, params.right_task))
+            # and go through and edit all the text as well
+            shell('grep -rl --exclude \*nii.gz "{params.wrong_task}" {output[0]} | xargs sed -i "s/{params.wrong_task}/{params.right_task}/g"')
+            shell('grep -rl --exclude \*nii.gz "{params.wrong_task}" {output[2]} | xargs sed -i "s/{params.wrong_task}/{params.right_task}/g"')
+
+
+def get_raw_behavioral_results(wildcards):
+    behavioral_results = {}
+    hdf5_name_dict = {
+        ('sub-wlsubj042', 'ses-pilot00'): ["2017-Aug-23_wl_subj042_sess1.hdf5"],
+        ('sub-wlsubj001', 'ses-pilot01'): ["2017-Oct-09_wl_subj001_sess1.hdf5"],
+        ('sub-wlsubj042', 'ses-pilot01'): ["2017-Nov-07_wl_subj042_sess0.hdf5"],
+        ('sub-wlsubj045', 'ses-pilot01'): ["2017-Nov-07_wl_subj045_sess0.hdf5"],
+        ('sub-wlsubj001', 'ses-01'): ["2018-Jan-31_sub-wlsubj001_sess0.hdf5"],
+        ('sub-wlsubj042', 'ses-01'): ["2018-Feb-01_sub-wlsubj042_sess0.hdf5"],
+        ('sub-wlsubj001', 'ses-02'): ["2018-Feb-07_sub-wlsubj001_sess0.hdf5"],
+        ('sub-wlsubj042', 'ses-02'): ["2018-Feb-09_sub-wlsubj042_sess0.hdf5"],
+        ('sub-wlsubj045', 'ses-01'): ["2018-Feb-16_sub-wlsubj045_sess0.hdf5",
+                                      "2018-Feb-16_sub-wlsubj045_sess1.hdf5"],
+        ('sub-wlsubj045', 'ses-02'): ["2018-Feb-27_sub-wlsubj045_sess0.hdf5"],
+        ('sub-wlsubj014', 'ses-03'): ["2018-Mar-20_sub-wlsubj014_sess0.hdf5"],
+        ('sub-wlsubj004', 'ses-03'): ["2018-Mar-22_sub-wlsubj004_sess0.hdf5"],
+        ('sub-wlsubj045', 'ses-04'): ["2019-Mar-22_sub-wlsubj045_ses-04_sess0.hdf5"],
+        ('sub-wlsubj045', 'ses-03'): ["2019-Mar-29_sub-wlsubj045_ses-03_sess0.hdf5"],
+        ('sub-wlsubj064', 'ses-04'): ["2019-Apr-05_sub-wlsubj064_ses-04_sess0.hdf5"],
+        ('sub-wlsubj081', 'ses-04'): ["2019-Apr-09_sub-wlsubj081_ses-04_sess0.hdf5"],
+        ('sub-wlsubj007', 'ses-04'): ["2019-May-01_sub-wlsubj007_ses-04_sess0.hdf5"],
+        ('sub-wlsubj062', 'ses-04'): ["2019-May-01_sub-wlsubj062_ses-04_sess0.hdf5"],
+        ('sub-wlsubj095', 'ses-04'): ["2019-May-03_sub-wlsubj095_ses-04_sess0.hdf5",
+                                      "2019-May-03_sub-wlsubj095_ses-04_sess1.hdf5"],
+    }
+    behavioral_results['hdf5_file'] = [os.path.join(config['EXTRA_FILES_DIR'], p) for p in
+                                       hdf5_name_dict[(wildcards.subject, wildcards.session)]]
+    behavioral_results['notes_file'] = behavioral_results['hdf5_file'][0].replace('_sess0.hdf5', '.md').replace('_sess1.hdf5', '.md')
+    return behavioral_results
+
+
+rule create_BIDS_tsv:
+    input:
+        unpack(get_raw_behavioral_results),
+        stim_df_path = lambda wildcards: get_stim_files(wildcards)['desc_csv'],
+    output:
+        os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func", "{subject}_{session}_{task}_acq-PA_run-01_events.tsv"),
+        os.path.join(config["DATA_DIR"], "sourcedata", "{subject}", "{session}", "{subject}_{session}_{task}_behavioral_results_sess00.hdf5"),
+        os.path.join(config["DATA_DIR"], "sourcedata", "{subject}", "{session}", "{subject}_{session}_{task}_notes.md")
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'BIDS_tsv', '{subject}_{session}_{task}-%j.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'BIDS_tsv', '{subject}_{session}_{task}_benchmark.txt')
+    params:
+        save_path = lambda wildcards, output: output[0].replace('run-01', 'run-%02d'),
+        full_TRs = lambda wildcards: {'ses-pilot00': 256, 'ses-pilot01': 256, 'ses-01': 240, 'ses-02': 240, 'ses-03': 264, 'ses-04': 264}[wildcards.session]
+    run:
+        import sfp
+        import shutil
+        sfp.create_BIDS_tsv.main(input.hdf5_file, input.stim_df_path, save_path=params.save_path,
+                                 full_TRs=params.full_TRs)
+        for i, f in enumerate(input.hdf5_file):
+            shutil.copy(f, output[1].replace('sess00', 'sess%02d' % i))
+        shutil.copy(input.notes_file, output[2])
+
+
 def get_permuted(wildcards):
     if "permuted" in wildcards.mat_type:
         return "-p"
@@ -414,15 +518,10 @@ def get_permuted(wildcards):
 
 
 def get_design_inputs(wildcards):
-    if (wildcards.session in ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'] or
-        (wildcards.subject, wildcards.session) in [('sub-wlsubj004', 'ses-03'), ('sub-wlsubj014', 'ses-03')]):
-        ext = 'nii'
-    else:
-        ext = 'nii.gz'
     tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
-                             wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_events.tsv")
+                             wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"acq-PA_run-{n:02d}_events.tsv")
     func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
-                              wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_bold."+ext)
+                              wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"acq-PA_run-{n:02d}_bold.nii.gz")
     return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
             'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
 
@@ -450,13 +549,8 @@ def get_preprocess_inputs(wildcards):
     input_dict = {}
     input_dict['freesurfer_files'] = os.path.join(config["DATA_DIR"], "derivatives", "freesurfer",
                                                   wildcards.subject.replace('sub-', ''))
-    if (wildcards.session in ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'] or
-        (wildcards.subject, wildcards.session) in [('sub-wlsubj004', 'ses-03'), ('sub-wlsubj014', 'ses-03')]):
-        ext = 'nii'
-    else:
-        ext = 'nii.gz'
     input_dict['func_files'] = os.path.join(config["DATA_DIR"], "{subject}", "{session}", "func",
-                                            "{subject}_{session}_{task}_{run}_bold.{ext}").format(ext=ext, **wildcards)
+                                            "{subject}_{session}_{task}_acq-PA_{run}_bold.nii.gz").format(**wildcards)
     return input_dict
 
 
@@ -464,7 +558,7 @@ rule preprocess:
     input:
         unpack(get_preprocess_inputs)
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "{subject}_{session}_{task}_acq-PA_{run}_preproc.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "session.json"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "sbref_reg_corrected.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "distort2anat_tkreg.dat"),
@@ -529,13 +623,14 @@ rule rearrange_preprocess_extras:
 
 rule rearrange_preprocess:
     input:
-        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
+        os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_{run}_{task}", "{subject}", "{session}", "{subject}_{session}_{task}_acq-PA_{run}_preproc.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "session.json"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "sbref_reg_corrected.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distort2anat_tkreg.dat"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distortion_merged_corrected.nii.gz"),
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "distortion_merged_corrected_mean.nii.gz"),
     output:
+        # we drop the acq-PA bit because all of our scans have that, so it's not informative
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{subject}_{session}_{task}_{run}_preproc.nii.gz"),
     log:
         os.path.join(config["DATA_DIR"], "code", "preprocessed", "{subject}_{session}_{task}_{run}_rearrange-%j.log")
