@@ -219,16 +219,17 @@ rule model_recovery_cv_initial:
 
 
 def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, learning_rate=1e-3,
-                           crossval_seed=None, vareas=1, eccen='1-12', df_mode='summary', gpus=0,
+                           crossval_seed=None, bootstrap_num=None, vareas=1, eccen='1-12', df_mode='summary', gpus=0,
                            mat_type='stim_class', atlas_type='bayesian_posterior', modeling_goal='initial'):
     output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                                "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
                                "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch}_"
-                               "r{lr}_g{gpus}_c{{crossval}}_{model_type}_loss.csv")
+                               "r{lr}_g{gpus}_c{{crossval}}_n{bootstrap_num}_{model_type}_loss.csv")
     output_path = output_path.format(subject=subject, session=session, task=task, batch=batch_size,
                                      lr=learning_rate, model_type=model_type, vareas=vareas,
                                      eccen=eccen, df_mode=df_mode, gpus=gpus, atlas_type=atlas_type,
-                                     mat_type=mat_type, modeling_goal=modeling_goal)
+                                     mat_type=mat_type, modeling_goal=modeling_goal,
+                                     bootstrap_num=bootstrap_num)
     if crossval_seed is None:
         return output_path.format(crossval=None)
     else:
