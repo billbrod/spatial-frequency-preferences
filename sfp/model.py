@@ -835,7 +835,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=10, train_thresh=1e-6, 
             loss_df, results_df, model_history_df = construct_dfs(
                 model, dataset, loss_history, time_history, model_history, hessian_history,
                 max_epochs, batch_size, learning_rate, train_thresh, t, loss_func=loss_func)
-            if not cv_flag:
+            if not cv_flag and dataset.boostrap_num is not None:
                 save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
             else:
                 save_outputs(model, loss_df, None, model_history_df, save_path_stem)
@@ -954,7 +954,7 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
         model_history_df[name] = metadata_str
     print("Finished training!")
     model.eval()
-    if test_set_stimulus_class is None:
+    if test_set_stimulus_class is None and bootstrap_num is None:
         save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
     else:
         save_outputs(model, loss_df, None, model_history_df, save_path_stem)
