@@ -239,9 +239,14 @@ def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, le
 def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
                    df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='bayesian_posterior',
                    modeling_goal='initial_cv'):
-        subjects = ['sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj001', 'sub-wlsubj064',
-                    'sub-wlsubj014', 'sub-wlsubj004', 'sub-wlsubj042']
-        sessions = ['ses-04', 'ses-03', 'ses-01', 'ses-04', 'ses-03', 'ses-03', 'ses-02']
+        # subjects = ['sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj001', 'sub-wlsubj064',
+        #             'sub-wlsubj014', 'sub-wlsubj004', 'sub-wlsubj042']
+        # sessions = ['ses-04', 'ses-03', 'ses-01', 'ses-04', 'ses-03', 'ses-03', 'ses-02']
+        subjects = ['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014',
+                    'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042',
+                    'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045']
+        sessions = ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01',
+                    'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04']
         output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                                    "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
                                    "{{subject}}_{{session}}_{{task}}_v{vareas}_e{eccen}_{df_mode}_b{batch"
@@ -262,13 +267,25 @@ rule summarize_initial_subj_cv:
 
 rule model_all_subj_initial:
     input:
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        # [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
+        # [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        # [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp') for m in MODEL_TYPES],
+        # [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
+        # [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        # [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        # [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-pilot01', 'task-sfp') for m in MODEL_TYPES],
         [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-02', 'task-sfpconstant') for m in MODEL_TYPES],
         [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-pilot00', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-pilot01', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-01', 'task-sfpconstant') for m in MODEL_TYPES],
         [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-pilot01', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-01', 'task-sfpconstant') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
+        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
 
 
 rule model_subj045_ses04_initial_cv:
@@ -979,8 +996,13 @@ def get_tuning_curves(wildcards):
         sessions = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot01'],
                     'sub-wlsubj045': ['ses-pilot01']}
     else:
-        subjects = SUBJECTS
-        sessions = SESSIONS
+        # subjects = SUBJECTS
+        # sessions = SESSIONS
+        subjects = ['sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj045']
+        sessions = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
+                    'sub-wlsubj014': ['ses-03'],
+                    'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
+                    'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02', 'ses-04']}
     vareas = wildcards.vareas.split('-')
     return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}',
                          '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_'
