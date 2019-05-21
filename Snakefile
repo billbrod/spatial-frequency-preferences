@@ -485,7 +485,10 @@ rule move_off_tesla:
             wrong_task = params.wrong_task.replace('task-', '')
             right_task = params.right_task.replace('task-', '')
             shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[0]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
-            shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[2]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
+            try:
+                shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[2]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
+            except:
+                warnings.warn("For some reason, no mriqc reports have the wrong_task in them...")
 
 
 def get_raw_behavioral_results(wildcards):
