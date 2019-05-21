@@ -535,9 +535,9 @@ def get_permuted(wildcards):
 
 def get_design_inputs(wildcards):
     tsv_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
-                             wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"acq-PA_run-{n:02d}_events.tsv")
+                             wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_acq-PA_run-{n:02d}_events.tsv")
     func_files = os.path.join(config["DATA_DIR"], wildcards.subject, wildcards.session, "func",
-                              wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"acq-PA_run-{n:02d}_bold.nii.gz")
+                              wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_acq-PA_run-{n:02d}_bold.nii.gz")
     return {'tsv_files': expand(tsv_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
             'func_files': expand(func_files, n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))}
 
