@@ -258,6 +258,20 @@ def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1,
         return [output_path.format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj, ses in zip(subjects, sessions)]
 
 
+rule model_all_subj_bootstrap:
+    input:
+        [get_model_subj_outputs("full_full_vary", subj, ses, TASKS[(subj, ses)], bootstrap_num=n,
+                                modeling_goal='bootstrap', df_mode='full')
+         for subj in SUBJECTS for ses in SESSIONS[subj] for n in range(100)]
+
+
+rule model_all_subj_visual_field:
+    input:
+        [get_model_subj_outputs("full_full_vary", subj, ses, TASKS[(subj, ses)],
+                                modeling_goal="visual_field_%s" % p)
+         for subj in SUBJECTS for ses in SESSIONS[subj] for p in ['upper', 'lower', 'left', 'right', 'inner', 'outer']]
+
+
 rule summarize_initial_subj_cv:
     input:
         # if we don't do this, it passes wildcards as the first argument of the function. since we
