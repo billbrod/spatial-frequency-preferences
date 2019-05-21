@@ -89,6 +89,7 @@ wildcard_constraints:
     eccen="[0-9]+-[0-9]+",
     eccen_range="[0-9]+-[0-9]+",
     df_mode="summary|full",
+    atlas_type="bayesian_posterior|atlas",
     plot_func="[a-z]+",
     col="[a-z-]+",
     row="[a-z-]+",
