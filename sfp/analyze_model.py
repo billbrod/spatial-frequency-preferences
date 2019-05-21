@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import torch
 import re
+import functools
 import os
 import argparse
 import glob
@@ -136,36 +137,114 @@ def combine_models(base_path_template, load_results_df=True):
     return models, loss_df, results_df, model_history_df
 
 
-def create_feature_df(models, eccen_range=(.01, 11), orientation_range=(0, np.pi),
-                      orientation_n_steps=8, retinotopic_angle_n_steps=4, **identity_kwargs):
-    """create dataframe with preferred period and amplitude for given models
+def _finish_feature_df(df, reference_frame='absolute'):
+    if isinstance(df, list):
+        df = pd.concat(df).reset_index(drop=True)
+    df['reference_frame'] = reference_frame
+    angle_ref = np.linspace(0, np.pi, 4, endpoint=False)
+    angle_labels = ['0', r'$\frac{\pi}{4}$', r'$\frac{\pi}{2}$', r'$\frac{3\pi}{4}$']
+    rel_labels = ['radial', 'forward spiral', 'angular', 'reverse spiral']
+    abs_labels = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal']
+    if np.array_equiv(angle_ref, df.retinotopic_angle.unique()):
+        df.retinotopic_angle = df.retinotopic_angle.map(dict((k, v) for k, v in
+                                                             zip(angle_ref, angle_labels)))
+    if np.array_equiv(angle_ref, df.orientation.unique()):
+        if reference_frame == 'relative':
+            df.orientation = df.orientation.map(dict((k, v) for k, v in zip(angle_ref,
+                                                                            rel_labels)))
+        elif reference_frame == 'absolute':
+            df.orientation = df.orientation.map(dict((k, v) for k, v in zip(angle_ref,
+                                                                            abs_labels)))
+    return df
 
-    will do so at multiple (stimulus) orientations, retinotopic angles, and retinotopic
-    eccentricities
 
-    identity_kwargs: the values of the key, values pairs here should be lists the same length as
-    models, which contain extra values to add to the features_df in order to identify the models
-    (e.g. test_subset, etc)
-    """
-    features = []
-    eccen = np.linspace(*eccen_range, num=10)
-    orientations = np.linspace(*orientation_range, num=orientation_n_steps, endpoint=False)
-    angles = np.linspace(*orientation_range, num=retinotopic_angle_n_steps, endpoint=False)
-    for i, m in enumerate(models):
-        for o, a in itertools.product(orientations, angles):
-            period = m.preferred_period(eccen, a, o).detach().cpu().numpy()
-            max_amp = m.max_amplitude(a, o).detach().cpu().numpy()
-            data_dict = {'preferred_period': period, 'max_amplitude': max_amp,
-                         'retinotopic_angle': a, 'fit_model_type': m.model_type,
-                         'eccentricity': eccen, 'orientation': o}
-            identifier = []
-            for k, v in identity_kwargs.items():
-                data_dict[k] = v[i]
-                identifier.append(v[i])
-            if identifier:
-                data_dict['identifier'] = identifier
-            features.append(pd.DataFrame(data_dict))
-    return pd.concat(features)
+def create_preferred_period_df(model, retinotopic_angle=np.linspace(0, np.pi, 4, endpoint=False),
+                               orientation=np.linspace(0, np.pi, 4, endpoint=False),
+                               eccentricity=np.linspace(0, 11, 11), reference_frame='absolute'):
+    df = []
+    for o in orientation:
+        if reference_frame == 'absolute':
+            tmp = model.preferred_period(eccentricity, retinotopic_angle, o)
+        elif reference_frame == 'relative':
+            tmp = model.preferred_period(eccentricity, retinotopic_angle, rel_sf_angle=o)
+        tmp = pd.DataFrame(tmp.detach().numpy(), index=retinotopic_angle, columns=eccentricity)
+        tmp = tmp.reset_index().rename(columns={'index': 'retinotopic_angle'})
+        tmp['orientation'] = o
+        df.append(pd.melt(tmp, ['retinotopic_angle', 'orientation'], var_name='eccentricity',
+                          value_name='preferred_period'))
+    return _finish_feature_df(df, reference_frame)
+
+
+def create_preferred_period_contour_df(model,
+                                       retinotopic_angle=np.linspace(0, np.pi, 48, endpoint=False),
+                                       orientation=np.linspace(0, np.pi, 4, endpoint=False),
+                                       period_target=[.5, 1, 1.5], reference_frame='absolute'):
+    df = []
+    for p in period_target:
+        if reference_frame == 'absolute':
+            tmp = model.preferred_period_contour(p, retinotopic_angle, orientation)
+        elif reference_frame == 'relative':
+            tmp = model.preferred_period_contour(p, retinotopic_angle, rel_sf_angle=orientation)
+        tmp = pd.DataFrame(tmp.detach().numpy(), index=retinotopic_angle, columns=orientation)
+        tmp = tmp.reset_index().rename(columns={'index': 'retinotopic_angle'})
+        tmp['preferred_period'] = p
+        df.append(pd.melt(tmp, ['retinotopic_angle', 'preferred_period'], var_name='orientation',
+                          value_name='eccentricity'))
+    return _finish_feature_df(df, reference_frame)
+
+
+def create_max_amplitude_df(model, retinotopic_angle=np.linspace(0, np.pi, 48, endpoint=False),
+                            orientation=np.linspace(0, np.pi, 4, endpoint=False),
+                            reference_frame='absolute'):
+    if reference_frame == 'absolute':
+        tmp = model.max_amplitude(retinotopic_angle, orientation).detach().numpy()
+    elif reference_frame == 'relative':
+        tmp = model.max_amplitude(retinotopic_angle, rel_sf_angle=orientation).detach().numpy()
+    tmp = pd.DataFrame(tmp, index=retinotopic_angle, columns=orientation)
+    tmp = tmp.reset_index().rename(columns={'index': 'retinotopic_angle'})
+    df = pd.melt(tmp, ['retinotopic_angle'], var_name='orientation', value_name='max_amplitude')
+    return _finish_feature_df(df, reference_frame)
+
+
+def create_feature_df(models, feature_type='preferred_period', reference_frame='absolute',
+                      retinotopic_angle=np.linspace(0, np.pi, 4, endpoint=False),
+                      orientation=np.linspace(0, np.pi, 4, endpoint=False),
+                      eccentricity=np.linspace(0, 11, 11), period_target=[.5, 1, 1.5]):
+    df = []
+    for ind in models.indicator.unique():
+        m = sfp_model.LogGaussianDonut.init_from_df(models.query('indicator==@ind'))
+        if feature_type == 'preferred_period':
+            df.append(create_preferred_period_df(m, retinotopic_angle, orientation, eccentricity,
+                                                 reference_frame))
+        elif feature_type == 'preferred_period':
+            df.append(create_preferred_period_contour_df(m, retinotopic_angle, orientation,
+                                                         period_target, reference_frame))
+        elif feature_type == 'preferred_period':
+            df.append(create_max_amplitude_df(m, retinotopic_angle, orientation, reference_frame))
+        df[-1]['indicator'] = ind
+    return pd.concat(df).reset_index(drop=True)
+
+
+def bootstrap_features(feature_df, n_bootstraps, value_name='preferred_period',
+                       groupby_cols=['indicator', 'retinotopic_angle', 'orientation',
+                                     'eccentricity']):
+    assert groupby_cols[0] == 'indicator', "First groupby_cols value must be indicator!"
+    # first use groupby to get this to a ndarray, from
+    # https://stackoverflow.com/questions/47715300/convert-a-pandas-dataframe-to-a-multidimensional-ndarray
+    grouped = feature_df.groupby(groupby_cols)[value_name].mean()
+    # create an empty array of NaN of the right dimensions
+    shape = tuple(map(len, grouped.index.levels))
+    all_data = np.full(shape, np.nan)
+    # fill it using Numpy's advanced indexing
+    all_data[tuple(grouped.index.codes)] = grouped.values.flat
+    if functools.reduce(lambda x, y: x*y, shape) != len(feature_df):
+        raise Exception("groupby_cols does not completely cover the columns of feature_df!")
+    bootstraps = np.random.randint(0, feature_df.indicator.nunique(),
+                                   size=(n_bootstraps, feature_df.indicator.nunique()))
+    bootstrapped = np.empty((n_bootstraps, *shape[1:]))
+    for i, b in enumerate(bootstraps):
+        bootstrapped[i] = np.mean(all_data[b], 0)
+    return bootstrapped
 
 
 if __name__ == '__main__':
@@ -190,7 +269,3 @@ if __name__ == '__main__':
     model_history_df.to_csv(args['save_path_stem'] + "_model_history.csv", index=False)
     loss_df.to_csv(args['save_path_stem'] + "_loss.csv", index=False)
     models = models.drop_duplicates('model')
-    features = create_feature_df(models.model.values, orientation_n_steps=50,
-                                 retinotopic_angle_n_steps=50,
-                                 test_subset=models.test_subset.values)
-    features.to_csv(args['save_path_stem'] + '_features.csv', index=False)
