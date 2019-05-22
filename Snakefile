@@ -402,16 +402,15 @@ rule preprocess_all:
 
 rule move_all:
     input:
-        [os.path.join(config['DATA_DIR'], '{subject}', '{session}').format(subject=subj, session=ses) for subj, ses in
-         zip(['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'],
-             ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04'])],
+        [os.path.join(config['DATA_DIR'], '{subject}', '{session}').format(subject=subj, session=ses) for subj in SUBJECTS
+         for ses in SESSIONS[subj]]
 
 
 rule create_tsv_all:
     input:
-        [os.path.join(config['DATA_DIR'], 'sourcedata', '{subject}', '{session}', '{subject}_{session}_{task}_notes.md').format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj, ses in
-         zip(['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'],
-             ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04'])]
+        [os.path.join(config['DATA_DIR'], 'sourcedata', '{subject}', '{session}', '{subject}_{session}_{task}_notes.md').format(subject=subj, session=ses, task=TASKS[(subj, ses)])
+         for subj in SUBJECTS for ses in SESSIONS[subj]]
+
 
 rule stimuli:
     output:
@@ -499,10 +498,7 @@ rule move_off_tesla:
             wrong_task = params.wrong_task.replace('task-', '')
             right_task = params.right_task.replace('task-', '')
             shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[0]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
-            try:
-                shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[2]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
-            except:
-                warnings.warn("For some reason, no mriqc reports have the wrong_task in them...")
+            shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[2]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
 
 
 def get_raw_behavioral_results(wildcards):
