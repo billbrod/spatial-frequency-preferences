@@ -145,16 +145,17 @@ def _finish_feature_df(df, reference_frame='absolute'):
     angle_labels = ['0', r'$\frac{\pi}{4}$', r'$\frac{\pi}{2}$', r'$\frac{3\pi}{4}$']
     rel_labels = ['radial', 'forward spiral', 'angular', 'reverse spiral']
     abs_labels = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal']
-    if np.array_equiv(angle_ref, df.retinotopic_angle.unique()):
-        df.retinotopic_angle = df.retinotopic_angle.map(dict((k, v) for k, v in
-                                                             zip(angle_ref, angle_labels)))
-    if np.array_equiv(angle_ref, df.orientation.unique()):
+    if np.array_equiv(angle_ref, df["Retinotopic angle (rad)"].unique()):
+        df["Retinotopic angle (rad)"] = df["Retinotopic angle (rad)"].map(dict((k, v) for k, v in
+                                                                               zip(angle_ref,
+                                                                                   angle_labels)))
+    if np.array_equiv(angle_ref, df["Orientation (rad)"].unique()):
         if reference_frame == 'relative':
-            df.orientation = df.orientation.map(dict((k, v) for k, v in zip(angle_ref,
-                                                                            rel_labels)))
+            df["Stimulus type"] = df["Orientation (rad)"].map(dict((k, v) for k, v in
+                                                                   zip(angle_ref, rel_labels)))
         elif reference_frame == 'absolute':
-            df.orientation = df.orientation.map(dict((k, v) for k, v in zip(angle_ref,
-                                                                            abs_labels)))
+            df["Stimulus type"] = df["Orientation (rad)"].map(dict((k, v) for k, v in
+                                                                   zip(angle_ref, abs_labels)))
     return df
 
 
@@ -168,10 +169,10 @@ def create_preferred_period_df(model, retinotopic_angle=np.linspace(0, np.pi, 4,
         elif reference_frame == 'relative':
             tmp = model.preferred_period(eccentricity, retinotopic_angle, rel_sf_angle=o)
         tmp = pd.DataFrame(tmp.detach().numpy(), index=retinotopic_angle, columns=eccentricity)
-        tmp = tmp.reset_index().rename(columns={'index': 'retinotopic_angle'})
-        tmp['orientation'] = o
-        df.append(pd.melt(tmp, ['retinotopic_angle', 'orientation'], var_name='eccentricity',
-                          value_name='preferred_period'))
+        tmp = tmp.reset_index().rename(columns={'index': 'Retinotopic angle (rad)'})
+        tmp['Orientation (rad)'] = o
+        df.append(pd.melt(tmp, ['Retinotopic angle (rad)', 'Orientation (rad)'],
+                          var_name='Eccentricity (deg)', value_name='Preferred period (dpc)'))
     return _finish_feature_df(df, reference_frame)
 
 
@@ -186,10 +187,10 @@ def create_preferred_period_contour_df(model,
         elif reference_frame == 'relative':
             tmp = model.preferred_period_contour(p, retinotopic_angle, rel_sf_angle=orientation)
         tmp = pd.DataFrame(tmp.detach().numpy(), index=retinotopic_angle, columns=orientation)
-        tmp = tmp.reset_index().rename(columns={'index': 'retinotopic_angle'})
-        tmp['preferred_period'] = p
-        df.append(pd.melt(tmp, ['retinotopic_angle', 'preferred_period'], var_name='orientation',
-                          value_name='eccentricity'))
+        tmp = tmp.reset_index().rename(columns={'index': 'Retinotopic angle (rad)'})
+        tmp['Preferred period (dpc)'] = p
+        df.append(pd.melt(tmp, ['Retinotopic angle (rad)', 'Preferred period (dpc)'],
+                          var_name='Orientation (rad)', value_name='Eccentricity (deg)'))
     return _finish_feature_df(df, reference_frame)
 
 
@@ -201,8 +202,9 @@ def create_max_amplitude_df(model, retinotopic_angle=np.linspace(0, np.pi, 48, e
     elif reference_frame == 'relative':
         tmp = model.max_amplitude(retinotopic_angle, rel_sf_angle=orientation).detach().numpy()
     tmp = pd.DataFrame(tmp, index=retinotopic_angle, columns=orientation)
-    tmp = tmp.reset_index().rename(columns={'index': 'retinotopic_angle'})
-    df = pd.melt(tmp, ['retinotopic_angle'], var_name='orientation', value_name='max_amplitude')
+    tmp = tmp.reset_index().rename(columns={'index': 'Retinotopic angle (rad)'})
+    df = pd.melt(tmp, ['Retinotopic angle (rad)'], var_name='Orientation (rad)',
+                 value_name='Max amplitude')
     return _finish_feature_df(df, reference_frame)
 
 
@@ -216,18 +218,18 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
         if feature_type == 'preferred_period':
             df.append(create_preferred_period_df(m, retinotopic_angle, orientation, eccentricity,
                                                  reference_frame))
-        elif feature_type == 'preferred_period':
+        elif feature_type == 'preferred_period_contour':
             df.append(create_preferred_period_contour_df(m, retinotopic_angle, orientation,
                                                          period_target, reference_frame))
-        elif feature_type == 'preferred_period':
+        elif feature_type == 'max_amplitude':
             df.append(create_max_amplitude_df(m, retinotopic_angle, orientation, reference_frame))
         df[-1]['indicator'] = ind
     return pd.concat(df).reset_index(drop=True)
 
 
-def bootstrap_features(feature_df, n_bootstraps, value_name='preferred_period',
-                       groupby_cols=['indicator', 'retinotopic_angle', 'orientation',
-                                     'eccentricity']):
+def bootstrap_features(feature_df, n_bootstraps, value_name='Preferred period (dpc)',
+                       groupby_cols=['indicator', 'Retinotopic angle (rad)', 'Orientation (rad)',
+                                     'Eccentricity (deg)']):
     assert groupby_cols[0] == 'indicator', "First groupby_cols value must be indicator!"
     # first use groupby to get this to a ndarray, from
     # https://stackoverflow.com/questions/47715300/convert-a-pandas-dataframe-to-a-multidimensional-ndarray
