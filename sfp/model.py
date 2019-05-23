@@ -1096,14 +1096,14 @@ if __name__ == '__main__':
     test_set_stimulus_class = args.pop('test_set_stimulus_class')
     try:
         test_set_stimulus_class = [int(i) for i in test_set_stimulus_class]
-    except ValueError:
+    except (TypeError, ValueError):
         # in this case, we can't cast one of the strs in the list to an int, so we assume it must
         # just contain None.
         test_set_stimulus_class = None
     bootstrap_num = args.pop('bootstrap_num')
     try:
         bootstrap_num = [int(i) for i in bootstrap_num]
-    except ValueError:
+    except (TypeError, ValueError):
         # in this case, we can't cast one of the strs in the list to an int, so we assume it must
         # just contain None.
         bootstrap_num = None
