@@ -106,6 +106,7 @@ def combine_models(base_path_template, load_results_df=True):
             metadata['mat_type'] = path_stem.split(os.sep)[-5]
             metadata['atlas_type'] = path_stem.split(os.sep)[-6]
             metadata['task'] = re.search('_(task-[a-z0-9]+)_', path_stem).groups()[0]
+            metadata['indicator'] = str((metadata['subject'], metadata['session'], metadata['task'])).replace("'", "")
         path_stems.append(path_stem)
         model, loss, results, model_history = load_single_model(path_stem,
                                                                 load_results_df=load_results_df)
@@ -113,6 +114,7 @@ def combine_models(base_path_template, load_results_df=True):
             if results is not None:
                 results[k] = v
             loss[k] = v
+            model_history[k] = v
         results_df.append(results)
         loss_df.append(loss)
         model_history_df.append(model_history)
