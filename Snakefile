@@ -1393,7 +1393,7 @@ rule calc_simulated_cv_error:
 rule summarize_simulated_cv:
     input:
         # this will return a list of lists of strings, so we need to flatten it
-        loss_files = lambda wildcards: np.array([get_simulated_model_outputs(**wildcards) for m in MODEL_TYPES]).flatten(),
+        loss_files = lambda wildcards: np.array([get_simulated_model_outputs(m, **wildcards) for m in MODEL_TYPES]).flatten(),
         cv_loss = lambda wildcards: [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
                                                   "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
                                                   "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
