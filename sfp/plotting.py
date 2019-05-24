@@ -20,9 +20,32 @@ import pandas as pd
 import scipy as sp
 from sklearn import linear_model
 
-LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'mixtures', 'angular', 'reverse spiral']
-CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'off-diagonal', 'horizontal',
-                             'reverse diagonal']
+LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'angular', 'reverse spiral', 'mixtures']
+CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal',
+                             'off-diagonal']
+
+
+def stimulus_type_palette(reference_frame):
+    palette = {}
+    if isinstance(reference_frame, str):
+        reference_frame = [reference_frame]
+    if 'relative' in reference_frame:
+        pal = sns.color_palette('deep', 5)
+        palette.update(dict(zip(LOGPOLAR_SUPERCLASS_ORDER, pal)))
+    if 'absolute' in reference_frame:
+        pal = sns.color_palette('cubehelix', 5)
+        palette.update(dict(zip(CONSTANT_SUPERCLASS_ORDER, pal)))
+    return palette
+
+
+def stimulus_type_order(reference_frame):
+    order = []
+    if isinstance(reference_frame, str):
+        reference_frame = [reference_frame]
+    for t in reference_frame:
+        order.extend({'relative': LOGPOLAR_SUPERCLASS_ORDER,
+                      'absolute': CONSTANT_SUPERCLASS_ORDER}[t])
+    return order
 
 
 class MidpointNormalize(mpl.colors.Normalize):
@@ -203,7 +226,7 @@ def stimuli_properties(df, save_path=None):
     if 'baseline' in df.stimulus_superclass.unique():
         df = df[df.stimulus_superclass != 'baseline']
     figsize = (19, 5)
-    cmaps = [sns.color_palette(n_colors=5), sns.cubehelix_palette(as_cmap=True),
+    cmaps = [None, sns.cubehelix_palette(as_cmap=True),
              sns.diverging_palette(10, 220, as_cmap=True)]
     try:
         df['w_a']
@@ -218,11 +241,11 @@ def stimuli_properties(df, save_path=None):
                 ylim, xlim = [-176, 212], [-28, 311]
         else:
             ylim, xlim = [-125, 150], [-20, 220]
-        cmaps[0] = dict((i, j) for i, j in zip(LOGPOLAR_SUPERCLASS_ORDER, cmaps[0]))
+        cmaps[0] = stimulus_type_palette('relative')
     except KeyError:
         freq_names = ['w_x', 'w_y']
         ylim, xlim = [-.098, .118], [-.0157, .173]
-        cmaps[0] = dict((i, j) for i, j in zip(CONSTANT_SUPERCLASS_ORDER, cmaps[0]))
+        cmaps[0] = stimulus_type_palette('absolute')
     norms = [None, None, MidpointNormalize(df.freq_space_angle.min(),
                                            df.freq_space_angle.max(), midpoint=0)]
     titles = ['Frequency superclass', 'Frequency distance', "Frequency angle"]
@@ -737,6 +760,75 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     if save_path is not None:
         fig.savefig(save_path)
     return windowed_plot
+
+
+def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad)', row=None,
+                    plot_func=sns.lineplot, x='Eccentricity (deg)', y='Preferred period (dpc)',
+                    yticks=[0, 1, 2], xticks=[0, 2, 4, 6, 8, 10], height=4, aspect=1,
+                    title='Preferred period', top=.85, pal=None, col_order=None, row_order=None,
+                    ci=68, n_boot=10000, pre_boot_gb_func=None,
+                    pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
+                                      'Eccentricity (deg)']):
+    if pal is None and hue == 'Stimulus type':
+        pal = stimulus_type_palette(feature_df.reference_frame.unique())
+    if col_order is None and col == 'Stimulus_type':
+        col_order = stimulus_type_order(feature_df.reference_frame.unique())
+    if row_order is None and row == 'Stimulus_type':
+        row_order = stimulus_type_order(feature_df.reference_frame.unique())
+    if pre_boot_gb_func is not None:
+        feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
+    g = sns.FacetGrid(feature_df, hue=hue, col=col, row=row, height=height, aspect=aspect,
+                      palette=pal)
+    g.map(plot_func, x, y, ci=ci, n_boot=n_boot)
+    g.add_legend()
+    for ax in g.axes.flatten():
+        ax.axhline(color='gray', linestyle='--')
+        ax.axvline(color='gray', linestyle='--')
+        if yticks is not None:
+            ax.set_yticks(yticks)
+        if xticks is not None:
+            ax.set_xticks(xticks)
+    if title is not None:
+        g.fig.suptitle(title)
+        g.fig.subplots_adjust(top=top)
+    return g
+
+
+def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period (dpc)', row=None,
+                          plot_func=sns.lineplot, theta='Retinotopic angle (rad)',
+                          r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, height=4,
+                          aspect=1, title='Preferred period contours', top=.76, pal=None,
+                          col_order=None, row_order=None, title_position=[.5, 1.15], ylabelpad=30,
+                          legend_position=None, ci=68, n_boot=10000, pre_boot_gb_func=None,
+                          pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
+                                            'Eccentricity (deg)']):
+    if pal is None and hue == 'Stimulus type':
+        pal = stimulus_type_palette(feature_df.reference_frame.unique())
+    if col_order is None and col == 'Stimulus_type':
+        col_order = stimulus_type_order(feature_df.reference_frame.unique())
+    if row_order is None and row == 'Stimulus_type':
+        row_order = stimulus_type_order(feature_df.reference_frame.unique())
+    if pre_boot_gb_func is not None:
+        feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
+    g = sns.FacetGrid(feature_df, col=col, hue=hue, row=row, subplot_kws={'projection': 'polar'},
+                      despine=False, height=height, aspect=aspect, palette=pal)
+    g.map(sns.lineplot, theta, r, ci=ci, n_boot=n_boot)
+    for i, ax in enumerate(g.axes.flatten()):
+        ax.title.set_position(title_position)
+        if i == 0:
+            ax.yaxis.labelpad = ylabelpad
+        if r_ticks is not None:
+            ax.set_yticks(r_ticks)
+        if theta_ticks is not None:
+            ax.set_xticks(theta_ticks)
+    if legend_position is not None:
+        g.add_legend(bbox_to_anchor=legend_position)
+    else:
+        g.add_legend()
+    if title is not None:
+        g.fig.suptitle(title)
+        g.fig.subplots_adjust(top=top)
+    return g
 
 
 def _parse_save_path_for_kwargs(save_path):
