@@ -16,6 +16,7 @@ import argparse
 import glob
 import itertools
 import warnings
+from torch.utils import data as torchdata
 from . import model as sfp_model
 
 
@@ -249,6 +250,74 @@ def bootstrap_features(feature_df, n_bootstraps, value_name='Preferred period (d
     for i, b in enumerate(bootstraps):
         bootstrapped[i] = np.mean(all_data[b], 0)
     return bootstrapped
+
+
+def calc_cv_error(loss_files, dataset_path, wildcards, outputs):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    ds = sfp_model.FirstLevelDataset(dataset_path, device=device)
+    dl = torchdata.DataLoader(ds, len(ds))
+    features, targets = next(iter(dl))
+    preds = torch.empty(targets.shape[:2], dtype=targets.dtype)
+    for path in loss_files:
+        m, l, _, _ = load_single_model(path.replace('_loss.csv', ''), False)
+        test_subset = l.test_subset.unique()
+        test_subset = [int(i) for i in test_subset[0].split(',')]
+        pred = m(features[:, test_subset, :])
+        preds[:, test_subset] = pred
+    cv_loss = sfp_model.weighted_normed_loss(preds, targets).item()
+    data = dict(wildcards)
+    data['loss_func'] = 'weighted_normed_loss'
+    data['dataset_df_path'] = dataset_path
+    data.pop('model_type')
+    data['fit_model_type'] = l.fit_model_type.unique()[0]
+    data['cv_loss'] = cv_loss
+    cv_loss_csv = pd.DataFrame(data, index=[0])
+    cv_loss_csv.to_csv(outputs[0], index=False)
+
+
+def gather_results(base_path, outputs, metadata, cv_loss_files=None):
+    models, loss_df, _, model_history = combine_models(base_path, False)
+    timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
+    grouped_loss = loss_df.groupby(metadata + ['epoch_num', 'time']).loss.mean().reset_index()
+    grouped_loss = grouped_loss.groupby(metadata).last().reset_index()
+    final_model_history = model_history.groupby(metadata + ['parameter']).last().reset_index().rename(columns={'parameter': 'model_parameter'})
+    models = pd.merge(models, final_model_history[metadata + ['model_parameter', 'hessian']])
+    models = models.fillna(0)
+    diff_df = loss_df.groupby(metadata + ['epoch_num'])[['loss', 'time']].mean().reset_index()
+    diff_df['loss_diff'] = diff_df.groupby(metadata)['loss'].diff()
+    diff_df['time_diff'] = diff_df.groupby(metadata)['time'].diff()
+    model_history['value_diff'] = model_history.groupby(metadata + ['parameter'])['value'].diff()
+    models.to_csv(outputs[0], index=False)
+    grouped_loss.to_csv(outputs[1], index=False)
+    timing_df.to_csv(outputs[2], index=False)
+    diff_df.to_csv(outputs[3], index=False)
+    model_history.to_csv(outputs[4], index=False)
+    if cv_loss_files is not None:
+        cv_loss = []
+        for path in cv_loss_files:
+            cv_loss.append(pd.read_csv(path))
+        cv_loss = pd.concat(cv_loss)
+        cv_loss.to_csv(outputs[-1], index=False)
+
+
+def combine_crossvalidated_results(base_template, outputs):
+    models = []
+    grouped_loss_df = []
+    timing_df = []
+    cv_loss = []
+    for p in base_template:
+        models.append(pd.read_csv(p+'_all_models.csv'))
+        grouped_loss_df.append(pd.read_csv(p+'_all_loss.csv'))
+        cv_loss.append(pd.read_csv(p+'_all_cv_loss.csv'))
+        timing_df.append(pd.read_csv(p+'_all_timing.csv'))
+    models = pd.concat(models, sort=False)
+    grouped_loss_df = pd.concat(grouped_loss_df, sort=False)
+    timing_df = pd.concat(timing_df, sort=False)
+    cv_loss = pd.concat(cv_loss, sort=False)
+    models.to_csv(outputs[0], index=False)
+    grouped_loss_df.to_csv(outputs[1], index=False)
+    cv_loss.to_csv(outputs[2], index=False)
+    timing_df.to_csv(outputs[3], index=False)
 
 
 if __name__ == '__main__':
