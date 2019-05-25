@@ -1,4 +1,5 @@
 import os
+import itertools
 import warnings
 import numpy as np
 from glob import glob
@@ -135,87 +136,20 @@ def create_crossval_idx(leave_n_out, session, mat_type, seed=None):
 
 rule model_learning_hyperparams_full:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b100_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-2_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b100_r1e-2_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-4_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-4_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b100_r1e-4_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-3_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b100_r1e-3_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-2_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-2_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b100_r1e-2_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b1_r1e-4_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-4_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b100_r1e-4_g0_cNone_full_full_vary_loss.csv"),
-        # above this, the true model is pretty simple. this is a much more complicated true model, want to check if same learning hyperparameters work.
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b1_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b100_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b1_r1e-2_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-2_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b100_r1e-2_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b1_r1e-4_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-4_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b100_r1e-4_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b1_r1e-3_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b100_r1e-3_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b1_r1e-2_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-2_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b100_r1e-2_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b1_r1e-4_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-4_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12", "learning_hyperparams_full", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b100_r1e-4_g0_cNone_full_full_vary_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-02_task-sfp_v1_e1-12",
+                     "learning_hyperparams_full", "g0_all_models.csv"),
 
 
 rule model_recovery_initial:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_iso_constant_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_iso_scaling_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_absolute_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_relative_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_full_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_absolute_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_relative_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_cNone_full_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_iso_constant_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_iso_scaling_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_iso_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_absolute_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_relative_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_full_full_constant_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_absolute_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_relative_full_vary_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_cNone_full_full_vary_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12",
+                     "model_recovery", "g0_all_models.csv"),
 
 
 rule model_recovery_cv_initial:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_iso_constant_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_iso_scaling_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_iso_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_absolute_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_relative_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_full_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_absolute_full_vary_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_relative_full_vary_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_iso_full_constant_s1_a.75_b.25_rmc0_rmo0_rac0_rao0_amc0_amo0_aac0_aao0_l1_b10_r1e-3_g0_c{}_full_full_vary_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_iso_constant_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_iso_scaling_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_iso_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_absolute_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_relative_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_full_full_constant_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_absolute_full_vary_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_relative_full_vary_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12", "model_recovery_cv", "n4000_full_full_vary_s1_a.75_b.25_rmc.1_rmo.05_rac.03_rao.1_amc.2_amo.05_aac.04_aao.3_l1_b10_r1e-3_g0_c{}_full_full_vary_loss.csv").format(n) for n in create_crossval_idx(4, 'ses-04', 'stim_class', 0)],
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-stim_class_bayesian_posterior_sub-wlsubj045_ses-04_task-sfprescaled_v1_e1-12",
+                     "model_recovery_cv", "b10_r.001_g0_s0_all_models.csv"),
 
 
 def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, learning_rate=1e-3,
@@ -233,20 +167,47 @@ def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, le
     if crossval_seed is None:
         return output_path.format(crossval=None)
     else:
-        return [output_path.format(crossval=n) for n in create_crossval_idx(4, session, task, int(crossval_seed))]
+        return [output_path.format(crossval=n) for n in create_crossval_idx(4, session, mat_type, int(crossval_seed))]
+
+
+def get_simulated_model_outputs(model_type, sim_model_type, noise_level, num_voxels,
+                                batch_size, learning_rate, sigma, sf_ecc_slope, sf_ecc_intercept,
+                                rel_mode_cardinals, rel_mode_obliques, rel_amplitude_cardinals,
+                                rel_amplitude_obliques, abs_mode_cardinals, abs_mode_obliques,
+                                abs_amplitude_cardinals, abs_amplitude_obliques, noise_source,
+                                crossval_seed=None, gpus=0, modeling_goal='model_recovery'):
+    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated",
+                               "{noise_source}", "{modeling_goal}",
+                               "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                               "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_"
+                               "rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_"
+                               "amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                               "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_"
+                               "l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                               "c{{crossval}}_{model_type}_loss.csv")
+    output_path = output_path.format(batch_size=batch_size, learning_rate=learning_rate,
+                                     gpus=gpus, modeling_goal=modeling_goal, num_voxels=num_voxels,
+                                     sim_model_type=sim_model_type, noise_level=noise_level, 
+                                     sf_ecc_slope=sf_ecc_slope, sf_ecc_intercept=sf_ecc_intercept,
+                                     rel_mode_cardinals=rel_mode_cardinals, sigma=sigma,
+                                     rel_mode_obliques=rel_mode_obliques, model_type=model_type,
+                                     rel_amplitude_cardinals=rel_amplitude_cardinals,
+                                     rel_amplitude_obliques=rel_amplitude_obliques,
+                                     abs_mode_cardinals=abs_mode_cardinals,
+                                     abs_mode_obliques=abs_mode_obliques,
+                                     abs_amplitude_cardinals=abs_amplitude_cardinals,
+                                     abs_amplitude_obliques=abs_amplitude_obliques,
+                                     noise_source=noise_source).replace('0.', '.')
+    if crossval_seed is None:
+        return output_path.format(crossval=None)
+    else:
+        ses = re.findall(r'(ses-[0-9]+)', noise_source)[0]
+        return [output_path.format(crossval=n) for n in create_crossval_idx(4, ses, 'stim_class', int(crossval_seed))]
 
 
 def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
                    df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='bayesian_posterior',
                    modeling_goal='initial_cv'):
-        # subjects = ['sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj001', 'sub-wlsubj064',
-        #             'sub-wlsubj014', 'sub-wlsubj004', 'sub-wlsubj042']
-        # sessions = ['ses-04', 'ses-03', 'ses-01', 'ses-04', 'ses-03', 'ses-03', 'ses-02']
-        subjects = ['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014',
-                    'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042',
-                    'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045']
-        sessions = ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01',
-                    'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04']
         output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                                    "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
                                    "{{subject}}_{{session}}_{{task}}_v{vareas}_e{eccen}_{df_mode}_b{batch"
@@ -255,93 +216,112 @@ def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1,
                                          eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
                                          modeling_goal=modeling_goal, gpus=gpus,
                                          crossval_seed=crossval_seed, learning_rate=learning_rate)
-        return [output_path.format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj, ses in zip(subjects, sessions)]
+        return [output_path.format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj in SUBJECTS for ses in SESSIONS[subj]]
+
+
+def get_simulated_cv_summary(batch_size, learning_rate, noise_source, crossval_seed=0, gpus=0,
+                             modeling_goal='model_recovery_cv'):
+    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                               "{modeling_goal}", "n4000_{{sim_model_type}}_s{{sigma}}_"
+                               "a{{sf_ecc_slope}}_b{{sf_ecc_intercept}}_"
+                               "rmc{{rel_mode_cardinals}}_rmo{{rel_mode_obliques}}_rac{{rel_amplitude_cardinals}}_"
+                               "rao{{rel_amplitude_obliques}}_amc{{abs_mode_cardinals}}_amo{{abs_mode_obliques}}_"
+                               "aac{{abs_amplitude_cardinals}}_aao{{abs_amplitude_obliques}}_l1_"
+                               "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
+    output_path = output_path.format(batch_size=batch_size, learning_rate=learning_rate,
+                                     gpus=gpus, modeling_goal=modeling_goal,
+                                     noise_source=noise_source, crossval_seed=crossval_seed)
+    models = [['iso_full_constant', 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0],
+              ['full_full_vary', 1, .75, .25, .1, .05, .03, .1, .2, .05, .04, .03]]
+    return [output_path.format(sim_model_type=m, sigma=s, sf_ecc_slope=a, sf_ecc_intercept=b,
+                               rel_mode_cardinals=rmc, rel_mode_obliques=rmo,
+                               rel_amplitude_cardinals=rac, rel_amplitude_obliques=rao,
+                               abs_mode_cardinals=amc, abs_mode_obliques=amo,
+                               abs_amplitude_cardinals=aac, abs_amplitude_obliques=aao).replace('0.', '.')
+            for m, s, a, b, rmc, rmo, rac, rao, amc, amo, aac, aao in models]
 
 
 rule model_all_subj_bootstrap:
     input:
-        [get_model_subj_outputs("full_full_vary", subj, ses, TASKS[(subj, ses)], bootstrap_num=n,
-                                modeling_goal='bootstrap', df_mode='full')
-         for subj in SUBJECTS for ses in SESSIONS[subj] for n in range(100)]
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                     "bayesian_posterior", "bootstrap",
+                     "v1_e1-12_full_b10_r0.001_g0_full_full_vary_all_models.csv"),
 
 
 rule model_all_subj_visual_field:
     input:
-        [get_model_subj_outputs("full_full_vary", subj, ses, TASKS[(subj, ses)],
-                                modeling_goal="visual_field_%s" % p)
-         for subj in SUBJECTS for ses in SESSIONS[subj] for p in ['upper', 'lower', 'left', 'right', 'inner', 'outer']]
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                      "bayesian_posterior", "visual_field_%s" % p,
+                      "v1_e1-12_summary_b10_r0.001_g0_full_full_vary_all_models.csv") for p in
+         ['upper', 'lower', 'left', 'right', 'inner', 'outer']],
+
+
+rule model_all_subj:
+    input:
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                     "bayesian_posterior", "initial",
+                      "v1_e1-12_summary_b10_r0.001_g0_%s_all_models.csv") % m for m in MODEL_TYPES],
+
+
+rule model_all_subj_cv:
+    input:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                     "bayesian_posterior", "initial_cv", "v1_e1-12_summary_b10_r0.001_g0_s0_"
+                     "all_models.csv"),
 
 
 rule summarize_initial_subj_cv:
     input:
-        # if we don't do this, it passes wildcards as the first argument of the function. since we
-        # don't have any wildcards, this sets crossval_seed=None
-        lambda wildcards: get_cv_summary(),
+        lambda wildcards: get_cv_summary(**wildcards)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_cv_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_timing.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_initial_cv_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_initial_cv_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
+    params:
+        base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
+    run:
+        import sfp
+        sfp.analye_model.combine_crossvalidated_results(params.base_template, output)
 
 
-rule model_all_subj_initial:
+rule summarize_all_simulated_cv:
     input:
-        # [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
-        # [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
-        # [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp') for m in MODEL_TYPES],
-        # [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
-        # [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
-        # [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
-        # [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-pilot01', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-02', 'task-sfpconstant') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-pilot00', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-pilot01', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-01', 'task-sfpconstant') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-pilot01', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-01', 'task-sfpconstant') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-02', 'task-sfp') for m in MODEL_TYPES],
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled') for m in MODEL_TYPES],
-
-
-rule model_subj045_ses04_initial_cv:
-    input:
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-04', 'task-sfprescaled', crossval_seed=0,
-                                modeling_goal='initial_cv') for m in MODEL_TYPES]
-
-
-rule model_subj045_ses03_initial_cv:
-    input:
-        [get_model_subj_outputs(m, 'sub-wlsubj045', 'ses-03', 'task-sfp', crossval_seed=0,
-                                modeling_goal='initial_cv') for m in MODEL_TYPES]
-
-
-rule model_subj001_ses01_initial_cv:
-    input:
-        [get_model_subj_outputs(m, 'sub-wlsubj001', 'ses-01', 'task-sfp', crossval_seed=0,
-                                modeling_goal='initial_cv') for m in MODEL_TYPES]
-
-
-rule model_subj064_ses04_initial_cv:
-    input:
-        [get_model_subj_outputs(m, 'sub-wlsubj064', 'ses-04', 'task-sfprescaled', crossval_seed=0,
-                                modeling_goal='initial_cv') for m in MODEL_TYPES]
-
-
-rule model_subj014_ses03_initial_cv:
-    input:
-        [get_model_subj_outputs(m, 'sub-wlsubj014', 'ses-03', 'task-sfp', crossval_seed=0,
-                                modeling_goal='initial_cv') for m in MODEL_TYPES]
-
-
-rule model_subj004_ses03_initial_cv:
-    input:
-        [get_model_subj_outputs(m, 'sub-wlsubj004', 'ses-03', 'task-sfp', crossval_seed=0,
-                                modeling_goal='initial_cv') for m in MODEL_TYPES]
-
-
-rule model_subj042_ses02_initial_cv:
-    input:
-        [get_model_subj_outputs(m, 'sub-wlsubj042', 'ses-02', 'task-sfp', crossval_seed=0,
-                                modeling_goal='initial_cv') for m in MODEL_TYPES]
+        lambda wildcards: get_simulated_cv_summary(**wildcards)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_cv_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_timing.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
+    params:
+        base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
+    run:
+        import sfp
+        sfp.analyze_model.combine_crossvalidated_results(params.base_template, output)
 
 
 rule GLMdenoise_all_visual:
@@ -402,16 +382,15 @@ rule preprocess_all:
 
 rule move_all:
     input:
-        [os.path.join(config['DATA_DIR'], '{subject}', '{session}').format(subject=subj, session=ses) for subj, ses in
-         zip(['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'],
-             ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04'])],
+        [os.path.join(config['DATA_DIR'], '{subject}', '{session}').format(subject=subj, session=ses) for subj in SUBJECTS
+         for ses in SESSIONS[subj]]
 
 
 rule create_tsv_all:
     input:
-        [os.path.join(config['DATA_DIR'], 'sourcedata', '{subject}', '{session}', '{subject}_{session}_{task}_notes.md').format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj, ses in
-         zip(['sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045', 'sub-wlsubj045'],
-             ['ses-pilot01', 'ses-01', 'ses-02', 'ses-03', 'ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-pilot01', 'ses-01', 'ses-02', 'ses-04'])]
+        [os.path.join(config['DATA_DIR'], 'sourcedata', '{subject}', '{session}', '{subject}_{session}_{task}_notes.md').format(subject=subj, session=ses, task=TASKS[(subj, ses)])
+         for subj in SUBJECTS for ses in SESSIONS[subj]]
+
 
 rule stimuli:
     output:
@@ -499,10 +478,7 @@ rule move_off_tesla:
             wrong_task = params.wrong_task.replace('task-', '')
             right_task = params.right_task.replace('task-', '')
             shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[0]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
-            try:
-                shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[2]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
-            except:
-                warnings.warn("For some reason, no mriqc reports have the wrong_task in them...")
+            shell('grep -rl --exclude \*nii.gz "{wrong_task}" {output[2]} | xargs sed -i "s/{wrong_task}/{right_task}/g"')
 
 
 def get_raw_behavioral_results(wildcards):
@@ -889,7 +865,8 @@ def get_first_level_analysis_input(wildcards):
         benson_prefix = 'benson14'
     elif wildcards.atlas_type == 'bayesian_posterior':
         benson_prefix = 'inferred'
-    if wildcards.subject in ['sub-wlsubj064', 'sub-wlsubj007']:
+    if wildcards.subject in ['sub-wlsubj064', 'sub-wlsubj007', 'sub-wlsubj095', 'sub-wlsubj081',
+                             'sub-wlsubj062']:
         prf_prefix = 'full'
     else:
         prf_prefix = 'all00'
@@ -1165,29 +1142,7 @@ rule calc_cv_error:
         mem = 10
     run:
         import sfp
-        import torch
-        import pandas as pd
-        from torch.utils import data as torchdata
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        ds = sfp.model.FirstLevelDataset(input.dataset_path, device=device)
-        dl = torchdata.DataLoader(ds, len(ds))
-        features, targets = next(iter(dl))
-        preds = torch.empty(targets.shape[:2], dtype=targets.dtype)
-        for path in input.loss_files:
-            m, l, _, _ = sfp.analyze_model.load_single_model(path.replace('_loss.csv', ''), False)
-            test_subset = l.test_subset.unique()
-            test_subset = [int(i) for i in test_subset[0].split(',')]
-            pred = m(features[:, test_subset, :])
-            preds[:, test_subset] = pred
-        cv_loss = sfp.model.weighted_normed_loss(preds, targets).item()
-        data = dict(wildcards)
-        data['loss_func'] = 'weighted_normed_loss'
-        data['dataset_df_path'] = input.dataset_path
-        data.pop('model_type')
-        data['fit_model_type'] = l.fit_model_type.unique()[0]
-        data['cv_loss'] = cv_loss
-        cv_loss_csv = pd.DataFrame(data, index=[0])
-        cv_loss_csv.to_csv(output[0], index=False)
+        sfp.analyze_model.calc_cv_error(input.loss_files, input.dataset_path, wildcards, output)
 
 
 rule summarize_model_cv:
@@ -1216,6 +1171,14 @@ rule summarize_model_cv:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
                      "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
                      "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_diff.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_model_history.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
                      "s{crossval_seed}_all_cv_loss.csv"),
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_summarize", "{subject}_{session}_"
@@ -1225,27 +1188,64 @@ rule summarize_model_cv:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_summarize", "{subject}_{session}_"
                      "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
                      "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_benchmark.txt")
+    params:
+        base_path = lambda wildcards, input: os.path.join(os.path.dirname(input.loss_files[0]),
+                                                          '*c*.pt'),
+        metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
+                    'fit_model_type', 'test_subset'],
     run:
         import sfp
-        import os
-        import pandas as pd
-        models, loss_df, _, model_history = sfp.analyze_model.combine_models(os.path.dirname(input.loss_files[0])+"/*c*.pt", False)
+        sfp.analyze_model.gather_results(params.base_path, output, params.metadata, input.cv_loss)
+
+
+def gather_model_results_input(wildcards):
+    inputs = {}
+    if wildcards.modeling_goal == 'bootstrap':
+        loss_files = [get_model_subj_outputs(subject=subj, session=ses, task=TASKS[(subj, ses)],
+                                             bootstrap_num=n, **wildcards)
+                      for subj in SUBJECTS for ses in SESSIONS[subj] for n in range(100)]
+    else:
+        loss_files = [get_model_subj_outputs(subject=subj, session=ses, task=TASKS[(subj, ses)],
+                                             **wildcards)
+                      for subj in SUBJECTS for ses in SESSIONS[subj]]
+    # this will return a list of lists of strings, so we need to flatten it
+    inputs['loss_files'] = np.array(loss_files).flatten()
+    return inputs
+
+
+rule gather_model_results:
+    input:
+        unpack(gather_model_results_input)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_timing.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_diff.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_model_history.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
+    resources:
+        mem = 100,
+    params:
+        base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), '*', '*',
+                                                           '*'),
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
-                    'fit_model_type', 'test_subset']
-        timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
-        grouped_loss = loss_df.groupby(metadata + ['epoch_num', 'time']).loss.mean().reset_index()
-        grouped_loss = grouped_loss.groupby(metadata).last().reset_index()
-        final_model_history = model_history.groupby(['fit_model_type', 'parameter']).last().reset_index().rename(columns={'parameter': 'model_parameter'})
-        models = pd.merge(models, final_model_history[['fit_model_type', 'model_parameter', 'hessian']])
-        models = models.fillna(0)
-        cv_loss = []
-        for path in input.cv_loss:
-            cv_loss.append(pd.read_csv(path))
-        cv_loss = pd.concat(cv_loss)
-        models.to_csv(output[0], index=False)
-        grouped_loss.to_csv(output[1], index=False)
-        timing_df.to_csv(output[2], index=False)
-        cv_loss.to_csv(output[3], index=False)
+                    'fit_model_type', 'indicator', 'bootstrap_num']
+    run:
+        import sfp
+        sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
 
 
 rule simulate_data_uniform_noise:
@@ -1321,23 +1321,178 @@ rule model_simulated_data:
         "{params.logging} {log}"
 
 
-rule gather_model_results:
+def gather_simulated_model_results_input(wildcards):
+    inputs = {}
+    if wildcards.modeling_goal == 'learning_hyperparams_full':
+        batch = [1, 10, 100]
+        lr = [1e-2, 1e-3, 1e-4]
+        models = ['iso_full_constant', 'full_full_vary']
+        loss_files = []
+        for b, l, m  in itertools.product(batch, lr, models):
+            loss_files.append(get_simulated_model_outputs(
+                m, 'iso_full_constant', 1, 4000, b, l, 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0,
+                **wildcards))
+            loss_files.append(get_simulated_model_outputs(
+                m, 'full_full_vary', 1, 4000, b, l, 1, .75, .25, .1, .05, .03, .1, .2, .05, .04,
+                .3, **wildcards))
+    elif wildcards.modeling_goal == 'model_recovery':
+        loss_files = []
+        for m  in MODEL_TYPES:
+            loss_files.append(get_simulated_model_outputs(
+                m, 'iso_full_constant', 1, 4000, 10, 1e-3, 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0,
+                **wildcards))
+            loss_files.append(get_simulated_model_outputs(
+                m, 'full_full_vary', 1, 4000, 10, 1e-3, 1, .75, .25, .1, .05, .03, .1, .2, .05,
+                .04, .3, **wildcards))
+    # this will return a list of lists of strings, so we need to flatten it
+    inputs['loss_files'] = np.array(loss_files).flatten()
+    return inputs
+
+
+# this correctly calculates the CV error, in a way we don't get otherwise
+rule calc_simulated_cv_error:
+    input:
+        loss_files = lambda wildcards: get_simulated_model_outputs(**wildcards),
+        dataset_path = os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data',
+                                    '{noise_source}', 'n{num_voxels}_{sim_model_type}_s{sigma}_'
+                                    'a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_'
+                                    'rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_'
+                                    'rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_'
+                                    'amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_'
+                                    'aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_model.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_features.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_model_history.csv"),
-    benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv"),
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_cv_loss",
+                     "noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_model_type}_s{sigma}_"
+                     "a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_"
+                     "rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}"
+                     "_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}"
+                     "_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_{model_type}-%j.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_cv_loss",
+                     "noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_model_type}_s{sigma}_"
+                     "a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_"
+                     "rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}"
+                     "_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}"
+                     "_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_{model_type}_benchmark.txt")
+    resources:
+        mem = 10
+    run:
+        import sfp
+        sfp.analyze_model.calc_cv_error(input.loss_files, input.dataset_path, wildcards, output)
+
+
+rule summarize_simulated_cv:
+    input:
+        # this will return a list of lists of strings, so we need to flatten it
+        loss_files = lambda wildcards: np.array([get_simulated_model_outputs(m, **wildcards) for m in MODEL_TYPES]).flatten(),
+        cv_loss = lambda wildcards: [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                                                  "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                                                  "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                                                  "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                                                  "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                                                  "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv").format(model_type=m, **wildcards)
+                                     for m in MODEL_TYPES],
+
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_timing.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_diff.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_model_history.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize",
+                     "noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_model_type}_s{sigma}_"
+                     "a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_"
+                     "rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}"
+                     "_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}"
+                     "_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}-%j.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize",
+                     "noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_model_type}_s{sigma}_"
+                     "a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_"
+                     "rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}"
+                     "_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}"
+                     "_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_benchmark.txt")
+    params:
+        base_path = lambda wildcards, input: os.path.join(os.path.dirname(input.loss_files[0]),
+                                                          "*c*.pt"),
+        metadata = ['modeling_goal', 'batch_size', 'learning_rate', 'fit_model_type',
+                    'true_model_type']
+    run:
+        import sfp
+        sfp.analyze_model.gather_results(params.base_path, output, params.metadata, input.cv_loss)
+
+
+rule gather_simulated_model_results:
+    input:
+        unpack(gather_simulated_model_results_input)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "g{gpus}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "g{gpus}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "g{gpus}_all_timing.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "g{gpus}_all_diff.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "g{gpus}_all_model_history.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_{modeling_goal}_g{gpus}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_{modeling_goal}_g{gpus}_all-%j.log")
     resources:
         mem = 100,
     params:
-        base_path_template = lambda wildcards, output: output[0].replace("_all_loss.csv", '\*'),
-        save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
-    shell:
-        "python -m sfp.analyze_model {params.base_path_template} {params.save_stem}"
+        base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]),
+                                                           '*g%s*' % wildcards.gpus),
+        metadata = ['modeling_goal', 'batch_size', 'learning_rate', 'fit_model_type',
+                    'true_model_type']
+    run:
+        import sfp
+        sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
 
 
 rule prepare_image_computable:
@@ -1388,3 +1543,18 @@ rule report:
            {benchmarks}
 
         """, output[0], **input)
+
+
+rule all:
+    input:
+        rules.model_learning_hyperparams_full.input,
+        rules.model_recovery_initial.input,
+        rules.model_recovery_cv_initial.input,
+        rules.model_all_subj_bootstrap.input,
+        rules.model_all_subj_visual_field.input,
+        rules.model_all_subj.input,
+        rules.model_all_subj_cv.input,
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "stim_class",
+                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "stim_class",
+                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
