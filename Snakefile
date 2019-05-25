@@ -44,7 +44,8 @@ WRONG_TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-TASK',
                ('sub-wlsubj042', 'ses-01'): 'task-TASK', ('sub-wlsubj014', 'ses-03'): 'task-TASK',
                ('sub-wlsubj042', 'ses-pilot00'): 'task-TASK',
                ('sub-wlsubj042', 'ses-pilot01'): 'task-spatialfrequency',
-               ('sub-wlsubj045', 'ses-pilot01'): 'task-spatialfrequency'}
+               ('sub-wlsubj045', 'ses-pilot01'): 'task-spatialfrequency',
+               ('sub-wlsubj064', 'ses-04'): 'task-sfprescaledcmrr'}
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
          ('sub-wlsubj045', 'ses-04'): 7}
