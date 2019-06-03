@@ -991,13 +991,8 @@ def get_tuning_curves(wildcards):
         sessions = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot01'],
                     'sub-wlsubj045': ['ses-pilot01']}
     else:
-        # subjects = SUBJECTS
-        # sessions = SESSIONS
-        subjects = ['sub-wlsubj001', 'sub-wlsubj014', 'sub-wlsubj042', 'sub-wlsubj045']
-        sessions = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
-                    'sub-wlsubj014': ['ses-03'],
-                    'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
-                    'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02', 'ses-04']}
+        subjects = SUBJECTS
+        sessions = SESSIONS
     vareas = wildcards.vareas.split('-')
     return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}',
                          '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_'
