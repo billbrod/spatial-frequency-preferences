@@ -835,7 +835,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=10, train_thresh=1e-6, 
             loss_df, results_df, model_history_df = construct_dfs(
                 model, dataset, loss_history, time_history, model_history, hessian_history,
                 max_epochs, batch_size, learning_rate, train_thresh, t, loss_func=loss_func)
-            if not cv_flag and dataset.boostrap_num is not None:
+            if not cv_flag and dataset.bootstrap_num is not None:
                 save_outputs(model, loss_df, results_df, model_history_df, save_path_stem)
             else:
                 save_outputs(model, loss_df, None, model_history_df, save_path_stem)
