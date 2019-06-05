@@ -268,8 +268,8 @@ def _calc_sf_analytically(x, y, stim_type='logpolar', w_r=None, w_a=None, w_x=No
     elif stim_type == 'constant':
         try:
             size = x.shape
-            dy = w_y * np.ones((size, size))
-            dx = w_x * np.ones((size, size))
+            dy = w_y * np.ones(size)
+            dx = w_x * np.ones(size)
         # if x is an int, this will raise a SyntaxError; if it's a float, it will raise an
         # AttributeError; if it's an array with a single value (e.g., np.array(1), not
         # np.array([1])), then it will raise a TypeError
