@@ -1238,7 +1238,7 @@ rule gather_model_results:
         base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), '*', '*',
                                                            '*'),
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
-                    'fit_model_type', 'indicator', 'bootstrap_num']
+                    'fit_model_type', 'indicator', 'bootstrap_num', 'test_subset']
     run:
         import sfp
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
