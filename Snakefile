@@ -315,9 +315,9 @@ rule summarize_all_simulated_cv:
                      "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
                      "s{crossval_seed}_all_timing.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
     params:
         base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
     run:
@@ -1476,9 +1476,9 @@ rule gather_simulated_model_results:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
                      "{modeling_goal}", "g{gpus}_all_model_history.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_{modeling_goal}_g{gpus}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_{modeling_goal}_g{gpus}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{noise_source}_{modeling_goal}_g{gpus}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_{modeling_goal}_g{gpus}_all-%j.log")
     resources:
         mem = 100,
     params:
