@@ -295,7 +295,7 @@ rule summarize_initial_subj_cv:
         base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
     run:
         import sfp
-        sfp.analye_model.combine_crossvalidated_results(params.base_template, output)
+        sfp.analyze_model.combine_crossvalidated_results(params.base_template, output)
 
 
 rule summarize_all_simulated_cv:
