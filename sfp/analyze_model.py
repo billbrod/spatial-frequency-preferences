@@ -152,13 +152,12 @@ def _finish_feature_df(df, reference_frame='absolute'):
         df["Retinotopic angle (rad)"] = df["Retinotopic angle (rad)"].map(dict((k, v) for k, v in
                                                                                zip(angle_ref,
                                                                                    angle_labels)))
-    if np.array_equiv(angle_ref, df["Orientation (rad)"].unique()):
-        if reference_frame == 'relative':
-            df["Stimulus type"] = df["Orientation (rad)"].map(dict((k, v) for k, v in
-                                                                   zip(angle_ref, rel_labels)))
-        elif reference_frame == 'absolute':
-            df["Stimulus type"] = df["Orientation (rad)"].map(dict((k, v) for k, v in
-                                                                   zip(angle_ref, abs_labels)))
+    if reference_frame == 'relative':
+        df["Stimulus type"] = df["Orientation (rad)"].map(dict((k, v) for k, v in
+                                                               zip(angle_ref, rel_labels)))
+    elif reference_frame == 'absolute':
+        df["Stimulus type"] = df["Orientation (rad)"].map(dict((k, v) for k, v in
+                                                               zip(angle_ref, abs_labels)))
     return df
 
 
