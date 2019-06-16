@@ -766,7 +766,7 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
                     plot_func=sns.lineplot, x='Eccentricity (deg)', y='Preferred period (dpc)',
                     yticks=[0, 1, 2], xticks=[0, 2, 4, 6, 8, 10], height=4, aspect=1,
                     title='Preferred period', top=.85, pal=None, col_order=None, row_order=None,
-                    ci=68, n_boot=10000, pre_boot_gb_func=None,
+                    ylim=None, xlim=None, ci=68, n_boot=10000, pre_boot_gb_func=None,
                     pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
                                       'Eccentricity (deg)']):
     if pal is None and hue == 'Stimulus type':
@@ -778,7 +778,7 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     if pre_boot_gb_func is not None:
         feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
     g = sns.FacetGrid(feature_df, hue=hue, col=col, row=row, height=height, aspect=aspect,
-                      palette=pal)
+                      palette=pal, xlim=xlim, ylim=ylim)
     g.map(plot_func, x, y, ci=ci, n_boot=n_boot)
     g.add_legend()
     for ax in g.axes.flatten():
@@ -799,7 +799,8 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                           r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, height=4,
                           aspect=1, title='Preferred period contours', top=.76, pal=None,
                           col_order=None, row_order=None, title_position=[.5, 1.15], ylabelpad=30,
-                          legend_position=None, ci=68, n_boot=10000, pre_boot_gb_func=None,
+                          legend_position=None, ylim=None, xlim=None, ci=68, n_boot=10000,
+                          pre_boot_gb_func=None,
                           pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
                                             'Eccentricity (deg)']):
     if pal is None and hue == 'Stimulus type':
@@ -811,7 +812,8 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     if pre_boot_gb_func is not None:
         feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
     g = sns.FacetGrid(feature_df, col=col, hue=hue, row=row, subplot_kws={'projection': 'polar'},
-                      despine=False, height=height, aspect=aspect, palette=pal)
+                      despine=False, height=height, aspect=aspect, palette=pal, xlim=xlim,
+                      ylim=ylim)
     g.map(sns.lineplot, theta, r, ci=ci, n_boot=n_boot)
     for i, ax in enumerate(g.axes.flatten()):
         ax.title.set_position(title_position)
