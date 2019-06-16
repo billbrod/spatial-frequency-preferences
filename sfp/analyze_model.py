@@ -180,7 +180,7 @@ def create_preferred_period_df(model, retinotopic_angle=np.linspace(0, np.pi, 4,
 
 
 def create_preferred_period_contour_df(model,
-                                       retinotopic_angle=np.linspace(0, np.pi, 48, endpoint=False),
+                                       retinotopic_angle=np.linspace(0, 2*np.pi, 49),
                                        orientation=np.linspace(0, np.pi, 4, endpoint=False),
                                        period_target=[.5, 1, 1.5], reference_frame='absolute'):
     df = []
