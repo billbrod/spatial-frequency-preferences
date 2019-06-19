@@ -7,6 +7,7 @@ import matplotlib as mpl
 # warning to that effect; that's unnecessarily alarming, so we hide it.
 mpl.use('svg', warn=False)
 import argparse
+import itertools
 from . import utils
 import warnings
 import os
@@ -23,6 +24,10 @@ from sklearn import linear_model
 LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'angular', 'reverse spiral', 'mixtures']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal',
                              'off-diagonal']
+PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
+               ['%s_%s_%s' % (i, j, k) for j, i, k in
+                itertools.product(['amplitude', 'mode'], ['abs', 'rel'],
+                                  ['cardinals', 'obliques'])])
 
 
 def stimulus_type_palette(reference_frame):
