@@ -58,7 +58,8 @@ def load_single_model(save_path_stem, load_results_df=True):
     model_history_df = pd.read_csv(save_path_stem + "_model_history.csv")
     if 'test_subset' not in loss_df.columns or 'test_subset' not in model_history_df.columns:
         # unclear why this happens, it's really strange
-        assert save_path_stem.split('_')[-4].startswith('c'), "Can't grab test_subset from path!"
+        if not save_path_stem.split('_')[-4].startswith('c'):
+            raise Exception("Can't grab test_subset from path %s!" % save_path_stem)
         # this will give it the same spacing as the original version
         test_subset = ', '.join(save_path_stem.split('_')[-4][1:].split(','))
         if "test_subset" not in loss_df.columns:
@@ -299,7 +300,7 @@ def gather_results(base_path, outputs, metadata, cv_loss_files=None):
         cv_loss.to_csv(outputs[-1], index=False)
 
 
-def combine_crossvalidated_results(base_template, outputs):
+def combine_summarized_results(base_template, outputs, cv_loss_flag=True):
     models = []
     grouped_loss_df = []
     timing_df = []
@@ -307,16 +308,18 @@ def combine_crossvalidated_results(base_template, outputs):
     for p in base_template:
         models.append(pd.read_csv(p+'_all_models.csv'))
         grouped_loss_df.append(pd.read_csv(p+'_all_loss.csv'))
-        cv_loss.append(pd.read_csv(p+'_all_cv_loss.csv'))
         timing_df.append(pd.read_csv(p+'_all_timing.csv'))
+        if cv_loss_flag:
+            cv_loss.append(pd.read_csv(p+'_all_cv_loss.csv'))
     models = pd.concat(models, sort=False)
     grouped_loss_df = pd.concat(grouped_loss_df, sort=False)
     timing_df = pd.concat(timing_df, sort=False)
-    cv_loss = pd.concat(cv_loss, sort=False)
     models.to_csv(outputs[0], index=False)
     grouped_loss_df.to_csv(outputs[1], index=False)
-    cv_loss.to_csv(outputs[2], index=False)
-    timing_df.to_csv(outputs[3], index=False)
+    timing_df.to_csv(outputs[2], index=False)
+    if cv_loss_flag:
+        cv_loss = pd.concat(cv_loss, sort=False)
+        cv_loss.to_csv(outputs[3], index=False)
 
 
 if __name__ == '__main__':

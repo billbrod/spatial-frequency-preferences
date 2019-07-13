@@ -206,47 +206,12 @@ def get_simulated_model_outputs(model_type, sim_model_type, noise_level, num_vox
         return [output_path.format(crossval=n) for n in create_crossval_idx(4, ses, 'stim_class', int(crossval_seed))]
 
 
-def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
-                   df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='bayesian_posterior',
-                   modeling_goal='initial_cv'):
-        output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
-                                   "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
-                                   "{{subject}}_{{session}}_{{task}}_v{vareas}_e{eccen}_{df_mode}_b{batch"
-                                   "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
-        output_path = output_path.format(vareas=vareas, mat_type=mat_type, batch_size=batch_size,
-                                         eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
-                                         modeling_goal=modeling_goal, gpus=gpus,
-                                         crossval_seed=crossval_seed, learning_rate=learning_rate)
-        return [output_path.format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj in SUBJECTS for ses in SESSIONS[subj]]
-
-
-def get_simulated_cv_summary(batch_size, learning_rate, noise_source, crossval_seed=0, gpus=0,
-                             modeling_goal='model_recovery_cv'):
-    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
-                               "{modeling_goal}", "n4000_{{sim_model_type}}_s{{sigma}}_"
-                               "a{{sf_ecc_slope}}_b{{sf_ecc_intercept}}_"
-                               "rmc{{rel_mode_cardinals}}_rmo{{rel_mode_obliques}}_rac{{rel_amplitude_cardinals}}_"
-                               "rao{{rel_amplitude_obliques}}_amc{{abs_mode_cardinals}}_amo{{abs_mode_obliques}}_"
-                               "aac{{abs_amplitude_cardinals}}_aao{{abs_amplitude_obliques}}_l1_"
-                               "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
-    output_path = output_path.format(batch_size=batch_size, learning_rate=learning_rate,
-                                     gpus=gpus, modeling_goal=modeling_goal,
-                                     noise_source=noise_source, crossval_seed=crossval_seed)
-    models = [['iso_full_constant', 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0],
-              ['full_full_vary', 1, .75, .25, .1, .05, .03, .1, .2, .05, .04, .03]]
-    return [output_path.format(sim_model_type=m, sigma=s, sf_ecc_slope=a, sf_ecc_intercept=b,
-                               rel_mode_cardinals=rmc, rel_mode_obliques=rmo,
-                               rel_amplitude_cardinals=rac, rel_amplitude_obliques=rao,
-                               abs_mode_cardinals=amc, abs_mode_obliques=amo,
-                               abs_amplitude_cardinals=aac, abs_amplitude_obliques=aao).replace('0.', '.')
-            for m, s, a, b, rmc, rmo, rac, rao, amc, amo, aac, aao in models]
-
-
 rule model_all_subj_bootstrap:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
                      "v1_e1-12_full_b10_r0.001_g0_full_full_vary_all_models.csv"),
+    
 
 
 rule model_all_subj_visual_field:
@@ -269,60 +234,6 @@ rule model_all_subj_cv:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial_cv", "v1_e1-12_summary_b10_r0.001_g0_s0_"
                      "all_models.csv"),
-
-
-rule summarize_initial_subj_cv:
-    input:
-        lambda wildcards: get_cv_summary(**wildcards)
-    output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
-                     "g{gpus}_s{crossval_seed}_all_models.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
-                     "g{gpus}_s{crossval_seed}_all_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
-                     "g{gpus}_s{crossval_seed}_all_cv_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "initial_cv", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
-                     "g{gpus}_s{crossval_seed}_all_timing.csv"),
-    benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_initial_cv_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
-    log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_initial_cv_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
-    params:
-        base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
-    run:
-        import sfp
-        sfp.analyze_model.combine_crossvalidated_results(params.base_template, output)
-
-
-rule summarize_all_simulated_cv:
-    input:
-        lambda wildcards: get_simulated_cv_summary(**wildcards)
-    output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
-                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
-                     "s{crossval_seed}_all_models.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
-                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
-                     "s{crossval_seed}_all_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
-                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
-                     "s{crossval_seed}_all_cv_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
-                     "model_recovery_cv", "b{batch_size}_r{learning_rate}_g{gpus}_"
-                     "s{crossval_seed}_all_timing.csv"),
-    benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
-    log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_model_recovery_cv_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
-    params:
-        base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
-    run:
-        import sfp
-        sfp.analyze_model.combine_crossvalidated_results(params.base_template, output)
 
 
 rule GLMdenoise_all_visual:
@@ -1194,12 +1105,51 @@ rule summarize_model_cv:
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata, input.cv_loss)
 
 
+def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
+                   df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='bayesian_posterior',
+                   modeling_goal='initial_cv'):
+        output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                                   "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
+                                   "{{subject}}_{{session}}_{{task}}_v{vareas}_e{eccen}_{df_mode}_b{batch"
+                                   "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
+        output_path = output_path.format(vareas=vareas, mat_type=mat_type, batch_size=batch_size,
+                                         eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
+                                         modeling_goal=modeling_goal, gpus=gpus,
+                                         crossval_seed=crossval_seed, learning_rate=learning_rate)
+        return [output_path.format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj in SUBJECTS for ses in SESSIONS[subj]]
+
+
+rule combine_model_cv_summaries:
+    input:
+        lambda wildcards: get_cv_summary(**wildcards)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_timing.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_s{crossval_seed}_all_cv_loss.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
+    params:
+        base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
+    run:
+        import sfp
+        sfp.analyze_model.combine_summarized_results(params.base_template, output)
+
+
 def gather_model_results_input(wildcards):
     inputs = {}
     if wildcards.modeling_goal == 'bootstrap':
-        loss_files = [get_model_subj_outputs(subject=subj, session=ses, task=TASKS[(subj, ses)],
-                                             bootstrap_num=n, **wildcards)
-                      for subj in SUBJECTS for ses in SESSIONS[subj] for n in range(100)]
+        loss_files = [get_model_subj_outputs(bootstrap_num=n, **wildcards) for n in range(100)]
     else:
         loss_files = [get_model_subj_outputs(subject=subj, session=ses, task=TASKS[(subj, ses)],
                                              **wildcards)
@@ -1207,6 +1157,68 @@ def gather_model_results_input(wildcards):
     # this will return a list of lists of strings, so we need to flatten it
     inputs['loss_files'] = np.array(loss_files).flatten()
     return inputs
+
+
+rule gather_model_results_preliminary:
+    input:
+        unpack(gather_model_results_input)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}",  "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_timing.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}",  "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_diff.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "{modeling_goal}",  "{subject}", "{session}", "{subject}_{session}_{task}_"
+                     "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_model_history.csv")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
+    resources:
+        mem = 100,
+    params:
+        base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), '*'),
+        metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
+                    'fit_model_type', 'indicator', 'bootstrap_num', 'test_subset']
+    run:
+        import sfp
+        sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
+
+
+rule summarize_gathered_results:
+    input:
+        [lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                                       "bootstrap", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                                       "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
+                                        "{model_type}_all_models.csv").format(subject=subj, session=ses, task=TASKS[(subj, ses)], **wildcards)
+         for subj in SUBJECTS for ses in SESSIONS[subj]]
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "bootstrap", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "bootstrap", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+                     "bootstrap", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "g{gpus}_{model_type}_all_timing.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
+    params:
+        base_template = lambda wildcards, input: [i.replace('_all_models.csv', '') for i in input]
+    run:
+        import sfp
+        sfp.analyze_model.combine_summarized_results(params.base_template, output, False)
 
 
 rule gather_model_results:
@@ -1459,6 +1471,55 @@ rule summarize_simulated_cv:
     run:
         import sfp
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata, input.cv_loss)
+
+
+def get_simulated_cv_summary(batch_size, learning_rate, noise_source, crossval_seed=0, gpus=0,
+                             modeling_goal='model_recovery_cv'):
+    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                               "{modeling_goal}", "n4000_{{sim_model_type}}_s{{sigma}}_"
+                               "a{{sf_ecc_slope}}_b{{sf_ecc_intercept}}_"
+                               "rmc{{rel_mode_cardinals}}_rmo{{rel_mode_obliques}}_rac{{rel_amplitude_cardinals}}_"
+                               "rao{{rel_amplitude_obliques}}_amc{{abs_mode_cardinals}}_amo{{abs_mode_obliques}}_"
+                               "aac{{abs_amplitude_cardinals}}_aao{{abs_amplitude_obliques}}_l1_"
+                               "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
+    output_path = output_path.format(batch_size=batch_size, learning_rate=learning_rate,
+                                     gpus=gpus, modeling_goal=modeling_goal,
+                                     noise_source=noise_source, crossval_seed=crossval_seed)
+    models = [['iso_full_constant', 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0],
+              ['full_full_vary', 1, .75, .25, .1, .05, .03, .1, .2, .05, .04, .03]]
+    return [output_path.format(sim_model_type=m, sigma=s, sf_ecc_slope=a, sf_ecc_intercept=b,
+                               rel_mode_cardinals=rmc, rel_mode_obliques=rmo,
+                               rel_amplitude_cardinals=rac, rel_amplitude_obliques=rao,
+                               abs_mode_cardinals=amc, abs_mode_obliques=amo,
+                               abs_amplitude_cardinals=aac, abs_amplitude_obliques=aao).replace('0.', '.')
+            for m, s, a, b, rmc, rmo, rac, rao, amc, amo, aac, aao in models]
+
+
+rule combine_simulated_cv_summaries:
+    input:
+        lambda wildcards: get_simulated_cv_summary(**wildcards)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_timing.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "b{batch_size}_r{learning_rate}_g{gpus}_"
+                     "s{crossval_seed}_all_cv_loss.csv"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_{modeling_goal}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_summarize", "{noise_source}_{modeling_goal}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
+    params:
+        base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
+    run:
+        import sfp
+        sfp.analyze_model.combine_summarized_results(params.base_template, output)
 
 
 rule gather_simulated_model_results:
