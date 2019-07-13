@@ -67,5 +67,9 @@
 	"mem": "{resources.mem}GB",
 	"cpus_per_task": "{resources.cpus_per_task}",
 	"gres": "gpu:{resources.gpus}"
+    },
+    "gather_model_results":
+    {
+	"mem": "{resources.mem}GB"
     }
 }
