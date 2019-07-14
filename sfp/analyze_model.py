@@ -270,6 +270,8 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs):
     data['dataset_df_path'] = dataset_path
     data.pop('model_type')
     data['fit_model_type'] = l.fit_model_type.unique()[0]
+    if 'true_model_type' in l.columns:
+        data['true_model_type'] = l.true_model_type.unique()[0]
     data['cv_loss'] = cv_loss
     cv_loss_csv = pd.DataFrame(data, index=[0])
     cv_loss_csv.to_csv(outputs[0], index=False)

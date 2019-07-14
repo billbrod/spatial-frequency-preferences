@@ -1467,7 +1467,7 @@ rule summarize_simulated_cv:
         base_path = lambda wildcards, input: os.path.join(os.path.dirname(input.loss_files[0]),
                                                           "*c*.pt"),
         metadata = ['modeling_goal', 'batch_size', 'learning_rate', 'fit_model_type',
-                    'true_model_type']
+                    'true_model_type', 'test_subset']
     run:
         import sfp
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata, input.cv_loss)
