@@ -224,9 +224,9 @@ rule model_all_subj_visual_field:
 
 rule model_all_subj:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                      "v1_e1-12_summary_b10_r0.001_g0_%s_all_models.csv") % m for m in MODEL_TYPES],
+                     "v1_e1-12_summary_b10_r0.001_g0_full_full_vary_all_models.csv"),
 
 
 rule model_all_subj_cv:
@@ -1248,7 +1248,7 @@ rule gather_model_results:
         mem = 100,
     params:
         base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), '*', '*',
-                                                           '*'),
+                                                           '*'+wildcards.model_type+'*'),
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
                     'fit_model_type', 'indicator', 'bootstrap_num', 'test_subset']
     run:
