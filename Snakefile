@@ -1195,11 +1195,11 @@ rule gather_model_results_preliminary:
 
 rule summarize_gathered_results:
     input:
-        [lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
+        lambda wildcards: [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
                                        "bootstrap", "{subject}", "{session}", "{subject}_{session}_{task}_"
                                        "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
                                         "{model_type}_all_models.csv").format(subject=subj, session=ses, task=TASKS[(subj, ses)], **wildcards)
-         for subj in SUBJECTS for ses in SESSIONS[subj]]
+                           for subj in SUBJECTS for ses in SESSIONS[subj]]
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
                      "bootstrap", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
