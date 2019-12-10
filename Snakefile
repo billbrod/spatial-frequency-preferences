@@ -813,9 +813,7 @@ rule first_level_analysis:
         save_dir = lambda wildcards, output: os.path.dirname(output[0]),
         vareas = lambda wildcards: wildcards.vareas.split('-'),
         eccen = lambda wildcards: wildcards.eccen.split('-'),
-        # for some reason, input.benson_paths only includes the first of the benson_paths (but all
-        # of them are included in input, so snakemake checks for them correctly)
-        benson_template = lambda wildcards, input: input.benson_paths.replace('lh', '%s').replace('angle', '%s').replace('benson14_', '').replace('inferred_', '').replace(wildcards.atlas_type, '%s'),
+        benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s').replace('benson14_', '').replace('inferred_', '').replace(wildcards.atlas_type, '%s'),
         benson_names = lambda wildcards, input: [i.split('.')[-2] for i in input if wildcards.atlas_type+'/lh' in i],
         prf_names = lambda wildcards, input: [i.split('.')[-2] for i in input if 'data/lh' in i],
         class_num = lambda wildcards: get_n_classes(wildcards.session, wildcards.mat_type),
