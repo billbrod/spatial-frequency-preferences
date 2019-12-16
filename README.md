@@ -240,6 +240,15 @@ either
    takes), and give people the option to take the outputs of the
    `first_level_analysis` or trust mine.
 
+In addition to sharing the code:
+1. Put something together to explore effect of changing model
+   parameters on plots (ideally that can be both in notebook and a web
+   app), with buttons that give random parametrizations and make clear
+   the model name
+2. have separate GitHub repo with just code for model, some
+   exploration of it, code for analyzing it, parameters csvs (up on
+   pip)
+
 Project Organization
 ------------
 
