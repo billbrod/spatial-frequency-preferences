@@ -1,5 +1,5 @@
-DATA_DIR: "/users/broderick/mnt/Acadia/Projects/spatial_frequency_preferences/BIDS"
-MRI_TOOLS: "/users/broderick/Documents/MRI_tools"
+DATA_DIR: "/mnt/prince_scratch/spatial_frequency_preferences"
+MRI_TOOLS: "/home/billbrod/Documents/MRI_tools"
 FREESURFER_DIR: "/share/apps/freesurfer/6.0.0"
 GLMDENOISE_PATH: "/home/wfb229/matlab-toolboxes/GLMdenoise"
 WORKING_DIR: "/users-local/broderick/preprocess"
