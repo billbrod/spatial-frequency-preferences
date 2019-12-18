@@ -37,7 +37,9 @@ Python:
    torchvision-cpu -c pytorch` if you don't (if in doubt, use the
    second command).
  - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
-   (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/))
+   (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/)),
+   commit
+   [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e)
 
 Other: 
 
