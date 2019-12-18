@@ -37,7 +37,9 @@ Python:
    torchvision-cpu -c pytorch` if you don't (if in doubt, use the
    second command).
  - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
-   (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/))
+   (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/)),
+   commit
+   [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e)
 
 Other: 
 
@@ -239,6 +241,23 @@ either
    need to double-check how long creating the various csv files
    takes), and give people the option to take the outputs of the
    `first_level_analysis` or trust mine.
+
+In addition to sharing the code:
+1. Put something together to explore effect of changing model
+   parameters on plots (ideally that can be both in notebook and a web
+   app), with buttons that give random parametrizations and make clear
+   the model name -- I think plotly necessary for this, altair would
+   require pre-generating the dataframe (which would be too large
+   because we have 11 parameters), and bokeh doesn't have native
+   support for polar plots. (app would therefore be built with
+   [dash](https://github.com/plotly/dash))
+2. have separate GitHub repo with just code for model, some
+   exploration of it, code for analyzing it, parameters csvs (up on
+   pip); this should include the above
+3. also take that spatial-frequency-stimuli repo, and extend that /
+   make sure it's easy to generate the stimuli. potentially put
+   together some web app for that as well? could try to do something
+   simple to show the frequency of stimuli, etc
 
 Project Organization
 ------------
