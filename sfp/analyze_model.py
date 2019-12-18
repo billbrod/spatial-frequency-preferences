@@ -142,6 +142,33 @@ def combine_models(base_path_template, load_results_df=True):
 
 
 def _finish_feature_df(df, reference_frame='absolute'):
+    """helper function to clean up the feature dataframes
+
+    This helper function cleans up the feature dataframes so that they
+    can be more easily used for plotting with feature_df_plot and
+    feature_df_polar_plot functions. It performs the following actions:
+
+    1. Adds reference_frame as column.
+
+    2. Converts retinotopic angles to human-readable labels (only if
+       default retinotopic angles used).
+
+    3. Adds "Stimulus type" as column, giving human-readable labels
+       based on "Orientation" columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The feature dataframe to finish up
+    reference_frame : {'absolute, 'relative'}
+        The reference frame of df
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The cleaned up dataframe
+
+    """
     if isinstance(df, list):
         df = pd.concat(df).reset_index(drop=True)
     df['reference_frame'] = reference_frame
@@ -162,9 +189,79 @@ def _finish_feature_df(df, reference_frame='absolute'):
     return df
 
 
-def create_preferred_period_df(model, retinotopic_angle=np.linspace(0, np.pi, 4, endpoint=False),
+def create_preferred_period_df(model, reference_frame='absolute',
+                               retinotopic_angle=np.linspace(0, np.pi, 4, endpoint=False),
                                orientation=np.linspace(0, np.pi, 4, endpoint=False),
-                               eccentricity=np.linspace(0, 11, 11), reference_frame='absolute'):
+                               eccentricity=np.linspace(0, 11, 11)):
+    """Create dataframe summarizing preferred period as function of eccentricity
+
+    Generally, you should not call this function directly, but use
+    create_feature_df. Differences from that function: this functions
+    requires the initialized model and only creates the info for a
+    single model, while create_feature_df uses the models dataframe to
+    initialize models itself, and combines the outputs across multiple
+    indicators.
+
+    This function creates a dataframe summarizing the specified model's
+    preferred period as a function of eccentricity, for multiple
+    stimulus orientations (in either absolute or relative reference
+    frames) and retinotopic angles. This dataframe is then used for
+    creating plots to summarize the model.
+
+    Unless you have something specific in mind, you can trust the
+    default options for retinotopic_angle, orientation, and
+    eccentricity.
+
+    Parameters
+    ----------
+    model : sfp.model.LogGaussianDonut
+        a single, initialized model, which we will summarize.
+    reference_frame : {"absolute", "relative"}, optional
+        Whether we use the absolute or relative reference frame in the
+        feature dataframe; that is whether we consider conventional
+        gratings (absolute, orientation is relative to
+        vertical/horizontal), or our log-polar gratings (relative,
+        orientation is relative to fovea).
+    retinotopic_angle : np.array, optional
+        Array specifying which retinotopic angles to find the preferred
+        period for. If you don't care about retinotopic angle and just
+        want to summarize the model's overall features, you should use
+        the default (which includes all angles where the model can have
+        different preferences, based on its parametrization) and then
+        average over them.
+    orientation : np.array, optional
+        Array specifying which stimulus orientations to find the
+        preferred period for. Note that the meaning of these
+        orientations will differ depending on the value of
+        reference_frame; you should most likely plot and interpret the
+        output based on the "Stimulus type" column instead (which
+        include strings like 'vertical'/'horizontal' or
+        'radial'/'angular'). However, this mapping can only happen if
+        the values in orientation line up with our stimuli (0, pi/4,
+        pi/2, 3*pi/2), and thus it's especially recommended that you use
+        the default value for this argument. If you don't care about
+        orientation and just want to summarize the model's overall
+        features, you should use the default (which includes all
+        orientations where the model can have different preferences,
+        based on its parametrization) and then average over them.
+    eccentricity : np.array, optional
+        Array specifying which eccentricities to find the preferred
+        period for. The default values span the range of measurements
+        for our experiment, but you can certainly go higher if you
+        wish. Note that, for creating the plot of preferred period as a
+        function of eccentricity, the model's predictions will always be
+        linear and so you most likely only need 2 points. More are
+        included because you may want to examine the preferred period at
+        specific eccentricities
+
+    Returns
+    -------
+    preferred_period_df : pd.DataFrame
+        Dataframe containing preferred period of the model, to use with
+        sfp.plotting.feature_df_plot for plotting preferred period as a
+        function of eccentricity.
+
+    """
     df = []
     for o in orientation:
         if reference_frame == 'absolute':
@@ -179,10 +276,77 @@ def create_preferred_period_df(model, retinotopic_angle=np.linspace(0, np.pi, 4,
     return _finish_feature_df(df, reference_frame)
 
 
-def create_preferred_period_contour_df(model,
+def create_preferred_period_contour_df(model, reference_frame='absolute',
                                        retinotopic_angle=np.linspace(0, 2*np.pi, 49),
                                        orientation=np.linspace(0, np.pi, 4, endpoint=False),
-                                       period_target=[.5, 1, 1.5], reference_frame='absolute'):
+                                       period_target=[.5, 1, 1.5], ):
+    """Create dataframe summarizing preferred period as function of retinotopic angle
+
+    Generally, you should not call this function directly, but use
+    create_feature_df. Differences from that function: this functions
+    requires the initialized model and only creates the info for a
+    single model, while create_feature_df uses the models dataframe to
+    initialize models itself, and combines the outputs across multiple
+    indicators.
+
+    This function creates a dataframe summarizing the specified model's
+    preferred period as a function of retinotopic angle, for multiple
+    stimulus orientations (in either absolute or relative reference
+    frames) and target periods. That is, it contains information showing
+    at what eccentricity the model's preferred period is, e.g., 1 for a
+    range of retinotopic angles and stimulus orientation. This dataframe
+    is then used for creating plots to summarize the model.
+
+    Unless you have something specific in mind, you can trust the
+    default options for retinotopic_angle, orientation, and
+    period_target
+
+    Parameters
+    ----------
+    model : sfp.model.LogGaussianDonut
+        a single, initialized model, which we will summarize.
+    reference_frame : {"absolute", "relative"}, optional
+        Whether we use the absolute or relative reference frame in the
+        feature dataframe; that is whether we consider conventional
+        gratings (absolute, orientation is relative to
+        vertical/horizontal), or our log-polar gratings (relative,
+        orientation is relative to fovea).
+    retinotopic_angle : np.array, optional
+        Array specifying which retinotopic angles to find the preferred
+        period for. Note that the sampling of retinotopic angle is much
+        finer than for create_preferred_period_df (and goes all the way
+        to 2*pi), because this is what we will use as the dependent
+        variable in our plotsl
+    orientation : np.array, optional
+        Array specifying which stimulus orientations to find the
+        preferred period for. Note that the meaning of these
+        orientations will differ depending on the value of
+        reference_frame; you should most likely plot and interpret the
+        output based on the "Stimulus type" column instead (which
+        include strings like 'vertical'/'horizontal' or
+        'radial'/'angular'). However, this mapping can only happen if
+        the values in orientation line up with our stimuli (0, pi/4,
+        pi/2, 3*pi/2), and thus it's especially recommended that you use
+        the default value for this argument. If you don't care about
+        orientation and just want to summarize the model's overall
+        features, you should use the default (which includes all
+        orientations where the model can have different preferences,
+        based on its parametrization) and then average over them.
+    period_target : np.array, optional
+        Array specifying which the target periods for the model. The
+        intended use of this dataframe is to plot contour plots showing
+        at what eccentricity the model will have a specified preferred
+        period (for a range of angles and orientations), and this
+        argument specifies those periods.
+
+    Returns
+    -------
+    preferred_period_contour_df : pd.DataFrame
+        Dataframe containing preferred period of the model, to use with
+        sfp.plotting.feature_df_polar_plot for plotting preferred period
+        as a function of retinotopic angle.
+
+    """
     df = []
     for p in period_target:
         if reference_frame == 'absolute':
@@ -197,9 +361,67 @@ def create_preferred_period_contour_df(model,
     return _finish_feature_df(df, reference_frame)
 
 
-def create_max_amplitude_df(model, retinotopic_angle=np.linspace(0, np.pi, 48, endpoint=False),
-                            orientation=np.linspace(0, np.pi, 4, endpoint=False),
-                            reference_frame='absolute'):
+def create_max_amplitude_df(model, reference_frame='absolute',
+                            retinotopic_angle=np.linspace(0, 2*np.pi, 49),
+                            orientation=np.linspace(0, np.pi, 4, endpoint=False)):
+    """Create dataframe summarizing max amplitude as function of retinotopic angle
+
+    Generally, you should not call this function directly, but use
+    create_feature_df. Differences from that function: this functions
+    requires the initialized model and only creates the info for a
+    single model, while create_feature_df uses the models dataframe to
+    initialize models itself, and combines the outputs across multiple
+    indicators.
+
+    This function creates a dataframe summarizing the specified model's
+    maximum amplitude as a function of retinotopic angle, for multiple
+    stimulus orientations (in either absolute or relative reference
+    frames). This dataframe is then used for creating plots to summarize
+    the model.
+
+    Unless you have something specific in mind, you can trust the
+    default options for retinotopic_angle and orientation.
+
+    Parameters
+    ----------
+    model : sfp.model.LogGaussianDonut
+        a single, initialized model, which we will summarize.
+    reference_frame : {"absolute", "relative"}, optional
+        Whether we use the absolute or relative reference frame in the
+        feature dataframe; that is whether we consider conventional
+        gratings (absolute, orientation is relative to
+        vertical/horizontal), or our log-polar gratings (relative,
+        orientation is relative to fovea).
+    retinotopic_angle : np.array, optional
+        Array specifying which retinotopic angles to find the preferred
+        period for. Note that the sampling of retinotopic angle is much
+        finer than for create_preferred_period_df (and goes all the way
+        to 2*pi), because this is what we will use as the dependent
+        variable in our plotsl
+    orientation : np.array, optional
+        Array specifying which stimulus orientations to find the
+        preferred period for. Note that the meaning of these
+        orientations will differ depending on the value of
+        reference_frame; you should most likely plot and interpret the
+        output based on the "Stimulus type" column instead (which
+        include strings like 'vertical'/'horizontal' or
+        'radial'/'angular'). However, this mapping can only happen if
+        the values in orientation line up with our stimuli (0, pi/4,
+        pi/2, 3*pi/2), and thus it's especially recommended that you use
+        the default value for this argument. If you don't care about
+        orientation and just want to summarize the model's overall
+        features, you should use the default (which includes all
+        orientations where the model can have different preferences,
+        based on its parametrization) and then average over them.
+
+    Returns
+    -------
+    max_amplitude_df : pd.DataFrame
+        Dataframe containing maximum amplitude of the model, to use with
+        sfp.plotting.feature_df_polar_plot for plotting max amplitude as
+        a function of retinotopic angle.
+
+    """
     if reference_frame == 'absolute':
         tmp = model.max_amplitude(retinotopic_angle, orientation).detach().numpy()
     elif reference_frame == 'relative':
@@ -212,47 +434,135 @@ def create_max_amplitude_df(model, retinotopic_angle=np.linspace(0, np.pi, 48, e
 
 
 def create_feature_df(models, feature_type='preferred_period', reference_frame='absolute',
-                      retinotopic_angle=np.linspace(0, np.pi, 4, endpoint=False),
-                      orientation=np.linspace(0, np.pi, 4, endpoint=False),
-                      eccentricity=np.linspace(0, 11, 11), period_target=[.5, 1, 1.5]):
+                      **kwargs):
+    """Create dataframe to summarize the predictions made by our models
+
+    The point of this dataframe is to generate plots (using
+    plotting.feature_df_plot and plotting.feature_df_polar_plot) to
+    easily visualize what the parameters of our model mean, either for
+    demonstrative purposes or with the parameters fit to actual data.
+
+    This is used to create a feature data frame that combines info
+    across multiple models, using the "indicator" column to separate
+    them, and serves as a wrapper around three other functions:
+    create_preferred_period_df, create_preferred_period_contour_df, and
+    create_max_amplitude_df (based on the value of the feature_type
+    arg). We loop through the unique indicators in the models dataframe
+    and instantiate a model for each one (thus, each indicator must only
+    have one associated model). We then create dataframes summarizing
+    the relevant features, add the indicator, and, concatenate.
+
+    The intended use of these dataframes is to create plots showing the
+    models' predictions for (using bootstraps to get confidence
+    intervals to show variability across subjects):
+    
+    1. preferred period as a function of eccentricity:
+
+    ```
+    pref_period = create_feature_df(models, feature_type='preferred_period')
+    sfp.plotting.feature_df_plot(pref_period)
+    # average over retinotopic angle
+    sfp.plotting.feature_df_plot(pref_period, col=None, 
+                                 pre_boot_gb_func=np.mean)
+    ```
+
+    2. preferred period as a function of retinotopic angle and stimulus
+       orientation:
+
+    ```
+    pref_period_contour = create_feature_df(models, 
+                                            feature_type='preferred_period_contour')
+    sfp.plotting.feature_df_polar_plot(pref_period_contour)
+    ```
+
+    3. max amplitude as a function of retinotopic angle and stimulus
+       orientation:
+
+    ```
+    max_amp = create_feature_df(models, feature_type='max_amplitude')
+    sfp.plotting.feature_df_polar_plot(max_amp, col=None, r='Max amplitude')
+    ```
+
+    Parameters
+    ----------
+    models : pd.DataFrame
+        dataframe summarizing model fits across many subjects / sessions
+        (as created by analyze_model.combine_models function). Must
+        contain the indicator columns and a row for each of the model's
+        11 parameters
+    feature_type : {"preferred_period", "preferred_period_contour", "max_amplitude"}, optional
+        Which feature dataframe to create. Determines which function we
+        call, from create_preferred_period_df,
+        create_preferred_period_contour_df, and create_max_amplitude_df
+    reference_frame : {"absolute", "relative"}, optional
+        Whether we use the absolute or relative reference frame in the
+        feature dataframe; that is whether we consider conventional
+        gratings (absolute, orientation is relative to
+        vertical/horizontal), or our log-polar gratings (relative,
+        orientation is relative to fovea).
+    kwargs : {retinotopic_angle, orientation, eccentricity, period_target}
+        passed to the various create_*_df functions. See their
+        docstrings for more info. if not set, use the defaults.
+
+    Returns
+    -------
+    feature_df : pd.DataFrame
+        Dataframe containing specified feature info
+
+    """
     df = []
     for ind in models.indicator.unique():
         m = sfp_model.LogGaussianDonut.init_from_df(models.query('indicator==@ind'))
         if feature_type == 'preferred_period':
-            df.append(create_preferred_period_df(m, retinotopic_angle, orientation, eccentricity,
-                                                 reference_frame))
+            df.append(create_preferred_period_df(m, reference_frame, **kwargs))
         elif feature_type == 'preferred_period_contour':
-            df.append(create_preferred_period_contour_df(m, retinotopic_angle, orientation,
-                                                         period_target, reference_frame))
+            df.append(create_preferred_period_contour_df(m, reference_frame, **kwargs))
         elif feature_type == 'max_amplitude':
-            df.append(create_max_amplitude_df(m, retinotopic_angle, orientation, reference_frame))
+            df.append(create_max_amplitude_df(m, reference_frame, **kwargs))
         df[-1]['indicator'] = ind
     return pd.concat(df).reset_index(drop=True)
 
 
-def bootstrap_features(feature_df, n_bootstraps, value_name='Preferred period (dpc)',
-                       groupby_cols=['indicator', 'Retinotopic angle (rad)', 'Orientation (rad)',
-                                     'Eccentricity (deg)']):
-    assert groupby_cols[0] == 'indicator', "First groupby_cols value must be indicator!"
-    # first use groupby to get this to a ndarray, from
-    # https://stackoverflow.com/questions/47715300/convert-a-pandas-dataframe-to-a-multidimensional-ndarray
-    grouped = feature_df.groupby(groupby_cols)[value_name].mean()
-    # create an empty array of NaN of the right dimensions
-    shape = tuple(map(len, grouped.index.levels))
-    all_data = np.full(shape, np.nan)
-    # fill it using Numpy's advanced indexing
-    all_data[tuple(grouped.index.codes)] = grouped.values.flat
-    if functools.reduce(lambda x, y: x*y, shape) != len(feature_df):
-        raise Exception("groupby_cols does not completely cover the columns of feature_df!")
-    bootstraps = np.random.randint(0, feature_df.indicator.nunique(),
-                                   size=(n_bootstraps, feature_df.indicator.nunique()))
-    bootstrapped = np.empty((n_bootstraps, *shape[1:]))
-    for i, b in enumerate(bootstraps):
-        bootstrapped[i] = np.mean(all_data[b], 0)
-    return bootstrapped
-
-
 def calc_cv_error(loss_files, dataset_path, wildcards, outputs):
+    """Calculate cross-validated loss and save as new dataframe
+
+    We use 12-fold cross-validation to determine the mode that best fits
+    the data for each scanning session. To do that, we fit the model to
+    a subset of the data (the subset contains all responses to 44 out of
+    the 48 stimulus classes, none to the other 4). When fitting the
+    cross-validation models, we follow the same procedure we use when
+    fitting all the data, but we need to use something else for
+    evaluation: we get each cross-validation model's predictions for the
+    4 classes it *didn't* see, concatenating together these predictions
+    for all 12 of them, then compare this against the full dataset (all
+    voxels, all stimuli). We then create a dataframe containing this
+    loss, as well as other identifying information, and save it at the
+    specified path.
+
+    The arguments for this function are a bit strange because it's
+    expressly meant to be called by a snakemake rule and not directly
+    from a python interpreter (it gets called by the rules calc_cv_error
+    and calc_simulated_cv_error)
+
+    Parameters
+    ----------
+    loss_files : list
+        list of strings giving the paths to loss files for the
+        cross-validation models. each one contains, among other things
+        the specific test subset for this model, and there should be an
+        associated model.pt file saved in the same folder.
+    dataset_path : str
+        The path to the first_level_analysis dataframe, saved as a csv,
+        which contains the actual data our model was fit to predict
+    wildcards : dict
+        dictionary of wildcards, information used to identify this model
+        (e.g., subject, session, crossvalidation seed, model type,
+        etc). Automatically put together by snakemake
+    outputs : list
+        list containing a single str, the path to save this dataframe at
+        (as a csv)
+
+    """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ds = sfp_model.FirstLevelDataset(dataset_path, device=device)
     dl = torchdata.DataLoader(ds, len(ds))
@@ -278,6 +588,44 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs):
 
 
 def gather_results(base_path, outputs, metadata, cv_loss_files=None):
+    """Combine model dataframes
+
+    We fit a huge number of models as part of this analysis pipeline. In
+    order to make examining their collective results easier, we need to
+    combine them in a meaningful way, throwing away the unnecessary
+    info. This function uses the combine_models function to load in the
+    models, loss, and models_history dataframes (not the results one,
+    which is the largest). We then use df.groupby(metadata) and some
+    well-placed funtions to summarize the information and then save them
+    out.
+
+    This was written to be called by snakemake rules, not from a python
+    interpeter directly
+
+    Parameters
+    ----------
+    base_path : str
+        path template where we should find the results. Should contain
+        no string formatting symbols, but should contain at least one
+        '*' because we will use glob to find them. We do not search fo
+        rthem recursively, so you will need multiple '*'s if you want to
+        combine dataframes contained in different folders
+    outputs : list
+        list of 5 or 6 strs giving the paths to save models,
+        grouped_loss, timing_df, diff_df, model_history, and
+        (optionally) cv_loss to.
+    metadata : list
+        list of strs giving the columns in the individual models, loss,
+        and model_history dataframes that we will groupby in order to
+        summarize them.
+    cv_loss_files : list, optional
+        either None or list of cross-validated loss dataframes (as
+        cretated by calc_cv_error). If not None, outputs must contain 6
+        strs. because of how these dataframes were constructed, we
+        simply concatenate them, doing none fo the fancy groupby we do
+        for the other dataframes
+
+    """
     models, loss_df, _, model_history = combine_models(base_path, False)
     timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
     grouped_loss = loss_df.groupby(metadata + ['epoch_num', 'time']).loss.mean().reset_index()
@@ -303,6 +651,37 @@ def gather_results(base_path, outputs, metadata, cv_loss_files=None):
 
 
 def combine_summarized_results(base_template, outputs, cv_loss_flag=True):
+    """Combine model dataframes (second-order)
+
+    This function combined model dataframes that have already been
+    combined (that is, are the outputs of gather_results). As such, we
+    don't do anything more than load them all in and concatenate them
+    (no groupby, adding new columns, or anything else).
+
+    This was written to be called by snakemake rules, not from a python
+    interpeter directly
+
+    Parameters
+    ----------
+    base_template : list
+        list of strs, each of which is a path template where we should
+        find the results. Unlike gather_results's base_path, this
+        shouldn't contain any '*' (nor any string formatting symbols),
+        but should just be the path to a single _all_models.csv, with
+        that removed (see snakemake rule summarize_gathered_resutls,
+        params.base_template for an example). For each p in
+        base_template, we'll load in: p+'_all_models.csv',
+        p+'_all_loss.csv', p+'_all_timing.csv', and (if cv_loss_flag is
+        True) p+'_all_cv_loss.csv'.
+    outputs : list
+        list of 3 or 4 strs, the paths to save out our combined models,
+        grouped_loss, timing, and (if cv_loss_flag is True) cv_loss
+        dataframes
+    cv_loss_flag : bool, optional
+        whether we load in and save out the cross-validated loss
+        dataframes
+
+    """
     models = []
     grouped_loss_df = []
     timing_df = []
