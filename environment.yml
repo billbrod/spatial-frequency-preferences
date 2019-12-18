@@ -15,7 +15,7 @@ dependencies:
   - scipy
   - seaborn
   - statsmodels
-  - pandas
+  - pandas>=0.25
   - pyyaml
   - nipype>=1.1.1
   - pillow
