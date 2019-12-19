@@ -16,6 +16,7 @@ from . import stimuli as sfp_stimuli
 from . import first_level_analysis
 import numpy as np
 import seaborn as sns
+import neuropythy as ny
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy as sp
@@ -219,7 +220,8 @@ def plot_median_fit(x, y, model=linear_model.LinearRegression(), x_vals=None, **
     model.fit(plot_data.index.values.reshape(-1, 1), plot_data.values)
     if x_vals is None:
         x_vals = plot_data.index
-    plt.plot(x_vals, model.predict(np.array(x_vals).reshape(-1, 1)), **kwargs)
+    x_vals = np.array(x_vals).reshape(-1, 1)
+    plt.plot(x_vals, model.predict(x_vals), **kwargs)
 
 
 def stimuli_properties(df, save_path=None):
@@ -1032,6 +1034,75 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         g.fig.subplots_adjust(top=top)
     return g
 
+
+def flat_cortex_plot(freesurfer_sub, plot_property, output_path=None, mask=None):
+    """Create a plot of a property on a flattened view of the cortical surface
+
+    I'm not aware of an easy scriptable way to create 3d plots of the
+    cortex from a consistent viewpoint, but, since we only care about
+    primary visual cortex, a flattened view of the cortical surface
+    works pretty well. This function uses Noah Benson's neuropythy
+    library to plot a property on top of the cortical surface of both
+    hemispheres, flattened to a circle, from both posterior and anterior
+    views.
+
+    Parameters
+    ----------
+    freesurfer_sub : str
+        The freesurfer subject to use. This can be either the name
+        (e.g., wlsubj045; in which case the environmental variable
+        SUBJECTS_DIR must be set) or a path to the freesurfer folder. It
+        will be passed directly to neuropythy.freesurfer_subject, so see
+        the docstring of that function for more details
+    plot_property : str or dict
+        The property to plot as an overlay on the flattened cortical
+        surface. This can either be a str, in which case it's a property
+        of the subject, coming from surfaces already found in the
+        freesurfer folder, or a dictionary of arrays (with keys lh, rh)
+        containing the labels of the property.
+    output_path : str or None, optional
+        if not None, the path to save the resulting figure at. If None,
+        will not save
+    mask : tuple or None, optional
+        a mask to restrict the values of the property plotted. it should
+        be a 2-tuple, where the first value is a str giving the property
+        to restrict, and the second is a list giving the values to
+        restrict to (e.g., `('varea', [1,2,3])`). see
+        neuropythy.cortex_plot's docstring for more details. If None,
+        will plot everything
+
+    """
+    sub = ny.freesurfer_subject(freesurfer_sub)
+    if isinstance(plot_property, dict):
+        if len(plot_property) != 2:
+            raise Exception("plot_property must either be a str or a dict with left and right "
+                            "hemis, but plot_property has %s items!" % len(plot_property))
+        property_data = plot_property
+        plot_property = 'plot_property'
+        lh = sub.lh.with_prop(plot_property=property_data['lh'])
+        rh = sub.rh.with_prop(plot_property=property_data['rh'])
+    else:
+        lh = sub.lh
+        rh = sub.rh
+
+    # prepare to create a flat map of the posterior and anterior views
+    # of the brain
+    map_projs_post = {h: ny.map_projection('occipital_pole', h, radius=np.pi/2)
+                      for h in ['lh','rh']}
+    map_projs_ante = {h: mp.copy(center=-mp.center, center_right=-mp.center_right)
+                      for h, mp in map_projs_post.items()}
+    # flatten the surfaces
+    flat_maps = [map_projs_post['lh'](lh), map_projs_post['rh'](rh),
+                 map_projs_ante['lh'](lh), map_projs_ante['rh'](rh)]
+
+    fig, axes = plt.subplots(2, 2, figsize=(7.5, 7.5), dpi=72*4)
+    for ax, m in zip(axes.flatten(), flat_maps):
+        ny.cortex_plot(m, axes=ax, color=plot_property, cmap='hot', mask=mask)
+        ax.axis('off')
+    fig.subplots_adjust(0, 0, 1, 1, 0, 0)
+    if output_path is not None:
+        fig.savefig(output_path)
+    return fig
 
 def _parse_save_path_for_kwargs(save_path):
     kwargs = dict(i.split('=') for i in save_path.split('_'))

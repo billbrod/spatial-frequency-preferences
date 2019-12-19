@@ -119,9 +119,7 @@ wildcard_constraints:
 #  GLMdenoise* ones, but they all need to be in a single chain, so this works.
 ruleorder:
     GLMdenoise_fixed_hrf > GLMdenoise > create_GLMdenoise_fixed_hrf_json > create_GLMdenoise_json
-    
 
-# all: plots_all plots_modeling_blanks plots_VSS_abstract summary_plots_all summary_plots_VSS_abstract
 
 def create_crossval_idx(leave_n_out, session, mat_type, seed=None):
     if seed is not None:
@@ -234,6 +232,14 @@ rule model_all_subj_cv:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial_cv", "v1_e1-12_summary_b10_r0.001_g0_s0_"
                      "all_models.csv"),
+
+
+rule all_flat_plots:
+    input:
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", 'varea_plot.png').format(subject=s, atlas_type=a)
+         for s in SUBJECTS for a in ['bayesian_posterior', 'atlas']],
+        [os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "stim_class", "bayesian_posterior", "{subject}", "{session}", "figures_{task}", "FinalModel_maps.png").format(
+            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]]
 
 
 rule GLMdenoise_all_visual:
@@ -612,6 +618,27 @@ def find_benson_varea(wildcards):
     return expand(benson_template, hemi=['lh', 'rh'])
 
 
+rule varea_check_plot:
+    input:
+        vareas_mgzs = find_benson_varea,
+        freesurfer_dir = lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{subject}').format(subject=wildcards.subject.replace('sub-', ''))
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", 'varea_plot.png')
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'prf_solutions', '{subject}_{atlas_type}_varea_plot-%j.log')
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'prf_solutions', '{subject}_{atlas_type}_varea_plot_benchmark.txt')
+    run:
+        import neuropythy as ny
+        import sfp
+        atlases = {}
+        for hemi in ['lh', 'rh']:
+            path = [i for i in input.vareas_mgzs if hemi in i][0]
+            atlases[hemi] = ny.load(path)
+        sfp.plotting.flat_cortex_plot(input.freesurfer_dir, atlases, output[0],
+                                      ('plot_property', [1, 2, 3]))
+
+
 rule create_GLMdenoise_json:
     input:
         json_template = os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsOptimize.json'),
@@ -920,7 +947,7 @@ rule tuning_curves_summary:
     input:
         get_tuning_curves
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_{df_mode}.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_{df_mode}.csv")
     params:
         input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
     benchmark:
@@ -933,9 +960,9 @@ rule tuning_curves_summary:
 
 rule tuning_curves_summary_plot:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_summary.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_summary.csv")
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves_summary', '{mat_type}', '{atlas_type}',
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}',
                      "v{vareas}_e{eccen}_{binning}_tuning_curves_summary_plot_{subjects}_{sessions}_"
                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}"
                      "_{y}.svg")
@@ -1609,7 +1636,8 @@ rule all:
         rules.model_all_subj_visual_field.input,
         rules.model_all_subj.input,
         rules.model_all_subj_cv.input,
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "stim_class",
+        rules.all_flat_plots.input,
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves_summary", "stim_class",
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
