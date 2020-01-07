@@ -1591,6 +1591,36 @@ rule prepare_image_computable:
         "-n {wildcards.ori}"
 
 
+rule figure_summarize_1d:
+    input:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
+                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{tuning_param}_1d_{ref_frame}.svg")
+    log:
+        os.path.join(config['DATA_DIR'], 'code', "figures", "{tuning_param}_1d_{ref_frame}.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', "figures",
+                     "{tuning_param}_1d_{ref_frame}_benchmark.txt")
+    run:
+        import pandas as pd
+        import seaborn as sns
+        import sfp
+        df = pd.read_csv(input[0])
+        if wildcards.ref_frame == 'relative':
+            df = df.query("task=='task-sfprescaled'")
+        elif wildcards.ref_frame == 'absolute':
+            df = df.query("task=='task-sfpconstant'")
+        df = df.query("frequency_type=='local_sf_magnitude'")
+        df = df.query("varea==1")
+        with sns.axes_style('white'):
+            if wildcards.tuning_param == 'pref_period':
+                g = sfp.figures.pref_period_1d(df, wildcards.ref_frame, row=None)
+            elif wildcards.tuning_param == 'bandwidth':
+                g = sfp.figures.bandwidth_1d(df, wildcards.ref_frame, row=None)
+            g.fig.savefig(output[0])
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),

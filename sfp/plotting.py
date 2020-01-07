@@ -54,6 +54,32 @@ def stimulus_type_order(reference_frame):
     return order
 
 
+def is_numeric(s):
+    """check whether data s is numeric
+
+    s should be something that can be converted to an array: list,
+    Series, array, column from a DataFrame, etc
+
+    this is based on the function
+    seaborn.categorical._CategoricalPlotter.infer_orient.is_not_numeric
+
+    Parameters
+    ----------
+    s :
+        data to check
+
+    Returns
+    -------
+    is_numeric : bool
+        whether s is numeric or not
+    """
+    try:
+        np.asarray(s, dtype=np.float)
+    except ValueError:
+        return False
+    return True
+
+
 class MidpointNormalize(mpl.colors.Normalize):
     def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
         self.midpoint = midpoint
@@ -187,6 +213,9 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, join=False, **kwargs)
         plot_data = plot_data.reindex(x_order)
         plot_cis = plot_cis.reindex(x_order)
     x_data = plot_data.index
+    # we have to check here because below we'll end up making things
+    # numeric
+    x_numeric = is_numeric(x_data)
     try:
         x_data = _jitter_data(x_data, x_jitter)
     except TypeError:
@@ -197,7 +226,8 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, join=False, **kwargs)
         ax.plot(x_data, plot_data.values, **kwargs)
     for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.items()):
         ax.plot([x, x], [ci_low, ci_high], **kwargs)
-    if x_jitter is not None:
+    # if we do the following when x is numeric, things get messed up.
+    if x_jitter is not None and not x_numeric:
         ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
 
 

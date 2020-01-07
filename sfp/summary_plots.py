@@ -21,7 +21,7 @@ SAVE_TEMPLATE = ("tuning_curves_summary_plot_{mat_type}_{atlas_type}_{subject}_{
 
 def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col='varea',
          hue='stimulus_superclass', save_path=None, sharey='row', sharex='all', plot_func=plt.plot,
-         eccen_range=(1, 12), axes_style='whitegrid', eccen_soft_exclude=None, **kwargs):
+         eccen_range=(1, 12), eccen_soft_exclude=None, **kwargs):
     """make plots of tuning curve parameters
 
     kwargs can be any of varea, atlas_type, mat_type, subject, session, task, or
@@ -67,7 +67,7 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
     legend_keys = summary_df[hue].unique()
     hue_kws = kwargs.pop('hue_kws', {})
     hue_order = list(kwargs.pop('hue_order', legend_keys))
-    size = kwargs.pop('size', 5)
+    height = kwargs.pop('height', 5)
     palette = kwargs.pop('palette', 'deep')
     if not isinstance(palette, dict):
         colors = sns.color_palette(palette, len(legend_keys))
@@ -118,36 +118,35 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
     if 'ylim' not in kwargs.keys():
         if y in ['preferred_period', 'tuning_curve_bandwidth']:
             kwargs['ylim'] = (0, 10)
-    with sns.axes_style(axes_style):
-        g = sns.FacetGrid(summary_df, row, col, hue, aspect=1, size=size, sharey=sharey,
-                          sharex=sharex, hue_order=hue_order, hue_kws=hue_kws, palette=palette,
-                          **kwargs)
-        for i, pf in enumerate(plot_func):
-            tmp_kwargs = joint_plot_func_kwargs.copy()
-            tmp_kwargs.update(separate_plot_func_kwargs[i])
-            if pf.__name__ == 'plot_median_fit':
-                tmp_kwargs['x_vals'] = summary_df.eccen.unique()
-            if pf.__name__ in ['plot_median', 'plot_ci', 'scatter_ci_col', 'scatter_ci_dist',
-                               'plot_median_fit']:
-                # these functions require map_dataframe, since they need some extra info
-                g.map_dataframe(pf, x, y, *additional_plot_args, **tmp_kwargs)
-            else:
-                g.map(pf, x, y, *additional_plot_args, **tmp_kwargs)
-        if row is not None or col is not None:
-            titles = "{row_name} | {col_name}"
-            if col == 'varea':
-                titles = titles.replace("{col_name}", "V{col_name}")
-            elif row == 'varea':
-                titles = titles.replace("{row_name}", "V{row_name}")
-            if row is None:
-                titles = titles.replace("{row_name} | ", "")
-            elif col is None:
-                titles = titles.replace(" | {col_name}", "")
-            g.set_titles(titles)
-        g._legend_data = dict((k, v) for k, v in g._legend_data.items() if k in legend_keys)
-        g.add_legend(label_order=legend_keys)
-        if save_path is not None:
-            g.fig.savefig(save_path)
+    g = sns.FacetGrid(summary_df, row, col, hue, aspect=1, height=height, sharey=sharey,
+                      sharex=sharex, hue_order=hue_order, hue_kws=hue_kws, palette=palette,
+                      **kwargs)
+    for i, pf in enumerate(plot_func):
+        tmp_kwargs = joint_plot_func_kwargs.copy()
+        tmp_kwargs.update(separate_plot_func_kwargs[i])
+        if pf.__name__ == 'plot_median_fit':
+            tmp_kwargs['x_vals'] = summary_df.eccen.unique()
+        if pf.__name__ in ['plot_median', 'plot_ci', 'scatter_ci_col', 'scatter_ci_dist',
+                           'plot_median_fit']:
+            # these functions require map_dataframe, since they need some extra info
+            g.map_dataframe(pf, x, y, *additional_plot_args, **tmp_kwargs)
+        else:
+            g.map(pf, x, y, *additional_plot_args, **tmp_kwargs)
+    if row is not None or col is not None:
+        titles = "{row_name} | {col_name}"
+        if col == 'varea':
+            titles = titles.replace("{col_name}", "V{col_name}")
+        elif row == 'varea':
+            titles = titles.replace("{row_name}", "V{row_name}")
+        if row is None:
+            titles = titles.replace("{row_name} | ", "")
+        elif col is None:
+            titles = titles.replace(" | {col_name}", "")
+        g.set_titles(titles)
+    g._legend_data = dict((k, v) for k, v in g._legend_data.items() if k in legend_keys)
+    g.add_legend(label_order=legend_keys)
+    if save_path is not None:
+        g.fig.savefig(save_path)
     return g
 
 
