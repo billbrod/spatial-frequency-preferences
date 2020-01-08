@@ -1606,18 +1606,40 @@ rule figure_summarize_1d:
         import pandas as pd
         import seaborn as sns
         import sfp
-        df = pd.read_csv(input[0])
-        if wildcards.ref_frame == 'relative':
-            df = df.query("task=='task-sfprescaled'")
-        elif wildcards.ref_frame == 'absolute':
-            df = df.query("task=='task-sfpconstant'")
-        df = df.query("frequency_type=='local_sf_magnitude'")
-        df = df.query("varea==1")
+        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.ref_frame)
         with sns.axes_style('white'):
             if wildcards.tuning_param == 'pref_period':
                 g = sfp.figures.pref_period_1d(df, wildcards.ref_frame, row=None)
             elif wildcards.tuning_param == 'bandwidth':
                 g = sfp.figures.bandwidth_1d(df, wildcards.ref_frame, row=None)
+            g.fig.savefig(output[0])
+
+
+rule figure_crossvalidation:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                     'bayesian_posterior', 'initial_cv',
+                     'v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv')
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{cv_type}_cv_{ref_frame}.svg")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{ref_frame}.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{ref_frame}_benchmark.txt")
+    run:
+        import pandas as pd
+        import seaborn as sns
+        import sfp
+        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.ref_frame)
+        with sns.axes_style('white'):
+            if wildcards.cv_type == 'demeaned':
+                g = sfp.figures.cross_validation_demeaned(df)
+            elif wildcards.cv_type == 'raw':
+                g = sfp.figures.cross_validation_raw(df)
+            elif wildcards.cv_type == 'model':
+                g = sfp.figures.cross_validation_model(df)
+            elif wildcards.cv_type == 'model_point':
+                g = sfp.figures.cross_validation_model(df, 'point')
             g.fig.savefig(output[0])
 
 

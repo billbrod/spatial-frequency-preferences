@@ -29,6 +29,33 @@ PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
                ['%s_%s_%s' % (i, j, k) for j, i, k in
                 itertools.product(['amplitude', 'mode'], ['abs', 'rel'],
                                   ['cardinals', 'obliques'])])
+MODEL_ORDER = ['constant_donut_iso_amps-constant', 'scaling_donut_iso_amps-constant',
+               'full_donut_iso_amps-constant', 'full_donut_absolute_amps-constant',
+               'full_donut_relative_amps-constant', 'full_donut_full_amps-constant',
+               'full_donut_absolute_amps-vary', 'full_donut_relative_amps-vary',
+               'full_donut_full_amps-vary']
+
+
+def get_order(col, reference_frame=None, col_unique=None):
+    """get order for column
+    """
+    if col == 'stimulus_type':
+        return stimulus_type_order(reference_frame)
+    elif col == 'fit_model_type':
+        return MODEL_ORDER
+    elif col == 'model_parameter':
+        return PARAM_ORDER
+    else:
+        return sorted(col_unique)
+
+
+def get_palette(col, reference_frame=None, col_unique=None):
+    if col == 'stimulus_type':
+        return stimulus_type_palette(reference_frame)
+    elif col == 'subject':
+        return sns.color_palette('Accent', len(col_unique))
+    elif col == 'fit_model_type':
+        return sns.color_palette('deep', len(col_unique))
 
 
 def stimulus_type_palette(reference_frame):
