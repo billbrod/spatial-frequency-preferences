@@ -1643,6 +1643,54 @@ rule figure_crossvalidation:
             g.fig.savefig(output[0])
 
 
+def get_params_csv(wildcards):
+    path_template = os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model',
+                                 'stim_class', 'bayesian_posterior', '%s',
+                                 'v1_e1-12_%s_b10_r0.001_g0_full_full_vary_all_models.csv')
+    paths = []
+    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare']:
+        paths.append(path_template % ('bootstrap', 'full'))
+    if wildcards.plot_kind in ['point', 'strip', 'compare']:
+        paths.append(path_template % ('initial', 'summary'))
+    return paths
+
+
+rule figure_params:
+    input:
+        get_params_csv,
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "params_{plot_kind}_{ref_frame}.svg")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{ref_frame}.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{ref_frame}_benchmark.txt")
+    run:
+        import pandas as pd
+        import seaborn as sns
+        import sfp
+        df = []
+        for p in input:
+            tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.ref_frame)
+            df.append(sfp.figures.prep_model_df(tmp))
+        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
+            if wildcards.plot_kind.startswith('pair'):
+                if len(wildcards.plot_kind.split('-')) > 1:
+                    drop_outlier = True
+                else:
+                    drop_outlier = False
+                # this returns the PairPlot, so we need to do .fig to
+                # grab the underlying Figure
+                fig = sfp.figures.model_parameters_pairplot(df[0], drop_outlier).fig
+            elif wildcards.plot_kind == 'compare':
+                # this returns the FacetGrid, so we need to do .fig to
+                # grab the underlying Figure. bootstrap_df comes before
+                # regular one
+                fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
+            else:
+                fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind)
+            fig.savefig(output[0])
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),

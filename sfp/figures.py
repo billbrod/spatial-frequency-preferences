@@ -3,6 +3,8 @@
 """
 import seaborn as sns
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 from . import summary_plots
 from . import plotting
 
@@ -72,6 +74,43 @@ def prep_df(df, reference_frame):
         df = df.query("frequency_type=='local_sf_magnitude'")
     if 'varea' in df.columns:
         df = df.query("varea==1")
+    return df
+
+
+def prep_model_df(df):
+    """prepare models df for plotting
+
+    For plotting purposes, we want to rename the model parameters from
+    their original values (e.g., sf_ecc_slope, abs_mode_cardinals) to
+    those we use in the equation (e.g., a, p_1). We do that by simply
+    remapping the names from those given at plotting.ORIG_PARAM_ORDER to
+    those in plotting.PLOT_PARAM_ORDER. we additionally add a new
+    column, param_category, which we use to separate out the three types
+    of parameters: sigma, the effect of eccentricity, and the effect of
+    orientation / retinal angle.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        models dataframe, that is, the dataframe that summarizes the
+        parameter values for a variety of models
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The remapped dataframe.
+
+    """
+    rename_params = dict((k, v) for k, v in zip(plotting.ORIG_PARAM_ORDER,
+                                                plotting.PLOT_PARAM_ORDER))
+    df = df.set_index('model_parameter')
+    df.loc['sigma', 'param_category'] = 'sigma'
+    df.loc[['sf_ecc_slope', 'sf_ecc_intercept'], 'param_category'] = 'eccen'
+    df.loc[['abs_mode_cardinals', 'abs_mode_obliques', 'rel_mode_cardinals', 'rel_mode_obliques',
+            'abs_amplitude_cardinals', 'abs_amplitude_obliques', 'rel_amplitude_cardinals',
+            'rel_amplitude_obliques'], 'param_category'] = 'orientation'
+    df = df.reset_index()
+    df['model_parameter'] = df.model_parameter.map(rename_params)
     return df
 
 
@@ -213,8 +252,8 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
     return g
 
 
-def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=1.5,
-             ci=95, plot_kind='strip', x_rotate=False):
+def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.75,
+             ci=95, plot_kind='strip', x_rotate=True):
     """wrapper around seaborn.catplot
 
     several figures call seaborn.catplot and are pretty similar, so this
@@ -274,7 +313,10 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         if (df[y] < 0).any() and (df[y] > 0).any():
             ax.axhline(color='grey', linestyle='dashed')
     if x_rotate:
-        g.fig.subplots_adjust(bottom=.25)
+        if x == 'subject':
+            g.fig.subplots_adjust(bottom=.15)
+        else:
+            g.fig.subplots_adjust(bottom=.2)
     return g
 
 
@@ -368,8 +410,7 @@ def cross_validation_model(df, plot_kind='strip'):
         legend_title = "Subject"
     elif plot_kind == 'point':
         hue = 'fit_model_type'
-    g = _catplot(df, x='fit_model_type', y='demeaned_cv_loss', hue=hue, plot_kind=plot_kind,
-                 aspect=.75, x_rotate=True)
+    g = _catplot(df, x='fit_model_type', y='demeaned_cv_loss', hue=hue, plot_kind=plot_kind)
     g.fig.suptitle("Demeaned cross-validated loss across model types")
     g.set(ylabel="Cross-validated loss (demeaned by subject)", xlabel="Model type")
     # if plot_kind=='point', then there is no legend, so the following
@@ -379,14 +420,160 @@ def cross_validation_model(df, plot_kind='strip'):
     return g
 
 
-def pairplot():
-    # put this here for now, I think it might be worth viewing but boy
-    # is there a lot going on
-    tmp = models_plot.query("task=='task-sfprescaled'")
-    pivoted = pd.pivot_table(tmp, index=['subject', 'bootstrap_num'], columns='model_parameter', values='fit_value')
-    pivoted = pivoted.reset_index()
+def model_parameters(df, plot_kind='point'):
+    """plot model parameter values, across subjects
 
-    # this is a real outlier
-    pivoted[pivoted.get('$a$') < 0]
-    # throw away one real obvious outlier
-    sns.pairplot(pivoted[pivoted.get('$a$') > 0], hue='subject', vars=parameters)
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects. note that this should first have gone through
+        prep_model_df, which renames the values of the model_parameter
+        columns so they're more pleasant to look at on the plot and adds
+        a column, param_category, which enables us to break up the
+        figure into three subplots
+    plot_kind : {'point', 'strip', 'dist'}, optional
+        What type of plot to make. If 'point' or 'strip', it's assumed
+        that df contains only the fits to the median data across
+        bootstraps (thus, one value per subject per parameter); if
+        'dist', it's assumed that df contains the fits to all bootstraps
+        (thus, 100 values per subject per parameter). this function
+        should run if those are not true, but it will look weird:
+        - 'point': point plot, so show 95% CI across subjects
+        - 'strip': strip plot, so show each subject as a separate point
+        - 'dist': distribution, show each each subject as a separate
+          point with their own 68% CI across bootstraps
+
+    Returns
+    -------
+    fig : plt.Figure
+        Figure containin the plot
+
+    """
+    fig, axes = plt.subplots(1, 3, figsize=(20, 10), gridspec_kw={'width_ratios': [.15, .3, .6]})
+    order = plotting.get_order('model_parameter', col_unique=df.model_parameter.unique())
+    if plot_kind == 'point':
+        pal = plotting.get_palette('model_parameter', col_unique=df.model_parameter.unique())
+        pal = dict(zip(df.model_parameter.unique(), pal))
+    elif plot_kind == 'strip':
+        pal = plotting.get_palette('subject', col_unique=df.subject.unique())
+        pal = dict(zip(df.subject.unique(), pal))
+    elif plot_kind == 'dist':
+        pal = plotting.get_palette('subject', col_unique=df.subject.unique())
+        pal = dict(zip(df.subject.unique(), pal))
+    for i, ax in enumerate(axes):
+        cat = ['sigma', 'eccen', 'orientation'][i]
+        tmp = df.query("param_category==@cat")
+        ax_order = [i for i in order if i in tmp.model_parameter.unique()]
+        if plot_kind == 'point':
+            sns.pointplot('model_parameter', 'fit_value', 'model_parameter', data=tmp,
+                          estimator=np.median, ax=ax, order=ax_order, palette=pal, ci=95)
+        elif plot_kind == 'strip':
+            sns.stripplot('model_parameter', 'fit_value', 'subject', data=tmp, ax=ax,
+                          order=ax_order, palette=pal)
+        elif plot_kind == 'dist':
+            handles, labels = [], []
+            for n, g in tmp.groupby('subject'):
+                dots, _, _ = plotting.scatter_ci_dist('model_parameter', 'fit_value', data=g,
+                                                      label=n, ax=ax, x_jitter=.2, color=pal[n],
+                                                      x_order=ax_order)
+                handles.append(dots)
+                labels.append(n)
+        if ax.legend_:
+            ax.legend_.remove()
+        if i==2 and plot_kind in ['strip', 'dist']:
+            if plot_kind == 'strip':
+                ax.legend(loc=(1.01, .3), borderaxespad=0, frameon=False)
+            else:
+                ax.legend(handles, labels, loc=(1.01, .3), borderaxespad=0, frameon=False)
+        ax.axhline(color='grey', linestyle='dashed')
+        ax.set(ylabel='Fit value', xlabel='Parameter')
+    fig.suptitle("Model parameters")
+    fig.subplots_adjust(top=.85)
+    return fig
+
+
+def model_parameters_pairplot(df, drop_outlier=False):
+    """plot pairwise distribution of model parameters
+
+    There's one very obvious outlier (sub-wlsubj007, ses-04, bootstrap
+    41), where the $a$ parameter (sf_ecc_slope) is less than 0 (other
+    parameters are also weird). If you want to drop that, set
+    drop_outlier=True
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects. note that this should first have gone through
+        prep_model_df, which renames the values of the model_parameter
+        columns so they're more pleasant to look at on the plot
+    drop_outlier : bool, optional
+        whether to drop the outlier or not (see above)
+
+    Returns
+    -------
+    g : sns.PairGrid
+        the PairGrid containing the plot
+
+    """
+    pal = plotting.get_palette('subject', col_unique=df.subject.unique())
+    pal = dict(zip(df.subject.unique(), pal))
+
+    df = pd.pivot_table(df, index=['subject', 'bootstrap_num'], columns='model_parameter',
+                        values='fit_value').reset_index()
+
+    # this is a real outlier: one subject, one bootstrap (see docstring)
+    if drop_outlier:
+        df = df[df.get('$a$') > 0]
+
+    g = sns.pairplot(df, hue='subject', vars=plotting.PLOT_PARAM_ORDER, palette=pal)
+    for ax in g.axes.flatten():
+        ax.axhline(color='grey', linestyle='dashed')
+        ax.axvline(color='grey', linestyle='dashed')
+    return g
+
+
+def model_parameters_compare_plot(df, bootstrap_df):
+    """plot comparison of model parameters from bootstrap vs median fits
+
+    we have two different ways of fitting the data: to all of the
+    bootstraps or just to the median across bootstraps. if we compare
+    the resulting parameter values, they shouldn't be that different,
+    which is what we do here.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects. note that this should first have gone through
+        prep_model_df, which renames the values of the model_parameter
+        columns so they're more pleasant to look at on the plot
+    bootstrap_df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects and bootstraps. note that this should first have gone
+        through prep_model_df, which renames the values of the
+        model_parameter columns so they're more pleasant to look at on
+        the plot
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        the FacetGrid containing the plot
+
+    """
+    pal = plotting.get_palette('subject', col_unique=df.subject.unique())
+    order = plotting.get_order('subject', col_unique=df.subject.unique())
+    compare_cols = ['model_parameter', 'subject', 'session', 'task']
+    compare_df = df[compare_cols + ['fit_value']]
+    tmp = bootstrap_df[compare_cols + ['fit_value']].rename(columns={'fit_value': 'fit_value_bs'})
+    compare_df = pd.merge(tmp, compare_df, on=compare_cols)
+    compare_df = compare_df.sort_values(compare_cols)
+    g = sns.FacetGrid(compare_df, col='model_parameter', hue='subject', col_wrap=4, sharey=False,
+                      aspect=2.5, height=3, col_order=plotting.PLOT_PARAM_ORDER, hue_order=order,
+                      palette=pal)
+    g.map_dataframe(plotting.scatter_ci_dist, 'subject', 'fit_value_bs', ci_vals=[5, 95])
+    g.map_dataframe(plt.scatter, 'subject', 'fit_value')
+    for ax in g.axes.flatten():
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=25)
+    return g

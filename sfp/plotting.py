@@ -25,10 +25,12 @@ from sklearn import linear_model
 LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'angular', 'reverse spiral', 'mixtures']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal',
                              'off-diagonal']
-PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
-               ['%s_%s_%s' % (i, j, k) for j, i, k in
-                itertools.product(['amplitude', 'mode'], ['abs', 'rel'],
-                                  ['cardinals', 'obliques'])])
+ORIG_PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
+                    ['%s_%s_%s' % (i, j, k) for j, i, k in
+                     itertools.product(['mode', 'amplitude'], ['abs', 'rel'],
+                                       ['cardinals', 'obliques'])])
+PLOT_PARAM_ORDER = [r'$\sigma$', r'$a$', r'$b$', r'$p_1$', r'$p_2$', r'$p_3$', r'$p_4$', r'$A_1$',
+                    r'$A_2$', r'$A_3$', r'$A_4$']
 MODEL_ORDER = ['constant_donut_iso_amps-constant', 'scaling_donut_iso_amps-constant',
                'full_donut_iso_amps-constant', 'full_donut_absolute_amps-constant',
                'full_donut_relative_amps-constant', 'full_donut_full_amps-constant',
@@ -44,18 +46,29 @@ def get_order(col, reference_frame=None, col_unique=None):
     elif col == 'fit_model_type':
         return MODEL_ORDER
     elif col == 'model_parameter':
-        return PARAM_ORDER
+        if col_unique is not None and 'sigma' in col_unique:
+            return ORIG_PARAM_ORDER
+        else:
+            return PLOT_PARAM_ORDER
     else:
         return sorted(col_unique)
 
 
 def get_palette(col, reference_frame=None, col_unique=None):
+    """get palette for column
+
+    col must be one of: {'stimulus_type', 'subject', 'fit_model_type',
+    'model_parameter'}
+
+    """
     if col == 'stimulus_type':
         return stimulus_type_palette(reference_frame)
     elif col == 'subject':
-        return sns.color_palette('Accent', len(col_unique))
+        return sns.color_palette('Dark2', len(col_unique))
     elif col == 'fit_model_type':
-        return sns.color_palette('deep', len(col_unique))
+        return sns.color_palette('Accent', len(col_unique))
+    elif col == 'model_parameter':
+        return sns.color_palette('viridis', len(col_unique))
 
 
 def stimulus_type_palette(reference_frame):
@@ -230,6 +243,14 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, join=False, **kwargs)
     by default, this draws the 68% confidence interval. to change this, change the ci_vals
     argument. for instance, if you only want to draw the median point, pass ci_vals=[50, 50] (this
     is equivalent to just calling plt.scatter)
+
+    Returns
+    -------
+    dots, lines, cis :
+        The handles for the center points, lines connecting them (if
+        join=True), and CI lines. this is returned for better control
+        over what shows up in the legend.
+
     """
     data = kwargs.pop('data')
     ax = kwargs.pop('ax', plt.gca())
@@ -248,14 +269,17 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, join=False, **kwargs)
     except TypeError:
         x_data = np.arange(len(x_data))
         x_data = _jitter_data(x_data, x_jitter)
-    ax.scatter(x_data, plot_data.values, **kwargs)
+    dots = ax.scatter(x_data, plot_data.values, **kwargs)
     if join is True:
-        ax.plot(x_data, plot_data.values, **kwargs)
+        lines = ax.plot(x_data, plot_data.values, **kwargs)
+    else:
+        lines = None
     for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.items()):
-        ax.plot([x, x], [ci_low, ci_high], **kwargs)
+        cis = ax.plot([x, x], [ci_low, ci_high], **kwargs)
     # if we do the following when x is numeric, things get messed up.
     if x_jitter is not None and not x_numeric:
         ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
+    return dots, lines, cis
 
 
 def plot_median_fit(x, y, model=linear_model.LinearRegression(), x_vals=None, **kwargs):
