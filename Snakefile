@@ -1596,22 +1596,23 @@ rule figure_summarize_1d:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{tuning_param}_1d_{ref_frame}.svg")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{tuning_param}_1d_{task}.svg")
     log:
-        os.path.join(config['DATA_DIR'], 'code', "figures", "{tuning_param}_1d_{ref_frame}.log")
+        os.path.join(config['DATA_DIR'], 'code', "figures", "{tuning_param}_1d_{task}.log")
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', "figures",
-                     "{tuning_param}_1d_{ref_frame}_benchmark.txt")
+                     "{tuning_param}_1d_{task}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
         import sfp
-        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.ref_frame)
+        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
+        ref_frame = {'task-sfpconstant': 'absolute', 'task-sfprescaled': 'relative'}
         with sns.axes_style('white'):
-            if wildcards.tuning_param == 'pref_period':
-                g = sfp.figures.pref_period_1d(df, wildcards.ref_frame, row=None)
+            if wildcards.tuning_param == 'pref-period':
+                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None)
             elif wildcards.tuning_param == 'bandwidth':
-                g = sfp.figures.bandwidth_1d(df, wildcards.ref_frame, row=None)
+                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None)
             g.fig.savefig(output[0])
 
 
@@ -1621,16 +1622,16 @@ rule figure_crossvalidation:
                      'bayesian_posterior', 'initial_cv',
                      'v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{cv_type}_cv_{ref_frame}.svg")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{cv_type}_cv_{task}.svg")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{ref_frame}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{task}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{ref_frame}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{task}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
         import sfp
-        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.ref_frame)
+        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         with sns.axes_style('white'):
             if wildcards.cv_type == 'demeaned':
                 g = sfp.figures.cross_validation_demeaned(df)
@@ -1648,9 +1649,9 @@ def get_params_csv(wildcards):
                                  'stim_class', 'bayesian_posterior', '%s',
                                  'v1_e1-12_%s_b10_r0.001_g0_full_full_vary_all_models.csv')
     paths = []
-    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare']:
+    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'subject']:
         paths.append(path_template % ('bootstrap', 'full'))
-    if wildcards.plot_kind in ['point', 'strip', 'compare']:
+    if wildcards.plot_kind in ['point', 'strip', 'compare', 'all']:
         paths.append(path_template % ('initial', 'summary'))
     return paths
 
@@ -1659,18 +1660,18 @@ rule figure_params:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "params_{plot_kind}_{ref_frame}.svg")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "params_{plot_kind}_{task}.svg")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{ref_frame}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{task}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{ref_frame}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{task}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
         import sfp
         df = []
         for p in input:
-            tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.ref_frame)
+            tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
             df.append(sfp.figures.prep_model_df(tmp))
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.plot_kind.startswith('pair'):
@@ -1690,6 +1691,28 @@ rule figure_params:
                 fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind)
             fig.savefig(output[0])
 
+
+rule figure_feature_df:
+    input:
+        get_params_csv,
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "pref-period_{plot_kind}_angles-{angles}_{task}_{ref_frame}.svg")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "figures", "pref-period_{plot_kind}_angles-{angles}_{task}_{ref_frame}.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "figures", "pref-period_{plot_kind}_angles-{angles}_{task}_{ref_frame}_benchmark.txt")
+    run:
+        import pandas as pd
+        import seaborn as sns
+        import sfp
+        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
+        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
+            if wildcards.angles == 'avg':
+                angles = True
+            elif wildcards.angles == 'all':
+                angles = False
+            g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame)
+            g.fig.savefig(output[0])
 
 rule report:
     input:
@@ -1741,3 +1764,15 @@ rule all:
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
+
+
+rule figures:
+    input:
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_1d_{}.svg').format(param, task)
+         for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled', 'task-sfpconstant']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_cv_task-sfprescaled.svg').format(cv)
+         for cv in ['raw', 'demeaned', 'model', 'model_point']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_{}_task-sfprescaled.svg').format(kind)
+         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'pref-period_{}_angles-{}_task-sfprescaled_{}.svg').format(kind, angles, frame)
+         for kind  in ['all', 'subject'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],

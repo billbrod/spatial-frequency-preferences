@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from . import summary_plots
+from . import analyze_model
 from . import plotting
 
 
@@ -38,7 +39,7 @@ def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
     return df.reset_index()
 
 
-def prep_df(df, reference_frame):
+def prep_df(df, task):
     """prepare the dataframe by restricting to the appropriate subset
 
     The dataframe created by earlier analysis steps contains all
@@ -54,11 +55,11 @@ def prep_df(df, reference_frame):
     df : pd.DataFrame
         dataframe that will be used for plotting figures. contains some
         summary of (either 1d or 2d) model information across sessions.
-    reference_frame : {'relative', 'absolute'}
-        this determines which task we'll grab: task-sfprescaled (if
-        "relative") or task-sfpconstant (if "absolute"). task-sfp is
-        also in the relative reference frame, but doesn't have the
-        contrast-rescaled stimuli, so we're considering it pilot data
+    task : {'task-sfrescaled', 'task-sfpconstant'}
+        this determines which task we'll grab: task-sfprescaled or
+        task-sfpconstant. task-sfp is also exists, but we consider that
+        a pilot task and so do not allow it for the creation of figures
+        (the stimuli were not contrast-rescaled).
 
     Returns
     -------
@@ -66,10 +67,9 @@ def prep_df(df, reference_frame):
         The restricted dataframe.
 
     """
-    if reference_frame == 'relative':
-        df = df.query("task=='task-sfprescaled'")
-    elif reference_frame == 'absolute':
-        df = df.query("task=='task-sfpconstant'")
+    if task not in ['task-sfprescaled', 'task-sfpconstant']:
+        raise Exception("Only task-sfprescaled and task-sfpconstant are allowed!")
+    df = df.query("task==@task")
     if 'frequency_type' in df.columns:
         df = df.query("frequency_type=='local_sf_magnitude'")
     if 'varea' in df.columns:
@@ -204,7 +204,7 @@ def pref_period_1d(df, reference_frame='relative', row='session', col='subject',
         seaborn FacetGrid object containing the plot
 
     """
-    g = _summarize_1d(df, reference_frame, y, row, col, height, ylim=(0, 4))
+    g = _summarize_1d(df, reference_frame, 'preferred_period', row, col, height, ylim=(0, 4))
     g.set_ylabels('Preferred period (dpc)')
     g.set(yticks=[0, 1, 2, 3])
     g.fig.suptitle("Preferred period of 1d tuning curves in each eccentricity band")
@@ -577,3 +577,46 @@ def model_parameters_compare_plot(df, bootstrap_df):
     for ax in g.axes.flatten():
         ax.set_xticklabels(ax.get_xticklabels(), rotation=25)
     return g
+
+
+def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative'):
+    """plot model predictions based on parameter values
+
+    This function is used to create plots showing the preferred period
+    as a function of eccentricity, as given by the model. Right now, it
+    always plots each subject separately, and will plot confidence
+    intervals based on bootstraps if possible (i.e., if df contains the
+    column 'bootstrap_num'). You can optionally average over the
+    retinotopic angles or keep them separate, and you can plot the
+    predictions for stimuli in the relative or absolute reference frame.
+
+    This function converts the model paramter value df into the
+    feature_df by calling analyze_model.create_feature_df. 
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects.
+    avg_across_retinal_angle : bool, optional
+        whether to average across the different retinotopic angles
+        (True) or plot each of them on separate subplots (False)
+    reference_frame : {'relative', 'absolute'}, optional
+        whether the you want to plot the predictions for stimuli in the
+        relative or absolute reference frame (i.e., annuli and pinwheels
+        or constant gratings).
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        the FacetGrid containing the plot
+
+    """
+    if avg_across_retinal_angle:
+        pre_boot_gb_func = 'mean'
+        row = None
+    else:
+        pre_boot_gb_func = None
+        row = 'Retinotopic angle (rad)'
+    df = analyze_model.create_feature_df(df, reference_frame=reference_frame)
+    return plotting.feature_df_plot(df, col='subject', row=row, pre_boot_gb_func=pre_boot_gb_func)

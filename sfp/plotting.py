@@ -868,9 +868,9 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
                     plot_func=sns.lineplot, x='Eccentricity (deg)', y='Preferred period (dpc)',
                     yticks=[0, 1, 2], xticks=[0, 2, 4, 6, 8, 10], height=4, aspect=1,
                     title='Preferred period', top=.85, pal=None, col_order=None, row_order=None,
-                    ylim=None, xlim=None, ci=68, n_boot=10000, col_wrap=None, pre_boot_gb_func=None,
-                    pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
-                                      'Eccentricity (deg)']):
+                    ylim=None, xlim=None, ci=95, n_boot=1000, col_wrap=None, pre_boot_gb_func=None,
+                    pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
+                                      'bootstrap_num', 'Eccentricity (deg)']):
     """Create plot from feature_df
 
     This function takes the feature_df created by
@@ -937,15 +937,16 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
         'wrap' the column variable at this width, so that the column
         facets span multiple rows. will throw an exception if col_wrap
         and row are both not None
-    pre_boot_gb_func : callable or None, optional
+    pre_boot_gb_func : str,, callable or None, optional
         feature_df contains a lot of info, and you may want to collapse
         over some of those dimensions. In order to make sure those
         dimensions are collapsed over appropriately, this function can
         perform an (optional) groupby before creating the FacetGrid. If
         this is not None, we will create the plot with
-        feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index(). The
+        feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index(). The
         intended use case is for, e.g., averaging over all retinotopic
-        angles.
+        angles by setting this to 'mean'. See the docstring of
+        pandas.groupby.agg for more info on possible arguments
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
@@ -963,11 +964,11 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     if row_order is None and row == 'Stimulus type':
         row_order = stimulus_type_order(feature_df.reference_frame.unique())
     if pre_boot_gb_func is not None:
-        feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
+        feature_df = feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index()
     g = sns.FacetGrid(feature_df, hue=hue, col=col, row=row, height=height, aspect=aspect,
                       palette=pal, xlim=xlim, ylim=ylim, col_wrap=col_wrap, col_order=col_order,
                       row_order=row_order)
-    g.map(plot_func, x, y, ci=ci, n_boot=n_boot)
+    g.map(plot_func, x, y, ci=ci, n_boot=n_boot, estimator=np.median)
     g.add_legend()
     for ax in g.axes.flatten():
         ax.axhline(color='gray', linestyle='--')
@@ -987,9 +988,9 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                           r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, height=4,
                           aspect=1, title='Preferred period contours', top=.76, pal=None,
                           col_order=None, row_order=None, title_position=[.5, 1.15], ylabelpad=30,
-                          legend_position=None, ylim=None, xlim=None, ci=68, n_boot=10000,
+                          legend_position=None, ylim=None, xlim=None, ci=95, n_boot=1000,
                           col_wrap=None, pre_boot_gb_func=None,
-                          pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
+                          pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
                                             'Eccentricity (deg)']):
     """Create polar plot from feature_df
 
@@ -1073,9 +1074,10 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         dimensions are collapsed over appropriately, this function can
         perform an (optional) groupby before creating the FacetGrid. If
         this is not None, we will create the plot with
-        feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index(). The
+        feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index(). The
         intended use case is for, e.g., averaging over all retinotopic
-        angles.
+        angles by setting this to 'mean'. See the docstring of
+        pandas.groupby.agg for more info on possible arguments
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
@@ -1093,11 +1095,11 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     if row_order is None and row == 'Stimulus type':
         row_order = stimulus_type_order(feature_df.reference_frame.unique())
     if pre_boot_gb_func is not None:
-        feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
+        feature_df = feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index()
     g = sns.FacetGrid(feature_df, col=col, hue=hue, row=row, subplot_kws={'projection': 'polar'},
                       despine=False, height=height, aspect=aspect, palette=pal, xlim=xlim,
                       ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order)
-    g.map(plot_func, theta, r, ci=ci, n_boot=n_boot)
+    g.map(plot_func, theta, r, ci=ci, n_boot=n_boot, estimator=np.median)
     for i, ax in enumerate(g.axes.flatten()):
         ax.title.set_position(title_position)
         if i == 0:
