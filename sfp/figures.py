@@ -453,14 +453,12 @@ def model_parameters(df, plot_kind='point'):
     fig, axes = plt.subplots(1, 3, figsize=(20, 10), gridspec_kw={'width_ratios': [.15, .3, .6]})
     order = plotting.get_order('model_parameter', col_unique=df.model_parameter.unique())
     if plot_kind == 'point':
-        pal = plotting.get_palette('model_parameter', col_unique=df.model_parameter.unique())
-        pal = dict(zip(df.model_parameter.unique(), pal))
+        pal = plotting.get_palette('model_parameter', col_unique=df.model_parameter.unique(),
+                                   as_dict=True)
     elif plot_kind == 'strip':
-        pal = plotting.get_palette('subject', col_unique=df.subject.unique())
-        pal = dict(zip(df.subject.unique(), pal))
+        pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
     elif plot_kind == 'dist':
-        pal = plotting.get_palette('subject', col_unique=df.subject.unique())
-        pal = dict(zip(df.subject.unique(), pal))
+        pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
     for i, ax in enumerate(axes):
         cat = ['sigma', 'eccen', 'orientation'][i]
         tmp = df.query("param_category==@cat")
@@ -572,7 +570,7 @@ def model_parameters_compare_plot(df, bootstrap_df):
     g = sns.FacetGrid(compare_df, col='model_parameter', hue='subject', col_wrap=4, sharey=False,
                       aspect=2.5, height=3, col_order=plotting.PLOT_PARAM_ORDER, hue_order=order,
                       palette=pal)
-    g.map_dataframe(plotting.scatter_ci_dist, 'subject', 'fit_value_bs', ci_vals=[5, 95])
+    g.map_dataframe(plotting.scatter_ci_dist, 'subject', 'fit_value_bs')
     g.map_dataframe(plt.scatter, 'subject', 'fit_value')
     for ax in g.axes.flatten():
         ax.set_xticklabels(ax.get_xticklabels(), rotation=25)
@@ -612,11 +610,21 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         the FacetGrid containing the plot
 
     """
+    kwargs = {}
     if avg_across_retinal_angle:
         pre_boot_gb_func = 'mean'
         row = None
     else:
         pre_boot_gb_func = None
         row = 'Retinotopic angle (rad)'
+        kwargs.update({'top': .9})
+    if df.bootstrap_num.nunique() > 1:
+        # then we have each subject's bootstraps, so we use
+        # scatter_ci_dist to plot across them
+        plot_func = plotting.scatter_ci_dist
+        kwargs.update({'draw_ctr_pts': False, 'ci_mode': 'fill', 'join': True})
+    else:
+        plot_func = sns.lineplot
     df = analyze_model.create_feature_df(df, reference_frame=reference_frame)
-    return plotting.feature_df_plot(df, col='subject', row=row, pre_boot_gb_func=pre_boot_gb_func)
+    return plotting.feature_df_plot(df, col='subject', row=row, pre_boot_gb_func=pre_boot_gb_func,
+                                    plot_func=plot_func, **kwargs)

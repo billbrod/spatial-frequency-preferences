@@ -54,21 +54,30 @@ def get_order(col, reference_frame=None, col_unique=None):
         return sorted(col_unique)
 
 
-def get_palette(col, reference_frame=None, col_unique=None):
+def get_palette(col, reference_frame=None, col_unique=None, as_dict=False):
     """get palette for column
 
     col must be one of: {'stimulus_type', 'subject', 'fit_model_type',
     'model_parameter'}
 
+    if as_dict is True, then we also find the order for this column
+    (using get_order), and return a dictionary matching between the
+    elements of this col and the colors in the palette (this can still
+    be passed as the palette argument to most seaborn plots).
+
     """
     if col == 'stimulus_type':
-        return stimulus_type_palette(reference_frame)
+        pal = stimulus_type_palette(reference_frame)
     elif col == 'subject':
-        return sns.color_palette('Dark2', len(col_unique))
+        pal = sns.color_palette('Dark2', len(col_unique))
     elif col == 'fit_model_type':
-        return sns.color_palette('Accent', len(col_unique))
+        pal = sns.color_palette('Accent', len(col_unique))
     elif col == 'model_parameter':
-        return sns.color_palette('viridis', len(col_unique))
+        pal = sns.color_palette('viridis', len(col_unique))
+    if as_dict:
+        order = get_order(col, reference_frame, col_unique)
+        pal = dict(zip(order, pal))
+    return pal
 
 
 def stimulus_type_palette(reference_frame):
@@ -233,33 +242,70 @@ def scatter_ci_col(x, y, ci, x_order=None, x_jitter=None, **kwargs):
     ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
 
 
-def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, join=False, **kwargs):
+def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
+                    draw_ctr_pts=True, ci_mode='lines', ci_alpha=.2, **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
-    based on seaborn.linearmodels.scatterplot. CIs are taken from a distribution in this
-    function. Therefore, it's assumed that the values being passed to it are values from a
-    bootstrap distribution.
+    based on seaborn.linearmodels.scatterplot. CIs are taken from a
+    distribution in this function. Therefore, it's assumed that the
+    values being passed to it are values from a bootstrap distribution.
 
-    by default, this draws the 68% confidence interval. to change this, change the ci_vals
-    argument. for instance, if you only want to draw the median point, pass ci_vals=[50, 50] (this
-    is equivalent to just calling plt.scatter)
+    by default, this draws the 68% confidence interval. to change this,
+    change the ci argument. for instance, if you only want to draw the
+    estimator point, pass ci=0
+
+    Parameters
+    ----------
+    x : str
+        which column of data to plot on the x-axis
+    y : str
+        which column of data to plot on the y-axis
+    x_jitter : float, bool, or None, optional
+        whether to jitter the data along the x-axis. if None or False,
+        don't jitter. if a float, add uniform noise (drawn from
+        -x_jitter to x_jitter) to each point's x value. if True, act as
+        if x_jitter=.1
+    join : bool, optional
+        whether to connect the central trend of the data with a line or
+        not.
+    estimator : callable, optional
+        what function to use for estimating central trend of the data,
+        as plotted if either draw_ctr_pts or join is True.
+    draw_ctr_pts : bool, optional
+        whether to draw the center points (as given by estimator).
+    ci_mode : {'lines', 'fill'}, optional
+        how to draw the CI. If 'lines', we draw lines for the CI. If
+        'fill', we shade the region of the CI, with alpha given by
+        ci_alpha
+    ci_alpha : float, optional
+        the alpha value for the CI, if ci_mode=='fill'
+    kwargs :
+        must contain data. Other expected keys:
+        - ax: the axis to draw on (otherwise, we grab current axis)
+        - x_order: the order to plot x-values in. Otherwiwse, don't
+          reorder
+        everything else will be passed to the scatter, plot, and
+        fill_between functions called (except label, which will not be
+        passed to the plot or fill_between function call that draws the
+        CI, in order to make any legend created after this prettier)
 
     Returns
     -------
     dots, lines, cis :
         The handles for the center points, lines connecting them (if
-        join=True), and CI lines. this is returned for better control
-        over what shows up in the legend.
+        join=True), and CI lines/fill. this is returned for better
+        control over what shows up in the legend.
 
     """
     data = kwargs.pop('data')
     ax = kwargs.pop('ax', plt.gca())
     x_order = kwargs.pop('x_order', None)
-    plot_data = data.groupby(x)[y].median()
-    plot_cis = data.groupby(x)[y].apply(np.percentile, ci_vals)
+    plot_data = data.groupby(x)[y].agg(estimator)
+    ci_vals = [50 - ci/2, 50 + ci/2]
+    plot_cis = [data.groupby(x)[y].agg(np.percentile, val) for val in ci_vals]
     if x_order is not None:
         plot_data = plot_data.reindex(x_order)
-        plot_cis = plot_cis.reindex(x_order)
+        plot_cis = [p.reindex(x_order) for p in plot_cis]
     x_data = plot_data.index
     # we have to check here because below we'll end up making things
     # numeric
@@ -269,13 +315,32 @@ def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, join=False, **kwargs)
     except TypeError:
         x_data = np.arange(len(x_data))
         x_data = _jitter_data(x_data, x_jitter)
-    dots = ax.scatter(x_data, plot_data.values, **kwargs)
+    # at this point, x_data could be an array or the index of a
+    # dataframe. we want it to be an array for all the following calls,
+    # and this try/except forces that
+    try:
+        x_data = x_data.values
+    except AttributeError:
+        pass
+    if draw_ctr_pts:
+        dots = ax.scatter(x_data, plot_data.values, **kwargs)
+    else:
+        dots = None
     if join is True:
         lines = ax.plot(x_data, plot_data.values, **kwargs)
     else:
         lines = None
-    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.items()):
-        cis = ax.plot([x, x], [ci_low, ci_high], **kwargs)
+    # if we attach label to the CI, then the legend may use the CI
+    # artist, which we don't want
+    kwargs.pop('label', None)
+    if ci_mode == 'lines':
+        for x, (ci_low, ci_high) in zip(x_data, zip(*plot_cis)):
+            cis = ax.plot([x, x], [ci_low, ci_high], **kwargs)
+    elif ci_mode == 'fill':
+        cis = ax.fill_between(x_data, plot_cis[0].values, plot_cis[1].values, alpha=ci_alpha,
+                              **kwargs)
+    else:
+        raise Exception(f"Don't know how to handle ci_mode {ci_mode}!")
     # if we do the following when x is numeric, things get messed up.
     if x_jitter is not None and not x_numeric:
         ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
@@ -421,13 +486,13 @@ def local_spatial_frequency(df, save_path=None, **kwargs):
     return g
 
 
-def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 84],
+def plot_data(df, x_col='freq_space_distance', median_only=False, ci=68,
               save_path=None, row='varea', **kwargs):
     """plot the raw amplitude estimates, either with or without confidence intervals
 
     if df is the summary dataframe, we'll use the amplitude_estimate_std_error column as the
-    confidence intervals (in this case, ci_vals is ignored). otherwise, we'll estimate them
-    directly from the bootstrapped data using np.percentile; in this case, ci_vals determines what
+    confidence intervals (in this case, ci is ignored). otherwise, we'll estimate them
+    directly from the bootstrapped data using np.percentile; in this case, ci determines what
     percentile to plot (by default, the 68% confidence interval)
 
     x_col determines what to have on the x-axis 'freq_space_distance' or
@@ -457,8 +522,7 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     else:
         g.map_dataframe(plot_median, x_col, 'amplitude_estimate')
         if not median_only:
-            g.map_dataframe(scatter_ci_dist, x_col, 'amplitude_estimate', ci_vals=ci_vals,
-                            **kwargs)
+            g.map_dataframe(scatter_ci_dist, x_col, 'amplitude_estimate', ci=ci, **kwargs)
     g.map_dataframe(plot_median, x_col, 'baseline', linestyle='--')
     for ax in g.axes.flatten():
         ax.set_xscale('log', basex=2)
@@ -868,9 +932,9 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
                     plot_func=sns.lineplot, x='Eccentricity (deg)', y='Preferred period (dpc)',
                     yticks=[0, 1, 2], xticks=[0, 2, 4, 6, 8, 10], height=4, aspect=1,
                     title='Preferred period', top=.85, pal=None, col_order=None, row_order=None,
-                    ylim=None, xlim=None, ci=95, n_boot=1000, col_wrap=None, pre_boot_gb_func=None,
+                    ylim=None, xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
                     pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
-                                      'bootstrap_num', 'Eccentricity (deg)']):
+                                      'bootstrap_num', 'Eccentricity (deg)'], **kwargs):
     """Create plot from feature_df
 
     This function takes the feature_df created by
@@ -884,6 +948,32 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     feature_df_polar_plot
 
     The majority of the arguments are passed right to sns.FacetGrid
+
+    There are two major choices for `plot_func`: `sns.lineplot` and
+    `sfp.plotting.scatter_ci_dist`. The major difference is how they
+    draw CIs:
+
+    1. `sns.lineplot` draws CIs by drawing its own bootstraps from the
+       data present in the df. So if your df contains 12 independent
+       subjects and you want to draw your CIs summarizing how these
+       predictions differ across subjects, use this.
+
+    2. `sfp.plotting.scatter_ci_dist` draws CIs based on a distribution
+        already in the df. That is, we assume you've already generated
+        your bootstrapped distribution and want the plotting function to
+        create the CIs based on the percentiles of the data already in
+        the df. For example, we get 100 bootstrapped estimates of each
+        voxels' response to the stimuli, and fit a model to each of
+        these bootstraps separately. These bootstraps are *not*
+        independent (they're generated by sampling from runs, which
+        are), and so using `sns.lineplot` above to resample from them is
+        inappropriate. Instead, `scatter_ci_dist` will create the CIs
+        from the df directly.
+
+    If you're using `scatter_ci_dist` for the intended purpose above,
+    you probably want to add the following kwargs (which will get passed
+    directly to `scatter_ci_dist`): `draw_ctr_pts=False, ci_mode='fill',
+    join=True`.
 
     Parameters
     ----------
@@ -899,8 +989,9 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
         a column in feature_df, which feature to facet on the rows
     plot_func : callable, optional
         The plot function to map on the FacetGrid. First two args should
-        be x and y, should accept ci and n_boot kwargs (many seaborn
-        plotting functions would work for this)
+        be x and y, should accept ci kwarg. Will call using
+        map_dataframe. Note that different choices here will affects how
+        we raw CIs, see above for more details
     x : str, optional
         a column in feature_df, which feature to plot on the x-axis
     y : str, optional
@@ -930,9 +1021,6 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     ci : int, optional
         the size of the confidence intervals to plot. see the docstring
         of plot_func for more details
-    n_boot : int, optional
-        the number of bootstraps to use for creating the confidence
-        intervals. see the docstring of plot_func for more details
     col_wrap : int or None, optional
         'wrap' the column variable at this width, so that the column
         facets span multiple rows. will throw an exception if col_wrap
@@ -950,6 +1038,8 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
+    kwargs :
+        passed to plot_func
 
     Returns
     -------
@@ -968,7 +1058,7 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     g = sns.FacetGrid(feature_df, hue=hue, col=col, row=row, height=height, aspect=aspect,
                       palette=pal, xlim=xlim, ylim=ylim, col_wrap=col_wrap, col_order=col_order,
                       row_order=row_order)
-    g.map(plot_func, x, y, ci=ci, n_boot=n_boot, estimator=np.median)
+    g.map_dataframe(plot_func, x, y, ci=ci, estimator=np.median, **kwargs)
     g.add_legend()
     for ax in g.axes.flatten():
         ax.axhline(color='gray', linestyle='--')
@@ -988,10 +1078,10 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                           r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, height=4,
                           aspect=1, title='Preferred period contours', top=.76, pal=None,
                           col_order=None, row_order=None, title_position=[.5, 1.15], ylabelpad=30,
-                          legend_position=None, ylim=None, xlim=None, ci=95, n_boot=1000,
-                          col_wrap=None, pre_boot_gb_func=None,
+                          legend_position=None, ylim=None, xlim=None, ci=68, col_wrap=None,
+                          pre_boot_gb_func=None,
                           pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
-                                            'Eccentricity (deg)']):
+                                            'Eccentricity (deg)'], **kwargs):
     """Create polar plot from feature_df
 
     This function takes the feature_df created by
@@ -1005,6 +1095,27 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     feature_df_plot
 
     The majority of the arguments are passed right to sns.FacetGrid
+
+    There are two major choices for `plot_func`: `sns.lineplot` and
+    `sfp.plotting.scatter_ci_dist`. The major difference is how they
+    draw CIs:
+
+    1. `sns.lineplot` draws CIs by drawing its own bootstraps from the
+       data present in the df. So if your df contains 12 independent
+       subjects and you want to draw your CIs summarizing how these
+       predictions differ across subjects, use this.
+
+    2. `sfp.plotting.scatter_ci_dist` draws CIs based on a distribution
+        already in the df. That is, we assume you've already generated
+        your bootstrapped distribution and want the plotting function to
+        create the CIs based on the percentiles of the data already in
+        the df. For example, we get 100 bootstrapped estimates of each
+        voxels' response to the stimuli, and fit a model to each of
+        these bootstraps separately. These bootstraps are *not*
+        independent (they're generated by sampling from runs, which
+        are), and so using `sns.lineplot` above to resample from them is
+        inappropriate. Instead, `scatter_ci_dist` will create the CIs
+        from the df directly.
 
     Parameters
     ----------
@@ -1020,8 +1131,9 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         a column in feature_df, which feature to facet on the rows
     plot_func : callable, optional
         The plot function to map on the FacetGrid. First two args should
-        be x and y, should accept ci and n_boot kwargs (many seaborn
-        plotting functions would work for this)
+        be x and y, should accept ci kwarg. Will call using
+        map_dataframe. Note that different choices here will affect how
+        we create CIs, see above for more details
     theta : str, optional
         a column in feature_df, which feature to plot as polar angle
     r : str, optional
@@ -1061,9 +1173,6 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     ci : int, optional
         the size of the confidence intervals to plot. see the docstring
         of plot_func for more details
-    n_boot : int, optional
-        the number of bootstraps to use for creating the confidence
-        intervals. see the docstring of plot_func for more details
     col_wrap : int or None, optional
         'wrap' the column variable at this width, so that the column
         facets span multiple rows. will throw an exception if col_wrap
@@ -1081,6 +1190,8 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
+    kwargs :
+        passed to plot_func
 
     Returns
     -------
@@ -1099,7 +1210,7 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     g = sns.FacetGrid(feature_df, col=col, hue=hue, row=row, subplot_kws={'projection': 'polar'},
                       despine=False, height=height, aspect=aspect, palette=pal, xlim=xlim,
                       ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order)
-    g.map(plot_func, theta, r, ci=ci, n_boot=n_boot, estimator=np.median)
+    g.map_dataframe(plot_func, theta, r, ci=ci, estimator=np.median)
     for i, ax in enumerate(g.axes.flatten()):
         ax.title.set_position(title_position)
         if i == 0:

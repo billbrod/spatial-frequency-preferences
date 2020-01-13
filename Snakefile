@@ -1596,12 +1596,12 @@ rule figure_summarize_1d:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{tuning_param}_1d_{task}.svg")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "1d_{tuning_param}_{task}.svg")
     log:
-        os.path.join(config['DATA_DIR'], 'code', "figures", "{tuning_param}_1d_{task}.log")
+        os.path.join(config['DATA_DIR'], 'code', "figures", "1d_{tuning_param}_{task}.log")
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', "figures",
-                     "{tuning_param}_1d_{task}_benchmark.txt")
+                     "1d_{tuning_param}_{task}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -1622,11 +1622,11 @@ rule figure_crossvalidation:
                      'bayesian_posterior', 'initial_cv',
                      'v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{cv_type}_cv_{task}.svg")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "cv_{cv_type}_{task}.svg")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{task}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "cv_{cv_type}_{task}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{cv_type}_cv_{task}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "cv_{cv_type}_{task}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -1768,9 +1768,9 @@ rule all:
 
 rule figures:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_1d_{}.svg').format(param, task)
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '1d_{}_{}.svg').format(param, task)
          for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_cv_task-sfprescaled.svg').format(cv)
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'cv_{}_task-sfprescaled.svg').format(cv)
          for cv in ['raw', 'demeaned', 'model', 'model_point']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_{}_task-sfprescaled.svg').format(kind)
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
