@@ -1613,7 +1613,7 @@ rule figure_summarize_1d:
                 g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None)
             elif wildcards.tuning_param == 'bandwidth':
                 g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None)
-            g.fig.savefig(output[0])
+            g.fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_crossvalidation:
@@ -1641,7 +1641,7 @@ rule figure_crossvalidation:
                 g = sfp.figures.cross_validation_model(df)
             elif wildcards.cv_type == 'model_point':
                 g = sfp.figures.cross_validation_model(df, 'point')
-            g.fig.savefig(output[0])
+            g.fig.savefig(output[0], bbox_inches='tight')
 
 
 def get_params_csv(wildcards):
@@ -1689,18 +1689,18 @@ rule figure_params:
                 fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
             else:
                 fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind)
-            fig.savefig(output[0])
+            fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_feature_df:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "pref-period_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "feature_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "pref-period_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "feature_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "pref-period_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "feature_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -1711,8 +1711,8 @@ rule figure_feature_df:
                 angles = True
             elif wildcards.angles == 'all':
                 angles = False
-            g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame)
-            g.fig.savefig(output[0])
+            g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame, wildcards.feature_type)
+            g.fig.savefig(output[0], bbox_inches='tight')
 
 rule report:
     input:
@@ -1774,5 +1774,8 @@ rule figures:
          for cv in ['raw', 'demeaned', 'model', 'model_point']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_{}_task-sfprescaled.pdf').format(kind)
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
          for kind  in ['all', 'subject'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(feature, kind, frame)
+         for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
+         for kind  in ['all', 'subject'] for frame in ['relative', 'absolute']],

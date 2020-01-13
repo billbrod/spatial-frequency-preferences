@@ -1075,11 +1075,11 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
 
 def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period (dpc)', row=None,
                           plot_func=sns.lineplot, theta='Retinotopic angle (rad)',
-                          r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, height=4,
-                          aspect=1, title='Preferred period contours', top=.76, pal=None,
-                          col_order=None, row_order=None, title_position=[.5, 1.15], ylabelpad=30,
-                          legend_position=None, ylim=None, xlim=None, ci=68, col_wrap=None,
-                          pre_boot_gb_func=None,
+                          r='Eccentricity (deg)', r_ticks=None, theta_ticks=None,
+                          all_tick_labels=[], height=4, aspect=1, title='Preferred period contours',
+                          top=.76, hspace=.3, wspace=.1, pal=None, col_order=None, row_order=None,
+                          title_position=[.5, 1.15], ylabelpad=30, legend_position=None, ylim=None,
+                          xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
                           pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
                                             'Eccentricity (deg)'], **kwargs):
     """Create polar plot from feature_df
@@ -1141,6 +1141,13 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         the origin
     {r, theta}ticks : list, optional
         list of floats, which r- and theta-ticks to include on the plot
+    all_tick_labels : list, optional
+        by default, sns.FacetGrid only puts tick labels on the bottom-
+        and left-most facets. this works well for cartesian plots, but
+        less well for polar ones. If you want to make sure that the tick
+        labels are shown on each facet, include the axis here. possible
+        values are: 'r', 'theta'. If list is empty, then we don't change
+        anything
     height : float, optional
         The height of each individual subplot
     aspect : float, optional
@@ -1153,6 +1160,12 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         is above the subplots (with a call to
         g.fig.subplots_adjust(top=top)). If title is None, this is
         ignored.
+    hspace : float, optional
+        the amount of height reserved for space between subplots,
+        expressed as a fraction of the average axis width
+    wspace : float, optional
+        the amount of width reserved for space between subplots,
+        expressed as a fraction of the average axis width
     pal : palette name, list, dict, or None, optional
         palette to pass to sns.FacetGrid for specifying the colors to
         use. if None and hue=="Stimulus type", we use the defaults given
@@ -1211,14 +1224,20 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                       despine=False, height=height, aspect=aspect, palette=pal, xlim=xlim,
                       ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order)
     g.map_dataframe(plot_func, theta, r, ci=ci, estimator=np.median, **kwargs)
-    for i, ax in enumerate(g.axes.flatten()):
-        ax.title.set_position(title_position)
-        if i == 0:
-            ax.yaxis.labelpad = ylabelpad
-        if r_ticks is not None:
-            ax.set_yticks(r_ticks)
-        if theta_ticks is not None:
-            ax.set_xticks(theta_ticks)
+    for i, axes in enumerate(g.axes):
+        for j, ax in enumerate(axes):
+            ax.title.set_position(title_position)
+            # we do this for all axes in the first column
+            if j == 0:
+                ax.yaxis.labelpad = ylabelpad
+            if r_ticks is not None:
+                ax.set_yticks(r_ticks)
+            if 'r' in all_tick_labels:
+                ax.tick_params(labelleft=True)
+            if theta_ticks is not None:
+                ax.set_xticks(theta_ticks)
+            if 'theta' in all_tick_labels:
+                ax.tick_params(labelbottom=True)
     if legend_position is not None:
         g.add_legend(bbox_to_anchor=legend_position)
     else:
@@ -1226,6 +1245,7 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     if title is not None:
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=top)
+    g.fig.subplots_adjust(hspace=hspace, wspace=wspace)
     return g
 
 

@@ -208,6 +208,12 @@ def create_preferred_period_df(model, reference_frame='absolute',
     frames) and retinotopic angles. This dataframe is then used for
     creating plots to summarize the model.
 
+    You can also use this function to create the information necessary
+    to plot preferred period as a function of retinotopic angle at a
+    specific eccentricity. You can do that by reducing the number of
+    eccentricities (e.g., eccentricity=[5]) and increasing the number of
+    retinotopic angles (e.g., np.linspace(0, 2*np.pi, 49)).
+
     Unless you have something specific in mind, you can trust the
     default options for retinotopic_angle, orientation, and
     eccentricity.
@@ -296,6 +302,13 @@ def create_preferred_period_contour_df(model, reference_frame='absolute',
     at what eccentricity the model's preferred period is, e.g., 1 for a
     range of retinotopic angles and stimulus orientation. This dataframe
     is then used for creating plots to summarize the model.
+
+    So this function creates information to plot iso-preferred period
+    lines. If you want to plot preferred period as a function of
+    retinotopic angle for a specific eccentricity, you can do that with
+    create_preferred_period_df, by reducing the number of eccentricities
+    (e.g., eccentricity=[5]) and increasing the number of retinotopic
+    angles (e.g., np.linspace(0, 2*np.pi, 49))
 
     Unless you have something specific in mind, you can trust the
     default options for retinotopic_angle, orientation, and
@@ -467,8 +480,20 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
                                  pre_boot_gb_func=np.mean)
     ```
 
-    2. preferred period as a function of retinotopic angle and stimulus
-       orientation:
+    2. preferred period as a function of a function of retinotopic
+       angle of stimulus orientation at a given eccentricity:
+
+    ```
+    pref_period = create_feature_df(models, feature_type='preferred_period',
+                                    eccentricity=[5],
+                                    retinotopic_angle=np.linspace(0, 2*np.pi, 49))
+    sfp.plotting.feature_df_polar_plot(pref_period, col='Eccentricity (deg)', 
+                                       r='Preferred period (dpc)')
+    ```
+
+    3. iso-preferred period lines as a function of retinotopic angle and
+       stimulus orientation (i.e., at what eccentricity do you have a
+       preferred period of 1 for this angle and orientation):
 
     ```
     pref_period_contour = create_feature_df(models, 
@@ -476,7 +501,7 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
     sfp.plotting.feature_df_polar_plot(pref_period_contour)
     ```
 
-    3. max amplitude as a function of retinotopic angle and stimulus
+    4. max amplitude as a function of retinotopic angle and stimulus
        orientation:
 
     ```
