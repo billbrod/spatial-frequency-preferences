@@ -1210,7 +1210,7 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     g = sns.FacetGrid(feature_df, col=col, hue=hue, row=row, subplot_kws={'projection': 'polar'},
                       despine=False, height=height, aspect=aspect, palette=pal, xlim=xlim,
                       ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order)
-    g.map_dataframe(plot_func, theta, r, ci=ci, estimator=np.median)
+    g.map_dataframe(plot_func, theta, r, ci=ci, estimator=np.median, **kwargs)
     for i, ax in enumerate(g.axes.flatten()):
         ax.title.set_position(title_position)
         if i == 0:
