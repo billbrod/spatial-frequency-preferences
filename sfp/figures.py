@@ -420,7 +420,7 @@ def cross_validation_model(df, plot_kind='strip'):
     return g
 
 
-def model_parameters(df, plot_kind='point'):
+def model_parameters(df, plot_kind='point', visual_field='all'):
     """plot model parameter values, across subjects
 
     Parameters
@@ -443,6 +443,14 @@ def model_parameters(df, plot_kind='point'):
         - 'strip': strip plot, so show each subject as a separate point
         - 'dist': distribution, show each each subject as a separate
           point with their own 68% CI across bootstraps
+    visual_field : str, optional
+        in addition to fitting the model across the whole visual field,
+        we also fit the model to some portions of it (the left half,
+        right half, etc). this arg allows us to easily modify the title
+        of the plot to make it clear which portion of the visual field
+        we're plotting. If 'all' (the default), we don't modify the
+        title at all, otherwise we append "in {visual_field} visual
+        field" to it.
 
     Returns
     -------
@@ -486,7 +494,10 @@ def model_parameters(df, plot_kind='point'):
                 ax.legend(handles, labels, loc=(1.01, .3), borderaxespad=0, frameon=False)
         ax.axhline(color='grey', linestyle='dashed')
         ax.set(ylabel='Fit value', xlabel='Parameter')
-    fig.suptitle("Model parameters")
+    suptitle = "Model parameters"
+    if visual_field != 'all':
+        suptitle += f' in {visual_field} visual field'
+    fig.suptitle(suptitle)
     fig.subplots_adjust(top=.85)
     return fig
 
@@ -578,7 +589,7 @@ def model_parameters_compare_plot(df, bootstrap_df):
 
 
 def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative',
-                    feature_type='pref-period'):
+                    feature_type='pref-period', visual_field='all'):
     """plot model predictions based on parameter values
 
     This function is used to create plots showing the preferred period
@@ -618,6 +629,14 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
           (on a polar plot)
         - max-amp: plot max amplitude as a function of retinotopic angle
           (on a polar plot)
+    visual_field : str, optional
+        in addition to fitting the model across the whole visual field,
+        we also fit the model to some portions of it (the left half,
+        right half, etc). this arg allows us to easily modify the title
+        of the plot to make it clear which portion of the visual field
+        we're plotting. If 'all' (the default), we don't modify the
+        title at all, otherwise we append "in {visual_field} visual
+        field" to it.
 
     Returns
     -------
@@ -667,4 +686,6 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                plot_func=plot_func, title='Max amplitude', **kwargs)
         else:
             raise Exception(f"Don't know what to do with feature_type {feature_type}!")
+    if visual_field != 'all':
+        g.fig._suptitle.set_text(g.fig._suptitle.get_text() + f' in {visual_field} visual field')
     return g

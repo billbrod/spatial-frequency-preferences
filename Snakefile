@@ -1649,10 +1649,14 @@ def get_params_csv(wildcards):
                                  'stim_class', 'bayesian_posterior', '%s',
                                  'v1_e1-12_%s_b10_r0.001_g0_full_full_vary_all_models.csv')
     paths = []
-    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'subject']:
+    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps']:
         paths.append(path_template % ('bootstrap', 'full'))
-    if wildcards.plot_kind in ['point', 'strip', 'compare', 'all']:
-        paths.append(path_template % ('initial', 'summary'))
+    if wildcards.plot_kind in ['point', 'strip', 'compare', 'median']:
+        if wildcards.vf == 'all':
+            folder = 'initial'
+        else:
+            folder = 'visual_field_%s' % wildcards.vf
+        paths.append(path_template % (folder, 'summary'))
     return paths
 
 
@@ -1660,11 +1664,11 @@ rule figure_params:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "params_{plot_kind}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "params_{plot_kind}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -1688,7 +1692,7 @@ rule figure_params:
                 # regular one
                 fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
             else:
-                fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind)
+                fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind, wildcards.vf)
             fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -1696,11 +1700,11 @@ rule figure_feature_df:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "feature_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "feature_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "feature_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -1711,7 +1715,8 @@ rule figure_feature_df:
                 angles = True
             elif wildcards.angles == 'all':
                 angles = False
-            g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame, wildcards.feature_type)
+            g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame, wildcards.feature_type,
+                                            wildcards.vf)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 rule report:
@@ -1772,10 +1777,17 @@ rule figures:
          for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled', 'task-sfpconstant']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'cv_{}_task-sfprescaled.pdf').format(cv)
          for cv in ['raw', 'demeaned', 'model', 'model_point']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_{}_task-sfprescaled.pdf').format(kind)
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-all_{}_task-sfprescaled.pdf').format(kind)
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
-         for kind  in ['all', 'subject'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(feature, kind, frame)
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)
+         for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
+         for kind  in ['median', 'bootstraps'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(feature, kind, frame)
          for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-         for kind  in ['all', 'subject'] for frame in ['relative', 'absolute']],
+         for kind  in ['median', 'bootstraps'] for frame in ['relative', 'absolute']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(vf, angles, frame)
+         for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(vf, feature, frame)
+         for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
+         for frame in ['relative', 'absolute']],
