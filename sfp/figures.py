@@ -498,7 +498,8 @@ def cross_validation_model(df, plot_kind='strip'):
     return g
 
 
-def model_parameters(df, plot_kind='point', visual_field='all'):
+def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_legend=True,
+                     **kwargs):
     """plot model parameter values, across subjects
 
     Parameters
@@ -529,6 +530,17 @@ def model_parameters(df, plot_kind='point', visual_field='all'):
         we're plotting. If 'all' (the default), we don't modify the
         title at all, otherwise we append "in {visual_field} visual
         field" to it.
+    fig : plt.Figure or None, optional
+        the figure to plot on. If None, we create a new figure. Intended
+        use case for this is to plot the data from multiple sessions on
+        the same axes (with different display kwargs), in order to
+        directly compare how parameter values change.
+    add_legend : bool, optional
+        whether to add a legend or not. If True, will add just outside
+        the right-most axis
+    kwargs :
+        Passed directly to the plotting function, which depends on the
+        value of plot_kind
 
     Returns
     -------
@@ -536,7 +548,11 @@ def model_parameters(df, plot_kind='point', visual_field='all'):
         Figure containin the plot
 
     """
-    fig, axes = plt.subplots(1, 3, figsize=(20, 10), gridspec_kw={'width_ratios': [.15, .3, .6]})
+    if fig is None:
+        fig, axes = plt.subplots(1, 3, figsize=(20, 10),
+                                 gridspec_kw={'width_ratios': [.15, .3, .6]})
+    else:
+        axes = fig.axes
     order = plotting.get_order('model_parameter', col_unique=df.model_parameter.unique())
     if plot_kind == 'point':
         pal = plotting.get_palette('model_parameter', col_unique=df.model_parameter.unique(),
@@ -552,25 +568,28 @@ def model_parameters(df, plot_kind='point', visual_field='all'):
         ax_order = [i for i in order if i in tmp.model_parameter.unique()]
         if plot_kind == 'point':
             sns.pointplot('model_parameter', 'fit_value', 'model_parameter', data=tmp,
-                          estimator=np.median, ax=ax, order=ax_order, palette=pal, ci=95)
+                          estimator=np.median, ax=ax, order=ax_order, palette=pal, ci=95, **kwargs)
         elif plot_kind == 'strip':
             sns.stripplot('model_parameter', 'fit_value', 'subject', data=tmp, ax=ax,
-                          order=ax_order, palette=pal, hue_order=hue_order)
+                          order=ax_order, palette=pal, hue_order=hue_order, **kwargs)
         elif plot_kind == 'dist':
             handles, labels = [], []
             for n, g in tmp.groupby('subject'):
                 dots, _, _ = plotting.scatter_ci_dist('model_parameter', 'fit_value', data=g,
                                                       label=n, ax=ax, x_jitter=.2, color=pal[n],
-                                                      x_order=ax_order)
+                                                      x_order=ax_order, **kwargs)
                 handles.append(dots)
                 labels.append(n)
         if ax.legend_:
             ax.legend_.remove()
-        if i==2 and plot_kind in ['strip', 'dist']:
-            if plot_kind == 'strip':
-                ax.legend(loc=(1.01, .3), borderaxespad=0, frameon=False)
+        if i==2 and add_legend:
+            if plot_kind == 'dist':
+                legend = ax.legend(handles, labels, loc=(1.01, .3), borderaxespad=0, frameon=False)
             else:
-                ax.legend(handles, labels, loc=(1.01, .3), borderaxespad=0, frameon=False)
+                legend = ax.legend(loc=(1.01, .3), borderaxespad=0, frameon=False)
+            # explicitly adding the legend artist allows us to add a
+            # second legend if we want
+            ax.add_artist(legend)
         ax.axhline(color='grey', linestyle='dashed')
         ax.set(ylabel='Fit value', xlabel='Parameter')
     suptitle = "Model parameters"

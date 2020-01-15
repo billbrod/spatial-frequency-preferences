@@ -248,7 +248,7 @@ def scatter_ci_col(x, y, ci, x_order=None, x_jitter=None, **kwargs):
 
 
 def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
-                    draw_ctr_pts=True, ci_mode='lines', ci_alpha=.2, **kwargs):
+                    draw_ctr_pts=True, ci_mode='lines', ci_alpha=.2, size=5, **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
     based on seaborn.linearmodels.scatterplot. CIs are taken from a
@@ -284,6 +284,11 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
         ci_alpha
     ci_alpha : float, optional
         the alpha value for the CI, if ci_mode=='fill'
+    size : float, optional
+        Diameter of the markers, in points. (Although plt.scatter is
+        used to draw the points, the size argument here takes a "normal"
+        markersize and not size^2 like plt.scatter, following how it's
+        done by seaborn.stripplot).
     kwargs :
         must contain data. Other expected keys:
         - ax: the axis to draw on (otherwise, we grab current axis)
@@ -328,7 +333,10 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     except AttributeError:
         pass
     if draw_ctr_pts:
-        dots = ax.scatter(x_data, plot_data.values, **kwargs)
+        # scatter expects s to be the size in pts**2, whereas we expect
+        # size to be the diameter, so we convert that (following how
+        # it's handled by seaborn's stripplot)
+        dots = ax.scatter(x_data, plot_data.values, s=size**2, **kwargs)
     else:
         dots = None
     if join is True:

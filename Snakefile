@@ -1652,11 +1652,20 @@ def get_params_csv(wildcards):
     if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps']:
         paths.append(path_template % ('bootstrap', 'full'))
     if wildcards.plot_kind in ['point', 'strip', 'compare', 'median']:
-        if wildcards.vf == 'all':
-            folder = 'initial'
+        if wildcards.vf == 'vertical':
+            vf = ['upper', 'lower']
+        elif wildcards.vf == 'horizontal':
+            vf = ['left', 'right']
+        elif wildcards.vf == 'eccen':
+            vf = ['inner', 'outer']
         else:
-            folder = 'visual_field_%s' % wildcards.vf
-        paths.append(path_template % (folder, 'summary'))
+            vf = [wildcards.vf]
+        for v in vf:
+            if v == 'all':
+                folder = 'initial'
+            else:
+                folder = 'visual_field_%s' % v
+            paths.append(path_template % (folder, 'summary'))
     return paths
 
 
@@ -1673,6 +1682,7 @@ rule figure_params:
         import pandas as pd
         import seaborn as sns
         import sfp
+        import matplotlib as mpl
         df = []
         for p in input:
             tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
@@ -1687,12 +1697,39 @@ rule figure_params:
                 # grab the underlying Figure
                 fig = sfp.figures.model_parameters_pairplot(df[0], drop_outlier).fig
             elif wildcards.plot_kind == 'compare':
-                # this returns the FacetGrid, so we need to do .fig to
-                # grab the underlying Figure. bootstrap_df comes before
-                # regular one
-                fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
+                if wildcards.vf == 'all':
+                    # this returns the FacetGrid, so we need to do .fig to
+                    # grab the underlying Figure. bootstrap_df comes before
+                    # regular one
+                    fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
+                else:
+                    fig = sfp.figures.model_parameters(df[0], 'dist', wildcards.vf, size=7)
+                    if wildcards.vf == 'vertical':
+                        kwargs = [{'marker': '^', 'size': 7}, {'marker': 'v', 'size': 7}]
+                        labels = ['Upper visual field', 'Lower visual field']
+                    elif wildcards.vf == 'horizontal':
+                        kwargs = [{'marker': '<', 'size': 7}, {'marker': '>', 'size': 7}]
+                        labels = ['Left visual field', 'Right visual field']
+                    elif wildcards.vf == 'eccen':
+                        kwargs = [{'size': 5, 'marker': 'o'}, {'marker': "$\circ$", 'size': 15}]
+                        labels = ['Inner visual field', 'Outer visual field']
+                    kwargs.append({'marker': 'o', 'size': 7})
+                    labels.append('Full visual field')
+                    fig = sfp.figures.model_parameters(df[1], 'strip', wildcards.vf, fig, False,
+                                                       **kwargs[0])
+                    fig = sfp.figures.model_parameters(df[2], 'strip', wildcards.vf, fig, False,
+                                                       **kwargs[1])
+                    dummy_markers = []
+                    for m, l in zip(kwargs[::-1], labels[::-1]):
+                        m['markersize'] = m.pop('size')
+                        dummy_markers.append(mpl.lines.Line2D([], [], linewidth=0, color='gray',
+                                                              label=l, **m))
+                    fig.axes[-1].legend(handles=dummy_markers, loc=(1.01, .5), frameon=False)
             else:
-                fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind, wildcards.vf)
+                # don't add a legend if the plot_kind is point
+                add_legend = {'point': False}.get(wildcards.plot_kind, True)
+                fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind, wildcards.vf,
+                                                   add_legend=add_legend)
             fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -1719,6 +1756,7 @@ rule figure_feature_df:
                                             wildcards.vf)
             g.fig.savefig(output[0], bbox_inches='tight')
 
+
 rule figure_schematic:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', 'schematic.{ext}')
@@ -1732,6 +1770,7 @@ rule figure_schematic:
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             fig = sfp.figures.model_schematic()
             fig.savefig(output[0], bbox_inches='tight')
+
 
 rule report:
     input:
@@ -1795,6 +1834,8 @@ rule figures:
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)
          for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+         for vf in ['vertical', 'horizontal', 'eccen']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
          for kind  in ['median', 'bootstraps'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(feature, kind, frame)
