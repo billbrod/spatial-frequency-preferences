@@ -498,6 +498,45 @@ def cross_validation_model(df, plot_kind='strip'):
     return g
 
 
+def model_types():
+    """Create plot showing which model fits which parameters
+
+    We have 11 different parameters, which might seem like a lot, so we
+    do cross-validation to determine whether they're all necessary. This
+    plot shows which parameters are fit by each model, in a little
+    table.
+
+    Returns
+    -------
+    fig : plt.Figure
+        The figure with the plot on it
+
+    """
+    model_names = ['constant iso', 'scaling iso', 'full iso', 'full absolute', 'full relative',
+                   'full full', 'full absolute amps', 'full relative amps', 'full full amps']
+    parameters = [r'$\sigma$', r'$a$', r'$b$', r'$p_1$', r'$p_2$', r'$p_3$', r'$p_4$', r'$A_1$',
+                  r'$A_2$', r'$A_3$', r'$A_4$']
+    model_variants = np.zeros((len(model_names), len(parameters))).astype(bool)
+    # everyone fits sigma
+    model_variants[:, 0] = True
+    model_variants[1:, 1] = True
+    model_variants[0, 2] = True
+    model_variants[2:, 2] = True
+    model_variants[3, [3, 4]] = True
+    model_variants[4, [5, 6]] = True
+    model_variants[5, [3, 4, 5, 6]] = True
+    model_variants[6, [3, 4, 7, 8]] = True
+    model_variants[7, [5, 6, 9, 10]] = True
+    model_variants[8, 3:] = True
+    model_variants = pd.DataFrame(model_variants, model_names, parameters)
+    green, red = sns.color_palette('deep', 4)[2:]
+    pal = sns.blend_palette([red, green])
+    fig = plt.figure(figsize=(12,10))
+    ax = sns.heatmap(model_variants, cmap=pal, cbar=False, )
+    ax.set_yticklabels(model_names, rotation=0)
+    return fig
+
+
 def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_legend=True,
                      **kwargs):
     """plot model parameter values, across subjects
@@ -764,12 +803,12 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         kwargs.update({'hspace': .3, 'all_tick_labels': ['r']})
         if feature_type == 'pref-period-contour':
             df = analyze_model.create_feature_df(df, reference_frame=reference_frame,
-                                                 eccentricity=[2, 5, 10], 
+                                                 eccentricity=[5],
                                                  retinotopic_angle=np.linspace(0, 2*np.pi, 49))
             g = plotting.feature_df_polar_plot(df, col='subject', row='Eccentricity (deg)',
                                                r='Preferred period (dpc)', plot_func=plot_func, **kwargs)
         elif feature_type == 'iso-pref-period':
-            df = analyze_model.create_feature_df(df, 'preferred_period_contour',
+            df = analyze_model.create_feature_df(df, 'preferred_period_contour', period_target=[1],
                                                  reference_frame=reference_frame)
             g = plotting.feature_df_polar_plot(df, col='subject', row='Preferred period (dpc)',
                                                plot_func=plot_func,
