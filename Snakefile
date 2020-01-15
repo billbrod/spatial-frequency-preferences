@@ -1703,7 +1703,12 @@ rule figure_params:
                     # regular one
                     fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
                 else:
+                    # first draw the distribution of model parameters
+                    # for model fit to whole visual field
                     fig = sfp.figures.model_parameters(df[0], 'dist', wildcards.vf, size=7)
+                    # this sets the markers and labels we'll use to
+                    # distinguish the different parts of the visual
+                    # field
                     if wildcards.vf == 'vertical':
                         kwargs = [{'marker': '^', 'size': 7}, {'marker': 'v', 'size': 7}]
                         labels = ['Upper visual field', 'Lower visual field']
@@ -1715,10 +1720,16 @@ rule figure_params:
                         labels = ['Inner visual field', 'Outer visual field']
                     kwargs.append({'marker': 'o', 'size': 7})
                     labels.append('Full visual field')
+                    # add the two estimates from parts of the visual
+                    # field onto the existing figure, as strip plots
+                    # (because we only have a single estimate per model,
+                    # not the full distribution). we don't update the
+                    # legend within the function...
                     fig = sfp.figures.model_parameters(df[1], 'strip', wildcards.vf, fig, False,
                                                        **kwargs[0])
                     fig = sfp.figures.model_parameters(df[2], 'strip', wildcards.vf, fig, False,
                                                        **kwargs[1])
+                    # instead doing it manually with some dummy markers
                     dummy_markers = []
                     for m, l in zip(kwargs[::-1], labels[::-1]):
                         m['markersize'] = m.pop('size')
