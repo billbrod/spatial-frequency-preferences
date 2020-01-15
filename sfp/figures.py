@@ -4,10 +4,12 @@
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pandas as pd
 from . import summary_plots
 from . import analyze_model
 from . import plotting
+from . import model
 
 
 def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
@@ -252,6 +254,82 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
     return g
 
 
+def model_schematic():
+    """Create model schematic.
+
+    In order to better explain the model, its predictions, and the
+    effects of its parameters, we create a model schematic that shows
+    the predictions for several toy models. This function creates the
+    full schematic, summarizing the predictions for an isotropic,
+    relative, absolute, and full model, with extra text and arrows to
+    (hopefully) make it clearer.
+
+    Returns
+    -------
+    fig : plt.Figure
+        Figure containing the schematic
+
+    """
+    iso_model = model.LogGaussianDonut(sf_ecc_slope=.2, sf_ecc_intercept=.2)
+    rel_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                       rel_mode_cardinals=.4, rel_mode_obliques=.1)
+    abs_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                       abs_mode_cardinals=.4, abs_mode_obliques=.1)
+    full_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                        abs_mode_cardinals=.4, abs_mode_obliques=.1,
+                                        rel_mode_cardinals=.4, rel_mode_obliques=.1)
+    # we can't use the plotting.feature_df_plot / feature_df_polar_plot
+    # functions because they use FacetGrids, each of which creates a
+    # separate figure and we want all of this to be on one figure.
+    projs = ['rectilinear', 'polar', 'polar']
+    fig = plt.figure(constrained_layout=True, figsize=(35, 19))
+    axes_ht, space_ht = 1, .4
+    ht_ratios = np.array([axes_ht, space_ht, axes_ht, space_ht, axes_ht])
+    gs = mpl.gridspec.GridSpec(figure=fig, ncols=7, nrows=5, height_ratios=ht_ratios)
+
+    axes = []
+    for m, row, col in zip([iso_model, rel_model, abs_model, full_model],
+                           [0, 2, 2, 4], [2, 0, 4, 2]):
+        model_axes = [fig.add_subplot(gs[row, i+col], projection=projs[i])
+                      for i in range(3)]
+        axes.append(plotting.model_schematic(m, model_axes, [(-.1, 4.2), (-.1, 2.5), (-.1, 2.5)]))
+
+    # these need to be created after the model plots so we can grab
+    # their axes
+    legend_axes = [fig.add_subplot(gs[0, i]) for i in [1, 5]]
+    for i, ax in enumerate(legend_axes):
+        loc = ['center right', 'center left'][i]
+        ax.legend(*axes[-1][i+1].get_legend_handles_labels(), loc=loc)
+        ax.axis('off')
+
+    ptA = [(.5, -1), (.5, -1), (1.5/7, 2), (5.5/7, 2)]
+    ptB = [(1.5/7, -2), (5.5/7, -2), (.5, 1), (.5, 1)]
+    txt = [r'$p_3 > p_4 > 0$'+'\n'+r'$p_1=p_2=0$', r'$p_1 > p_2 > 0$'+'\n'+r'$p_3=p_4=0$',
+           r'$p_1=p_3>p_2=p_4>0$']
+    for i, (a, b) in enumerate(zip(ptA, ptB)):
+        a_ht = ht_ratios[:a[1]].sum() / ht_ratios.sum()
+        b_ht = ht_ratios[:b[1]].sum() / ht_ratios.sum()
+        arrow = mpl.patches.FancyArrowPatch((a[0], a_ht - .01), (b[0], b_ht + .02),
+                                            transform=fig.transFigure, color='k',
+                                            arrowstyle='simple', mutation_scale=20,)
+        fig.patches.append(arrow)
+        if i < 2:
+            fig.text(b[0] + (a[0]-b[0])/2, b_ht + (a_ht-b_ht)/2 + .025, txt[i],
+                     {'size': 15, 'ha': ['right', 'left'][i], 'va': 'center'})
+        if i == 2:
+            fig.text(.5, b_ht + (a_ht-b_ht)/2, txt[i],
+                     {'size': 15, 'ha': 'center', 'va': 'center'})
+    fig.text(.5, 1.01, 'Isotropic model',
+             {'size': 20, 'ha': 'center', 'va': 'center'})
+    fig.text(1.5/7, ht_ratios[:-2].sum() / ht_ratios.sum() + .01, 'Relative model',
+             {'size': 20, 'ha': 'center', 'va': 'center'})
+    fig.text(5.5/7, ht_ratios[:-2].sum() / ht_ratios.sum() + .01, 'Absolute model',
+             {'size': 20, 'ha': 'center', 'va': 'center'})
+    fig.text(.5, ht_ratios[:1].sum() / ht_ratios.sum() + .01, 'Full model',
+             {'size': 20, 'ha': 'center', 'va': 'center'})
+    return fig
+
+
 def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.75,
              ci=95, plot_kind='strip', x_rotate=True):
     """wrapper around seaborn.catplot
@@ -465,6 +543,7 @@ def model_parameters(df, plot_kind='point', visual_field='all'):
                                    as_dict=True)
     elif plot_kind == 'strip':
         pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
+        hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
     elif plot_kind == 'dist':
         pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
     for i, ax in enumerate(axes):
@@ -476,7 +555,7 @@ def model_parameters(df, plot_kind='point', visual_field='all'):
                           estimator=np.median, ax=ax, order=ax_order, palette=pal, ci=95)
         elif plot_kind == 'strip':
             sns.stripplot('model_parameter', 'fit_value', 'subject', data=tmp, ax=ax,
-                          order=ax_order, palette=pal)
+                          order=ax_order, palette=pal, hue_order=hue_order)
         elif plot_kind == 'dist':
             handles, labels = [], []
             for n, g in tmp.groupby('subject'):
@@ -571,7 +650,7 @@ def model_parameters_compare_plot(df, bootstrap_df):
         the FacetGrid containing the plot
 
     """
-    pal = plotting.get_palette('subject', col_unique=df.subject.unique())
+    pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
     order = plotting.get_order('subject', col_unique=df.subject.unique())
     compare_cols = ['model_parameter', 'subject', 'session', 'task']
     compare_df = df[compare_cols + ['fit_value']]

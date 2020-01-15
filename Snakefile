@@ -1719,6 +1719,20 @@ rule figure_feature_df:
                                             wildcards.vf)
             g.fig.savefig(output[0], bbox_inches='tight')
 
+rule figure_schematic:
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', 'schematic.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', 'schematic_{ext}.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', 'schematic_{ext}_benchmark.txt')
+    run:
+        import sfp
+        import seaborn as sns
+        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
+            fig = sfp.figures.model_schematic()
+            fig.savefig(output[0], bbox_inches='tight')
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),
@@ -1791,3 +1805,4 @@ rule figures:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(vf, feature, frame)
          for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
          for frame in ['relative', 'absolute']],
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic.pdf'),

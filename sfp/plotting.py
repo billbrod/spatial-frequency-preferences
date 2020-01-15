@@ -14,6 +14,7 @@ import os
 from . import tuning_curves
 from . import stimuli as sfp_stimuli
 from . import first_level_analysis
+from . import analyze_model
 import numpy as np
 import seaborn as sns
 import neuropythy as ny
@@ -68,13 +69,17 @@ def get_palette(col, reference_frame=None, col_unique=None, as_dict=False):
     """
     if col == 'stimulus_type':
         pal = stimulus_type_palette(reference_frame)
+        pal = dict((k, v) for k, v in pal.items() if k in col_unique)
+        if not as_dict:
+            raise Exception("palette is always a dictionary if col is stimulus_type!")
     elif col == 'subject':
         pal = sns.color_palette('Dark2', len(col_unique))
     elif col == 'fit_model_type':
         pal = sns.color_palette('Accent', len(col_unique))
     elif col == 'model_parameter':
         pal = sns.color_palette('viridis', len(col_unique))
-    if as_dict:
+    # if col=='stimulus_type', this is already a dict
+    if as_dict and col != 'stimulus_type':
         order = get_order(col, reference_frame, col_unique)
         pal = dict(zip(order, pal))
     return pal
@@ -926,6 +931,103 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     if save_path is not None:
         fig.savefig(save_path)
     return windowed_plot
+
+
+def model_schematic(model, axes=None, ylims=None):
+    """Examine model predictions, intended for example models (not ones fit to data)
+
+    In order to better understand the model, it's helpful to examine the
+    predictions for several toy models to see the effect of changing
+    parameters and get an intuition for what's going on. This plot is an
+    attempt to help with that by creating three plots next to each
+    other, showing the preferred period as a function of eccentricity
+    (relative reference frame), and as a function of retinotopic angle
+    (both relative and absolute frames).
+
+    This function is intended to be called by figures.model_schematic().
+
+    It's recommended that each axis have size (5, 5).
+
+    NOTE: we remove the legend from each plot, because otherwise there's
+    one per plot and they take up too much space big. It's recommended
+    that you create your own by grabbing the handles and labels from the
+    returned axes and placing on its own set of axes:
+
+    ```
+    fig = plt.figure(figsize=(20, 5))
+    axes = []
+    for i in range(4):
+        ax = fig.add_subplot(1, 4, i+1,
+                             projection=['rectilinear', 'polar', 'polar', 'rectilinear'][i])
+        axes.append(ax)
+    axes = model_schematic(model, axes)
+    # relative reference frame legend
+    axes[-1].legend(*axes[0].get_legend_handles_labels(), loc='upper left')
+    # absolute reference frame legend
+    axes[-1].legend(*axes[2].get_legend_handles_labels(), loc='upper left')
+    ```
+
+    Parameters
+    ----------
+    model : sfp.model.LogGaussianDonut
+        Instantiated model that you want to generate the predictions for
+    axes : list or None, optional
+        A list of axes to create the plots on. There must be at least
+        three of them, the first must have a rectilinear projection (the
+        default), and the second and third must have polar projections
+        (any further axes will be ignored). If None, we create three
+        axes in a row with figsize=(15, 5).
+    ylims : list or None, optional
+        A list of three tuples, the ylim value to use for each plot
+        (ylim corresponds to rlim for polar plots). If None, we use the
+        default. Used for making the same limits across multiple
+        calls to this function.
+
+    Returns
+    -------
+    axes : list
+        The axes with the plots
+
+    """
+    if axes is None:
+        fig = plt.figure(figsize=(15, 5))
+        axes = []
+        for i in range(3):
+            ax = fig.add_subplot(1, 3, i+1, projection=['rectilinear', 'polar', 'polar'][i])
+            axes.append(ax)
+    pref_period = analyze_model.create_preferred_period_df(model, reference_frame='relative')
+    ret_angle = np.linspace(0, 2*np.pi, 49)
+    rel_contour = analyze_model.create_preferred_period_df(model, reference_frame='relative',
+                                                           eccentricity=[5],
+                                                           retinotopic_angle=ret_angle)
+    abs_contour = analyze_model.create_preferred_period_df(model, reference_frame='absolute',
+                                                           eccentricity=[5],
+                                                           retinotopic_angle=ret_angle)
+    titles = ['Preferred period as a function of eccentricity\nCIs across retinotopic angle',
+              'Preferred period at eccentricity 5', 'Preferred period at eccentricity 5']
+    for i, (df, ax, proj, t) in enumerate(zip([pref_period, rel_contour, abs_contour], axes,
+                                              ['rectilinear', 'polar', 'polar'], titles)):
+        if ax.name != proj:
+            raise Exception(f"Axes must have projection {proj}, not {ax.name}!")
+        if proj == 'rectilinear':
+            x = 'Eccentricity (deg)'
+        else:
+            x = 'Retinotopic angle (rad)'
+        order = [k for k in stimulus_type_order(df.reference_frame.unique()[0])
+                 if k in df['Stimulus type'].unique()]
+        pal = get_palette('stimulus_type', df.reference_frame.unique()[0],
+                          df['Stimulus type'].unique(), True)
+        sns.lineplot(x, 'Preferred period (dpc)', 'Stimulus type', data=df, ax=ax, hue_order=order,
+                     palette=pal, estimator=np.median, ci=68)
+        ax.legend_.remove()
+        if i > 0:
+            ax.set_ylabel('')
+        ax.set_title(t, y=[1.05, 1.1, 1.1][i])
+        if ylims is not None:
+            ax.set_ylim(ylims[i])
+        ax.axhline(color='gray', linestyle='--')
+        ax.axvline(color='gray', linestyle='--')
+    return axes
 
 
 def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad)', row=None,
