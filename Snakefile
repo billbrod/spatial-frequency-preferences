@@ -1716,7 +1716,7 @@ rule figure_params:
                         kwargs = [{'marker': '<', 'size': 7}, {'marker': '>', 'size': 7}]
                         labels = ['Left visual field', 'Right visual field']
                     elif wildcards.vf == 'eccen':
-                        kwargs = [{'size': 5, 'marker': 'o'}, {'marker': "$\circ$", 'size': 15}]
+                        kwargs = [{'size': 5, 'marker': 'o'}, {'marker': "o", 'size': 10}]
                         labels = ['Inner visual field', 'Outer visual field']
                     kwargs.append({'marker': 'o', 'size': 7})
                     labels.append('Full visual field')
@@ -1846,8 +1846,8 @@ rule figures:
          for cv in ['raw', 'demeaned', 'model', 'model_point']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-all_{}_task-sfprescaled.pdf').format(kind)
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)
-         for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)
+        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
          for vf in ['vertical', 'horizontal', 'eccen']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
@@ -1855,10 +1855,10 @@ rule figures:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(feature, kind, frame)
          for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
          for kind  in ['median', 'bootstraps'] for frame in ['relative', 'absolute']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(vf, angles, frame)
-         for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(vf, feature, frame)
-         for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-         for frame in ['relative', 'absolute']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(vf, angles, frame)
+        #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(vf, feature, frame)
+        #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
+        #  for frame in ['relative', 'absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic_{}.pdf').format(kind)
          for kind in ['2d', 'models']],

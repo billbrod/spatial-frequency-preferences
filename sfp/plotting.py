@@ -248,7 +248,8 @@ def scatter_ci_col(x, y, ci, x_order=None, x_jitter=None, **kwargs):
 
 
 def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
-                    draw_ctr_pts=True, ci_mode='lines', ci_alpha=.2, size=5, **kwargs):
+                    draw_ctr_pts=True, ci_mode='lines', ci_alpha=.2, size=5, x_dodge=None,
+                    **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
     based on seaborn.linearmodels.scatterplot. CIs are taken from a
@@ -289,6 +290,14 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
         used to draw the points, the size argument here takes a "normal"
         markersize and not size^2 like plt.scatter, following how it's
         done by seaborn.stripplot).
+    x_dodge : float, None, or bool, optional
+        to improve visibility with many points that have the same
+        x-values (or are categorical), we can jitter the data along the
+        x-axis, but we can also "dodge" it, which operates
+        deterministically. x_dodge should be either a single float or an
+        array of the same shape as x (we will dodge by calling `x_data =
+        x_data + x_dodge`). if None, we don't dodge at all. If True, we
+        dodge as if x_dodge=.01
     kwargs :
         must contain data. Other expected keys:
         - ax: the axis to draw on (otherwise, we grab current axis)
@@ -320,11 +329,8 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     # we have to check here because below we'll end up making things
     # numeric
     x_numeric = is_numeric(x_data)
-    try:
-        x_data = _jitter_data(x_data, x_jitter)
-    except TypeError:
-        x_data = np.arange(len(x_data))
-        x_data = _jitter_data(x_data, x_jitter)
+    x_data = np.arange(len(x_data))
+    x_data = _jitter_data(x_data, x_jitter)
     # at this point, x_data could be an array or the index of a
     # dataframe. we want it to be an array for all the following calls,
     # and this try/except forces that
@@ -332,6 +338,10 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
         x_data = x_data.values
     except AttributeError:
         pass
+    if x_dodge is not None:
+        if x_dodge is True:
+            x_dodge = .01
+        x_data = x_data + x_dodge
     if draw_ctr_pts:
         # scatter expects s to be the size in pts**2, whereas we expect
         # size to be the diameter, so we convert that (following how
@@ -355,7 +365,7 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     else:
         raise Exception(f"Don't know how to handle ci_mode {ci_mode}!")
     # if we do the following when x is numeric, things get messed up.
-    if x_jitter is not None and not x_numeric:
+    if (x_jitter is not None or x_dodge is not None) and not x_numeric:
         ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
     return dots, lines, cis
 

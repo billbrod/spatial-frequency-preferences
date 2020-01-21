@@ -331,7 +331,7 @@ def model_schematic():
 
 
 def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.75,
-             ci=95, plot_kind='strip', x_rotate=True):
+             ci=95, plot_kind='strip', x_rotate=True, **kwargs):
     """wrapper around seaborn.catplot
 
     several figures call seaborn.catplot and are pretty similar, so this
@@ -368,6 +368,8 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         by 25 degrees. if an int, we rotate by that many degrees. if
         False, we don't rotate. If labels are rotated, we'll also shift
         the bottom of the plot up to avoid cutting off the bottom.
+    kwargs :
+        passed to sns.catplot
 
     Returns
     -------
@@ -378,9 +380,13 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
     hue_order = plotting.get_order(hue, col_unique=df[hue].unique())
     order = plotting.get_order(x, col_unique=df[x].unique())
     pal = plotting.get_palette(hue, col_unique=df[hue].unique())
+    if plot_kind == 'strip':
+        # want the different hues to be in a consistent order on the
+        # x-axis, which requires this
+        kwargs.update({'jitter': False, 'dodge': True})
     g = sns.catplot(x, y, hue, data=df, hue_order=hue_order, legend='full', height=height,
                     kind=plot_kind, aspect=aspect, order=order, palette=pal, ci=ci,
-                    estimator=np.median)
+                    estimator=np.median, **kwargs)
     for ax in g.axes.flatten():
         if x_rotate:
             if x_rotate is True:
@@ -587,6 +593,9 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         Figure containin the plot
 
     """
+    # in order to make the distance between the hues appear roughly
+    # equivalent, need to set the ax_xlims in a particular way
+    ax_xlims = [[-1, 1], [-1, 2], [-.5, 7.5]]
     if fig is None:
         fig, axes = plt.subplots(1, 3, figsize=(20, 10),
                                  gridspec_kw={'width_ratios': [.15, .3, .6]})
@@ -601,6 +610,11 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
     elif plot_kind == 'dist':
         pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
+        hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
+        # copied from how seaborn's stripplot handles this, by looking
+        # at lines 368 and 1190 in categorical.py (version 0.9.0)
+        dodge = np.linspace(0, .8 - (.8 / df.subject.nunique()), df.subject.nunique())
+        dodge -= dodge.mean()
     for i, ax in enumerate(axes):
         cat = ['sigma', 'eccen', 'orientation'][i]
         tmp = df.query("param_category==@cat")
@@ -609,16 +623,21 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
             sns.pointplot('model_parameter', 'fit_value', 'model_parameter', data=tmp,
                           estimator=np.median, ax=ax, order=ax_order, palette=pal, ci=95, **kwargs)
         elif plot_kind == 'strip':
+            # want to make sure that the different hues end up in the
+            # same order everytime, which requires doing this with
+            # jitter and dodge
             sns.stripplot('model_parameter', 'fit_value', 'subject', data=tmp, ax=ax,
-                          order=ax_order, palette=pal, hue_order=hue_order, **kwargs)
+                          order=ax_order, palette=pal, hue_order=hue_order, jitter=False,
+                          dodge=True, **kwargs)
         elif plot_kind == 'dist':
             handles, labels = [], []
-            for n, g in tmp.groupby('subject'):
+            for j, (n, g) in enumerate(tmp.groupby('subject')):
                 dots, _, _ = plotting.scatter_ci_dist('model_parameter', 'fit_value', data=g,
-                                                      label=n, ax=ax, x_jitter=.2, color=pal[n],
-                                                      x_order=ax_order, **kwargs)
+                                                      label=n, ax=ax, color=pal[n],
+                                                      x_dodge=dodge[j], x_order=ax_order, **kwargs)
                 handles.append(dots)
                 labels.append(n)
+        ax.set(xlim=ax_xlims[i])
         if ax.legend_:
             ax.legend_.remove()
         if i==2 and add_legend:
