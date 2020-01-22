@@ -694,8 +694,8 @@ def model_types():
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
     green, red = sns.color_palette('deep', 4)[2:]
     pal = sns.blend_palette([red, green])
-    fig = plt.figure(figsize=(12,10))
-    ax = sns.heatmap(model_variants, cmap=pal, cbar=False, )
+    fig = plt.figure(figsize=(6, 5))
+    ax = sns.heatmap(model_variants, cmap=pal, cbar=False)
     ax.set_yticklabels(model_names, rotation=0)
     return fig
 
