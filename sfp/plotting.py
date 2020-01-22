@@ -1422,7 +1422,7 @@ def flat_cortex_plot(freesurfer_sub, plot_property, output_path=None, mask=None)
     # prepare to create a flat map of the posterior and anterior views
     # of the brain
     map_projs_post = {h: ny.map_projection('occipital_pole', h, radius=np.pi/2)
-                      for h in ['lh','rh']}
+                      for h in ['lh', 'rh']}
     map_projs_ante = {h: mp.copy(center=-mp.center, center_right=-mp.center_right)
                       for h, mp in map_projs_post.items()}
     # flatten the surfaces
@@ -1437,6 +1437,7 @@ def flat_cortex_plot(freesurfer_sub, plot_property, output_path=None, mask=None)
     if output_path is not None:
         fig.savefig(output_path)
     return fig
+
 
 def _parse_save_path_for_kwargs(save_path):
     kwargs = dict(i.split('=') for i in save_path.split('_'))

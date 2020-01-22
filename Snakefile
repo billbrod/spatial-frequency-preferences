@@ -71,9 +71,14 @@ def get_stim_files(wildcards):
     file_stem = os.path.join(config['DATA_DIR'], 'stimuli', task_prefix+"_"+session_prefix+"{rest}")
     return {'stim': file_stem.format(rest='stimuli.npy'),
             'desc_csv': file_stem.format(rest='stim_description.csv')}
+# the goal of these two dictionaries is to always have a unique integer
+# when summed together. to that end the subjects one should increase
+# first along the ones digit and then, when you've run out of digits,
+# along the hundreds
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
              'sub-wlsubj014': 5, 'sub-wlsubj004': 6, 'sub-wlsubj064': 7, 'sub-wlsubj081': 8,
              'sub-wlsubj095': 9, 'sub-wlsubj062': 0, 'sub-wlsubj007': 100}
+# while session should increment along the tens digit
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50,
              'ses-04': 60}
 wildcard_constraints:
