@@ -12,6 +12,124 @@ from . import plotting
 from . import model
 
 
+def existing_studies_df():
+    """create df summarizing earlier studies
+
+    there have been a handful of studies looking into this, so we want
+    to summarize them for ease of reference. Each study is measuring
+    preferred spatial frequency at multiple eccentricities in V1 using
+    fMRI (though how exactly they determine the preferred SF and the
+    stimuli they use vary)
+
+    This dataframe contains the following columns:
+    - Paper: the reference for this line
+    - Eccentricity: the eccentricity (in degrees) that they measured
+      preferred spatial frequency at
+    - Preferred spatial frequency (cpd): the preferred spatial frequency
+      measured at this eccentricity (in cycles per degree)
+    - Preferred period (dpc): the preferred period measured at this
+      eccentricity (in degrees per cycle); this is just the inverse of
+      the preferred spatial frequency
+
+    The eccentricity / preferred spatial frequency were often not
+    reported in a manner that allowed for easy extraction of the data,
+    so the values should all be taken as approximate, as they involve me
+    attempting to read values off of figures / colormaps.
+
+    Papers included (and their reference in the df):
+    - Sasaki (2001): Sasaki, Y., Hadjikhani, N., Fischl, B., Liu, A. K.,
+      Marret, S., Dale, A. M., & Tootell, R. B. (2001). Local and global
+      attention are mapped retinotopically in human occipital
+      cortex. Proceedings of the National Academy of Sciences, 98(4),
+      2077–2082.
+    - Henriksson (2008): Henriksson, L., Nurminen, L., Hyv\"arinen,
+      Aapo, & Vanni, S. (2008). Spatial frequency tuning in human
+      retinotopic visual areas. Journal of Vision, 8(10),
+      5. http://dx.doi.org/10.1167/8.10.5
+    - Kay (2011): Kay, K. N. (2011). Understanding Visual Representation
+      By Developing Receptive-Field Models. Visual Population Codes:
+      Towards a Common Multivariate Framework for Cell Recording and
+      Functional Imaging, (), 133–162.
+    - Hess (dominant eye, 2009): Hess, R. F., Li, X., Mansouri, B.,
+      Thompson, B., & Hansen, B. C. (2009). Selectivity as well as
+      sensitivity loss characterizes the cortical spatial frequency
+      deficit in amblyopia. Human Brain Mapping, 30(12),
+      4054–4069. http://dx.doi.org/10.1002/hbm.20829 (this paper reports
+      spatial frequency separately for dominant and non-dominant eyes in
+      amblyopes, only the dominant eye is reported here)
+    - D'Souza (2016): D'Souza, D. V., Auer, T., Frahm, J., Strasburger,
+      H., & Lee, B. B. (2016). Dependence of chromatic responses in v1
+      on visual field eccentricity and spatial frequency: an fmri
+      study. JOSA A, 33(3), 53–64.
+    - Farivar (2017): Farivar, R., Clavagnier, S., Hansen, B. C.,
+      Thompson, B., & Hess, R. F. (2017). Non-uniform phase sensitivity
+      in spatial frequency maps of the human visual cortex. The Journal
+      of Physiology, 595(4),
+      1351–1363. http://dx.doi.org/10.1113/jp273206
+    - Olsson (pilot, model fit): line comes from a model created by Noah
+      Benson in the Winawer lab, fit to pilot data collected by
+      Catherine Olsson (so note that this is not data). Never ended up
+      in a paper, but did show in a presentation at VSS 2017: Benson NC,
+      Broderick WF, Müller H, Winawer J (2017) An anatomically-defined
+      template of BOLD response in
+      V1-V3. J. Vis. 17(10):585. DOI:10.1167/17.10.585
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Dataframe containing the optimum spatial frequency at multiple
+        eccentricities from the different papers
+
+    """
+    data_dict = {
+        'Paper': ['Sasaki (2001)',]*7,
+        'Preferred spatial frequency (cpd)': [1.25, .9, .75, .7, .6, .5, .4],
+        'Eccentricity': [0, 1, 2, 3, 4, 5, 12]
+    }
+    data_dict['Paper'].extend(['Henriksson (2008)', ]*5)
+    data_dict['Preferred spatial frequency (cpd)'].extend([1.2, .68, .46, .40, .18])
+    data_dict['Eccentricity'].extend([1.7, 4.7, 6.3, 9, 19])
+
+    # This is only a single point, so we don't plot it
+    # data_dict['Paper'].extend(['Kay (2008)'])
+    # data_dict['Preferred spatial frequency (cpd)'].extend([4.5])
+    # data_dict['Eccentricity'].extend([ 2.9])
+
+    data_dict['Paper'].extend(['Kay (2011)']*5)
+    data_dict['Preferred spatial frequency (cpd)'].extend([4, 3, 10, 10, 2])
+    data_dict['Eccentricity'].extend([2.5, 4, .5, 1.5, 7])
+
+    data_dict['Paper'].extend(["Hess (dominant eye, 2009)"]*3)
+    data_dict['Preferred spatial frequency (cpd)'].extend([2.25, 1.9, 1.75])
+    data_dict['Eccentricity'].extend([2.5, 5, 10])
+
+    data_dict['Paper'].extend([ "D'Souza (2016)",]*3)
+    data_dict['Preferred spatial frequency (cpd)'].extend([2, .95, .4])
+    data_dict['Eccentricity'].extend([1.4, 4.6, 9.8])
+
+    data_dict['Paper'].extend(['Farivar (2017)']*2)
+    data_dict['Preferred spatial frequency (cpd)'].extend([3, 1.5,])
+    data_dict['Eccentricity'].extend([.5, 3])
+
+    data_dict['Paper'].extend([ 'Olsson (pilot, model fit)']*10)
+    data_dict['Preferred spatial frequency (cpd)'].extend([2.11, 1.76, 1.47, 2.75, 1.24, 1.06, .88, .77, .66, .60])
+    data_dict['Eccentricity'].extend([2, 3, 4, 1, 5, 6, 7, 8, 9, 10])
+
+    # Predictions of the scaling hypothesis -- currently unused
+    # ecc = np.linspace(.01, 20, 50)
+    # fovea_cutoff = 0
+    # # two possibilities here
+    # V1_RF_size = np.concatenate([np.ones(len(ecc[ecc<fovea_cutoff])),
+    #                              np.linspace(1, 2.5, len(ecc[ecc>=fovea_cutoff]))])
+    # V1_RF_size = .2 * ecc
+
+    df = pd.DataFrame(data_dict)
+    df = df.sort_values(['Paper','Eccentricity',])
+    df["Preferred period (dpc)"] = 1. / df['Preferred spatial frequency (cpd)']
+
+    return df
+
+
 def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
     """demean a column of the dataframe
 
@@ -251,6 +369,45 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
     g = _summarize_1d(df, reference_frame, 'tuning_curve_bandwidth', row, col, height)
     g.set_ylabels('Tuning curve FWHM (octaves)')
     g.fig.suptitle("Full-Width Half-Max of 1d tuning curves in each eccentricity band")
+    return g
+
+
+def existing_studies_figure(df, y="Preferred period (dpc)"):
+    """Plot the results from existing studies
+
+    See the docstring for figures.existing_studies_df() for more
+    details on the information displayed in this figure.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The existing studies df, as returned by the function
+        figures.existing_studies_df().
+    y : {'Preferred period (dpc)', 'Preferred spatial frequency (cpd)'}
+        Whether to plot the preferred period or preferred spatial
+        frequency on the y-axis. If preferred period, the y-axis is
+        linear; if preferred SF, the y-axis is log-scaled (base 2). The
+        ylims will also differ between these two
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        The FacetGrid containing the plot
+
+    """
+    pal = sns.color_palette('Set3', df.Paper.nunique())
+    g = sns.FacetGrid(df, hue='Paper', size=4, aspect=1.2, palette=pal)
+    if y == "Preferred period (dpc)":
+        g.map(plt.plot, 'Eccentricity', y, marker='o', linewidth=2)
+        g.ax.set_ylim((0, 6))
+    elif y == "Preferred spatial frequency (cpd)":
+        g.map(plt.semilogy, 'Eccentricity', y, marker='o', linewidth=2, basey=2)
+        g.ax.set_ylim((0, 11))
+        g.ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(plotting.myLogFormat))
+    g.ax.set_xlim((0, 20))
+    g.add_legend()
+    g.ax.set_title("Summary of human V1 fMRI results")
+    g.ax.set_xlabel('Eccentricity of receptive field center (deg)')
     return g
 
 
