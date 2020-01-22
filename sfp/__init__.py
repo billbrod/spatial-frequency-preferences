@@ -12,3 +12,4 @@ from . import model
 from . import simulate_data
 from . import analyze_model
 from . import image_computable
+from . import figures

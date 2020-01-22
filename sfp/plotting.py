@@ -14,6 +14,7 @@ import os
 from . import tuning_curves
 from . import stimuli as sfp_stimuli
 from . import first_level_analysis
+from . import analyze_model
 import numpy as np
 import seaborn as sns
 import neuropythy as ny
@@ -25,10 +26,63 @@ from sklearn import linear_model
 LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'angular', 'reverse spiral', 'mixtures']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal',
                              'off-diagonal']
-PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
-               ['%s_%s_%s' % (i, j, k) for j, i, k in
-                itertools.product(['amplitude', 'mode'], ['abs', 'rel'],
-                                  ['cardinals', 'obliques'])])
+ORIG_PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
+                    ['%s_%s_%s' % (i, j, k) for j, i, k in
+                     itertools.product(['mode', 'amplitude'], ['abs', 'rel'],
+                                       ['cardinals', 'obliques'])])
+PLOT_PARAM_ORDER = [r'$\sigma$', r'$a$', r'$b$', r'$p_1$', r'$p_2$', r'$p_3$', r'$p_4$', r'$A_1$',
+                    r'$A_2$', r'$A_3$', r'$A_4$']
+MODEL_ORDER = ['constant_donut_iso_amps-constant', 'scaling_donut_iso_amps-constant',
+               'full_donut_iso_amps-constant', 'full_donut_absolute_amps-constant',
+               'full_donut_relative_amps-constant', 'full_donut_full_amps-constant',
+               'full_donut_absolute_amps-vary', 'full_donut_relative_amps-vary',
+               'full_donut_full_amps-vary']
+
+
+def get_order(col, reference_frame=None, col_unique=None):
+    """get order for column
+    """
+    if col == 'stimulus_type':
+        return stimulus_type_order(reference_frame)
+    elif col == 'fit_model_type':
+        return MODEL_ORDER
+    elif col == 'model_parameter':
+        if col_unique is not None and 'sigma' in col_unique:
+            return ORIG_PARAM_ORDER
+        else:
+            return PLOT_PARAM_ORDER
+    else:
+        return sorted(col_unique)
+
+
+def get_palette(col, reference_frame=None, col_unique=None, as_dict=False):
+    """get palette for column
+
+    col must be one of: {'stimulus_type', 'subject', 'fit_model_type',
+    'model_parameter'}
+
+    if as_dict is True, then we also find the order for this column
+    (using get_order), and return a dictionary matching between the
+    elements of this col and the colors in the palette (this can still
+    be passed as the palette argument to most seaborn plots).
+
+    """
+    if col == 'stimulus_type':
+        pal = stimulus_type_palette(reference_frame)
+        pal = dict((k, v) for k, v in pal.items() if k in col_unique)
+        if not as_dict:
+            raise Exception("palette is always a dictionary if col is stimulus_type!")
+    elif col == 'subject':
+        pal = sns.color_palette('Dark2', len(col_unique))
+    elif col == 'fit_model_type':
+        pal = sns.color_palette('Accent', len(col_unique))
+    elif col == 'model_parameter':
+        pal = sns.color_palette('viridis', len(col_unique))
+    # if col=='stimulus_type', this is already a dict
+    if as_dict and col != 'stimulus_type':
+        order = get_order(col, reference_frame, col_unique)
+        pal = dict(zip(order, pal))
+    return pal
 
 
 def stimulus_type_palette(reference_frame):
@@ -52,6 +106,32 @@ def stimulus_type_order(reference_frame):
         order.extend({'relative': LOGPOLAR_SUPERCLASS_ORDER,
                       'absolute': CONSTANT_SUPERCLASS_ORDER}[t])
     return order
+
+
+def is_numeric(s):
+    """check whether data s is numeric
+
+    s should be something that can be converted to an array: list,
+    Series, array, column from a DataFrame, etc
+
+    this is based on the function
+    seaborn.categorical._CategoricalPlotter.infer_orient.is_not_numeric
+
+    Parameters
+    ----------
+    s :
+        data to check
+
+    Returns
+    -------
+    is_numeric : bool
+        whether s is numeric or not
+    """
+    try:
+        np.asarray(s, dtype=np.float)
+    except ValueError:
+        return False
+    return True
 
 
 class MidpointNormalize(mpl.colors.Normalize):
@@ -167,38 +247,127 @@ def scatter_ci_col(x, y, ci, x_order=None, x_jitter=None, **kwargs):
     ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
 
 
-def scatter_ci_dist(x, y, ci_vals=[16, 84], x_jitter=None, join=False, **kwargs):
+def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
+                    draw_ctr_pts=True, ci_mode='lines', ci_alpha=.2, size=5, x_dodge=None,
+                    **kwargs):
     """plot center points and specified CIs, for use with seaborn's map_dataframe
 
-    based on seaborn.linearmodels.scatterplot. CIs are taken from a distribution in this
-    function. Therefore, it's assumed that the values being passed to it are values from a
-    bootstrap distribution.
+    based on seaborn.linearmodels.scatterplot. CIs are taken from a
+    distribution in this function. Therefore, it's assumed that the
+    values being passed to it are values from a bootstrap distribution.
 
-    by default, this draws the 68% confidence interval. to change this, change the ci_vals
-    argument. for instance, if you only want to draw the median point, pass ci_vals=[50, 50] (this
-    is equivalent to just calling plt.scatter)
+    by default, this draws the 68% confidence interval. to change this,
+    change the ci argument. for instance, if you only want to draw the
+    estimator point, pass ci=0
+
+    Parameters
+    ----------
+    x : str
+        which column of data to plot on the x-axis
+    y : str
+        which column of data to plot on the y-axis
+    x_jitter : float, bool, or None, optional
+        whether to jitter the data along the x-axis. if None or False,
+        don't jitter. if a float, add uniform noise (drawn from
+        -x_jitter to x_jitter) to each point's x value. if True, act as
+        if x_jitter=.1
+    join : bool, optional
+        whether to connect the central trend of the data with a line or
+        not.
+    estimator : callable, optional
+        what function to use for estimating central trend of the data,
+        as plotted if either draw_ctr_pts or join is True.
+    draw_ctr_pts : bool, optional
+        whether to draw the center points (as given by estimator).
+    ci_mode : {'lines', 'fill'}, optional
+        how to draw the CI. If 'lines', we draw lines for the CI. If
+        'fill', we shade the region of the CI, with alpha given by
+        ci_alpha
+    ci_alpha : float, optional
+        the alpha value for the CI, if ci_mode=='fill'
+    size : float, optional
+        Diameter of the markers, in points. (Although plt.scatter is
+        used to draw the points, the size argument here takes a "normal"
+        markersize and not size^2 like plt.scatter, following how it's
+        done by seaborn.stripplot).
+    x_dodge : float, None, or bool, optional
+        to improve visibility with many points that have the same
+        x-values (or are categorical), we can jitter the data along the
+        x-axis, but we can also "dodge" it, which operates
+        deterministically. x_dodge should be either a single float or an
+        array of the same shape as x (we will dodge by calling `x_data =
+        x_data + x_dodge`). if None, we don't dodge at all. If True, we
+        dodge as if x_dodge=.01
+    kwargs :
+        must contain data. Other expected keys:
+        - ax: the axis to draw on (otherwise, we grab current axis)
+        - x_order: the order to plot x-values in. Otherwiwse, don't
+          reorder
+        everything else will be passed to the scatter, plot, and
+        fill_between functions called (except label, which will not be
+        passed to the plot or fill_between function call that draws the
+        CI, in order to make any legend created after this prettier)
+
+    Returns
+    -------
+    dots, lines, cis :
+        The handles for the center points, lines connecting them (if
+        join=True), and CI lines/fill. this is returned for better
+        control over what shows up in the legend.
+
     """
     data = kwargs.pop('data')
     ax = kwargs.pop('ax', plt.gca())
     x_order = kwargs.pop('x_order', None)
-    plot_data = data.groupby(x)[y].median()
-    plot_cis = data.groupby(x)[y].apply(np.percentile, ci_vals)
+    plot_data = data.groupby(x)[y].agg(estimator)
+    ci_vals = [50 - ci/2, 50 + ci/2]
+    plot_cis = [data.groupby(x)[y].agg(np.percentile, val) for val in ci_vals]
     if x_order is not None:
         plot_data = plot_data.reindex(x_order)
-        plot_cis = plot_cis.reindex(x_order)
+        plot_cis = [p.reindex(x_order) for p in plot_cis]
     x_data = plot_data.index
+    # we have to check here because below we'll end up making things
+    # numeric
+    x_numeric = is_numeric(x_data)
+    x_data = np.arange(len(x_data))
+    x_data = _jitter_data(x_data, x_jitter)
+    # at this point, x_data could be an array or the index of a
+    # dataframe. we want it to be an array for all the following calls,
+    # and this try/except forces that
     try:
-        x_data = _jitter_data(x_data, x_jitter)
-    except TypeError:
-        x_data = np.arange(len(x_data))
-        x_data = _jitter_data(x_data, x_jitter)
-    ax.scatter(x_data, plot_data.values, **kwargs)
+        x_data = x_data.values
+    except AttributeError:
+        pass
+    if x_dodge is not None:
+        if x_dodge is True:
+            x_dodge = .01
+        x_data = x_data + x_dodge
+    if draw_ctr_pts:
+        # scatter expects s to be the size in pts**2, whereas we expect
+        # size to be the diameter, so we convert that (following how
+        # it's handled by seaborn's stripplot)
+        dots = ax.scatter(x_data, plot_data.values, s=size**2, **kwargs)
+    else:
+        dots = None
     if join is True:
-        ax.plot(x_data, plot_data.values, **kwargs)
-    for x, (_, (ci_low, ci_high)) in zip(x_data, plot_cis.items()):
-        ax.plot([x, x], [ci_low, ci_high], **kwargs)
-    if x_jitter is not None:
+        lines = ax.plot(x_data, plot_data.values, **kwargs)
+    else:
+        lines = None
+    # if we attach label to the CI, then the legend may use the CI
+    # artist, which we don't want
+    kwargs.pop('label', None)
+    if ci_mode == 'lines':
+        for x, (ci_low, ci_high) in zip(x_data, zip(*plot_cis)):
+            cis = ax.plot([x, x], [ci_low, ci_high], **kwargs)
+    elif ci_mode == 'fill':
+        cis = ax.fill_between(x_data, plot_cis[0].values, plot_cis[1].values, alpha=ci_alpha,
+                              **kwargs)
+    else:
+        raise Exception(f"Don't know how to handle ci_mode {ci_mode}!")
+    # if we do the following when x is numeric, things get messed up.
+    if (x_jitter is not None or x_dodge is not None) and not x_numeric:
         ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
+    return dots, lines, cis
 
 
 def plot_median_fit(x, y, model=linear_model.LinearRegression(), x_vals=None, **kwargs):
@@ -340,13 +509,13 @@ def local_spatial_frequency(df, save_path=None, **kwargs):
     return g
 
 
-def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 84],
+def plot_data(df, x_col='freq_space_distance', median_only=False, ci=68,
               save_path=None, row='varea', **kwargs):
     """plot the raw amplitude estimates, either with or without confidence intervals
 
     if df is the summary dataframe, we'll use the amplitude_estimate_std_error column as the
-    confidence intervals (in this case, ci_vals is ignored). otherwise, we'll estimate them
-    directly from the bootstrapped data using np.percentile; in this case, ci_vals determines what
+    confidence intervals (in this case, ci is ignored). otherwise, we'll estimate them
+    directly from the bootstrapped data using np.percentile; in this case, ci determines what
     percentile to plot (by default, the 68% confidence interval)
 
     x_col determines what to have on the x-axis 'freq_space_distance' or
@@ -376,8 +545,7 @@ def plot_data(df, x_col='freq_space_distance', median_only=False, ci_vals=[16, 8
     else:
         g.map_dataframe(plot_median, x_col, 'amplitude_estimate')
         if not median_only:
-            g.map_dataframe(scatter_ci_dist, x_col, 'amplitude_estimate', ci_vals=ci_vals,
-                            **kwargs)
+            g.map_dataframe(scatter_ci_dist, x_col, 'amplitude_estimate', ci=ci, **kwargs)
     g.map_dataframe(plot_median, x_col, 'baseline', linestyle='--')
     for ax in g.axes.flatten():
         ax.set_xscale('log', basex=2)
@@ -783,13 +951,110 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     return windowed_plot
 
 
+def model_schematic(model, axes=None, ylims=None):
+    """Examine model predictions, intended for example models (not ones fit to data)
+
+    In order to better understand the model, it's helpful to examine the
+    predictions for several toy models to see the effect of changing
+    parameters and get an intuition for what's going on. This plot is an
+    attempt to help with that by creating three plots next to each
+    other, showing the preferred period as a function of eccentricity
+    (relative reference frame), and as a function of retinotopic angle
+    (both relative and absolute frames).
+
+    This function is intended to be called by figures.model_schematic().
+
+    It's recommended that each axis have size (5, 5).
+
+    NOTE: we remove the legend from each plot, because otherwise there's
+    one per plot and they take up too much space big. It's recommended
+    that you create your own by grabbing the handles and labels from the
+    returned axes and placing on its own set of axes:
+
+    ```
+    fig = plt.figure(figsize=(20, 5))
+    axes = []
+    for i in range(4):
+        ax = fig.add_subplot(1, 4, i+1,
+                             projection=['rectilinear', 'polar', 'polar', 'rectilinear'][i])
+        axes.append(ax)
+    axes = model_schematic(model, axes)
+    # relative reference frame legend
+    axes[-1].legend(*axes[0].get_legend_handles_labels(), loc='upper left')
+    # absolute reference frame legend
+    axes[-1].legend(*axes[2].get_legend_handles_labels(), loc='upper left')
+    ```
+
+    Parameters
+    ----------
+    model : sfp.model.LogGaussianDonut
+        Instantiated model that you want to generate the predictions for
+    axes : list or None, optional
+        A list of axes to create the plots on. There must be at least
+        three of them, the first must have a rectilinear projection (the
+        default), and the second and third must have polar projections
+        (any further axes will be ignored). If None, we create three
+        axes in a row with figsize=(15, 5).
+    ylims : list or None, optional
+        A list of three tuples, the ylim value to use for each plot
+        (ylim corresponds to rlim for polar plots). If None, we use the
+        default. Used for making the same limits across multiple
+        calls to this function.
+
+    Returns
+    -------
+    axes : list
+        The axes with the plots
+
+    """
+    if axes is None:
+        fig = plt.figure(figsize=(15, 5))
+        axes = []
+        for i in range(3):
+            ax = fig.add_subplot(1, 3, i+1, projection=['rectilinear', 'polar', 'polar'][i])
+            axes.append(ax)
+    pref_period = analyze_model.create_preferred_period_df(model, reference_frame='relative')
+    ret_angle = np.linspace(0, 2*np.pi, 49)
+    rel_contour = analyze_model.create_preferred_period_df(model, reference_frame='relative',
+                                                           eccentricity=[5],
+                                                           retinotopic_angle=ret_angle)
+    abs_contour = analyze_model.create_preferred_period_df(model, reference_frame='absolute',
+                                                           eccentricity=[5],
+                                                           retinotopic_angle=ret_angle)
+    titles = ['Preferred period as a function of eccentricity\nCIs across retinotopic angle',
+              'Preferred period at eccentricity 5', 'Preferred period at eccentricity 5']
+    for i, (df, ax, proj, t) in enumerate(zip([pref_period, rel_contour, abs_contour], axes,
+                                              ['rectilinear', 'polar', 'polar'], titles)):
+        if ax.name != proj:
+            raise Exception(f"Axes must have projection {proj}, not {ax.name}!")
+        if proj == 'rectilinear':
+            x = 'Eccentricity (deg)'
+        else:
+            x = 'Retinotopic angle (rad)'
+        order = [k for k in stimulus_type_order(df.reference_frame.unique()[0])
+                 if k in df['Stimulus type'].unique()]
+        pal = get_palette('stimulus_type', df.reference_frame.unique()[0],
+                          df['Stimulus type'].unique(), True)
+        sns.lineplot(x, 'Preferred period (dpc)', 'Stimulus type', data=df, ax=ax, hue_order=order,
+                     palette=pal, estimator=np.median, ci=68)
+        ax.legend_.remove()
+        if i > 0:
+            ax.set_ylabel('')
+        ax.set_title(t, y=[1.05, 1.1, 1.1][i])
+        if ylims is not None:
+            ax.set_ylim(ylims[i])
+        ax.axhline(color='gray', linestyle='--')
+        ax.axvline(color='gray', linestyle='--')
+    return axes
+
+
 def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad)', row=None,
                     plot_func=sns.lineplot, x='Eccentricity (deg)', y='Preferred period (dpc)',
                     yticks=[0, 1, 2], xticks=[0, 2, 4, 6, 8, 10], height=4, aspect=1,
                     title='Preferred period', top=.85, pal=None, col_order=None, row_order=None,
-                    ylim=None, xlim=None, ci=68, n_boot=10000, col_wrap=None, pre_boot_gb_func=None,
-                    pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
-                                      'Eccentricity (deg)']):
+                    ylim=None, xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
+                    pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
+                                      'bootstrap_num', 'Eccentricity (deg)'], **kwargs):
     """Create plot from feature_df
 
     This function takes the feature_df created by
@@ -803,6 +1068,32 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     feature_df_polar_plot
 
     The majority of the arguments are passed right to sns.FacetGrid
+
+    There are two major choices for `plot_func`: `sns.lineplot` and
+    `sfp.plotting.scatter_ci_dist`. The major difference is how they
+    draw CIs:
+
+    1. `sns.lineplot` draws CIs by drawing its own bootstraps from the
+       data present in the df. So if your df contains 12 independent
+       subjects and you want to draw your CIs summarizing how these
+       predictions differ across subjects, use this.
+
+    2. `sfp.plotting.scatter_ci_dist` draws CIs based on a distribution
+        already in the df. That is, we assume you've already generated
+        your bootstrapped distribution and want the plotting function to
+        create the CIs based on the percentiles of the data already in
+        the df. For example, we get 100 bootstrapped estimates of each
+        voxels' response to the stimuli, and fit a model to each of
+        these bootstraps separately. These bootstraps are *not*
+        independent (they're generated by sampling from runs, which
+        are), and so using `sns.lineplot` above to resample from them is
+        inappropriate. Instead, `scatter_ci_dist` will create the CIs
+        from the df directly.
+
+    If you're using `scatter_ci_dist` for the intended purpose above,
+    you probably want to add the following kwargs (which will get passed
+    directly to `scatter_ci_dist`): `draw_ctr_pts=False, ci_mode='fill',
+    join=True`.
 
     Parameters
     ----------
@@ -818,8 +1109,9 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
         a column in feature_df, which feature to facet on the rows
     plot_func : callable, optional
         The plot function to map on the FacetGrid. First two args should
-        be x and y, should accept ci and n_boot kwargs (many seaborn
-        plotting functions would work for this)
+        be x and y, should accept ci kwarg. Will call using
+        map_dataframe. Note that different choices here will affects how
+        we raw CIs, see above for more details
     x : str, optional
         a column in feature_df, which feature to plot on the x-axis
     y : str, optional
@@ -849,25 +1141,25 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     ci : int, optional
         the size of the confidence intervals to plot. see the docstring
         of plot_func for more details
-    n_boot : int, optional
-        the number of bootstraps to use for creating the confidence
-        intervals. see the docstring of plot_func for more details
     col_wrap : int or None, optional
         'wrap' the column variable at this width, so that the column
         facets span multiple rows. will throw an exception if col_wrap
         and row are both not None
-    pre_boot_gb_func : callable or None, optional
+    pre_boot_gb_func : str,, callable or None, optional
         feature_df contains a lot of info, and you may want to collapse
         over some of those dimensions. In order to make sure those
         dimensions are collapsed over appropriately, this function can
         perform an (optional) groupby before creating the FacetGrid. If
         this is not None, we will create the plot with
-        feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index(). The
+        feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index(). The
         intended use case is for, e.g., averaging over all retinotopic
-        angles.
+        angles by setting this to 'mean'. See the docstring of
+        pandas.groupby.agg for more info on possible arguments
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
+    kwargs :
+        passed to plot_func
 
     Returns
     -------
@@ -882,11 +1174,11 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     if row_order is None and row == 'Stimulus type':
         row_order = stimulus_type_order(feature_df.reference_frame.unique())
     if pre_boot_gb_func is not None:
-        feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
+        feature_df = feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index()
     g = sns.FacetGrid(feature_df, hue=hue, col=col, row=row, height=height, aspect=aspect,
                       palette=pal, xlim=xlim, ylim=ylim, col_wrap=col_wrap, col_order=col_order,
                       row_order=row_order)
-    g.map(plot_func, x, y, ci=ci, n_boot=n_boot)
+    g.map_dataframe(plot_func, x, y, ci=ci, estimator=np.median, **kwargs)
     g.add_legend()
     for ax in g.axes.flatten():
         ax.axhline(color='gray', linestyle='--')
@@ -903,13 +1195,13 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
 
 def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period (dpc)', row=None,
                           plot_func=sns.lineplot, theta='Retinotopic angle (rad)',
-                          r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, height=4,
-                          aspect=1, title='Preferred period contours', top=.76, pal=None,
-                          col_order=None, row_order=None, title_position=[.5, 1.15], ylabelpad=30,
-                          legend_position=None, ylim=None, xlim=None, ci=68, n_boot=10000,
-                          col_wrap=None, pre_boot_gb_func=None,
-                          pre_boot_gb_cols=['indicator', 'reference_frame', 'Stimulus type',
-                                            'Eccentricity (deg)']):
+                          r='Eccentricity (deg)', r_ticks=None, theta_ticks=None,
+                          all_tick_labels=[], height=4, aspect=1, title='Preferred period contours',
+                          top=.76, hspace=.3, wspace=.1, pal=None, col_order=None, row_order=None,
+                          title_position=[.5, 1.15], ylabelpad=30, legend_position=None, ylim=None,
+                          xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
+                          pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
+                                            'Eccentricity (deg)'], **kwargs):
     """Create polar plot from feature_df
 
     This function takes the feature_df created by
@@ -923,6 +1215,27 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     feature_df_plot
 
     The majority of the arguments are passed right to sns.FacetGrid
+
+    There are two major choices for `plot_func`: `sns.lineplot` and
+    `sfp.plotting.scatter_ci_dist`. The major difference is how they
+    draw CIs:
+
+    1. `sns.lineplot` draws CIs by drawing its own bootstraps from the
+       data present in the df. So if your df contains 12 independent
+       subjects and you want to draw your CIs summarizing how these
+       predictions differ across subjects, use this.
+
+    2. `sfp.plotting.scatter_ci_dist` draws CIs based on a distribution
+        already in the df. That is, we assume you've already generated
+        your bootstrapped distribution and want the plotting function to
+        create the CIs based on the percentiles of the data already in
+        the df. For example, we get 100 bootstrapped estimates of each
+        voxels' response to the stimuli, and fit a model to each of
+        these bootstraps separately. These bootstraps are *not*
+        independent (they're generated by sampling from runs, which
+        are), and so using `sns.lineplot` above to resample from them is
+        inappropriate. Instead, `scatter_ci_dist` will create the CIs
+        from the df directly.
 
     Parameters
     ----------
@@ -938,8 +1251,9 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         a column in feature_df, which feature to facet on the rows
     plot_func : callable, optional
         The plot function to map on the FacetGrid. First two args should
-        be x and y, should accept ci and n_boot kwargs (many seaborn
-        plotting functions would work for this)
+        be x and y, should accept ci kwarg. Will call using
+        map_dataframe. Note that different choices here will affect how
+        we create CIs, see above for more details
     theta : str, optional
         a column in feature_df, which feature to plot as polar angle
     r : str, optional
@@ -947,6 +1261,13 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         the origin
     {r, theta}ticks : list, optional
         list of floats, which r- and theta-ticks to include on the plot
+    all_tick_labels : list, optional
+        by default, sns.FacetGrid only puts tick labels on the bottom-
+        and left-most facets. this works well for cartesian plots, but
+        less well for polar ones. If you want to make sure that the tick
+        labels are shown on each facet, include the axis here. possible
+        values are: 'r', 'theta'. If list is empty, then we don't change
+        anything
     height : float, optional
         The height of each individual subplot
     aspect : float, optional
@@ -959,6 +1280,12 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         is above the subplots (with a call to
         g.fig.subplots_adjust(top=top)). If title is None, this is
         ignored.
+    hspace : float, optional
+        the amount of height reserved for space between subplots,
+        expressed as a fraction of the average axis width
+    wspace : float, optional
+        the amount of width reserved for space between subplots,
+        expressed as a fraction of the average axis width
     pal : palette name, list, dict, or None, optional
         palette to pass to sns.FacetGrid for specifying the colors to
         use. if None and hue=="Stimulus type", we use the defaults given
@@ -979,9 +1306,6 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     ci : int, optional
         the size of the confidence intervals to plot. see the docstring
         of plot_func for more details
-    n_boot : int, optional
-        the number of bootstraps to use for creating the confidence
-        intervals. see the docstring of plot_func for more details
     col_wrap : int or None, optional
         'wrap' the column variable at this width, so that the column
         facets span multiple rows. will throw an exception if col_wrap
@@ -992,12 +1316,15 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         dimensions are collapsed over appropriately, this function can
         perform an (optional) groupby before creating the FacetGrid. If
         this is not None, we will create the plot with
-        feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index(). The
+        feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index(). The
         intended use case is for, e.g., averaging over all retinotopic
-        angles.
+        angles by setting this to 'mean'. See the docstring of
+        pandas.groupby.agg for more info on possible arguments
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
+    kwargs :
+        passed to plot_func
 
     Returns
     -------
@@ -1012,19 +1339,25 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     if row_order is None and row == 'Stimulus type':
         row_order = stimulus_type_order(feature_df.reference_frame.unique())
     if pre_boot_gb_func is not None:
-        feature_df = feature_df.groupby(pre_boot_gb_cols).apply(pre_boot_gb_func).reset_index()
+        feature_df = feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index()
     g = sns.FacetGrid(feature_df, col=col, hue=hue, row=row, subplot_kws={'projection': 'polar'},
                       despine=False, height=height, aspect=aspect, palette=pal, xlim=xlim,
                       ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order)
-    g.map(plot_func, theta, r, ci=ci, n_boot=n_boot)
-    for i, ax in enumerate(g.axes.flatten()):
-        ax.title.set_position(title_position)
-        if i == 0:
-            ax.yaxis.labelpad = ylabelpad
-        if r_ticks is not None:
-            ax.set_yticks(r_ticks)
-        if theta_ticks is not None:
-            ax.set_xticks(theta_ticks)
+    g.map_dataframe(plot_func, theta, r, ci=ci, estimator=np.median, **kwargs)
+    for i, axes in enumerate(g.axes):
+        for j, ax in enumerate(axes):
+            ax.title.set_position(title_position)
+            # we do this for all axes in the first column
+            if j == 0:
+                ax.yaxis.labelpad = ylabelpad
+            if r_ticks is not None:
+                ax.set_yticks(r_ticks)
+            if 'r' in all_tick_labels:
+                ax.tick_params(labelleft=True)
+            if theta_ticks is not None:
+                ax.set_xticks(theta_ticks)
+            if 'theta' in all_tick_labels:
+                ax.tick_params(labelbottom=True)
     if legend_position is not None:
         g.add_legend(bbox_to_anchor=legend_position)
     else:
@@ -1032,6 +1365,7 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     if title is not None:
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=top)
+    g.fig.subplots_adjust(hspace=hspace, wspace=wspace)
     return g
 
 
