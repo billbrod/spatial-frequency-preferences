@@ -25,17 +25,21 @@ Python:
      environment: `conda env create -f environment-psychopy.yml`. By
      typing `conda activate psypy`, you'll then be able to run the
      experiment.
+     - I use `pyglet` for creating the window and have consistently
+       had issues on Ubuntu (on Lenovo laptops), where the following
+       strange error gets raised: `AssertionError:
+       XF86VidModeGetGammaRamp failed`. See [this
+       issue](https://github.com/psychopy/psychopy/issues/2061) for
+       solutions, but what's worked for me is adding the
+       `/etc/X11/xorg.conf.d/20-intel.conf` file, updating drivers if
+       necessary, and restarting the machine. I have not had these
+       issues on Macs. Another potential fix is to switch to
+       `winType='glfw'` (as also suggested in that issue), but that
+       may break other parts of the experiment code.
    - if you only want to analyze / investigate the data, you don't
      need to set up a psychopy environment, just run: `conda env
      create -f environment.yml`. Then, type `conda activate sfp` to
      activate the environment.
- - You'll also need to install pytorch (version 1.0.1 or newer), but
-   the exact way to do so depends on your machine. See the [pytorch
-   website](https://pytorch.org/) for details, but the command is
-   probably `conda install pytorch torchvision -c pytorch` if you have
-   a GPU on your machine and `conda install pytorch-cpu
-   torchvision-cpu -c pytorch` if you don't (if in doubt, use the
-   second command).
  - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
    (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/)),
    commit
@@ -52,41 +56,46 @@ use of Python, Matlab, and command-line tools. The notebooks folder
 contains several Jupyter notebooks which (hopefully) walk through the
 logic of the experiment and analysis.
 
-The Snakefile can perform all of the analysis steps (i.e., from 5 on),
-making sure that all the requirements of each step are met. The
-following is an overview:
+The Snakefile can do everything except for running the experiment and
+extracting the data from the NYU CBI WebDB.
 
-1. Create the stimuli (`python -m sfp.stimuli subject_name -c
-   -i`). After you run this the first time (and thus create the
-   unshuffled stimuli), you probably only need the `-i` flag to create
-   the index. This can also be done using the `stimuli` and
-   `stimuli_idx` rules in the Snakefile.
-2. Run the experiment and gather fMRI data (`python sfp/experiment.py
-   data/stimuli/task-sfp_stimuli.npy 12 subject_name`). Each run will last 4
-   minutes 24 seconds (48 stimulus classes and 10 blank trials, each
-   for 4 seconds, gives you 3 minutes 52 seconds, and then each run
-   starts and ends with 16 seconds of blank screen).
-3. Extract from NYU CBI's WebDB, which will run `heudiconv` on the
+1. Create the stimuli: `snakemake
+   data/stimuli/task-sfprescaled_stimuli.npy`. This requires the
+   `data/stimuli/mtf_func.pkl`, which is created by the code found in
+   the
+   [spatial-calibration](https://github.com/WinawerLab/spatial-calibration/)
+   repo and is included in this repo. This only needs to be done once.
+2. Create the presentation indices for the subject: `snakemake
+   data/stimuli/sub-wlsubj###_ses-##_run00_idx.npy`. In order for this
+   to work, the subject and session both need to be keys in the
+   `SUB_SEEDS` and `SES_SEEDS` dictionaries found at the top of the
+   Snakefile.
+3. Run the experiment and gather fMRI data (`python sfp/experiment.py
+   data/stimuli/task-sfprescaled_stimuli.npy 12
+   sub-wlsubj###_ses-##`). Each run will last 4 minutes 24 seconds (48
+   stimulus classes and 10 blank trials, each for 4 seconds, gives you
+   3 minutes 52 seconds, and then each run starts and ends with 16
+   seconds of blank screen).
+4. Extract from NYU CBI's WebDB, which will run `heudiconv` on the
    data, getting it into the BIDS format.
-4. Transfer the data for this scanning session from `Tesla` to the
+5. Transfer the data for this scanning session from `Tesla` to the
    BIDS directory (`move_off_tesla` rule) and create the correct
    `events.tsv` files (`create_BIDS_tsv` rule).
-5. Pre-process your fMRI data
-   (using
-   [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)). This
-   is accomplished by the `preprocess`, `rearrange_preprocess_extras`,
+6. Pre-process your fMRI data (using [WinawerLab's
+   MRI_tools](https://github.com/WinawerLab/MRI_tools)). This is
+   accomplished by the `preprocess`, `rearrange_preprocess_extras`,
    and `rearrange_preprocess` rules in the Snakefile.
-8. Align to freesurfer anatomy and get into the mgz format, done by
+7. Align to freesurfer anatomy and get into the mgz format, done by
    the `to_freesurfer` rule, which uses the `to_freesurfer.py` script
    found in
    the
    [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
-6. Create design matrices for each run This is done by the
+8. Create design matrices for each run This is done by the
    `create_design_matrices` rule
-7. Run GLMdenoise (`runGLM.m`) done by the `GLMdenoise` rule.
-9. Arrange the outputs into a pandas dataframe for ease of further
+9. Run GLMdenoise (`runGLM.m`) done by the `GLMdenoise` rule.
+10. Arrange the outputs into a pandas dataframe for ease of further
    analysis. This is done using the `first_level_analysis` rule.
-10. Construct tuning curves, using the `tuning_curves` rule.
+11. Construct tuning curves, using the `tuning_curves` rule.
     - Note that for this to work, I currently require Noah Benson's
       retinotopy templates. These can be created by running
       this
@@ -97,8 +106,10 @@ following is an overview:
       eccentricity of its population receptive field in the visual
       field and what is it visual area?), so we could pretty easily
       extend this to use other sources for that.
-11. Collect tuning curves across subjects and scanning sessions, to
+12. Collect tuning curves across subjects and scanning sessions, to
    compare. This is done using the `tuning_curves_summary` rule.
+
+ADD STEPS FOR 2d MODEL
 
 Note that several of these steps (preprocessing and running
 GLMdenoise) should be run on a cluster and will take way too long or

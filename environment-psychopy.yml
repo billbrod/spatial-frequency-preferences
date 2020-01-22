@@ -3,44 +3,44 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python==3.6
-  - anaconda
-  - pip
-  - numpy
-  - matplotlib
-  - scipy
-  - pandas
-  - pyopengl
-  - pillow
-  - lxml
-  - openpyxl
-  - seaborn
-  - xlrd
-  - configobj
-  - pyyaml
-  - gevent
-  - msgpack-python
-  - psutil
-  - pytables
-  - requests[security]
-  - cffi
-  - wxpython
-  - cython
-  - pyzmq
-  - pyserial
-  - pysoundfile
-  - python-bidi
-  - moviepy
-  - pyosf
+  - python==3.7
+  - pip==19.1.1
+  - numpy==1.17.0
+  - matplotlib==3.1.1
+  - scipy==1.3.0
+  - pandas==0.24.2
+  - pillow==6.1.0
+  - lxml==4.3.4
+  - openpyxl==2.6.2
+  - xlrd==1.2.0
+  - configobj==5.0.6
+  - pyyaml==5.1.1
+  - gevent==1.4.0
+  - msgpack-python==0.5.6
+  - psutil==5.6.3
+  - requests[security]==2.22.0
+  - cffi==1.12.3
+  - wxpython==4.0.6
+  - cython==0.29.11
+  - pyzmq==18.0.2
+  - pyserial==3.4
+  - python-bidi==0.4.2
+  - moviepy==0.2.3.5
+  - pyosf==1.0.5
   - greenlet==0.4.15
-  - h5py
+  - h5py==2.9.0
   - pip:
-      - pyglet
+      # pyglet 1.4 isn't supported for psychopy yet
+      # (https://github.com/psychopy/psychopy/issues/2518), and 1.3.2
+      # is required for python 3.7 support
+      # (https://bitbucket.org/pyglet/pyglet/issues/168/pyglettextdocument-fails-in-python-37-b1)
+      - pyglet == 1.3.2
+      - glfw==1.8.2
       - zmq
-      - json-tricks
-      - pyparallel
-      - sounddevice
-      - pygame
-      - pysoundcard
-      - psychopy_ext
-      - psychopy
+      - json-tricks==3.13.1
+      - pyparallel==0.2.2
+      - sounddevice==0.3.13
+      - pygame==1.9.6
+      - pysoundcard==0.5.2
+      - psychopy_ext==0.6.0.4
+      - psychopy == 3.1.5
