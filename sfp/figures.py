@@ -134,8 +134,26 @@ def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
     """demean a column of the dataframe
 
     Calculate the mean of `y` across the values in some other column(s)
-    `gb_cols`, then demean `y` and return df with a new column,
-    `demeaned_{y}`.
+    `gb_cols`, then demean `y` and return df with several new columns:
+    - `demeaned_{y}`: each y with the gb_cols-wise average of y
+      subtracted off
+    - `{y}_mean`: the gb_cols-wise average of y
+    - `{y}_mean_overall`: the average of `{y}_mean`
+    - `remeaned_{y}`: the `demeaned_{y}` with `{y}_mean_overall` added
+      back to it
+
+    If you use this with the defaults, the overall goal of this is to
+    enable us to look at how the cv_loss varies across models, because
+    the biggest effect is the difference in cv_loss across
+    subjects. Demeaning the cv_loss on a subject-by-subject basis
+    enables us to put all the subjects together so we can look for
+    patterns across models. For example, we can then compute error bars
+    that only capture the variation across models, but not across
+    subjects. Both remeaned or demeaned will capture this, the question
+    is what values to have on the y-axis. If you use demeaned, you'll
+    have negative loss, which might be confusing. If you use remeaned,
+    the y-axis values will be the average across subjects, which might
+    be easier to interpret.
 
     Parameters
     ----------
@@ -155,7 +173,16 @@ def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
     """
     df = df.set_index(gb_cols)
     df[f'{y}_mean'] = df.groupby(gb_cols)[y].mean()
+    # here we take the average over the averages. we do this so that we
+    # weight all of the groups the same. For example, if
+    # gb_cols=['subject'] (as default) and one subject had twice as many
+    # rows (because it had two sessions in df, for example), then this
+    # ensures that subject isn't twice as important when computing the
+    # mean (which would be the case if we used df[f'{y}_mean'].mean()
+    # instead)
+    df[f'{y}_mean_overall'] = df.groupby(gb_cols)[y].mean().mean()
     df[f'demeaned_{y}'] = df[y] - df[f'{y}_mean']
+    df[f'remeaned_{y}'] = df[f'demeaned_{y}'] + df[f'{y}_mean_overall']
     return df.reset_index()
 
 
@@ -589,7 +616,7 @@ def cross_validation_raw(df):
     return g
 
 
-def cross_validation_demeaned(df):
+def cross_validation_demeaned(df, remeaned=False):
     """plot demeaned cross-validation loss
 
     This function demeans the cross-validation loss on a
@@ -604,6 +631,12 @@ def cross_validation_demeaned(df):
         dataframe containing the output of the cross-validation
         analyses, combined across sessions (i.e., theo utput of
         combine_model_cv_summaries snakemake rule)
+    remeaned : bool, optional
+        whether to use the demeaned cross-validation loss or the
+        remeaned one. Remeaned has the mean across subjects added back
+        to it, so that there won't be any negative y-values. This will
+        only affect the values on the y-axis; the relative placements of
+        the points will all be the same.
 
     Returns
     -------
@@ -612,14 +645,18 @@ def cross_validation_demeaned(df):
 
     """
     df = _demean_df(df)
-    g = _catplot(df, y='demeaned_cv_loss')
-    g.fig.suptitle("Demeaned cross-validated loss across subjects")
-    g.set(ylabel="Cross-validated loss (demeaned by subject)", xlabel="Subject")
+    if remeaned:
+        name = 'remeaned'
+    else:
+        name = 'demeaned'
+    g = _catplot(df, y=f'{name}_cv_loss')
+    g.fig.suptitle(f"{name.capitalize()} cross-validated loss across subjects")
+    g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Subject")
     g._legend.set_title("Model type")
     return g
 
 
-def cross_validation_model(df, plot_kind='strip'):
+def cross_validation_model(df, plot_kind='strip', remeaned=False):
     """plot demeaned cross-validation loss, as function of model type
 
     This function demeans the cross-validation loss on a
@@ -638,6 +675,13 @@ def cross_validation_model(df, plot_kind='strip'):
         whether to create a strip plot (each subject as a separate
         point) or a point plot (combine across subjects, plotting the
         median and bootstrapped 95% CI)
+    remeaned : bool, optional
+        whether to use the demeaned cross-validation loss or the
+        remeaned one. Remeaned has the mean across subjects added back
+        to it, so that there won't be any negative y-values. This will
+        only affect the values on the y-axis; the relative placements of
+        the points (and the size of the error bars if
+        `plot_kind='point'`) will all be the same.
 
     Returns
     -------
@@ -651,9 +695,13 @@ def cross_validation_model(df, plot_kind='strip'):
         legend_title = "Subject"
     elif plot_kind == 'point':
         hue = 'fit_model_type'
-    g = _catplot(df, x='fit_model_type', y='demeaned_cv_loss', hue=hue, plot_kind=plot_kind)
-    g.fig.suptitle("Demeaned cross-validated loss across model types")
-    g.set(ylabel="Cross-validated loss (demeaned by subject)", xlabel="Model type")
+    if remeaned:
+        name = 'remeaned'
+    else:
+        name = 'demeaned'
+    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue, plot_kind=plot_kind)
+    g.fig.suptitle(f"{name.capitalize()} cross-validated loss across model types")
+    g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Model type")
     # if plot_kind=='point', then there is no legend, so the following
     # would cause an error
     if plot_kind == 'strip':

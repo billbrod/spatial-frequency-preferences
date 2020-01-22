@@ -1633,14 +1633,19 @@ rule figure_crossvalidation:
         import sfp
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         with sns.axes_style('white'):
-            if wildcards.cv_type == 'demeaned':
-                g = sfp.figures.cross_validation_demeaned(df)
+            if len(wildcards.cv_type.split('-')) > 1:
+                assert wildcards.cv_type.split('-')[1] == 'remeaned'
+                remeaned = True
+            else:
+                remeaned = False
+            if wildcards.cv_type.startswith('demeaned'):
+                g = sfp.figures.cross_validation_demeaned(df, remeaned)
             elif wildcards.cv_type == 'raw':
                 g = sfp.figures.cross_validation_raw(df)
-            elif wildcards.cv_type == 'model':
-                g = sfp.figures.cross_validation_model(df)
-            elif wildcards.cv_type == 'model_point':
-                g = sfp.figures.cross_validation_model(df, 'point')
+            elif wildcards.cv_type.startswith('model_point'):
+                g = sfp.figures.cross_validation_model(df, 'point', remeaned)
+            elif wildcards.cv_type.startswith('model'):
+                g = sfp.figures.cross_validation_model(df, remeaned=remeaned)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -1861,7 +1866,8 @@ rule figures:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '1d_{}_{}.pdf').format(param, task)
          for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled', 'task-sfpconstant']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'cv_{}_task-sfprescaled.pdf').format(cv)
-         for cv in ['raw', 'demeaned', 'model', 'model_point']],
+         for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
+                    'model-remeaned', 'model_point-remeaned']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-all_{}_task-sfprescaled.pdf').format(kind)
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)
