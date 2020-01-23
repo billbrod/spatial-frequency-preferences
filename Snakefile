@@ -1791,6 +1791,8 @@ rule figure_schematic:
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.schematic_type == '2d':
                 fig = sfp.figures.model_schematic()
+            elif wildcards.schematic_type == '2d-inputs':
+                fig = sfp.figures.input_schematic()
             elif wildcards.schematic_type == 'models':
                 fig = sfp.figures.model_types()
             fig.savefig(output[0], bbox_inches='tight')
@@ -1890,5 +1892,5 @@ rule figures:
         #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
         #  for frame in ['relative', 'absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic_{}.pdf').format(kind)
-         for kind in ['2d', 'models']],
+         for kind in ['2d', 'models', '2d-inputs']],
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'background_period.pdf'),
