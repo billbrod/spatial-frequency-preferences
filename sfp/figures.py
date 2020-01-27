@@ -532,10 +532,9 @@ def model_schematic():
 
     In order to better explain the model, its predictions, and the
     effects of its parameters, we create a model schematic that shows
-    the predictions for several toy models. This function creates the
-    full schematic, summarizing the predictions for an isotropic,
-    relative, absolute, and full model, with extra text and arrows to
-    (hopefully) make it clearer.
+    the effects of the different p parameters (those that control the
+    effect of stimulus orientation and retinotopic angle on preferred
+    period).
 
     Returns
     -------
@@ -543,63 +542,42 @@ def model_schematic():
         Figure containing the schematic
 
     """
-    iso_model = model.LogGaussianDonut(sf_ecc_slope=.2, sf_ecc_intercept=.2)
-    rel_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
-                                       rel_mode_cardinals=.4, rel_mode_obliques=.1)
     abs_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
                                        abs_mode_cardinals=.4, abs_mode_obliques=.1)
+    rel_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                       rel_mode_cardinals=.4, rel_mode_obliques=.1)
     full_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
                                         abs_mode_cardinals=.4, abs_mode_obliques=.1,
                                         rel_mode_cardinals=.4, rel_mode_obliques=.1)
     # we can't use the plotting.feature_df_plot / feature_df_polar_plot
     # functions because they use FacetGrids, each of which creates a
     # separate figure and we want all of this to be on one figure.
-    projs = ['rectilinear', 'polar', 'polar']
-    fig = plt.figure(constrained_layout=True, figsize=(35, 19))
-    axes_ht, space_ht = 1, .4
-    ht_ratios = np.array([axes_ht, space_ht, axes_ht, space_ht, axes_ht])
-    gs = mpl.gridspec.GridSpec(figure=fig, ncols=7, nrows=5, height_ratios=ht_ratios)
+    fig = plt.figure(figsize=(15, 15))
+    gs = mpl.gridspec.GridSpec(figure=fig, ncols=3, nrows=3)
+    projs = ['rectilinear', 'polar']
+    labels = [r'$p_1>p_2>0$', r'$p_3>p_4>0$', r'$p_1=p_3>p_2=p_4>0$']
 
     axes = []
-    for m, row, col in zip([iso_model, rel_model, abs_model, full_model],
-                           [0, 2, 2, 4], [2, 0, 4, 2]):
-        model_axes = [fig.add_subplot(gs[row, i+col], projection=projs[i])
-                      for i in range(3)]
-        axes.append(plotting.model_schematic(m, model_axes, [(-.1, 4.2), (-.1, 2.5), (-.1, 2.5)]))
+    for i, m in enumerate([abs_model, rel_model, full_model]):
+        model_axes = [fig.add_subplot(gs[i, j], projection=projs[j]) for j in range(2)]
+        if i==0:
+            title = True
+        else:
+            title = False
+        model_axes = plotting.model_schematic(m, model_axes[:2], [(-.1, 4.2), (-.1, 3)], title)
+        if i != 2:
+            [ax.set(xlabel='') for ax in model_axes]
+        model_axes[0].text(-.25, .5, labels[i], rotation=90, transform=model_axes[0].transAxes,
+                           va='center', fontsize=15)
+        axes.append(model_axes)
+        
 
-    # these need to be created after the model plots so we can grab
+    # this needs to be created after the model plots so we can grab
     # their axes
-    legend_axes = [fig.add_subplot(gs[0, i]) for i in [1, 5]]
-    for i, ax in enumerate(legend_axes):
-        loc = ['center right', 'center left'][i]
-        ax.legend(*axes[-1][i+1].get_legend_handles_labels(), loc=loc)
-        ax.axis('off')
+    legend_axis = fig.add_subplot(gs[1, -1])
+    legend_axis.legend(*axes[1][1].get_legend_handles_labels(), loc='center left')
+    legend_axis.axis('off')
 
-    ptA = [(.5, -1), (.5, -1), (1.5/7, 2), (5.5/7, 2)]
-    ptB = [(1.5/7, -2), (5.5/7, -2), (.5, 1), (.5, 1)]
-    txt = [r'$p_3 > p_4 > 0$'+'\n'+r'$p_1=p_2=0$', r'$p_1 > p_2 > 0$'+'\n'+r'$p_3=p_4=0$',
-           r'$p_1=p_3>p_2=p_4>0$']
-    for i, (a, b) in enumerate(zip(ptA, ptB)):
-        a_ht = ht_ratios[:a[1]].sum() / ht_ratios.sum()
-        b_ht = ht_ratios[:b[1]].sum() / ht_ratios.sum()
-        arrow = mpl.patches.FancyArrowPatch((a[0], a_ht - .01), (b[0], b_ht + .02),
-                                            transform=fig.transFigure, color='k',
-                                            arrowstyle='simple', mutation_scale=20,)
-        fig.patches.append(arrow)
-        if i < 2:
-            fig.text(b[0] + (a[0]-b[0])/2, b_ht + (a_ht-b_ht)/2 + .025, txt[i],
-                     {'size': 15, 'ha': ['right', 'left'][i], 'va': 'center'})
-        if i == 2:
-            fig.text(.5, b_ht + (a_ht-b_ht)/2, txt[i],
-                     {'size': 15, 'ha': 'center', 'va': 'center'})
-    fig.text(.5, 1.01, 'Isotropic model',
-             {'size': 20, 'ha': 'center', 'va': 'center'})
-    fig.text(1.5/7, ht_ratios[:-2].sum() / ht_ratios.sum() + .01, 'Relative model',
-             {'size': 20, 'ha': 'center', 'va': 'center'})
-    fig.text(5.5/7, ht_ratios[:-2].sum() / ht_ratios.sum() + .01, 'Absolute model',
-             {'size': 20, 'ha': 'center', 'va': 'center'})
-    fig.text(.5, ht_ratios[:1].sum() / ht_ratios.sum() + .01, 'Full model',
-             {'size': 20, 'ha': 'center', 'va': 'center'})
     return fig
 
 
