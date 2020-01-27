@@ -20,13 +20,17 @@ else:
 
 
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj014',
-            'sub-wlsubj064', 'sub-wlsubj081', 'sub-wlsubj095', 'sub-wlsubj007', 'sub-wlsubj062']
+            'sub-wlsubj064', 'sub-wlsubj081', 'sub-wlsubj095', 'sub-wlsubj007', 'sub-wlsubj062',
+            'sub-wlsubj046', 'sub-wlsubj105', 'sub-wlsubj006', 'sub-wlsubj121', 'sub-wlsubj115',
+            'sub-wlsubj114']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj004': ['ses-03'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj045': ['ses-pilot01', 'ses-01', 'ses-02', 'ses-04', 'ses-03'],
             'sub-wlsubj014': ['ses-03'], 'sub-wlsubj064': ['ses-04'], 'sub-wlsubj081': ['ses-04'],
-            'sub-wlsubj095': ['ses-04'], 'sub-wlsubj007': ['ses-04'], 'sub-wlsubj062': ['ses-04']}
+            'sub-wlsubj095': ['ses-04'], 'sub-wlsubj007': ['ses-04'], 'sub-wlsubj062': ['ses-04'],
+            'sub-wlsubj046': ['ses-04'], 'sub-wlsubj105': ['ses-04'], 'sub-wlsubj006': ['ses-04'],
+            'sub-wlsubj121': ['ses-04'], 'sub-wlsubj115': ['ses-04'], 'sub-wlsubj114': ['ses-04']}
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
@@ -37,7 +41,10 @@ TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01
          ('sub-wlsubj045', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj045', 'ses-03'): 'task-sfp',
          ('sub-wlsubj064', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj081', 'ses-04'): 'task-sfprescaled',
          ('sub-wlsubj095', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj007', 'ses-04'): 'task-sfprescaled',
-         ('sub-wlsubj062', 'ses-04'): 'task-sfprescaled'}
+         ('sub-wlsubj062', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj046', 'ses-04'): 'task-sfprescaled',
+         ('sub-wlsubj105', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj006', 'ses-04'): 'task-sfprescaled',
+         ('sub-wlsubj121', 'ses-04'): 'task-sfprescaled', ('sub-wlsubj115', 'ses-04'): 'task-sfprescaled',
+         ('sub-wlsubj114', 'ses-04'): 'task-sfprescaled'}
 # these are the subject, session pairs where I didn't add the task to the protocol name and so some
 # extra work is necessary.
 WRONG_TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-TASK',
@@ -77,7 +84,9 @@ def get_stim_files(wildcards):
 # along the hundreds
 SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wlsubj004': 4,
              'sub-wlsubj014': 5, 'sub-wlsubj004': 6, 'sub-wlsubj064': 7, 'sub-wlsubj081': 8,
-             'sub-wlsubj095': 9, 'sub-wlsubj062': 0, 'sub-wlsubj007': 100}
+             'sub-wlsubj095': 9, 'sub-wlsubj062': 0, 'sub-wlsubj007': 100,
+             'sub-wlsubj046': 101, 'sub-wlsubj105': 102, 'sub-wlsubj006': 103,
+             'sub-wlsubj121': 104, 'sub-wlsubj115': 105, 'sub-wlsubj114': 106}
 # while session should increment along the tens digit
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50,
              'ses-04': 60}
