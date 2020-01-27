@@ -717,22 +717,36 @@ rule create_GLMdenoise_fixed_hrf_json:
 def GLMdenoise_runs(wildcards):
     """return the runs to use for this mat_type
     """
-    total_runs = NRUNS.get((wildcards.subject, wildcards.session))
+    total_runs = NRUNS.get((wildcards.subject, wildcards.session), 12)
     # because we're passing this to matlab, we need this to be a list of
     # ints that go from 1 to total_runs (inclusive).
-    if wildcards.endswith('noise-ceiling-1'):
-        runs = list(np.arange(1, total_runs+1, 2))
-    elif wildcards.endswith('noise-ceiling-2'):
-        runs = list(np.arange(2, total_runs+1, 2))
+    if wildcards.mat_type.endswith('noise-ceiling-1'):
+        runs = np.arange(1, total_runs+1, 2)
+    elif wildcards.mat_type.endswith('noise-ceiling-2'):
+        runs = np.arange(2, total_runs+1, 2)
     else:
         runs = []
+    runs = ','.join([str(i) for i in runs])
+    runs = f"[{runs}]"
     return runs
+
+
+def get_GLMdenoise_params_file(wildcards):
+    # need a function for this because there's a variety of mat_type
+    # "suffixes" which don't change the design_matrices mat_type folder
+    template = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}",
+                            "{subject}", "{session}", "{subject}_{session}_{task}_params.json")
+    # neither of these should affect the design_matrices mat_type we're
+    # looking for. this is the same as params.mat_type, but input
+    # functions can't take params as input
+    wildcards.mat_type = wildcards.mat_type.replace('_noise-ceiling-1', '').replace('_noise-ceiling-2', '')
+    return template.format(**wildcards)
 
 
 rule GLMdenoise:
     input:
         preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.mgz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
-        params_file = os.path.join(config["DATA_DIR"], "derivatives", "design_matrices", "{mat_type}", "{subject}", "{session}", "{subject}_{session}_{task}_params.json"),
+        params_file = get_GLMdenoise_params_file,
         opts_json = os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     output:
         GLM_results = protected(os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")),
@@ -754,6 +768,7 @@ rule GLMdenoise:
         GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures_{task}").format(**wildcards),
         GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures_{task}", "{subject}_{session}_{mat_type}-{atlas_type}_results.mat").format(**wildcards),
         runs = GLMdenoise_runs,
+        mat_type = lambda wildcards: wildcards.mat_type.replace('_noise-ceiling-1', '').replace('_noise-ceiling-2', '')
     resources:
         cpus_per_task = 1,
         mem = 100
@@ -762,7 +777,7 @@ rule GLMdenoise:
         "vistasoft_path}')); addpath(genpath('{params.GLMdenoise_path}')); "
         "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
         "BIDS_dir}', '{params.subject}', '{params.session}', [], {params.runs}, "
-        "'preprocessed_reoriented', 'preproc', '{wildcards.mat_type}', jsonInfo.stim_length, "
+        "'preprocessed_reoriented', 'preproc', '{params.mat_type}', jsonInfo.stim_length, "
         "'{wildcards.mat_type}-{wildcards.atlas_type}', '{input.opts_json}', jsonInfo.TR_length); "
         "quit;\"; mv -v {params.GLM_output_dir} {params.GLM_target_dir}; rmdir -pv {params.GLM_tmp_parent_dir}; "
         "mv -v {params.GLM_output} {output.GLM_results}"
@@ -780,7 +795,7 @@ rule GLMdenoise_fixed_hrf:
     log:
         os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_fixed_hrf_{input_mat}_{atlas_type}-%j.log")
     params:
-        vistasoft_path = os.path.join(config['VISTASOFT_PATH']),
+        vistasoft_path = config['VISTASOFT_PATH'],
         GLMdenoise_path = config['GLMDENOISE_PATH'],
         BIDS_dir = config['DATA_DIR'],
         GLM_dir = os.path.join(config['MRI_TOOLS'], "BIDS"),
