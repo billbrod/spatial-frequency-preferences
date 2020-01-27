@@ -37,6 +37,9 @@ MODEL_ORDER = ['constant_donut_iso_amps-constant', 'scaling_donut_iso_amps-const
                'full_donut_relative_amps-constant', 'full_donut_full_amps-constant',
                'full_donut_absolute_amps-vary', 'full_donut_relative_amps-vary',
                'full_donut_full_amps-vary']
+# these are the 'prettier names' for plotting
+MODEL_PLOT_ORDER = ['constant iso', 'scaling iso', 'full iso', 'full absolute', 'full relative',
+                    'full full', 'full absolute amps', 'full relative amps', 'full full amps']
 
 
 def get_order(col, reference_frame=None, col_unique=None):
@@ -45,7 +48,10 @@ def get_order(col, reference_frame=None, col_unique=None):
     if col == 'stimulus_type':
         return stimulus_type_order(reference_frame)
     elif col == 'fit_model_type':
-        return MODEL_ORDER
+        if 'constant iso' in col_unique:
+            return MODEL_PLOT_ORDER
+        else:
+            return MODEL_ORDER
     elif col == 'model_parameter':
         if col_unique is not None and 'sigma' in col_unique:
             return ORIG_PARAM_ORDER

@@ -628,6 +628,8 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         seaborn FacetGrid object containing the plot
 
     """
+    df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
+                                                       plotting.MODEL_PLOT_ORDER)))
     hue_order = plotting.get_order(hue, col_unique=df[hue].unique())
     order = plotting.get_order(x, col_unique=df[x].unique())
     pal = plotting.get_palette(hue, col_unique=df[hue].unique())
@@ -790,8 +792,7 @@ def model_types():
         The figure with the plot on it
 
     """
-    model_names = ['constant iso', 'scaling iso', 'full iso', 'full absolute', 'full relative',
-                   'full full', 'full absolute amps', 'full relative amps', 'full full amps']
+    model_names = plotting.MODEL_PLOT_ORDER
     parameters = [r'$\sigma$', r'$a$', r'$b$', r'$p_1$', r'$p_2$', r'$p_3$', r'$p_4$', r'$A_1$',
                   r'$A_2$', r'$A_3$', r'$A_4$']
     model_variants = np.zeros((len(model_names), len(parameters))).astype(bool)
