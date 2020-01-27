@@ -714,6 +714,21 @@ rule create_GLMdenoise_fixed_hrf_json:
             json.dump(opts, f)
 
 
+def GLMdenoise_runs(wildcards):
+    """return the runs to use for this mat_type
+    """
+    total_runs = NRUNS.get((wildcards.subject, wildcards.session))
+    # because we're passing this to matlab, we need this to be a list of
+    # ints that go from 1 to total_runs (inclusive).
+    if wildcards.endswith('noise-ceiling-1'):
+        runs = list(np.arange(1, total_runs+1, 2))
+    elif wildcards.endswith('noise-ceiling-2'):
+        runs = list(np.arange(2, total_runs+1, 2))
+    else:
+        runs = []
+    return runs
+
+
 rule GLMdenoise:
     input:
         preproc_files = lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_reoriented", wildcards.subject, wildcards.session, "{hemi}."+wildcards.subject+"_"+wildcards.session+"_"+wildcards.task+"_run-{n:02d}_preproc.mgz"), hemi=['lh', 'rh'], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1)),
@@ -738,6 +753,7 @@ rule GLMdenoise:
         GLM_tmp_parent_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}-{atlas_type}", "{subject}", "{session}").format(**wildcards),
         GLM_target_dir = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures_{task}").format(**wildcards),
         GLM_output = lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "figures_{task}", "{subject}_{session}_{mat_type}-{atlas_type}_results.mat").format(**wildcards),
+        runs = GLMdenoise_runs,
     resources:
         cpus_per_task = 1,
         mem = 100
@@ -745,7 +761,7 @@ rule GLMdenoise:
         "cd {params.GLM_dir}; matlab -nodesktop -nodisplay -r \"addpath(genpath('{params."
         "vistasoft_path}')); addpath(genpath('{params.GLMdenoise_path}')); "
         "jsonInfo=jsondecode(fileread('{input.params_file}')); bidsGLM('{params."
-        "BIDS_dir}', '{params.subject}', '{params.session}', [], [], "
+        "BIDS_dir}', '{params.subject}', '{params.session}', [], {params.runs}, "
         "'preprocessed_reoriented', 'preproc', '{wildcards.mat_type}', jsonInfo.stim_length, "
         "'{wildcards.mat_type}-{wildcards.atlas_type}', '{input.opts_json}', jsonInfo.TR_length); "
         "quit;\"; mv -v {params.GLM_output_dir} {params.GLM_target_dir}; rmdir -pv {params.GLM_tmp_parent_dir}; "
