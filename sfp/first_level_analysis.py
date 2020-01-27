@@ -62,7 +62,7 @@ def _load_mat_file(path, results_names, varea_mask, eccen_mask):
 
     """
     mgzs = {}
-    with h5py.File(path) as f:
+    with h5py.File(path, 'r') as f:
         for var, index in results_names:
             tmp_ref = f['results'][var]
             if tmp_ref.shape == (2, 1):

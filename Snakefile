@@ -871,6 +871,20 @@ def get_stim_type(wildcards):
             return 'logpolar'
 
 
+def get_benson_template(wildcards, input):
+    # for some reason, sometimes input.benson_paths is a single str,
+    # sometimes it's a list of strings (it always requires multiple
+    # benson_paths as input, just sometimes the way they're stored is
+    # different?). It might be related to snakemake version or something
+    # else I'm having trouble controlling across machines. regardless,
+    # this does it
+    if isinstance(input.benson_paths, str):
+        path = input.benson_paths
+    else:
+        path = input.benson_paths[0]
+    return path.replace('lh', '%s').replace('angle', '%s').replace('benson14_', '').replace('inferred_', '').replace(wildcards.atlas_type, '%s'),
+
+
 rule first_level_analysis:
     input:
         unpack(get_first_level_analysis_input),
@@ -885,7 +899,7 @@ rule first_level_analysis:
         save_dir = lambda wildcards, output: os.path.dirname(output[0]),
         vareas = lambda wildcards: wildcards.vareas.split('-'),
         eccen = lambda wildcards: wildcards.eccen.split('-'),
-        benson_template = lambda wildcards, input: input.benson_paths[0].replace('lh', '%s').replace('angle', '%s').replace('benson14_', '').replace('inferred_', '').replace(wildcards.atlas_type, '%s'),
+        benson_template = get_benson_template,
         benson_names = lambda wildcards, input: [i.split('.')[-2] for i in input if wildcards.atlas_type+'/lh' in i],
         prf_names = lambda wildcards, input: [i.split('.')[-2] for i in input if 'data/lh' in i],
         class_num = lambda wildcards: get_n_classes(wildcards.session, wildcards.mat_type),
