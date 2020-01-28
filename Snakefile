@@ -1661,16 +1661,20 @@ rule noise_ceiling:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_loss.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_results_df.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model.pt'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model_history.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_results_df.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model.pt'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model_history.csv'),
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
     run:
         import sfp
+        import torch
+        import numpy as np
+        np.random.seed(int(wildcards.seed))
+        torch.manual_seed(int(wildcards.seed))
         save_stem = output[0].replace('_loss.csv', '')
         if int(wildcards.gpus) == 1:
             device = torch.device('cuda:0')
