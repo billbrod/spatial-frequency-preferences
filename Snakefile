@@ -1692,7 +1692,9 @@ rule noise_ceiling:
         
         with sns.axes_style('white'):
             fig = sfp.noise_ceiling.plot_noise_ceiling_model(model, pd.read_csv(input[0]))
-            fig.savefig(output[-1])
+            ax = fig.axes[0]
+            ax.text(1.01, .5, f'Final loss:\n{loss.loss.values[-1]:.05f}', transform=ax.transAxes)
+            fig.savefig(output[-1], bbox_inches='tight')
 
 
 rule prepare_image_computable:
