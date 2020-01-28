@@ -1672,29 +1672,9 @@ rule noise_ceiling:
         os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
     run:
         import sfp
-        import torch
-        import numpy as np
-        import pandas as pd
-        np.random.seed(int(wildcards.seed))
-        torch.manual_seed(int(wildcards.seed))
         save_stem = output[0].replace('_loss.csv', '')
-        if int(wildcards.gpus) == 1:
-            device = torch.device('cuda:0')
-        elif int(wildcards.gpus) == 0:
-            device = torch.device('cpu')
-        ds = sfp.noise_ceiling.NoiseCeilingDataset(input[0], device)
-        model = sfp.noise_ceiling.NoiseCeiling().to(device)
-        model, loss, results, history = sfp.model.train_model(model, ds, 100, int(wildcards.batch_size),
-                                                              learning_rate=float(wildcards.lr),
-                                                              save_path_stem=save_stem)
-        model.eval()
-        sfp.model.save_outputs(model, loss, results, model_history, save_stem)
-        
-        with sns.axes_style('white'):
-            fig = sfp.noise_ceiling.plot_noise_ceiling_model(model, pd.read_csv(input[0]))
-            ax = fig.axes[0]
-            ax.text(1.01, .5, f'Final loss:\n{loss.loss.values[-1]:.05f}', transform=ax.transAxes)
-            fig.savefig(output[-1], bbox_inches='tight')
+        sfp.noise_ceiling.main(input[0], save_stem, int(wildcards.seed), int(wildcards.batch_size),
+                               float(wildcards.lr), 100, int(wildcards.gpus))
 
 
 rule prepare_image_computable:

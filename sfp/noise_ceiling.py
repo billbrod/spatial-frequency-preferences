@@ -6,6 +6,7 @@ import matplotlib as mpl
 # warning to that effect; that's unnecessarily alarming, so we hide it.
 mpl.use('svg', warn=False)
 import torch
+import numpy as np
 import pandas as pd
 from torch.utils import data as torchdata
 from . import model as sfp_model
@@ -220,3 +221,56 @@ def plot_noise_ceiling_model(model, df):
     ax.axhline(color='gray', linestyle='dashed')
     ax.axvline(color='gray', linestyle='dashed')
     return ax.figure
+
+
+def main(df_path, save_stem, seed=0, batch_size=10, learning_rate=.1, max_epochs=100, gpus=0):
+    """find the noise ceiling for a single scanning session and save the output
+
+    In addition to the standard sfp_model outputs, we also save a figure
+    showing the predictions and loss of the final noise ceiling model
+
+    The outputs will be saved at `save_stem` plus the following
+    suffixes: "_loss.csv", "_results_df.csv", "_model.pt",
+    "_model_history.csv", "_predictions.csv"
+
+    Parameters
+    ----------
+    df_path : str
+        The path where the merged df is saved (as created by
+        sfp.noise_ceiling.combine_dfs)
+    save_stem : str
+        the stem of the path to save things at (i.e., should not end in
+        the extension)
+    seed : int, optional
+        random seed to use (used to set both torch and numpy's RNG)
+    batch_size : int, optional
+        The batch size for training the model (in number of voxels)
+    learning_rate : float, optional
+        The learning rate for the optimization algorithm
+    max_epochs : int, optional
+        The number of epochs to train for
+    gpus : {0, 1}, optional
+        How many gpus to use
+
+    """
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if gpus == 1:
+        device = torch.device('cuda:0')
+    elif gpus == 0:
+        device = torch.device('cpu')
+    else:
+        raise Exception(f"Only 0 and 1 gpus supported right now, not {gpus}")
+    ds = NoiseCeilingDataset(df_path, device)
+    model = NoiseCeiling().to(device)
+    model, loss, results, history = sfp_model.train_model(model, ds, max_epochs, batch_size,
+                                                          learning_rate=learning_rate,
+                                                          save_path_stem=save_stem)
+    model.eval()
+    sfp_model.save_outputs(model, loss, results, model_history, save_stem)
+
+    with sns.axes_style('white'):
+        fig = plot_noise_ceiling_model(model, pd.read_csv(df_path))
+        ax = fig.axes[0]
+        ax.text(1.01, .5, f'Final loss:\n{loss.loss.values[-1]:.05f}', transform=ax.transAxes)
+        fig.savefig(save_stem+"_predictions.svg", bbox_inches='tight')
