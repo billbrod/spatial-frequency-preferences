@@ -1665,6 +1665,7 @@ rule noise_ceiling:
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_results_df.csv'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model.pt'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model_history.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_predictions.svg'),
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
     log:
@@ -1673,6 +1674,7 @@ rule noise_ceiling:
         import sfp
         import torch
         import numpy as np
+        import pandas as pd
         np.random.seed(int(wildcards.seed))
         torch.manual_seed(int(wildcards.seed))
         save_stem = output[0].replace('_loss.csv', '')
@@ -1687,6 +1689,10 @@ rule noise_ceiling:
                                                               save_path_stem=save_stem)
         model.eval()
         sfp.model.save_outputs(model, loss, results, model_history, save_stem)
+        
+        with sns.axes_style('white'):
+            fig = sfp.noise_ceiling.plot_noise_ceiling_model(model, pd.read_csv(input[0]))
+            fig.savefig(output[-1])
 
 
 rule prepare_image_computable:

@@ -187,3 +187,36 @@ class NoiseCeiling(torch.nn.Module):
         well as arbitrary operators on Tensors.
         """
         return self.evaluate(inputs.select(-1, 0))
+
+
+def plot_noise_ceiling_model(model, df):
+    """Plot model's predictions with the data
+
+    this just creates a simple scatterplot with the amplitudes estimated
+    from the first half (the features) on the x-axis, and those from the
+    second half (the targets) on the y-axis, with a red dashed line
+    showing the prediction of model for this range of values
+
+    Parameters
+    ----------
+    model : NoiseCeiling
+        A trained sfp.noise_ceiling.NoiseCeiling model
+    df : pd.DataFrame
+        The dataframe created by sfp.noise_ceiling.combined_dfs, which
+        contains the columns amplitude_estiamte_median_1 and
+        amplitude_estiamte_median_2
+
+    Returns
+    -------
+    fig : plt.Figure
+        figure containing the plot
+
+    """
+    ax = sns.scatterplot('amplitude_estimate_median_1', 'amplitude_estimate_median_2', data=df)
+    x = np.linspace(df.amplitude_estimate_median_1.min(), df.amplitude_estimate_median_1.max(),
+                    1000)
+    ax.plot(x, model.slope.detach().numpy() * x + model.intercept.detach().numpy(), 'r--')
+    ax.set_title(f'Predictions for {model}')
+    ax.axhline(color='gray', linestyle='dashed')
+    ax.axvline(color='gray', linestyle='dashed')
+    return ax.figure
