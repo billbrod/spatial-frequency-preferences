@@ -13,3 +13,4 @@ from . import simulate_data
 from . import analyze_model
 from . import image_computable
 from . import figures
+from . import noise_ceiling

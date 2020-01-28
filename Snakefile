@@ -1636,6 +1636,55 @@ rule gather_simulated_model_results:
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
 
 
+rule noise_ceiling_df:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-1', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-2', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
+    run:
+        import sfp
+        import pandas as pd
+        dfs = []
+        for p in input:
+            df.append(pd.read_csv(p))
+        df = sfp.noise_ceiling.combine_dfs(*dfs)
+        df.to_csv(output[0])
+
+
+rule noise_ceiling:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_results_df.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model.pt'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model_history.csv'),
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
+    run:
+        import sfp
+        save_stem = output[0].replace('_loss.csv', '')
+        if int(wildcards.gpus) == 1:
+            device = torch.device('cuda:0')
+        elif int(wildcards.gpus) == 0:
+            device = torch.device('cpu')
+        ds = sfp.noise_ceiling.NoiseCeilingDataset(input[0], device)
+        model = sfp.noise_ceiling.NoiseCeiling().to(device)
+        model, loss, results, history = sfp.model.train_model(model, ds, 100, int(wildcards.batch_size),
+                                                              learning_rate=float(wildcards.lr),
+                                                              save_path_stem=save_stem)
+        model.eval()
+        sfp.model.save_outputs(model, loss, results, model_history, save_stem)
+
+
 rule prepare_image_computable:
     input:
         stim = os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stimuli.npy'),
