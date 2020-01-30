@@ -165,10 +165,14 @@ class NoiseCeiling(torch.nn.Module):
         estimates from the two halves
 
     """
-    def __init__(self):
+    def __init__(self, slope=None, intercept=None):
         super().__init__()
-        self.slope = sfp_model._cast_as_param(torch.rand(1)[0])
-        self.intercept = sfp_model._cast_as_param(torch.rand(1)[0])
+        if slope is None:
+            slope = torch.rand(1)[0]
+        if intercept is None:
+            intercept = torch.rand(1)[0]
+        self.slope = sfp_model._cast_as_param(slope)
+        self.intercept = sfp_model._cast_as_param(intercept)
         self.model_type = 'noise_ceiling'
 
     def __str__(self):
@@ -270,8 +274,11 @@ def main(df_path, save_stem, seed=0, batch_size=10, learning_rate=.1, max_epochs
     model.eval()
     sfp_model.save_outputs(model, loss, results, history, save_stem)
 
+    dl = torchdata.DataLoader(ds, len(ds))
+    features, targets = next(iter(dl))
+    final_loss = sfp_model.weighted_normed_loss(model(features), targets)
     with sns.axes_style('white'):
         fig = plot_noise_ceiling_model(model, pd.read_csv(df_path))
         ax = fig.axes[0]
-        ax.text(1.01, .5, f'Final loss:\n{loss.loss.values[-1]:.05f}', transform=ax.transAxes)
+        ax.text(1.01, .5, f'Final loss:\n{final_loss:.05f}', transform=ax.transAxes)
         fig.savefig(save_stem+"_predictions.png", bbox_inches='tight')
