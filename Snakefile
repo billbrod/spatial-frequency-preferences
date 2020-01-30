@@ -92,6 +92,7 @@ SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, '
              'ses-04': 60}
 wildcard_constraints:
     subject="sub-[a-z0-9]+",
+    fs_subject="[a-z0-9]+",
     subjects="(sub-[a-z0-9]+,?)+",
     session="ses-[a-z0-9]+",
     sessions="(ses-[a-z0-9]+,?)+",
@@ -368,6 +369,40 @@ rule stimuli_idx:
     shell:
         "python -m sfp.stimuli --subject_name {wildcards.subject}_{wildcards.session}"
         " -i -s {params.seed}"
+
+
+# we assume the prf solutions and freesurfer have been computed
+# separately and copy them in here.
+rule copy_prf_solutions:
+    input:
+        fs = os.path.join(config['SUBJECTS_DIR'], '{fs_subject}'),
+        data = [os.path.join(config['RETINOTOPY_DIR'], 'derivatives', 'vistasoft', 'sub-{{fs_subject}}', 'ses-nyu3t01', 'Outputs', '{}.full-{}.mgz').format(h, d)
+                for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'xcrds', 'ycrds']],
+        posterior = [os.path.join(config['RETINOTOPY_DIR'], 'derivatives', 'vistasoft', 'sub-{{fs_subject}}', 'ses-nyu3t01', 'Outputs', '{}.inferred_{}.mgz').format(h, d)
+                     for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'varea']],
+    output:
+        fs = directory(os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{fs_subject}')),
+        atlas = [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', 'sub-{{fs_subject}}', 'atlas', '{}.benson14_{}.mgz').format(h, d)
+                 for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'varea']],
+        data = [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', 'sub-{{fs_subject}}', 'data', '{}.full-{}.mgz').format(h, d)
+                for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'xcrds', 'ycrds']],
+        posterior = [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', 'sub-{{fs_subject}}', 'bayesian_posterior', '{}.inferred_{}.mgz').format(h, d)
+                     for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'varea']],
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'copy_prf_solutions', 'sub-{fs_subject}-%j.log')
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'copy_prf_solutions', 'sub-{fs_subject}_benchmark.txt')
+    run:
+        import shutil
+        shell(f"rsync -avPLuz {input.fs}/ {output.fs}")
+        atlas_input = [os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{}', 'surf', '{}.benson14_{}.mgz').format(wildcards.fs_subject, h, d)
+                       for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'varea']]
+        for i, f in enumerate(atlas_input):
+            shutil.copy(f, output.atlas[i])
+        for i, f in enumerate(input.data):
+            shutil.copy(f, output.data[i])
+        for i, f in enumerate(input.posterior):
+            shutil.copy(f, output.posterior[i])
 
 
 rule move_off_tesla:
@@ -849,11 +884,11 @@ def get_first_level_analysis_input(wildcards):
         benson_prefix = 'benson14'
     elif wildcards.atlas_type == 'bayesian_posterior':
         benson_prefix = 'inferred'
-    if wildcards.subject in ['sub-wlsubj064', 'sub-wlsubj007', 'sub-wlsubj095', 'sub-wlsubj081',
-                             'sub-wlsubj062']:
-        prf_prefix = 'full'
-    else:
+    if wildcards.subject in ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045',
+                             'sub-wlsubj014']:
         prf_prefix = 'all00'
+    else:
+        prf_prefix = 'full'
     benson_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+'_{filename}.mgz')
     input_dict['benson_paths'] = expand(benson_temp, hemi=['lh', 'rh'], filename=benson_names)
     prf_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, 'data', '{hemi}.'+prf_prefix+'-{filename}.mgz')
