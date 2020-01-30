@@ -1639,7 +1639,7 @@ rule gather_simulated_model_results:
 rule noise_ceiling_df:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-1', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-2', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-2', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
@@ -1652,7 +1652,7 @@ rule noise_ceiling_df:
         import pandas as pd
         dfs = []
         for p in input:
-            df.append(pd.read_csv(p))
+            dfs.append(pd.read_csv(p))
         df = sfp.noise_ceiling.combine_dfs(*dfs)
         df.to_csv(output[0])
 
@@ -1665,7 +1665,7 @@ rule noise_ceiling:
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_results_df.csv'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model.pt'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model_history.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_predictions.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_predictions.png'),
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
     log:

@@ -8,6 +8,7 @@ mpl.use('svg', warn=False)
 import torch
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from torch.utils import data as torchdata
 from . import model as sfp_model
 
@@ -231,7 +232,7 @@ def main(df_path, save_stem, seed=0, batch_size=10, learning_rate=.1, max_epochs
 
     The outputs will be saved at `save_stem` plus the following
     suffixes: "_loss.csv", "_results_df.csv", "_model.pt",
-    "_model_history.csv", "_predictions.csv"
+    "_model_history.csv", "_predictions.png"
 
     Parameters
     ----------
@@ -267,10 +268,10 @@ def main(df_path, save_stem, seed=0, batch_size=10, learning_rate=.1, max_epochs
                                                           learning_rate=learning_rate,
                                                           save_path_stem=save_stem)
     model.eval()
-    sfp_model.save_outputs(model, loss, results, model_history, save_stem)
+    sfp_model.save_outputs(model, loss, results, history, save_stem)
 
     with sns.axes_style('white'):
         fig = plot_noise_ceiling_model(model, pd.read_csv(df_path))
         ax = fig.axes[0]
         ax.text(1.01, .5, f'Final loss:\n{loss.loss.values[-1]:.05f}', transform=ax.transAxes)
-        fig.savefig(save_stem+"_predictions.svg", bbox_inches='tight')
+        fig.savefig(save_stem+"_predictions.png", bbox_inches='tight')
