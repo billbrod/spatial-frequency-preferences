@@ -335,7 +335,8 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     # we have to check here because below we'll end up making things
     # numeric
     x_numeric = is_numeric(x_data)
-    x_data = np.arange(len(x_data))
+    if not x_numeric:
+        x_data = np.arange(len(x_data))
     x_data = _jitter_data(x_data, x_jitter)
     # at this point, x_data could be an array or the index of a
     # dataframe. we want it to be an array for all the following calls,
