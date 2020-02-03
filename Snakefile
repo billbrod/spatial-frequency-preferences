@@ -31,6 +31,7 @@ SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj095': ['ses-04'], 'sub-wlsubj007': ['ses-04'], 'sub-wlsubj062': ['ses-04'],
             'sub-wlsubj046': ['ses-04'], 'sub-wlsubj105': ['ses-04'], 'sub-wlsubj006': ['ses-04'],
             'sub-wlsubj121': ['ses-04'], 'sub-wlsubj115': ['ses-04'], 'sub-wlsubj114': ['ses-04']}
+FINAL_SUBJECTS = [sub for sub in SUBJECTS if 'ses-04' in SESSIONS[sub]]
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
@@ -1677,17 +1678,73 @@ rule gather_simulated_model_results:
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
 
 
-rule noise_ceiling_df:
+rule noise_ceiling_monte_carlo_df:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-1', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-2', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv')
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full-%j.log")
+    run:
+        import sfp
+        import pandas as pd
+        df = pd.read_csv(input[0])
+        df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed))
+        df.to_csv(output[0], index=False)
+
+
+rule noise_ceiling_monte_carlo:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv')
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_predictions.png')
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full-%j.log")
+    run:
+        import sfp
+        save_stem = output[0].replace('_loss.csv', '')
+        sfp.noise_ceiling.monte_carlo(input[0], save_stem, df_mode='full', **wildcards)
+
+
+rule noise_ceiling_monte_carlo_overall:
+    input:
+        lambda wildcards: [os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo',
+                                        '{{mat_type}}', '{{atlas_type}}', '{subject}', '{session}', 's{seed}',
+                                        '{subject}_{session}_{task}_v1_e1-12_full_loss.csv').format(
+                                            subject=sub, session='ses-04', task='task-sfprescaled',
+                                            seed=seed)
+                           for sub in FINAL_SUBJECTS for seed in range(100)]
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', 'monte_carlo_task-sfprescaled.csv')
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_task-sfprescaled_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_task-sfprescaled-%j.log")
+    run:
+        import pandas as pd
+        df = []
+        for p in input:
+            df.append(pd.read_csv(p))
+        df = pd.concat(df).reset_index(drop=True)
+        df.to_csv(output[0], index=False)
+
+
+rule noise_ceiling_split_half_df:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-1', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}_noise-ceiling-2', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'split_half', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'split_half', "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_summary_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'split_half', "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_summary-%j.log")
     run:
         import sfp
         import pandas as pd
@@ -1695,27 +1752,28 @@ rule noise_ceiling_df:
         for p in input:
             dfs.append(pd.read_csv(p))
         df = sfp.noise_ceiling.combine_dfs(*dfs)
-        df.to_csv(output[0])
+        df.to_csv(output[0], index=False)
 
 
-rule noise_ceiling:
+rule noise_ceiling_split_half:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'split_half', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_loss.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_results_df.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model.pt'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_model_history.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_predictions.png'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'split_half', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'split_half', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_results_df.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'split_half', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_model.pt'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'split_half', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_model_history.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'split_half', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 'b{batch_size}_r{lr}_g{gpus}_s{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_predictions.png'),
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'split_half', "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_summary_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'split_half', "model_b{batch_size}_r{lr}_g{gpus}_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_summary-%j.log")
     run:
         import sfp
         save_stem = output[0].replace('_loss.csv', '')
-        sfp.noise_ceiling.main(input[0], save_stem, int(wildcards.seed), int(wildcards.batch_size),
-                               float(wildcards.lr), 100, int(wildcards.gpus))
+        sfp.noise_ceiling.split_half(input[0], save_stem, int(wildcards.seed),
+                                     int(wildcards.batch_size), float(wildcards.lr), 100,
+                                     int(wildcards.gpus))
 
 
 rule prepare_image_computable:
