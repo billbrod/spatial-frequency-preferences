@@ -11,6 +11,7 @@ from . import analyze_model
 from . import plotting
 from . import model
 from . import utils
+from . import first_level_analysis
 
 
 def existing_studies_df():
@@ -262,6 +263,101 @@ def prep_model_df(df):
     return df
 
 
+def append_precision_col(df, col='preferred_period',
+                         gb_cols=['subject', 'session', 'varea', 'stimulus_superclass', 'eccen']):
+    """append column giving precision of another column and collapse
+
+    this function gives the precision of the value found in a single
+    column (across the columns that are NOT grouped-by) and collapses
+    across those columns. The intended use case is to determine the
+    precision of a parameter estimate across bootstraps for each
+    (subject, session) (for the 2d model) or for each (subject, session,
+    stimulus_superclass, eccen) (for the 1d model).
+
+    precision is the inverse of the variance, so let :math:`c` be the
+    68% confidence interval of the column value, then precision is
+    :math:`\frac{1}{(c/2)^2}`
+
+    finally, we collapse across gb_cols, returning the median and
+    precision of col for each combination of values from those columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        the df that contains the values we want the precision for
+    col : str, optional
+        the name of the column that contains the values we want the
+        precision for
+    gb_cols : list, optional
+        list of strs containing the columns we want to groupby. we will
+        compute the precision separately for each combination of values
+        here.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        the modified df, containing the median and precision of col
+        (also contains the medians of the other values in the original
+        df, but not their precision)
+
+    """
+    gb = df.groupby(gb_cols)
+    df = df.set_index(gb_cols)
+    df[f'{col}_precision'] = gb[col].apply(first_level_analysis._precision_dist)
+    df = df.reset_index()
+    return df.groupby(gb_cols).median().reset_index()
+
+
+def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
+                                 gb_cols=['varea', 'stimulus_superclass', 'eccen']):
+    """calculate the precision-weighted bootstrap of a column
+
+    to combine across subjects, we want to use a precision-weighted
+    average, rather than a regular average, because we are trying to
+    summarize the true value across the population and our uncertainty
+    in it. Therefore, we down-weight subjects whose estimate is
+    noisier. Similar to append_precision_col(), we groupby over some of
+    the columns to combine info across them (gb_cols here should be a
+    subset of those used for append_precision_col())
+
+    You should plot the values here with scatter_ci_dist() or something
+    similar to draw the 68% CI of the distribution here (not sample it
+    to draw the CI)
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        the df that we want to bootstrap (must already have precision
+        column, i.e., this should be the df returned by
+        append_precision_col())
+    n_bootstraps : int, optional
+        the number of independent bootstraps to draw
+    col : str, optional
+        the name of the column that contains the values we want to draw
+        bootstraps for
+    gb_cols : list, optional
+        list of strs containing the columns we want to groupby. we will
+        compute the bootstraps for each combination of values here.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        the df containing the bootstraps of precision-weighted
+        mean. this will only contain the following columns: col,
+        *gb_cols, and bootstrap_num
+
+    """
+    bootstraps = []
+    for n, g in df.groupby(gb_cols):
+        tmp = dict(zip(gb_cols, n))
+        for j in range(n_bootstraps):
+            t = g.sample(len(g), replace=True)
+            tmp[col] = np.average(t[col], weights=t[f'{col}_precision'])
+            tmp['bootstrap_num'] = j
+            bootstraps.append(pd.DataFrame(tmp, [0]))
+    return pd.concat(bootstraps).reset_index(drop=True)
+
+
 def _summarize_1d(df, reference_frame, y, row, col, height, **kwargs):
     """helper function for pref_period_1d and bandwidth_1d
 
@@ -317,7 +413,8 @@ def _summarize_1d(df, reference_frame, y, row, col, height, **kwargs):
     return g
 
 
-def pref_period_1d(df, reference_frame='relative', row='session', col='subject', height=4):
+def pref_period_1d(df, reference_frame='relative', row='session', col='subject', height=4,
+                   **kwargs):
     """plot the preferred period of the 1d model fits
 
     Note that we do not restrict the input dataframe in any way, so we
@@ -345,6 +442,8 @@ def pref_period_1d(df, reference_frame='relative', row='session', col='subject',
         which column of the df to facet the plot's column on
     height : float, optional
         height of each plot facet
+    kwargs :
+        passed to sfp.figures._summarize_1d
 
     Returns
     -------
@@ -352,14 +451,16 @@ def pref_period_1d(df, reference_frame='relative', row='session', col='subject',
         seaborn FacetGrid object containing the plot
 
     """
-    g = _summarize_1d(df, reference_frame, 'preferred_period', row, col, height, ylim=(0, 4))
+    kwargs.setdefault('ylim', (0, 4))
+    g = _summarize_1d(df, reference_frame, 'preferred_period', row, col, height, **kwargs)
     g.set_ylabels('Preferred period (dpc)')
-    g.set(yticks=[0, 1, 2, 3])
+    yticks = [i for i in range(4) if i <= kwargs['ylim'][1]]
+    g.set(yticks=yticks)
     g.fig.suptitle("Preferred period of 1d tuning curves in each eccentricity band")
     return g
 
 
-def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', height=4):
+def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', height=4, **kwargs):
     """plot the bandwidth of the 1d model fits
 
     Note that we do not restrict the input dataframe in any way, so we
@@ -387,6 +488,8 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
         which column of the df to facet the plot's column on
     height : float, optional
         height of each plot facet
+    kwargs :
+        passed to sfp.figures._summarize_1d
 
     Returns
     -------
@@ -394,7 +497,7 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
         seaborn FacetGrid object containing the plot
 
     """
-    g = _summarize_1d(df, reference_frame, 'tuning_curve_bandwidth', row, col, height)
+    g = _summarize_1d(df, reference_frame, 'tuning_curve_bandwidth', row, col, height, **kwargs)
     g.set_ylabels('Tuning curve FWHM (octaves)')
     g.fig.suptitle("Full-Width Half-Max of 1d tuning curves in each eccentricity band")
     return g

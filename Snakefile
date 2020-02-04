@@ -1808,11 +1808,22 @@ rule figure_summarize_1d:
         import sfp
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         ref_frame = {'task-sfpconstant': 'absolute', 'task-sfprescaled': 'relative'}
+        if wildcards.tuning_param.endswith('overall'):
+            col = {'pref-period-overall': 'preferred_period',
+                   'bandwidth-overall': 'tuning_curve_bandwidth'}[wildcards.tuning_param]
+            df = sfp.figures.append_precision_col(df, col)
+            df = sfp.figures.precision_weighted_bootstrap(df, col=col)
         with sns.axes_style('white'):
             if wildcards.tuning_param == 'pref-period':
                 g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None)
             elif wildcards.tuning_param == 'bandwidth':
                 g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None)
+            elif wildcards.tuning_param == 'pref-period-overall':
+                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None, col=None,
+                                               height=5, ylim=(0, 2))
+            elif wildcards.tuning_param == 'bandwidth-overall':
+                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None, col=None,
+                                             height=5)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2068,7 +2079,7 @@ rule all:
 rule figures:
     input:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '1d_{}_{}.pdf').format(param, task)
-         for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled', 'task-sfpconstant']],
+         for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'cv_{}_task-sfprescaled.pdf').format(cv)
          for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                     'model-remeaned', 'model_point-remeaned']],
