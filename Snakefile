@@ -21,8 +21,7 @@ else:
 
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj014',
             'sub-wlsubj064', 'sub-wlsubj081', 'sub-wlsubj095', 'sub-wlsubj007', 'sub-wlsubj062',
-            'sub-wlsubj046', 'sub-wlsubj105', 'sub-wlsubj006', 'sub-wlsubj121', 'sub-wlsubj115',
-            'sub-wlsubj114']
+            'sub-wlsubj046', 'sub-wlsubj006', 'sub-wlsubj121', 'sub-wlsubj115', 'sub-wlsubj114']
 SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj004': ['ses-03'],
             'sub-wlsubj042': ['ses-pilot00', 'ses-pilot01', 'ses-01', 'ses-02'],
@@ -31,7 +30,6 @@ SESSIONS = {'sub-wlsubj001': ['ses-pilot01', 'ses-01', 'ses-02'],
             'sub-wlsubj095': ['ses-04'], 'sub-wlsubj007': ['ses-04'], 'sub-wlsubj062': ['ses-04'],
             'sub-wlsubj046': ['ses-04'], 'sub-wlsubj105': ['ses-04'], 'sub-wlsubj006': ['ses-04'],
             'sub-wlsubj121': ['ses-04'], 'sub-wlsubj115': ['ses-04'], 'sub-wlsubj114': ['ses-04']}
-FINAL_SUBJECTS = [sub for sub in SUBJECTS if 'ses-04' in SESSIONS[sub]]
 TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-sfp', ('sub-wlsubj001', 'ses-01'): 'task-sfp',
          ('sub-wlsubj001', 'ses-02'): 'task-sfpconstant', 
          ('sub-wlsubj042', 'ses-pilot00'): 'task-sfp', ('sub-wlsubj042', 'ses-pilot01'): 'task-sfp',
@@ -1713,18 +1711,21 @@ rule noise_ceiling_monte_carlo:
 
 rule noise_ceiling_monte_carlo_overall:
     input:
+        # for now, we're only going to want to look at ses-04,
+        # task-sfprescaled. this will work for other session/task pairs,
+        # but we'd have to merge them ourselves afterwards.
         lambda wildcards: [os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo',
-                                        '{{mat_type}}', '{{atlas_type}}', '{subject}', '{session}', 's{seed}',
-                                        '{subject}_{session}_{task}_v1_e1-12_full_loss.csv').format(
-                                            subject=sub, session='ses-04', task='task-sfprescaled',
-                                            seed=seed)
-                           for sub in FINAL_SUBJECTS for seed in range(100)]
+                                        '{{mat_type}}', '{{atlas_type}}', '{subject}', '{{session}}', 's{seed}',
+                                        '{subject}_{{session}}_{{task}}_v{{vareas}}_e{{eccen}}_full_loss.csv').format(
+                                            subject=sub, seed=seed)
+                           for seed in range(100) for sub in SUBJECTS if wildcards.session in SESSIONS[sub]
+                           if TASKS[(sub, wildcards.session)] == wildcards.task]
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', 'monte_carlo_task-sfprescaled.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', 'monte_carlo_{session}_{task}_v{vareas}_e{eccen}.csv')
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_task-sfprescaled_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_{session}_{task}_v{vareas}_e{eccen}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_task-sfprescaled-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_{session}_{task}_v{vareas}_e{eccen}-%j.log")
     run:
         import pandas as pd
         df = []
@@ -2059,7 +2060,9 @@ rule all:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
+                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "noise_ceiling", "monte_carlo",
+                     "stim_class", "bayesian_posterior", "monte_carlo_ses-04_task-sfprescaled_v1_e1-12.csv")
 
 
 rule figures:
