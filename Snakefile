@@ -1819,11 +1819,10 @@ rule figure_summarize_1d:
             elif wildcards.tuning_param == 'bandwidth':
                 g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None)
             elif wildcards.tuning_param == 'pref-period-overall':
-                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None, col=None,
-                                               height=5, ylim=(0, 2))
+                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None, height=5,
+                                               ylim=(0, 2))
             elif wildcards.tuning_param == 'bandwidth-overall':
-                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None, col=None,
-                                             height=5)
+                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None, height=5)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -1865,7 +1864,8 @@ def get_params_csv(wildcards):
                                  'stim_class', 'bayesian_posterior', '%s',
                                  'v1_e1-12_%s_b10_r0.001_g0_full_full_vary_all_models.csv')
     paths = []
-    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps']:
+    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
+                               'dist-overall', 'bootstraps-overall']:
         paths.append(path_template % ('bootstrap', 'full'))
     if wildcards.plot_kind in ['point', 'strip', 'compare', 'median']:
         if wildcards.vf == 'vertical':
@@ -1902,10 +1902,17 @@ rule figure_params:
         df = []
         for p in input:
             tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
+            if wildcards.plot_kind.endswith('overall'):
+                tmp = sfp.figures.append_precision_col(tmp, 'fit_value',
+                                                       ['subject', 'model_parameter',
+                                                        'fit_model_type'])
+                tmp = sfp.figures.precision_weighted_bootstrap(tmp, 100, 'fit_value',
+                                                               ['model_parameter',
+                                                                'fit_model_type'])
             df.append(sfp.figures.prep_model_df(tmp))
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.plot_kind.startswith('pair'):
-                if len(wildcards.plot_kind.split('-')) > 1:
+                if wildcards.plot_kind.endswith('drop'):
                     drop_outlier = True
                 else:
                     drop_outlier = False
@@ -1953,9 +1960,10 @@ rule figure_params:
                                                               label=l, **m))
                     fig.axes[-1].legend(handles=dummy_markers, loc=(1.01, .5), frameon=False)
             else:
-                # don't add a legend if the plot_kind is point
-                add_legend = {'point': False}.get(wildcards.plot_kind, True)
-                fig = sfp.figures.model_parameters(df[0], wildcards.plot_kind, wildcards.vf,
+                # don't add a legend if the plot_kind is point or dist-overall
+                add_legend = {'point': False, 'dist-overall': False}.get(wildcards.plot_kind, True)
+                plot_kind = wildcards.plot_kind.replace('-overall', '')
+                fig = sfp.figures.model_parameters(df[0], plot_kind, wildcards.vf,
                                                    add_legend=add_legend)
             fig.savefig(output[0], bbox_inches='tight')
 
@@ -1974,6 +1982,11 @@ rule figure_feature_df:
         import seaborn as sns
         import sfp
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
+        if wildcards.plot_kind.endswith('overall'):
+            df = sfp.figures.append_precision_col(df, 'fit_value', ['subject', 'model_parameter',
+                                                                    'fit_model_type'])
+            df = sfp.figures.precision_weighted_bootstrap(df, 100, 'fit_value',
+                                                          ['model_parameter', 'fit_model_type'])
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.angles == 'avg':
                 angles = True
@@ -2084,16 +2097,16 @@ rule figures:
          for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                     'model-remeaned', 'model_point-remeaned']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-all_{}_task-sfprescaled.pdf').format(kind)
-         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop']],
+         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)
         #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
          for vf in ['vertical', 'horizontal', 'eccen']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
-         for kind  in ['median', 'bootstraps'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
+         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(feature, kind, frame)
          for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-         for kind  in ['median', 'bootstraps'] for frame in ['relative', 'absolute']],
+         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(vf, angles, frame)
         #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(vf, feature, frame)

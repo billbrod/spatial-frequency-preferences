@@ -347,15 +347,26 @@ def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
         *gb_cols, and bootstrap_num
 
     """
+    if type(gb_cols) != list:
+        raise Exception("gb_cols must be a list!")
     bootstraps = []
     for n, g in df.groupby(gb_cols):
+        # n needs to be a list of the same length as gb_cols for the
+        # dict(zip()) call to work, but if len(gb_cols) == 1, then it
+        # will be a single str (or int or float or whatever), so we
+        # convert it to a list real quick
+        if len(gb_cols) == 1:
+            n = [n]
         tmp = dict(zip(gb_cols, n))
         for j in range(n_bootstraps):
             t = g.sample(len(g), replace=True)
             tmp[col] = np.average(t[col], weights=t[f'{col}_precision'])
             tmp['bootstrap_num'] = j
             bootstraps.append(pd.DataFrame(tmp, [0]))
-    return pd.concat(bootstraps).reset_index(drop=True)
+    bootstraps = pd.concat(bootstraps).reset_index(drop=True)
+    if 'subject' in df.columns and 'subject' not in gb_cols:
+        bootstraps['subject'] = 'all'
+    return bootstraps
 
 
 def _summarize_1d(df, reference_frame, y, row, col, height, **kwargs):
@@ -985,12 +996,21 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
         hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
     elif plot_kind == 'dist':
-        pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
-        hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
-        # copied from how seaborn's stripplot handles this, by looking
-        # at lines 368 and 1190 in categorical.py (version 0.9.0)
-        dodge = np.linspace(0, .8 - (.8 / df.subject.nunique()), df.subject.nunique())
-        dodge -= dodge.mean()
+        # then we're showing this across subjects
+        if 'subject' in df.columns and df.subject.nunique() > 1:
+            pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
+            hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
+            gb_col = 'subject'
+            # copied from how seaborn's stripplot handles this, by looking
+            # at lines 368 and 1190 in categorical.py (version 0.9.0)
+            dodge = np.linspace(0, .8 - (.8 / df.subject.nunique()), df.subject.nunique())
+            dodge -= dodge.mean()
+        # else we've combined across all subjects
+        else:
+            pal = plotting.get_palette('model_parameter', col_unique=df.model_parameter.unique(),
+                                       as_dict=True)
+            gb_col = 'model_parameter'
+            dodge = np.zeros(df.model_parameter.nunique())
     for i, ax in enumerate(axes):
         cat = ['sigma', 'eccen', 'orientation'][i]
         tmp = df.query("param_category==@cat")
@@ -1007,7 +1027,7 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
                           dodge=True, **kwargs)
         elif plot_kind == 'dist':
             handles, labels = [], []
-            for j, (n, g) in enumerate(tmp.groupby('subject')):
+            for j, (n, g) in enumerate(tmp.groupby(gb_col)):
                 dots, _, _ = plotting.scatter_ci_dist('model_parameter', 'fit_value', data=g,
                                                       label=n, ax=ax, color=pal[n],
                                                       x_dodge=dodge[j], x_order=ax_order, **kwargs)
