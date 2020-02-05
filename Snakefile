@@ -376,13 +376,13 @@ rule copy_prf_solutions:
     input:
         fs = os.path.join(config['SUBJECTS_DIR'], '{fs_subject}'),
         data = [os.path.join(config['RETINOTOPY_DIR'], 'derivatives', 'vistasoft', 'sub-{{fs_subject}}', 'ses-nyu3t01', 'Outputs', '{}.full-{}.mgz').format(h, d)
-                for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'xcrds', 'ycrds']],
+                for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'xcrds', 'ycrds', 'vexpl']],
         posterior = [os.path.join(config['RETINOTOPY_DIR'], 'derivatives', 'vistasoft', 'sub-{{fs_subject}}', 'ses-nyu3t01', 'Outputs', '{}.inferred_{}.mgz').format(h, d)
                      for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'varea']],
     output:
         fs = directory(os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{fs_subject}')),
         atlas = [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', 'sub-{{fs_subject}}', 'atlas', '{}.benson14_{}.mgz').format(h, d)
-                 for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'varea']],
+                 for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'varea', 'vexpl']],
         data = [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', 'sub-{{fs_subject}}', 'data', '{}.full-{}.mgz').format(h, d)
                 for h in ['rh', 'lh'] for d in ['angle', 'eccen', 'sigma', 'xcrds', 'ycrds']],
         posterior = [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', 'sub-{{fs_subject}}', 'bayesian_posterior', '{}.inferred_{}.mgz').format(h, d)
