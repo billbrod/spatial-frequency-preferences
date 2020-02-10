@@ -121,9 +121,6 @@ order for the default paths to work. You can run them from somewhere
 else, but then you'll need to use the optional arguments to set the
 paths yourself.
 
-`sfp/transfer_to_BIDS.py` is a file used to get the data from the
-format it came off the scanner into the BIDS structure. As such, you
-will not need it.
 
 # Note on running the experiment
 
@@ -228,6 +225,12 @@ I also found that `snakemake>=5.4`, as now required, installs its own
 command from the environment that includes this `mpi4py` on an
 interactive job (not on a login node), you'll get a very scary-looking
 error. To deal with this, just run `unset $SLURM_NODELIST`.
+
+the `GLMdenoise_png_process` rule (which converts the outputs of
+GLMdenoise into a format we can actually look at) does not run on the
+cluster; I think this is because there is no display available for
+those machines (it runs fine on my local machine). If that rule fails
+for you on the cluster, just run it locally.
 
 # Eventual sharing goals
 
