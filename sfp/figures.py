@@ -223,6 +223,9 @@ def prep_df(df, task):
         df = df.query("frequency_type=='local_sf_magnitude'")
     if 'varea' in df.columns:
         df = df.query("varea==1")
+    if 'fit_model_type' in df.columns:
+        df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
+                                                           plotting.MODEL_PLOT_ORDER)))
     return df
 
 
@@ -742,8 +745,6 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         seaborn FacetGrid object containing the plot
 
     """
-    df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
-                                                       plotting.MODEL_PLOT_ORDER)))
     hue_order = plotting.get_order(hue, col_unique=df[hue].unique())
     order = plotting.get_order(x, col_unique=df[x].unique())
     pal = plotting.get_palette(hue, col_unique=df[hue].unique())
