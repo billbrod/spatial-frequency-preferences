@@ -1678,26 +1678,9 @@ rule gather_simulated_model_results:
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
 
 
-rule noise_ceiling_monte_carlo_df:
-    input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
-    output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv')
-    benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_benchmark.txt")
-    log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full-%j.log")
-    run:
-        import sfp
-        import pandas as pd
-        df = pd.read_csv(input[0])
-        df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed))
-        df.to_csv(output[0], index=False)
-
-
 rule noise_ceiling_monte_carlo:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_loss.csv'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_predictions.png')
@@ -1707,8 +1690,11 @@ rule noise_ceiling_monte_carlo:
         os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full-%j.log")
     run:
         import sfp
+        import pandas as pd
         save_stem = output[0].replace('_loss.csv', '')
-        sfp.noise_ceiling.monte_carlo(input[0], save_stem, df_mode='full', **wildcards)
+        df = pd.read_csv(input[0])
+        df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed))
+        sfp.noise_ceiling.monte_carlo(df, save_stem, df_mode='full', **wildcards)
 
 
 rule noise_ceiling_monte_carlo_overall:

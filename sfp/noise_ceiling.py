@@ -18,14 +18,14 @@ def sample_df(df, seed=0):
 
     This is the df we use to compute the monte carlo noise ceiling,
     where we're comparing the amplitude estimates computed for different
-    bootstraps on the full data. For each (voxel, stimulus), we
-    independently pick two bootstraps (without replacement), and one of
-    these becomes the feature and one the target. Because this uses all
-    the data, it does not need to be corrected to compare against our
-    actual models. In this file, we also provide functionality to
-    compute the split-half noise ceiling, where we're comparing the
-    amplitude estimates computed on two separate halves of the data
-    (which does need a correction).
+    bootstraps on the full data. We pick two bootstraps (without
+    replacement), and query the dataframe to grab only these
+    bootstraps. One of them becomes the feature and one the
+    target.Because this uses all the data, it does not need to be
+    corrected to compare against our actual models. In this file, we
+    also provide functionality to compute the split-half noise ceiling,
+    where we're comparing the amplitude estimates computed on two
+    separate halves of the data (which does need a correction).
 
     Parameters
     ----------
@@ -42,28 +42,22 @@ def sample_df(df, seed=0):
         where row has two values for the columns: bootstrap_num,
         amplitude_estimate, amplitude_estimate_norm, and
         amplitude_estimate_normed (with suffixes "_1" and "_2"), where
-        the two values come from two separate bootstraps.
+        the two values come from two separate bootstraps (all
+        bootstrap_num_1 vals will be identical, as will all
+        bootstrap_num_2).
 
     """
     np.random.seed(seed)
-    gb = df.groupby(['voxel', 'stimulus_class'])
-    df1 = []
-    df2 = []
-    for n, g in gb:
-        # choose two bootstraps without replacement
-        b = np.random.choice(100, 2, False)    
-        tmp = g.query("bootstrap_num in @b")
-        df1.append(tmp.iloc[[0]])
-        df2.append(tmp.iloc[[1]])
-    df1 = pd.concat(df1)
-    df2 = pd.concat(df2)
+    bootstraps = np.random.choice(100, 2, False)
+    tmp = [df.query("bootstrap_num == @b") for b in bootstraps]
     # then combine_dfs
     cols = ['varea', 'voxel', 'stimulus_superclass', 'w_r', 'w_a', 'eccen', 'angle',
             'stimulus_class', 'hemi', 'sigma', 'prf_vexpl', 'phi', 'res', 'stimulus_index',
             'freq_space_angle', 'freq_space_distance', 'rounded_freq_space_distance', 'local_w_x',
             'local_w_y', 'local_w_r', 'local_w_a', 'local_sf_magnitude', 'local_sf_xy_direction',
             'local_sf_ra_direction', 'precision', 'baseline', 'GLM_R2']
-    df = pd.merge(df1, df2, on=cols, suffixes=['_1', '_2'], validate='1:1')
+    df = pd.merge(*tmp, on=cols, suffixes=['_1', '_2'], validate='1:1')
+    df['noise_ceiling_seed'] = seed
     return df
 
 
@@ -160,9 +154,9 @@ class NoiseCeilingDataset(torchdata.Dataset):
 
     Parameters
     ----------
-    df_path : str
-        path to the df to use for this dataset, as created by
-        sfp.noise_ceiling.combine_dfs
+    df : str or pd.DataFrame
+        the df or the path to the df to use for this dataset, as created
+        by sfp.noise_ceiling.combine_dfs or sfp.noise_ceiling.sample_dfs
     device : str or torch.device
         the device this dataset should live, either cpu or a specific
         gpu
@@ -173,8 +167,13 @@ class NoiseCeilingDataset(torchdata.Dataset):
         example.
 
     """
-    def __init__(self, df_path, device, df_filter=None,):
-        df = pd.read_csv(df_path)
+    def __init__(self, df, device, df_filter=None,):
+        try:
+            df_path = df
+            df = pd.read_csv(df)
+        except ValueError:
+            df_path = None
+            pass
         if df_filter is not None:
             # we want the index to be reset so we can use iloc in get_single_item below. this
             # ensures that iloc and loc will return the same thing, which isn't otherwise the
@@ -331,8 +330,12 @@ def plot_noise_ceiling_model(model, df, overall_loss=None):
     ax.set_title(f'Predictions for {model}')
     ax.axhline(color='gray', linestyle='dashed')
     ax.axvline(color='gray', linestyle='dashed')
+    text = ""
     if overall_loss is not None:
-        ax.text(1.01, .5, f'Overall loss:\n{overall_loss:.05f}', transform=ax.transAxes)
+        text += f'Overall loss:\n{overall_loss:.05f}\n\n'
+    text += (f"Seed: {df.noise_ceiling_seed.unique()[0]}\nBootstraps: "
+             f"[{df.bootstrap_num_1.unique()[0]}, {df.bootstrap_num_2.unique()[0]}]")
+    ax.text(1.01, .5, text, transform=ax.transAxes, va='center')
     return ax.figure
 
 
@@ -413,7 +416,7 @@ def split_half(df_path, save_stem, seed=0, batch_size=10, learning_rate=.1, max_
         fig.savefig(save_stem+"_predictions.png", bbox_inches='tight')
 
 
-def monte_carlo(df_path, save_stem, **metadata):
+def monte_carlo(df, save_stem, **metadata):
     """find the Monte Carlo noise ceiling for a single scanning session and save the output
 
     Note that this doesn't involve training the model at all, we simply
@@ -430,9 +433,8 @@ def monte_carlo(df_path, save_stem, **metadata):
 
     Parameters
     ----------
-    df_path : str
-        The path where the merged df is saved (as created by
-        sfp.noise_ceiling.combine_dfs)
+    df : pd.DataFrame
+        The sampled df (as created by sfp.noise_ceiling.sample_dfs)
     save_stem : str
         the stem of the path to save things at (i.e., should not end in
         the extension)
@@ -441,7 +443,8 @@ def monte_carlo(df_path, save_stem, **metadata):
 
     """
     device = torch.device('cpu')
-    ds = NoiseCeilingDataset(df_path, device)
+    orig_df = df.copy(deep=True)
+    ds = NoiseCeilingDataset(df, device)
     model = NoiseCeiling(1, 0).to(device)
     model.eval()
     overall_loss = get_overall_loss(model, ds)
@@ -450,5 +453,5 @@ def monte_carlo(df_path, save_stem, **metadata):
     loss_df.to_csv(save_stem + "_loss.csv", index=False)
 
     with sns.axes_style('white'):
-        fig = plot_noise_ceiling_model(model, pd.read_csv(df_path), overall_loss.item())
+        fig = plot_noise_ceiling_model(model, orig_df, overall_loss.item())
         fig.savefig(save_stem+"_predictions.png", bbox_inches='tight')
