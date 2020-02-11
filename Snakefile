@@ -478,6 +478,7 @@ def get_raw_behavioral_results(wildcards):
         ('sub-wlsubj114', 'ses-04'): ["2020-Jan-30_sub-wlsubj114_ses-04_sess00.hdf5",
                                       "2020-Jan-30_sub-wlsubj114_ses-04_sess01.hdf5"],
         ('sub-wlsubj115', 'ses-04'): ["2020-Jan-30_sub-wlsubj115_ses-04_sess00.hdf5"],
+        ('sub-wlsubj001', 'ses-04'): ["2020-Feb-10_sub-wlsubj001_ses-04_sess00.hdf5"],
     }
     behavioral_results['hdf5_file'] = [os.path.join(config['EXTRA_FILES_DIR'], p) for p in
                                        hdf5_name_dict[(wildcards.subject, wildcards.session)]]
