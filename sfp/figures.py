@@ -699,7 +699,7 @@ def model_schematic():
 
 
 def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.75,
-             ci=95, plot_kind='strip', x_rotate=True, **kwargs):
+             ci=95, plot_kind='strip', x_rotate=True, legend='full', **kwargs):
     """wrapper around seaborn.catplot
 
     several figures call seaborn.catplot and are pretty similar, so this
@@ -736,6 +736,9 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         by 25 degrees. if an int, we rotate by that many degrees. if
         False, we don't rotate. If labels are rotated, we'll also shift
         the bottom of the plot up to avoid cutting off the bottom.
+    legend : str or bool, optional
+        the legend arg to pass through to seaborn.catplot, see its
+        docstrings for more details
     kwargs :
         passed to sns.catplot
 
@@ -752,7 +755,7 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         # want the different hues to be in a consistent order on the
         # x-axis, which requires this
         kwargs.update({'jitter': False, 'dodge': True})
-    g = sns.catplot(x, y, hue, data=df, hue_order=hue_order, legend='full', height=height,
+    g = sns.catplot(x, y, hue, data=df, hue_order=hue_order, legend=legend, height=height,
                     kind=plot_kind, aspect=aspect, order=order, palette=pal, ci=ci,
                     estimator=np.median, **kwargs)
     for ax in g.axes.flatten():
@@ -772,7 +775,7 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
     return g
 
 
-def cross_validation_raw(df):
+def cross_validation_raw(df, noise_ceiling_df=None):
     """plot raw cross-validation loss
 
     This does no pre-processing of the df and plots subjects on the
@@ -793,9 +796,14 @@ def cross_validation_raw(df):
         seaborn FacetGrid object containing the plot
 
     """
-    g = _catplot(df)
+    if noise_ceiling_df is not None:
+        merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
+        df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
+    g = _catplot(df, legend=False)
+    g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
     g.set(ylabel="Cross-validated loss", xlabel="Subject")
+    g.add_legend()
     g._legend.set_title("Model type")
     return g
 

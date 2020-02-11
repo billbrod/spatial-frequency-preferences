@@ -253,6 +253,80 @@ def scatter_ci_col(x, y, ci, x_order=None, x_jitter=None, **kwargs):
     ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
 
 
+def _map_dataframe_prep(data, x, y, estimator, x_jitter, x_dodge, x_order, ci=68):
+    """prepare dataframe for plotting
+
+    Several of the plotting functions are called by map_dataframe and
+    need a bit of prep work before plotting. These include:
+    - computing the central trend
+    - computing the CIs
+    - jittering, dodging, or ordering the x values
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The dataframe containing the info to plot
+    x : str
+        which column of data to plot on the x-axis
+    y : str
+        which column of data to plot on the y-axis
+    estimator : callable, optional
+        what function to use for estimating central trend of the data
+    x_jitter : float, bool, or None, optional
+        whether to jitter the data along the x-axis. if None or False,
+        don't jitter. if a float, add uniform noise (drawn from
+        -x_jitter to x_jitter) to each point's x value. if True, act as
+        if x_jitter=.1
+    x_dodge : float, None, or bool, optional
+        to improve visibility with many points that have the same
+        x-values (or are categorical), we can jitter the data along the
+        x-axis, but we can also "dodge" it, which operates
+        deterministically. x_dodge should be either a single float or an
+        array of the same shape as x (we will dodge by calling `x_data =
+        x_data + x_dodge`). if None, we don't dodge at all. If True, we
+        dodge as if x_dodge=.01
+    x_order: np.array or None, optional
+        the order to plot x-values in. If None, don't reorder
+    ci : int, optinoal
+        The width fo the CI to draw (in percentiles)
+
+    Returns
+    -------
+    x_data : np.array
+        the x data to plot
+    plot_data : np.array
+        the y data of the central trend
+    plot_cis : np.array
+        the y data of the CIs
+
+    """
+    plot_data = data.groupby(x)[y].agg(estimator)
+    ci_vals = [50 - ci/2, 50 + ci/2]
+    plot_cis = [data.groupby(x)[y].agg(np.percentile, val) for val in ci_vals]
+    if x_order is not None:
+        plot_data = plot_data.reindex(x_order)
+        plot_cis = [p.reindex(x_order) for p in plot_cis]
+    x_data = plot_data.index
+    # we have to check here because below we'll end up making things
+    # numeric
+    x_numeric = is_numeric(x_data)
+    if not x_numeric:
+        x_data = np.arange(len(x_data))
+    x_data = _jitter_data(x_data, x_jitter)
+    # at this point, x_data could be an array or the index of a
+    # dataframe. we want it to be an array for all the following calls,
+    # and this try/except forces that
+    try:
+        x_data = x_data.values
+    except AttributeError:
+        pass
+    if x_dodge is not None:
+        if x_dodge is True:
+            x_dodge = .01
+        x_data = x_data + x_dodge
+    return x_data, plot_data, plot_cis
+
+
 def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
                     draw_ctr_pts=True, ci_mode='lines', ci_alpha=.2, size=5, x_dodge=None,
                     **kwargs):
@@ -272,6 +346,8 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
         which column of data to plot on the x-axis
     y : str
         which column of data to plot on the y-axis
+    ci : int, optinoal
+        The width fo the CI to draw (in percentiles)
     x_jitter : float, bool, or None, optional
         whether to jitter the data along the x-axis. if None or False,
         don't jitter. if a float, add uniform noise (drawn from
@@ -307,7 +383,7 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     kwargs :
         must contain data. Other expected keys:
         - ax: the axis to draw on (otherwise, we grab current axis)
-        - x_order: the order to plot x-values in. Otherwiwse, don't
+        - x_order: the order to plot x-values in. Otherwise, don't
           reorder
         everything else will be passed to the scatter, plot, and
         fill_between functions called (except label, which will not be
@@ -325,30 +401,8 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     data = kwargs.pop('data')
     ax = kwargs.pop('ax', plt.gca())
     x_order = kwargs.pop('x_order', None)
-    plot_data = data.groupby(x)[y].agg(estimator)
-    ci_vals = [50 - ci/2, 50 + ci/2]
-    plot_cis = [data.groupby(x)[y].agg(np.percentile, val) for val in ci_vals]
-    if x_order is not None:
-        plot_data = plot_data.reindex(x_order)
-        plot_cis = [p.reindex(x_order) for p in plot_cis]
-    x_data = plot_data.index
-    # we have to check here because below we'll end up making things
-    # numeric
-    x_numeric = is_numeric(x_data)
-    if not x_numeric:
-        x_data = np.arange(len(x_data))
-    x_data = _jitter_data(x_data, x_jitter)
-    # at this point, x_data could be an array or the index of a
-    # dataframe. we want it to be an array for all the following calls,
-    # and this try/except forces that
-    try:
-        x_data = x_data.values
-    except AttributeError:
-        pass
-    if x_dodge is not None:
-        if x_dodge is True:
-            x_dodge = .01
-        x_data = x_data + x_dodge
+    x_data, plot_data, plot_cis = _map_dataframe_prep(data, x, y, estimator, x_jitter, x_dodge,
+                                                      x_order, ci)
     if draw_ctr_pts:
         # scatter expects s to be the size in pts**2, whereas we expect
         # size to be the diameter, so we convert that (following how
@@ -375,6 +429,63 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     if (x_jitter is not None or x_dodge is not None) and not x_numeric:
         ax.set(xticks=range(len(plot_data)), xticklabels=plot_data.index.values)
     return dots, lines, cis
+
+
+def plot_noise_ceiling(x, y, ci=68, x_extent=.5, estimator=np.median, ci_alpha=.2, **kwargs):
+    """plot the noise ceiling
+
+    this is similar to scatter_ci_dist except that we want to plot each
+    x value as a separate line, to make it clear there's no connection
+    between them, and we always show the CIs using fill.
+
+    Parameters
+    ----------
+    x : str
+        which column of data to plot on the x-axis
+    y : str
+        which column of data to plot on the y-axis
+    ci : int, optinoal
+        The width fo the CI to draw (in percentiles)
+    x_extent : float, optional
+        we want to show the noise ceiling as a flat line, so we need it
+        to extend beyond the exact x-value (which would just result in a
+        point). to do that, x_extent controls the size of this line; we
+        plot from `x-x_extent` to `x+x_extent` for each x.
+    estimator : callable, optional
+        what function to use for estimating central trend of the data,
+        as plotted if either draw_ctr_pts or join is True.
+    ci_alpha : float, optional
+        the alpha value for the CI, if ci_mode=='fill'
+    kwargs :
+        must contain data. Other expected keys:
+        - ax: the axis to draw on (otherwise, we grab current axis)
+        - x_order: the order to plot x-values in. Otherwise, don't
+          reorder
+        everything else will be passed to the scatter, plot, and
+        fill_between functions called (except label, which will not be
+        passed to the plot or fill_between function call that draws the
+        CI, in order to make any legend created after this prettier)
+
+    Returns
+    -------
+    lines, cis :
+        The handles for the lines showing the noise level and the CI
+        fill. this is returned for better control over what shows up in
+        the legend. all lines have `label='noise_ceiling'`, the CIs have
+        no label
+
+    """
+    data = kwargs.pop('data')
+    ax = kwargs.pop('ax', plt.gca())
+    x_order = kwargs.pop('x_order', None)
+    x_data, plot_data, plot_cis = _map_dataframe_prep(data, x, y, estimator, None, None, None, ci)
+    lines = []
+    cis = []
+    for x, d, ci_low, ci_high in zip(x_data, plot_data, *plot_cis):
+        lines.append(ax.plot([x-x_extent, x+x_extent], [d, d], label='noise ceiling', **kwargs))
+        cis.append(ax.fill_between([x-x_extent, x+x_extent], ci_low, ci_high, alpha=ci_alpha,
+                                   **kwargs))
+    return lines, cis
 
 
 def plot_median_fit(x, y, model=linear_model.LinearRegression(), x_vals=None, **kwargs):
