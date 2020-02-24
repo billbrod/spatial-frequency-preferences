@@ -787,7 +787,7 @@ def cross_validation_raw(df, noise_ceiling_df=None):
     ----------
     df : pd.DataFrame
         dataframe containing the output of the cross-validation
-        analyses, combined across sessions (i.e., theo utput of
+        analyses, combined across sessions (i.e., the output of
         combine_model_cv_summaries snakemake rule)
 
     Returns
@@ -800,7 +800,8 @@ def cross_validation_raw(df, noise_ceiling_df=None):
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
     g = _catplot(df, legend=False)
-    g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
+    if noise_ceiling_df is not None:
+        g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
     g.set(ylabel="Cross-validated loss", xlabel="Subject")
     g.add_legend()
@@ -821,7 +822,7 @@ def cross_validation_demeaned(df, remeaned=False):
     ----------
     df : pd.DataFrame
         dataframe containing the output of the cross-validation
-        analyses, combined across sessions (i.e., theo utput of
+        analyses, combined across sessions (i.e., the output of
         combine_model_cv_summaries snakemake rule)
     remeaned : bool, optional
         whether to use the demeaned cross-validation loss or the

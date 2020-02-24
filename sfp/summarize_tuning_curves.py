@@ -31,7 +31,14 @@ def main(root_dir, save_path=None, **kwargs):
     df = []
     duplicate_check_cols = ['varea', 'eccen', 'stimulus_superclass', 'frequency_type']
     for p in csv_paths:
-        info_dict = re.search(PATH_TEMPLATE, p).groupdict()
+        try:
+            info_dict = re.search(PATH_TEMPLATE, p).groupdict()
+        except AttributeError:
+            # in this case, we've grabbed a file in this directory that
+            # does not match our template. a good example of this would
+            # be the output from a previous run (or the output with
+            # df_mode='full', and this is df_mode='summary')
+            continue
         # the [True] here ensures that if limit_kwargs is empty, there will be one True and thus
         # np.all will return True.
         in_limit_kwargs = [True] + [info_dict[k] in v for k, v in limit_kwargs.items()]

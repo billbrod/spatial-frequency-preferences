@@ -230,7 +230,13 @@ the `GLMdenoise_png_process` rule (which converts the outputs of
 GLMdenoise into a format we can actually look at) does not run on the
 cluster; I think this is because there is no display available for
 those machines (it runs fine on my local machine). If that rule fails
-for you on the cluster, just run it locally.
+for you on the cluster, just run it locally. The error appears to be
+related to [this
+issue](https://stackoverflow.com/questions/4931376/generating-matplotlib-graphs-without-a-running-x-server#4935945),
+so you could also make sure to use a different matplotlib backend
+(`'svg'` will work without an X server). I have included a
+matplotlibrc file in this folder, which should make svg the default
+backend, but this warning is just in case it doesn't.
 
 # Eventual sharing goals
 

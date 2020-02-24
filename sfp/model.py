@@ -19,6 +19,7 @@ import functools
 from scipy import stats
 from torch.utils import data as torchdata
 from hessian import hessian
+from . import plotting
 
 
 def reduce_num_voxels(df, n_voxels=200):
@@ -358,9 +359,14 @@ class LogGaussianDonut(torch.nn.Module):
         params = {}
         for i, row in df.iterrows():
             params[row.model_parameter] = row.fit_value
+        # we may have renamed the model type to the version we want for
+        # plotting. if so, this will map it back to the original version
+        # so our re.findall will work as expected
+        model_name_map = dict(zip(plotting.MODEL_PLOT_ORDER, plotting.MODEL_ORDER))
+        fit_model_type = model_name_map.get(fit_model_type[0], fit_model_type[0])
         parse_string = r'([a-z]+)_donut_([a-z]+)_amps-([a-z]+)'
         eccentricity_type, orientation_type, amp_vary_label = re.findall(parse_string,
-                                                                         fit_model_type[0])[0]
+                                                                         fit_model_type)[0]
         return cls(orientation_type, eccentricity_type,
                    {'vary': True, 'constant': False}[amp_vary_label], **params)
 

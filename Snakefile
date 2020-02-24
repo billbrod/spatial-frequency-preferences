@@ -106,7 +106,7 @@ wildcard_constraints:
     eccen="[0-9]+-[0-9]+",
     eccen_range="[0-9]+-[0-9]+",
     df_mode="summary|full",
-    atlas_type="bayesian_posterior|atlas",
+    atlas_type="bayesian_posterior|atlas|data",
     plot_func="[a-z]+",
     col="[a-z-]+",
     row="[a-z-]+",
@@ -249,12 +249,16 @@ rule model_all_subj_cv:
                      "all_models.csv"),
 
 
-rule all_flat_plots:
+rule all_check_plots:
     input:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", 'varea_plot.png').format(subject=s, atlas_type=a)
          for s in SUBJECTS for a in ['bayesian_posterior', 'atlas']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", '{prf_prop}_plot.png').format(subject=s, atlas_type=a, prf_prop=p)
+         for s in SUBJECTS for a in ['bayesian_posterior', 'atlas', 'data'] for p in ['angle', 'eccen']],
         [os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "stim_class", "bayesian_posterior", "{subject}", "{session}", "figures_{task}", "FinalModel_maps.png").format(
-            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]]
+            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config["DATA_DIR"], "derivatives", "first_level_binned", "stim_class", "bayesian_posterior", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_eccen_bin_full_data.svg").format(
+            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
 
 
 rule GLMdenoise_all_visual:
@@ -665,40 +669,53 @@ rule to_freesurfer:
         " rm {params.tmp_nifti}"
 
 
-def find_benson_varea(wildcards):
+def find_prf_mgz(wildcards, prf_prop='varea'):
+    try:
+        prf_prop = wildcards.prf_prop
+    except AttributeError:
+        prf_prop = prf_prop
     if wildcards.atlas_type == 'atlas':
-        benson_prefix = 'benson14'
+        benson_prefix = 'benson14_'
     elif wildcards.atlas_type == 'bayesian_posterior':
-        benson_prefix = 'inferred'
-    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+'_varea.mgz')
+        benson_prefix = 'inferred_'
+    elif wildcards.atlas_type == 'data':
+        if wildcards.subject in ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045',
+                                 'sub-wlsubj014']:
+            benson_prefix = 'all00-'
+        else:
+            benson_prefix = 'full-'
+    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+prf_prop+'.mgz')
     return expand(benson_template, hemi=['lh', 'rh'])
 
 
-rule varea_check_plot:
+rule prf_check_plot:
     input:
-        vareas_mgzs = find_benson_varea,
+        prf_mgzs = find_prf_mgz,
         freesurfer_dir = lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{subject}').format(subject=wildcards.subject.replace('sub-', ''))
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", 'varea_plot.png')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", '{prf_prop}_plot.png')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'prf_solutions', '{subject}_{atlas_type}_varea_plot-%j.log')
+        os.path.join(config['DATA_DIR'], 'code', 'prf_solutions', '{subject}_{atlas_type}_{prf_prop}_plot-%j.log')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'prf_solutions', '{subject}_{atlas_type}_varea_plot_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'prf_solutions', '{subject}_{atlas_type}_{prf_prop}_plot_benchmark.txt')
     run:
         import neuropythy as ny
         import sfp
         atlases = {}
         for hemi in ['lh', 'rh']:
-            path = [i for i in input.vareas_mgzs if hemi in i][0]
+            path = [i for i in input.prf_mgzs if hemi in i][0]
             atlases[hemi] = ny.load(path)
-        sfp.plotting.flat_cortex_plot(input.freesurfer_dir, atlases, output[0],
-                                      ('plot_property', [1, 2, 3]))
+        if wildcards.prf_prop == 'varea':
+            mask = ('plot_property', [1, 2, 3])
+        else:
+            mask = None
+        sfp.plotting.flat_cortex_plot(input.freesurfer_dir, atlases, output[0], mask)
 
 
 rule create_GLMdenoise_json:
     input:
         json_template = os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsOptimize.json'),
-        vareas_mgzs = find_benson_varea
+        vareas_mgzs = find_prf_mgz,
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     log:
@@ -727,7 +744,7 @@ rule create_GLMdenoise_fixed_hrf_json:
     input:
         json_template = os.path.join(config['MRI_TOOLS'], 'BIDS', 'files', 'glmOptsAssume.json'),
         old_results = os.path.join(config['DATA_DIR'], "derivatives", "GLMdenoise", "{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat"),
-        vareas_mgzs = find_benson_varea
+        vareas_mgzs = find_prf_mgz,
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'GLMdenoise', "{mat_type}_fixed_hrf_{input_mat}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_glmOpts.json")
     log:
@@ -1814,11 +1831,21 @@ rule figure_summarize_1d:
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
+def get_noise_ceiling_df(wildcards):
+    template = os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo',
+                            'stim_class', 'bayesian_posterior', 'monte_carlo_ses-04_{task}_v1_e1-12.csv')
+    if wildcards.cv_type.endswith('-nc'):
+        return template.format(task=wildcards.task)
+    else:
+        return []
+
+
 rule figure_crossvalidation:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                      'bayesian_posterior', 'initial_cv',
-                     'v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv')
+                     'v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
+        get_noise_ceiling_df,
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "figures", "cv_{cv_type}_{task}.{ext}")
     log:
@@ -1830,16 +1857,19 @@ rule figure_crossvalidation:
         import seaborn as sns
         import sfp
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
+        if wildcards.cv_type.endswith('-nc'):
+            noise_ceiling = sfp.figures.prep_df(pd.read_csv(input[1]), wildcards.task)
+        else:
+            noise_ceiling = None
         with sns.axes_style('white'):
-            if len(wildcards.cv_type.split('-')) > 1:
-                assert wildcards.cv_type.split('-')[1] == 'remeaned'
+            if 'remeaned' in wildcards.cv_type:
                 remeaned = True
             else:
                 remeaned = False
             if wildcards.cv_type.startswith('demeaned'):
                 g = sfp.figures.cross_validation_demeaned(df, remeaned)
-            elif wildcards.cv_type == 'raw':
-                g = sfp.figures.cross_validation_raw(df)
+            elif wildcards.cv_type.startswith('raw'):
+                g = sfp.figures.cross_validation_raw(df, noise_ceiling)
             elif wildcards.cv_type.startswith('model_point'):
                 g = sfp.figures.cross_validation_model(df, 'point', remeaned)
             elif wildcards.cv_type.startswith('model'):
@@ -2068,7 +2098,7 @@ rule all:
         rules.model_all_subj_visual_field.input,
         rules.model_all_subj.input,
         rules.model_all_subj_cv.input,
-        rules.all_flat_plots.input,
+        rules.all_check_plots.input,
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
@@ -2083,7 +2113,7 @@ rule figures:
          for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'cv_{}_task-sfprescaled.pdf').format(cv)
          for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
-                    'model-remeaned', 'model_point-remeaned']],
+                    'model-remeaned', 'model_point-remeaned', 'raw-nc']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-all_{}_task-sfprescaled.pdf').format(kind)
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)

@@ -216,8 +216,8 @@ def plot_median(x, y, plot_func=plt.plot, **kwargs):
     plt.scatter)
     """
     data = kwargs.pop('data')
-    plot_data = data.groupby(x)[y].median()
-    plot_func(plot_data.index, plot_data.values, **kwargs)
+    x_data, plot_data, _, _ = _map_dataframe_prep(data, x, y, np.median, None, None, None, 68)
+    plot_func(x_data, plot_data.values, **kwargs)
 
 
 def plot_ci(x, y, ci_vals=[16, 84], **kwargs):
@@ -298,6 +298,9 @@ def _map_dataframe_prep(data, x, y, estimator, x_jitter, x_dodge, x_order, ci=68
         the y data of the central trend
     plot_cis : np.array
         the y data of the CIs
+    x_numeric : bool
+        whether the x data is numeric or not (used to determine if/how
+        we should update the x-ticks)
 
     """
     plot_data = data.groupby(x)[y].agg(estimator)
@@ -324,7 +327,7 @@ def _map_dataframe_prep(data, x, y, estimator, x_jitter, x_dodge, x_order, ci=68
         if x_dodge is True:
             x_dodge = .01
         x_data = x_data + x_dodge
-    return x_data, plot_data, plot_cis
+    return x_data, plot_data, plot_cis, x_numeric
 
 
 def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
@@ -401,8 +404,8 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     data = kwargs.pop('data')
     ax = kwargs.pop('ax', plt.gca())
     x_order = kwargs.pop('x_order', None)
-    x_data, plot_data, plot_cis = _map_dataframe_prep(data, x, y, estimator, x_jitter, x_dodge,
-                                                      x_order, ci)
+    x_data, plot_data, plot_cis, x_numeric = _map_dataframe_prep(data, x, y, estimator, x_jitter,
+                                                                 x_dodge, x_order, ci)
     if draw_ctr_pts:
         # scatter expects s to be the size in pts**2, whereas we expect
         # size to be the diameter, so we convert that (following how
@@ -478,7 +481,8 @@ def plot_noise_ceiling(x, y, ci=68, x_extent=.5, estimator=np.median, ci_alpha=.
     data = kwargs.pop('data')
     ax = kwargs.pop('ax', plt.gca())
     x_order = kwargs.pop('x_order', None)
-    x_data, plot_data, plot_cis = _map_dataframe_prep(data, x, y, estimator, None, None, None, ci)
+    x_data, plot_data, plot_cis, _ = _map_dataframe_prep(data, x, y, estimator, None, None, None,
+                                                         ci)
     lines = []
     cis = []
     for x, d, ci_low, ci_high in zip(x_data, plot_data, *plot_cis):
