@@ -561,7 +561,8 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
     return pd.concat(df).reset_index(drop=True)
 
 
-def calc_cv_error(loss_files, dataset_path, wildcards, outputs):
+def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
+                  df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
     """Calculate cross-validated loss and save as new dataframe
 
     We use 12-fold cross-validation to determine the mode that best fits
@@ -599,10 +600,20 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs):
     outputs : list
         list containing a single str, the path to save this dataframe at
         (as a csv)
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Should probably use the default, which is what all
+        models are trained using.
 
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    ds = sfp_model.FirstLevelDataset(dataset_path, device=device)
+    if df_filter_string:
+        df_filter = sfp_model.construct_df_filter(df_filter_string)
+    else:
+        df_filter = None
+    ds = sfp_model.FirstLevelDataset(dataset_path, device=device, df_filter=df_filter)
     dl = torchdata.DataLoader(ds, len(ds))
     features, targets = next(iter(dl))
     preds = torch.empty(targets.shape[:2], dtype=targets.dtype)
