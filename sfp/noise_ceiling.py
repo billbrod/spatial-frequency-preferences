@@ -13,7 +13,8 @@ from torch.utils import data as torchdata
 from . import model as sfp_model
 
 
-def sample_df(df, seed=0):
+def sample_df(df, seed=0,
+              df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
     """Sample df to get info for necessary computing Monte Carlo noise ceiling
 
     This is the df we use to compute the monte carlo noise ceiling,
@@ -34,6 +35,12 @@ def sample_df(df, seed=0):
         run on all the data
     seed : int
         random seed to use (used to set numpy's RNG)
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Should probably use the default, which is what all
+        models are trained using.
 
     Returns
     -------
@@ -47,6 +54,9 @@ def sample_df(df, seed=0):
         bootstrap_num_2).
 
     """
+    if df_filter_string is not None:
+        df_filter = sfp_model.construct_df_filter(df_filter_string)
+        df = df_filter(df).reset_index()
     np.random.seed(seed)
     bootstraps = np.random.choice(100, 2, False)
     tmp = [df.query("bootstrap_num == @b") for b in bootstraps]
