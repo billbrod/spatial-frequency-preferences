@@ -679,11 +679,7 @@ def find_prf_mgz(wildcards, prf_prop='varea'):
     elif wildcards.atlas_type == 'bayesian_posterior':
         benson_prefix = 'inferred_'
     elif wildcards.atlas_type == 'data':
-        if wildcards.subject in ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045',
-                                 'sub-wlsubj014']:
-            benson_prefix = 'all00-'
-        else:
-            benson_prefix = 'full-'
+        benson_prefix = 'full-'
     benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+prf_prop+'.mgz')
     return expand(benson_template, hemi=['lh', 'rh'])
 
@@ -908,14 +904,9 @@ def get_first_level_analysis_input(wildcards):
         benson_prefix = 'benson14'
     elif wildcards.atlas_type == 'bayesian_posterior':
         benson_prefix = 'inferred'
-    if wildcards.subject in ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045',
-                             'sub-wlsubj014']:
-        prf_prefix = 'all00'
-    else:
-        prf_prefix = 'full'
     benson_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+'_{filename}.mgz')
     input_dict['benson_paths'] = expand(benson_temp, hemi=['lh', 'rh'], filename=benson_names)
-    prf_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, 'data', '{hemi}.'+prf_prefix+'-{filename}.mgz')
+    prf_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, 'data', '{hemi}.full-{filename}.mgz')
     input_dict['prf_sigma_path'] = expand(prf_temp, hemi=['lh', 'rh'], filename=['sigma', 'vexpl'])
     return input_dict
 
