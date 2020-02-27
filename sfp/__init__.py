@@ -14,3 +14,4 @@ from . import analyze_model
 from . import image_computable
 from . import figures
 from . import noise_ceiling
+from . import combine_across_subjects

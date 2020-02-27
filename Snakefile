@@ -896,6 +896,39 @@ rule GLMdenoise_png_process:
         "python {params.script_location} {params.GLM_figure_dir}"
 
 
+rule interpolate_to_fsaverage:
+    input:
+        # this makes sure that we get a single list of strs, not a list
+        # of lists of strs
+        prf_mgzs = lambda wildcards: [i for p in ['varea', 'eccen', 'angle'] for i in find_prf_mgz(wildcards, p)],
+        freesurfer_dir = lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{subject}').format(subject=wildcards.subject.replace('sub-', '')),
+        GLMdenoise_path = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")
+    output:
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models.hdf5"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-prior.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-prior.png"),
+    benchmark:
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_b00_c00_interpolate_benchmark.txt")
+    log:
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_b00_c00_interpolate-%j.log")
+    run:
+        import neuropythy as ny
+        from sfp.combine_across_subjects import interpolate_GLMdenoise_to_fsaverage_prior
+        prf_props = {}
+        for hemi in ['lh', 'rh']:
+            prf_props[hemi] = {}
+            for k, prop in zip(['varea', 'eccen', 'angle'], ['visual_area', 'eccentricity',
+                                                             'polar_angle']):
+                path = [i for i in input.prf_mgzs if hemi in i if k in i][0]
+                prf_props[hemi][prop] = ny.load(path)
+        save_stem = output[0].replace('_models.hdf5', '')
+        interpolate_GLMdenoise_to_fsaverage_prior(input.freesurfer_dir, prf_props,
+                                                  input.GLMdenoise_path, save_stem, 0, 0,
+                                                  target_varea=int(wildcards.varea))
+
+
 def get_first_level_analysis_input(wildcards):
     input_dict = {}
     input_dict['GLM_results'] = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(**wildcards)
