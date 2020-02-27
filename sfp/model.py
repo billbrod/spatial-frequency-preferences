@@ -45,11 +45,16 @@ def drop_voxels_with_negative_amplitudes(df):
     if 'indicator' in df.columns:
         groupby_col += ['indicator']
     try:
-        # in this case, we have the full dataframe (with each bootstrap separately), and we want to
-        # drop those voxels whose median amplitude estimate is less than zero, not just a single
-        # bootstrap.
-        tmp = df.groupby(groupby_col + ['stimulus_class']).amplitude_estimate.median()
-        voxels = tmp.reset_index().voxel.unique()
+        # in this case, we have the full dataframe (with each bootstrap
+        # separately), and we want to drop those voxels whose median
+        # amplitude estimate is less than zero, not just a single
+        # bootstrap. so first we compute the median amplitude estimates
+        # for each voxel and stimulus class
+        tmp = df.groupby(groupby_col + ['stimulus_class']).amplitude_estimate.median().reset_index()
+        # then, doing like we do below, we only retain those voxels that
+        # have all amplitude estimates above zero
+        tmp = tmp.groupby(groupby_col).filter(lambda x: (x.amplitude_estimate >= 0).all())
+        voxels = tmp.voxel.unique()
         df = df.query('voxel in @voxels')
     except AttributeError:
         df = df.groupby(groupby_col).filter(lambda x: (x.amplitude_estimate_median >= 0).all())
