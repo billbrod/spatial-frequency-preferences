@@ -924,8 +924,8 @@ rule interpolate_to_fsaverage:
                 path = [i for i in input.prf_mgzs if hemi in i if k in i][0]
                 prf_props[hemi][prop] = ny.load(path)
         save_stem = output[0].replace('_models.hdf5', '')
-        interpolate_GLMdenoise_to_fsaverage_prior(input.freesurfer_dir, prf_props,
-                                                  input.GLMdenoise_path, save_stem, 0, 0,
+        interpolate_GLMdenoise_to_fsaverage_prior(input.freesurfer_dir, prf_props, save_stem,
+                                                  input.GLMdenoise_path, 0, 0,
                                                   target_varea=int(wildcards.varea))
 
 

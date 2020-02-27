@@ -107,8 +107,9 @@ def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, a
     """
     if hemi == 'rh':
         # then this is the right hemisphere = left visual field, and we
-        # thus want the x values to be negative
-        x *= -1
+        # thus want the x values to be negative. need to copy this
+        # otherwise we mess up the prior_x array
+        x = x.copy() * -1
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(7.5, 7.5), subplot_kw={'aspect': 1})
     ax.scatter(x, y, c=amplitudes[:, class_num], alpha=.5)
@@ -190,8 +191,8 @@ def add_GLMdenoise_field_to_props(GLMdenoise_path, props, GLMdenoise_field='mode
     return props
 
 
-def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, GLMdenoise_path,
-                                              save_stem, plot_class=0, plot_bootstrap=0,
+def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_stem,
+                                              GLMdenoise_path=None, plot_class=0, plot_bootstrap=0,
                                               target_varea=1):
     """interpolate a scanning session's GLMdenoise models results to fsaverage space
 
@@ -294,12 +295,13 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, GLMdeno
         this function will fail). The intended use is that this will
         contain the results of the Bayesian retinotopy, which we'll use
         as the pRF parameters in subject-space.
-    GLMdenoise_path : str
-        path to the results.mat file created by GLMdenoise for this
-        subject/session
     save_stem : str
         the stem of the path to save things at (i.e., should not end in
         the extension)
+    GLMdenoise_path : str or None, optional
+        path to the results.mat file created by GLMdenoise for this
+        subject/session. If None, we assume prf_props already contains
+        the 'models_bootstrap_{i:02d}' keys
     plot_class : int, optional
         we create a plot showing the amplitudes for one class, one
         bootstrap. this specifies which class to plot.
@@ -323,13 +325,8 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, GLMdeno
     """
     sub = ny.freesurfer_subject(freesurfer_sub)
 
-    # this should already be properly constructed
-    # template = '/users/broderick/mnt/winawerlab/Projects/spatial_frequency_preferences/BIDS/derivatives/prf_solutions/sub-wlsubj045/bayesian_posterior/{hemi}.inferred_{data}.mgz'
-    # props = {}
-    # for h in ['lh', 'rh']:
-    #     props[h] = {prop: ny.load(template.format(hemi=h, data=k)) for k, prop in zip(['varea', 'eccen', 'angle'], ['visual_area', 'eccentricity', 'polar_angle'])}
-
-    prf_props = add_GLMdenoise_field_to_props(GLMdenoise_path, prf_props)
+    if GLMdenoise_path is not None:
+        prf_props = add_GLMdenoise_field_to_props(GLMdenoise_path, prf_props)
     num_bootstraps = len([b for b in prf_props['lh'].keys() if 'bootstrap' in b])
     if num_bootstraps != 100:
         raise Exception(f"There should be 100 bootstraps, but there are {num_bootstraps}!")
@@ -383,5 +380,5 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, GLMdeno
     interpolated_all = np.concatenate(interpolated_all, 3)
     # and save
     with h5py.File(save_stem + '_models.hdf5', 'w') as f:
-        f.create_dataset('models', data=interpolated_all)
+        f.create_dataset('results/models', data=interpolated_all, compression='gzip')
     return interpolated_all
