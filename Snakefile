@@ -904,11 +904,11 @@ rule interpolate_to_fsaverage:
         freesurfer_dir = lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{subject}').format(subject=wildcards.subject.replace('sub-', '')),
         GLMdenoise_path = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models.hdf5"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-subject.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-subject.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-prior.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-prior.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models.hdf5"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-prior.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-prior.png"),
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_b00_c00_interpolate_benchmark.txt")
     log:
@@ -1562,7 +1562,11 @@ rule calc_simulated_cv_error:
         mem = 10
     run:
         import sfp
-        sfp.analyze_model.calc_cv_error(input.loss_files, input.dataset_path, wildcards, output)
+        # that None is the df_filter argument: no df_filter is used for
+        # training the model and thus none should be used when
+        # calculating the cv error
+        sfp.analyze_model.calc_cv_error(input.loss_files, input.dataset_path, wildcards, output,
+                                        None)
 
 
 rule summarize_simulated_cv:
