@@ -1352,7 +1352,7 @@ rule gather_model_results_preliminary:
     resources:
         mem = 100,
     params:
-        base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), '*'),
+        base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), f'*{wildcards.model_type}*'),
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
                     'fit_model_type', 'indicator', 'bootstrap_num', 'test_subset']
     run:
