@@ -224,6 +224,9 @@ rule model_all_subj_bootstrap:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
                      "v1_e1-12_full_b10_r0.001_g0_full_full_vary_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                     "bayesian_posterior", "bootstrap",
+                     "v1_e1-12_full_b10_r0.001_g0_absolute_full_vary_all_models.csv"),
     
 
 
@@ -240,6 +243,9 @@ rule model_all_subj:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
                      "v1_e1-12_summary_b10_r0.001_g0_full_full_vary_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                     "bayesian_posterior", "initial",
+                     "v1_e1-12_summary_b10_r0.001_g0_absolute_full_vary_all_models.csv"),
 
 
 rule model_all_subj_cv:
@@ -1908,7 +1914,7 @@ rule figure_crossvalidation:
 def get_params_csv(wildcards):
     path_template = os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model',
                                  'stim_class', 'bayesian_posterior', '%s',
-                                 'v1_e1-12_%s_b10_r0.001_g0_full_full_vary_all_models.csv')
+                                 f'v1_e1-12_%s_b10_r0.001_g0_{wildcards.model_type}_all_models.csv')
     paths = []
     if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
                                'dist-overall', 'bootstraps-overall']:
@@ -1935,11 +1941,11 @@ rule figure_params:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2018,11 +2024,11 @@ rule figure_feature_df:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2142,22 +2148,27 @@ rule figures:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'cv_{}_task-sfprescaled.pdf').format(cv)
          for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                     'model-remeaned', 'model_point-remeaned', 'raw-nc']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-all_{}_task-sfprescaled.pdf').format(kind)
-         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_{}_task-sfprescaled.pdf').format(vf, kind)
-        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-all_{}_task-sfprescaled.pdf').format(model, kind)
+         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_vary', 'absolute_full_vary']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-{}_{}_task-sfprescaled.pdf').format(model, vf, kind)
+        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_vary', 'absolute_full_vary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_vary_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
          for vf in ['vertical', 'horizontal', 'eccen']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(kind, angles, frame)
-         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(feature, kind, frame)
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'absolute_full_vary_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        #  for vf in ['vertical', 'horizontal', 'eccen']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(model, kind, angles, frame)
+         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
+         for model in ['full_full_vary', 'absolute_full_vary']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(model, feature, kind, frame)
          for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(vf, angles, frame)
-        #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(vf, feature, frame)
+         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
+         for model in ['full_full_vary', 'absolute_full_vary']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(model, vf, angles, frame)
+        #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
+        #  for model in ['full_full_vary', 'absolute_full_vary']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(model, vf, feature, frame)
         #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-        #  for frame in ['relative', 'absolute']],
+        #  for frame in ['relative', 'absolute'] for model in ['full_full_vary', 'absolute_full_vary']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic_{}.pdf').format(kind)
          for kind in ['2d', 'models', '2d-inputs']],
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'background_period.pdf'),
