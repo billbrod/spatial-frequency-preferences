@@ -904,15 +904,15 @@ rule interpolate_to_fsaverage:
         freesurfer_dir = lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{subject}').format(subject=wildcards.subject.replace('sub-', '')),
         GLMdenoise_path = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models.hdf5"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-subject.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-subject.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-prior.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-prior.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models.hdf5"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_lh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_rh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_lh_b00_c00_space-prior.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_rh_b00_c00_space-prior.png"),
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_b00_c00_interpolate_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_i-{interp_method}_b00_c00_interpolate_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_b00_c00_interpolate-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_i-{interp_method}_b00_c00_interpolate-%j.log")
     run:
         import neuropythy as ny
         from sfp.combine_across_subjects import interpolate_GLMdenoise_to_fsaverage_prior
@@ -926,7 +926,7 @@ rule interpolate_to_fsaverage:
         save_stem = output[0].replace('_models.hdf5', '')
         interpolate_GLMdenoise_to_fsaverage_prior(input.freesurfer_dir, prf_props, save_stem,
                                                   input.GLMdenoise_path, 0, 0,
-                                                  target_varea=int(wildcards.varea))
+                                                  int(wildcards.varea), wildcards.interp_method)
 
 
 def get_first_level_analysis_input(wildcards):

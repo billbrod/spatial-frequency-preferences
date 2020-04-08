@@ -25,6 +25,9 @@ import os
 import neuropythy as ny
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+from .plotting import MidpointNormalize
 
 
 def get_fsaverage_coords(hemi, target_varea=1):
@@ -55,6 +58,9 @@ def get_fsaverage_coords(hemi, target_varea=1):
     prior_varea : np.array
         the visual area for each fsaverage vertex, for the whole brain
         (thus, this will be larger than `prior_x` and `prior_y`)
+    prior_angle, prior_ecc : np.arraecc
+        the angle and eccentricity coordinates for the fsaverage
+        vertices, restricted to `target_varea`
 
     """
     fsaverage_surf = os.path.join(os.path.dirname(ny.__file__), 'lib', 'data', 'fsaverage', 'surf')
@@ -68,10 +74,11 @@ def get_fsaverage_coords(hemi, target_varea=1):
     prior_x, prior_y = ny.as_retinotopy({'eccentricity': prior_ecc, 'polar_angle': prior_angle},
                                         'geographical')
 
-    return prior_x, prior_y, prior_varea
+    return prior_x, prior_y, prior_varea, prior_angle, prior_ecc
 
 
-def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, ax=None):
+def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, ax=None, vmin=None,
+                    vmax=None):
     """plot amplitude estimates as function of location in visual field
 
     Parameters
@@ -98,25 +105,99 @@ def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, a
     ax : plt.Axes or None, optional
         if not None, the axis to create this plot on. if None, we'll
         create a new axis with figsize (7.5, 7.5) and equal aspect
+    vmin, vmax : float or None, optional
+        the minimum and maximum values for the colormap. If None (the
+        default), will use the min and max from `amplitudes[:,
+        class_num]`
 
     Returns
     -------
     fig : plt.Figure
         the figure containing the plot
-    
+
     """
     if hemi == 'rh':
         # then this is the right hemisphere = left visual field, and we
         # thus want the x values to be negative. need to copy this
         # otherwise we mess up the prior_x array
         x = x.copy() * -1
+    if vmin is None:
+        vmin = amplitudes[:, class_num].min()
+    if vmax is None:
+        vmax = amplitudes[:, class_num].max()
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(7.5, 7.5), subplot_kw={'aspect': 1})
-    ax.scatter(x, y, c=amplitudes[:, class_num], alpha=.5)
+    sc = ax.scatter(x, y, c=amplitudes[:, class_num], alpha=.5, cmap='RdBu',
+                    norm=MidpointNormalize(vmin, vmax, 0))
     ax.set_title(f'{hemi}, {prf_space}-space: Amplitude estimates for\n bootstrap {bootstrap}, '
                  f'class {class_num} projected onto visual field')
-    ax.text(1.01, .5, f"{x.shape[0]} vertices", transform=ax.transAxes, va='center')
+    ax.figure.colorbar(sc, ax=ax)
+    ax.text(1.3, .5, f"{x.shape[0]} vertices", transform=ax.transAxes, va='center')
     return ax.figure
+
+
+def plot_zero_check(amplitudes, properties, vars=['polar_angle', 'eccentricity'], hue='hemi',
+                    sum_idx=1):
+    """plot properties of voxels with zero amplitude
+
+    after interpolation, some voxels may end up with zero amplitude for
+    some reason, including because their coordinates were incorrect
+    (e.g., they had negative x values). this plot allows you to easily
+    check the propreties of those voxels in order to see if there's
+    anything wrong with them.
+
+    Properties
+    ----------
+    amplitudes : dict
+        dict containing the keys ['lh', 'rh'] containing the amplitudes
+        amplitude estimates for each vertex in a single varea as an
+        array.
+    properties : dict
+        dict containing keys ['lh', 'rh'], each value of which is
+        another dict containing keys of different voxel properties. Must
+        have same number of voxels as `amplitudes`.
+    vars : list, optional
+        list of strs specifying the keys in `properties` that you wish
+        to plot in the pairplot
+    hue : str, optional
+        either 'hemi' or a str of a key in `properties`, this is the
+        variable to plot as the hue dimension in pairplot
+    sum_idx : int or tuple, optional
+        either an int or a tuple of ints, this is the dimensions over
+        which to sum `amplitude` over so that we end up with something
+        one dimensional, with each element corresponding to a different
+        voxel. For example, if `amplitude` has shape `(num_voxels,
+        num_classes)`, `sum_idx` should equal `1`, so that we sum over
+        all the classes in order to determine which voxels have any zero
+        amplitudes. If `amplitude` has shape `(num_bootstraps,
+        num_classes, num_voxels)`, this should be `(0, 1)`.
+
+    Returns
+    -------
+    fig : plt.Figure or str
+        the figure containing the plot or, if no voxels had zero
+        amplitude, the str 'No voxels have amplitude zero'
+
+    """
+    df = []
+    keys_to_copy = vars
+    if hue != 'hemi':
+        keys_to_copy += [hue]
+    for hemi in ['lh', 'rh']:
+        zero_idx = np.where((amplitudes[hemi]==0).sum(sum_idx))[0]
+        d = {'hemi': hemi}
+        d.update(dict((k, properties[hemi][k][zero_idx]) for k in keys_to_copy))
+        df.append(pd.DataFrame(d))
+    df = pd.concat(df)
+    # first any checks if there's any value in each column, second is if
+    # there's any value in any column
+    if not df.any().any():
+        # then there's nothing to plot -- this happens when zero_idx is
+        # empty
+        return "No voxels have amplitude zero"
+    else:
+        g = sns.pairplot(df, hue, vars=vars, height=5)
+        return g.fig
 
 
 def add_GLMdenoise_field_to_props(GLMdenoise_path, props, GLMdenoise_field='models'):
@@ -193,7 +274,7 @@ def add_GLMdenoise_field_to_props(GLMdenoise_path, props, GLMdenoise_field='mode
 
 def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_stem,
                                               GLMdenoise_path=None, plot_class=0, plot_bootstrap=0,
-                                              target_varea=1):
+                                              target_varea=1, interp_method='linear'):
     """interpolate a scanning session's GLMdenoise models results to fsaverage space
 
     In order to combine data across subjects, we need them to have
@@ -257,11 +338,13 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
       that. We use a HDF5 file because this will be very large, and a
       HDF5 file is more compact than a .npy file
 
-    We also produce two plots, which show the same amplitude estiamtes,
-    one in the subject's original retinotopic space, and one
-    interpolated to the fsaverage retinotopic prior space. These two
-    should look like they're conveying the same information, just
-    sampling at different locations.
+    We also produce several outputs to help check what's going on.
+
+    The first two are plots which show the same amplitude estimates, one
+    in the subject's original retinotopic space, and one interpolated to
+    the fsaverage retinotopic prior space. These two should look like
+    they're conveying the same information, just sampling at different
+    locations.
     
     - save_stem+"_models_b{plot_bootstrap}_c{plot_class}_space-subject.png":
       a plot showing the amplitude estimates for the stimulus class
@@ -274,6 +357,46 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
       `plot_class` and the bootstrap `plot_bootstrap` as a scatter plot,
       with x, y locations coming from the fsaverage pRF prior and the
       interpolated values.
+
+    We then produce four outputs to examine any voxels that have zero
+    amplitudes. GLMdenoise shouldn't produce voxels that have an
+    amplitude estimate of exactly zero, so this is often a sign that
+    something has gotten messed up. For each of the following, if there
+    are no voxels with zero amplitude, we create a text file (replacing
+    the .png extension with .txt) that contains the string "No voxels
+    have amplitude zero" instead of the plot.
+
+    - save_stem+"_zero_check_b{plot_bootstrap}_coords-polar_space-subject":
+      a seaborn pairplot showing the polar angle and eccentricity
+      locations of all voxels that have any zero amplitudes prior to
+      interpolation.
+
+    - save_stem+"_zero_check_b{plot_bootstrap}_coords-cartesian_space-subject":
+      a seaborn pairplot showing the x and y locations of all voxels
+      that have any zero amplitudes prior to interpolation.
+
+    - save_stem+"_zero_check_b{plot_bootstrap}_coords-polar_space-prior":
+      a seaborn pairplot showing the polar angle and eccentricity
+      locations of all voxels that have any zero amplitudes after
+      interpolation
+
+    - save_stem+"_zero_check_b{plot_bootstrap}_coords-polar_space-prior":
+      a seaborn pairplot showing the x and y locations of all voxels
+      that have any zero amplitudes after interpolation.
+
+    The expectation is:
+
+    - There should never be any voxels with amplitude zero prior to
+      interpolation (so none of the `space-subject` plots should be
+      created)
+
+    - if `interp_method='linear'`, the only voxels with amplitude zero
+      after interpolation should be at the extremes of the visual field
+      (so along the visual meridian and far periphery / with min and max
+      possible eccentricity values)
+
+    - if `interp_method='nearest'`, no voxels should have amplitude zero
+      after interpolation
 
     Parameters
     ----------
@@ -312,6 +435,9 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
         The visual area we're interpolating. because we interpolate in
         the visual field, we can only do one visual area at a time
         (because otherwise they'll interfere with each other)
+    interp_method : {'nearest', 'linear'}, optional
+        whether to use linear or nearest-neighbor interpolation. See the
+        docstring of `neuropythy.mesh.interpolate` for more details
 
     Returns
     -------
@@ -331,51 +457,81 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
     if num_bootstraps != 100:
         raise Exception(f"There should be 100 bootstraps, but there are {num_bootstraps}!")
 
-    interpolated_all = []
+    priors = {}
+    idx = {}
+    submesh = {}
     for hemi in ['lh', 'rh']:
-        if hemi == 'lh':
-            mesh = sub.lh.with_prop(**prf_props['lh'])
-        else:
-            mesh = sub.rh.with_prop(**prf_props['rh'])
-
-        prior_x, prior_y, prior_varea = get_fsaverage_coords(hemi, target_varea)
+        priors[hemi] = dict(zip(['x', 'y', 'varea', 'polar_angle', 'eccentricity'],
+                                get_fsaverage_coords(hemi, target_varea)))
         # we need to figure out which vertices correspond to our
         # targeted visual area for constructing the overall array (which
         # should mimic the results of GLMdenoise run on the full
         # brain). we grab the first element of np.where because this is
         # a 1d array
-        idx = np.where(prior_varea == target_varea)[0]
+        idx[hemi] = np.where(priors[hemi]['varea'] == target_varea)[0]
+        if hemi == 'lh':
+            mesh = sub.lh.with_prop(**prf_props['lh'])
+        else:
+            mesh = sub.rh.with_prop(**prf_props['rh'])
+        submesh[hemi] = mesh.white_surface.submesh(mesh.white_surface.mask(('visual_area',
+                                                                            target_varea)))
+
+    # grab the vmin and vmax, for the target varea, in the plotted
+    # bootstrap, across both hemispheres and all classes. We use 1st and
+    # 99th percnetile because the min/max are often much larger than the
+    # rest of the distribution
+    vmin = min(np.percentile(submesh['lh'].properties[f'models_bootstrap_{plot_bootstrap:02d}'][:, plot_class], 1),
+               np.percentile(submesh['rh'].properties[f'models_bootstrap_{plot_bootstrap:02d}'][:, plot_class], 1))
+    vmax = max(np.percentile(submesh['lh'].properties[f'models_bootstrap_{plot_bootstrap:02d}'][:, plot_class], 99),
+               np.percentile(submesh['rh'].properties[f'models_bootstrap_{plot_bootstrap:02d}'][:, plot_class], 99))
+
+    interpolated_all = []
+    zero_check_data = {'submesh': {}, 'interpolated': {}, 'original': {}}
+    for hemi in ['lh', 'rh']:
         # this should be of shape (num_bootstraps, num_classes, 1,
         # num_vertices, 1), in order to mimic the output of
         # GLMdenoise. num_vertices will be different between the two
         # hemispheres, everything else will be the same. Note that we
-        # use prior_varea to get the number of vertices, NOT
+        # use priors[hemi][varea] to get the number of vertices, NOT
         # prf_props[hemi]['models_bootstrap_00'], because we want the
         # number in fsaverage-space, not in subject-space
         _, num_classes = prf_props[hemi]['models_bootstrap_00'].shape
-        interpolated_hemi = np.zeros((num_bootstraps, num_classes, 1, prior_varea.shape[0], 1))
+        interpolated_hemi = np.zeros((num_bootstraps, num_classes, 1,
+                                      priors[hemi]['varea'].shape[0], 1))
 
-        submesh = mesh.white_surface.submesh(mesh.white_surface.mask(('visual_area', target_varea)))
-        x, y = ny.as_retinotopy(submesh, 'geographical')
-        submesh = submesh.copy(coordinates=[x, y])
+        x, y = ny.as_retinotopy(submesh[hemi], 'geographical')
+        submesh_tmp = submesh[hemi].copy(coordinates=[x, y])
+
+        zero_check_data['submesh'][hemi] = submesh_tmp.with_prop(x=x, y=y).properties
 
         # neuropythy's interpolate can only work with 2d arrays, so we
         # need to do each bootstrap separate
         for i in range(num_bootstraps):
-            interp_models = submesh.interpolate([prior_x, prior_y], f'models_bootstrap_{i:02d}',
-                                                method='linear')
-            interpolated_hemi[i, :, 0, idx, 0] = interp_models
+            interp_models = submesh_tmp.interpolate([priors[hemi]['x'], priors[hemi]['y']],
+                                                    f'models_bootstrap_{i:02d}', method=interp_method)
+            interpolated_hemi[i, :, 0, idx[hemi], 0] = interp_models
 
             if i == plot_bootstrap:
-                fig = plot_amplitudes(x, y, submesh.properties[f'models_bootstrap_{i:02d}'],
-                                      hemi, i, 'subject', plot_class)
+                fig = plot_amplitudes(x, y, submesh_tmp.properties[f'models_bootstrap_{i:02d}'],
+                                      hemi, i, 'subject', plot_class, vmin=vmin, vmax=vmax)
                 fig.savefig(save_stem + f"_models_{hemi}_b{i:02d}_c{plot_class:02d}_space-subject.png")
 
-                fig = plot_amplitudes(prior_x, prior_y, interp_models, hemi, i, 'fsaverage',
-                                      plot_class)
+                fig = plot_amplitudes(priors[hemi]['x'], priors[hemi]['y'], interp_models, hemi,
+                                      i, 'fsaverage', plot_class, vmin=vmin, vmax=vmax)
                 fig.savefig(save_stem + f"_models_{hemi}_b{i:02d}_c{plot_class:02d}_space-prior.png")
+                zero_check_data['interpolated'][hemi] = interp_models
+                zero_check_data['original'][hemi] = submesh_tmp.properties[f'models_bootstrap_{i:02d}']
 
         interpolated_all.append(interpolated_hemi)
+    for a, p, s in zip([zero_check_data['original'], zero_check_data['interpolated']],
+                       [zero_check_data['submesh'], priors], ['subject', 'prior']):
+        for v, c in zip([['polar_angle', 'eccentricity'], ['x', 'y']], ['polar', 'cartesian']):
+            fig = plot_zero_check(a, p, v)
+            if not isinstance(fig, str):
+                fig.savefig(save_stem + f"_zero_check_b{i:02d}_coords-{c}_space-{s}.png")
+            else:
+                print(fig)
+                print(fig, file=open(save_stem + f"_zero_check_b{i:02d}_coords-{c}_space-{s}.txt", 'w'))
     # concatenate into one array (vertices are on dimension 3)
     interpolated_all = np.concatenate(interpolated_all, 3)
     # and save
