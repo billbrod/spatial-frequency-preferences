@@ -699,7 +699,7 @@ def model_schematic():
 
 
 def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.75,
-             ci=95, plot_kind='strip', x_rotate=True, legend='full', **kwargs):
+             ci=68, plot_kind='strip', x_rotate=True, legend='full', **kwargs):
     """wrapper around seaborn.catplot
 
     several figures call seaborn.catplot and are pretty similar, so this
@@ -1027,7 +1027,7 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         ax_order = [i for i in order if i in tmp.model_parameter.unique()]
         if plot_kind == 'point':
             sns.pointplot('model_parameter', 'fit_value', 'model_parameter', data=tmp,
-                          estimator=np.median, ax=ax, order=ax_order, palette=pal, ci=95, **kwargs)
+                          estimator=np.median, ax=ax, order=ax_order, palette=pal, ci=68, **kwargs)
         elif plot_kind == 'strip':
             # want to make sure that the different hues end up in the
             # same order everytime, which requires doing this with
