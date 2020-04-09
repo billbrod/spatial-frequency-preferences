@@ -22,7 +22,7 @@ def sample_df(df, seed=0,
     bootstraps on the full data. We pick two bootstraps (without
     replacement), and query the dataframe to grab only these
     bootstraps. One of them becomes the feature and one the
-    target.Because this uses all the data, it does not need to be
+    target. Because this uses all the data, it does not need to be
     corrected to compare against our actual models. In this file, we
     also provide functionality to compute the split-half noise ceiling,
     where we're comparing the amplitude estimates computed on two
