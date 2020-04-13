@@ -940,7 +940,8 @@ rule compute_groupaverage:
         lambda wildcards: [os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}",
                                         "{atlas_type}", "sub-groupaverage", "{session}", "{subject}",
                                         "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models.hdf5").format(subject=sub, **wildcards)
-                           for sub in ['sub-wlsubj095', 'sub-wlsubj114', 'sub-wlsubj115']]
+                           for sub in SUBJECTS if wildcards.session in SESSIONS[sub]
+                           if TASKS[(sub, wildcards.session)] == wildcards.task]
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "sub-groupaverage_{session}_{task}_v{varea}_i-{interp_method}_s{boot_seed}_results.hdf5"),
         os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "sub-groupaverage_{session}_{task}_v{varea}_i-{interp_method}_s{boot_seed}_b00_c00_models.png"),
@@ -1882,6 +1883,21 @@ rule figure_summarize_1d:
             elif wildcards.tuning_param == 'bandwidth-overall':
                 g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None, height=5)
             g.fig.savefig(output[0], bbox_inches='tight')
+
+
+rule figure_crossvalidation_check:
+    input:
+        # this will return a list of lists of strings, so we need to flatten it
+        lambda wildcards: np.array([get_model_subj_outputs(m, sub, ses, wildcards.task, crossval_seed=0,
+                                                           modeling_goal='initial_cv')
+                                    for m in MODEL_TYPES for sub in SUBJECTS for ses in SESSIONS[sub]
+                                    if TASKS[(sub, ses)] == wildcards.task]).flatten()
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "cv_loss-check_{task}.{ext}")
+    run:
+        import sfp
+        df = sfp.analyze_model.collect_final_loss(input)
+        df.to_cvs(output[0])
 
 
 def get_noise_ceiling_df(wildcards):

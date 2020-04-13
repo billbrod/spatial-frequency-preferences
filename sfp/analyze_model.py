@@ -561,6 +561,41 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
     return pd.concat(df).reset_index(drop=True)
 
 
+def collect_final_loss(paths):
+    """collect up the loss files, add some metadata, and concat
+
+    We loop through the paths, loading each in, grab the last epoch, add
+    some metadata by parsing the path, and then concatenate and return
+    the resulting df
+
+    Parameters
+    ----------
+    paths : list
+        list of strs giving the paths to the loss files. we attempt to
+        parse these strings to find the subject, session, and task, and
+        will raise an Exception if we can't do so
+
+    Returns
+    -------
+    df : pd.DataFrame
+        the collected loss
+
+    """
+    df = []
+    for p in paths:
+        tmp = pd.read_csv(p)
+        last_epoch = tmp.epoch_num.unique().max()
+        tmp = tmp.query("epoch_num == @last_epoch")
+        regexes = [r'(sub-[a-z0-9]+)', r'(ses-[a-z0-9]+)', r'(task-[a-z0-9]+)']
+        for n, regex in zip(['subject', 'session', 'task'], regexes):
+            res = re.findall(regex, p)
+            if len(set(res)) != 1:
+                raise Exception(f"Unable to infer {n} from path {p}!")
+            tmp[n] = res[0]
+        df.append(tmp)
+    return pd.concat(df)
+
+
 def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
                   df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
     """Calculate cross-validated loss and save as new dataframe

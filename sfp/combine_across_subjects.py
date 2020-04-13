@@ -172,14 +172,16 @@ def plot_amplitudes(x, y, amplitudes, hemi, plot_content, prf_space, class_num=0
 
 
 def plot_zero_check(amplitudes, properties, vars=['polar_angle', 'eccentricity'], hue='hemi',
-                    sum_idx=1):
-    """plot properties of voxels with zero amplitude
+                    sum_idx=1, nan_check=False):
+    """plot properties of voxels with zero or NaN amplitude
 
     after interpolation, some voxels may end up with zero amplitude for
     some reason, including because their coordinates were incorrect
     (e.g., they had negative x values). this plot allows you to easily
     check the propreties of those voxels in order to see if there's
     anything wrong with them.
+
+    If the nan_check arg is True, we check for NaNs instead.
 
     Properties
     ----------
@@ -206,6 +208,9 @@ def plot_zero_check(amplitudes, properties, vars=['polar_angle', 'eccentricity']
         all the classes in order to determine which voxels have any zero
         amplitudes. If `amplitude` has shape `(num_bootstraps,
         num_classes, num_voxels)`, this should be `(0, 1)`.
+    nan_check : bool, optional
+        if True, we check for (any) NaNs instead of all zeros. If False,
+        we check for zeros
 
     Returns
     -------
@@ -219,7 +224,12 @@ def plot_zero_check(amplitudes, properties, vars=['polar_angle', 'eccentricity']
     if hue != 'hemi':
         keys_to_copy += [hue]
     for hemi in ['lh', 'rh']:
-        zero_idx = np.where((amplitudes[hemi]==0).sum(sum_idx))[0]
+        if not nan_check:
+            text = 'zero'
+            zero_idx = np.where((amplitudes[hemi]==0).sum(sum_idx))[0]
+        if nan_check:
+            text = 'NaN'
+            zero_idx = np.where(np.isnan(amplitudes[hemi].sum(sum_idx)))[0]
         d = {'hemi': hemi}
         d.update(dict((k, properties[hemi][k][zero_idx]) for k in keys_to_copy))
         df.append(pd.DataFrame(d))
@@ -229,9 +239,10 @@ def plot_zero_check(amplitudes, properties, vars=['polar_angle', 'eccentricity']
     if not df.any().any():
         # then there's nothing to plot -- this happens when zero_idx is
         # empty
-        return "No voxels have amplitude zero"
+        return f"No voxels have amplitude {text}"
     else:
         g = sns.pairplot(df, hue, vars=vars, height=5)
+        g.set_title(f"pRF Locations of voxels with amplitude {text}")
         return g.fig
 
 
@@ -544,6 +555,10 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
         for i in range(num_bootstraps):
             interp_models = submesh_tmp.interpolate([priors[hemi]['x'], priors[hemi]['y']],
                                                     f'models_bootstrap_{i:02d}', method=interp_method)
+            # for now, there's a bug where neuropythy isn't putting
+            # inserting NaNs in the extrapolated locations, so we do
+            # that manually. they'll be exactly 0
+            interp_models[interp_models.sum(1)==0] = np.nan
             interpolated_hemi[i, :, 0, idx[hemi], 0] = interp_models
 
             if i == plot_bootstrap:
@@ -560,12 +575,13 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
                 zero_check_data['original'][hemi] = submesh_tmp.properties[f'models_bootstrap_{i:02d}']
 
         interpolated_all.append(interpolated_hemi)
-    for a, p, s in zip([zero_check_data['original'], zero_check_data['interpolated']],
-                       [zero_check_data['submesh'], priors], ['subject', 'prior']):
+    for a, p, s, n in zip([zero_check_data['original'], zero_check_data['interpolated']],
+                          [zero_check_data['submesh'], priors], ['subject', 'prior'],
+                          ['zero', 'nan']):
         for v, c in zip([['polar_angle', 'eccentricity'], ['x', 'y']], ['polar', 'cartesian']):
-            fig = plot_zero_check(a, p, v)
+            fig = plot_zero_check(a, p, v, nan_check=(n == 'nan'))
             if not isinstance(fig, str):
-                fig.savefig(save_stem + f"_zero_check_b{i:02d}_coords-{c}_space-{s}.png")
+                fig.savefig(save_stem + f"_{n}_check_b{i:02d}_coords-{c}_space-{s}.png")
             else:
                 print(fig)
                 print(fig, file=open(save_stem + f"_zero_check_b{i:02d}_coords-{c}_space-{s}.txt", 'w'))
