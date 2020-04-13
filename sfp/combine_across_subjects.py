@@ -28,9 +28,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 from .plotting import MidpointNormalize
+from .first_level_analysis import _precision_dist
 
 
-def get_fsaverage_coords(hemi, target_varea=1):
+def get_fsaverage_coords(hemi, target_varea=1, reverse_rh=False):
     """load in the fsaverage retinotopic prior coordinates
 
     we need to get the x and y coordinates for the fsaverage retinotopic
@@ -45,10 +46,15 @@ def get_fsaverage_coords(hemi, target_varea=1):
 
     Parameters
     ----------
-    hemi : {'lh', 'rh'}
-        which hemisphere to load in
+    hemi : {'lh', 'rh', 'both'}
+        which hemisphere to load in. If both, we concatenate them in the
+        order lh, rh.
     target_varea : int, optional
         which visual area to restrict ourselves to
+    reverse_rh : bool, optional
+        whether to reverse the right hemisphere coordinates (x and
+        angle, respectively). You want to do this for plotting (so they
+        show up in the left visual field) but not for interpolating
 
     Returns
     -------
@@ -64,21 +70,47 @@ def get_fsaverage_coords(hemi, target_varea=1):
 
     """
     fsaverage_surf = os.path.join(os.path.dirname(ny.__file__), 'lib', 'data', 'fsaverage', 'surf')
-    prior_angle = ny.load(os.path.join(fsaverage_surf, f'{hemi}.benson14_angle.v4_0.mgz'))
-    prior_ecc = ny.load(os.path.join(fsaverage_surf, f'{hemi}.benson14_eccen.v4_0.mgz'))
-    prior_varea = ny.load(os.path.join(fsaverage_surf, f'{hemi}.benson14_varea.v4_0.mgz'))
+    if hemi == 'both':
+        hemi = ['lh', 'rh']
+    else:
+        hemi = [hemi]
+    prior_angle, prior_ecc = [], []
+    prior_varea = []
+    prior_x, prior_y = [], []
+    for h in hemi:
+        prior_angle_tmp = ny.load(os.path.join(fsaverage_surf, f'{h}.benson14_angle.v4_0.mgz'))
+        prior_ecc_tmp = ny.load(os.path.join(fsaverage_surf, f'{h}.benson14_eccen.v4_0.mgz'))
+        prior_varea_tmp = ny.load(os.path.join(fsaverage_surf, f'{h}.benson14_varea.v4_0.mgz'))
 
-    prior_angle = prior_angle[prior_varea==target_varea]
-    prior_ecc = prior_ecc[prior_varea==target_varea]
+        prior_angle_tmp = prior_angle_tmp[prior_varea_tmp==target_varea]
+        prior_ecc_tmp = prior_ecc_tmp[prior_varea_tmp==target_varea]
 
-    prior_x, prior_y = ny.as_retinotopy({'eccentricity': prior_ecc, 'polar_angle': prior_angle},
-                                        'geographical')
+        prior_x_tmp, prior_y_tmp = ny.as_retinotopy({'eccentricity': prior_ecc_tmp,
+                                                     'polar_angle': prior_angle_tmp},
+                                                    'geographical')
+
+        if h == 'rh' and reverse_rh:
+            multiplier = -1
+        else:
+            multiplier = 1
+
+        prior_x.append(multiplier * prior_x_tmp)
+        prior_y.append(prior_y_tmp)
+        prior_angle.append(multiplier * prior_angle_tmp)
+        prior_ecc.append(prior_ecc_tmp)
+        prior_varea.append(prior_varea_tmp)
+
+    prior_x = np.concatenate(prior_x)
+    prior_y = np.concatenate(prior_y)
+    prior_angle = np.concatenate(prior_angle)
+    prior_ecc = np.concatenate(prior_ecc)
+    prior_varea = np.concatenate(prior_varea)
 
     return prior_x, prior_y, prior_varea, prior_angle, prior_ecc
 
 
-def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, ax=None, vmin=None,
-                    vmax=None):
+def plot_amplitudes(x, y, amplitudes, hemi, plot_content, prf_space, class_num=0, ax=None,
+                    vmin=None, vmax=None, annotate=True):
     """plot amplitude estimates as function of location in visual field
 
     Parameters
@@ -93,9 +125,9 @@ def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, a
         whether these vertices are in the right or left hemisphere. used
         to title the plot and to make sure they end up in the right side
         of the visual field
-    bootstrap : int
-        which bootstrap these estimates come from, only used for titling
-        the plot
+    plot_content : str
+        what is plotted here, for titling the axis. e.g., "bootstrap 0",
+        "median", "standard error"
     prf_space : str
         which pRF space we're plotting here (fsaverage or subject, most
         likely), only used for titling the plot
@@ -109,6 +141,8 @@ def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, a
         the minimum and maximum values for the colormap. If None (the
         default), will use the min and max from `amplitudes[:,
         class_num]`
+    annotate : bool, optional
+        whether to add text saying the number of vertices in the plot
 
     Returns
     -------
@@ -129,10 +163,11 @@ def plot_amplitudes(x, y, amplitudes, hemi, bootstrap, prf_space, class_num=0, a
         fig, ax = plt.subplots(1, 1, figsize=(7.5, 7.5), subplot_kw={'aspect': 1})
     sc = ax.scatter(x, y, c=amplitudes[:, class_num], alpha=.5, cmap='RdBu',
                     norm=MidpointNormalize(vmin, vmax, 0))
-    ax.set_title(f'{hemi}, {prf_space}-space: Amplitude estimates for\n bootstrap {bootstrap}, '
+    ax.set_title(f'{hemi}, {prf_space}-space: {plot_content} amplitude \n estimates for '
                  f'class {class_num} projected onto visual field')
     ax.figure.colorbar(sc, ax=ax)
-    ax.text(1.3, .5, f"{x.shape[0]} vertices", transform=ax.transAxes, va='center')
+    if annotate:
+        ax.text(1.3, .5, f"{x.shape[0]} vertices", transform=ax.transAxes, va='center')
     return ax.figure
 
 
@@ -513,11 +548,13 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
 
             if i == plot_bootstrap:
                 fig = plot_amplitudes(x, y, submesh_tmp.properties[f'models_bootstrap_{i:02d}'],
-                                      hemi, i, 'subject', plot_class, vmin=vmin, vmax=vmax)
+                                      hemi, f'bootstrap {i}', 'subject', plot_class, vmin=vmin,
+                                      vmax=vmax)
                 fig.savefig(save_stem + f"_models_{hemi}_b{i:02d}_c{plot_class:02d}_space-subject.png")
 
                 fig = plot_amplitudes(priors[hemi]['x'], priors[hemi]['y'], interp_models, hemi,
-                                      i, 'fsaverage', plot_class, vmin=vmin, vmax=vmax)
+                                      f'bootstrap {i}', 'fsaverage', plot_class, vmin=vmin,
+                                      vmax=vmax)
                 fig.savefig(save_stem + f"_models_{hemi}_b{i:02d}_c{plot_class:02d}_space-prior.png")
                 zero_check_data['interpolated'][hemi] = interp_models
                 zero_check_data['original'][hemi] = submesh_tmp.properties[f'models_bootstrap_{i:02d}']
@@ -538,3 +575,128 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
     with h5py.File(save_stem + '_models.hdf5', 'w') as f:
         f.create_dataset('results/models', data=interpolated_all, compression='gzip')
     return interpolated_all
+
+
+def compute_groupaverage(interpolated_models, save_stem, seed=None, plot_class=0, plot_bootstrap=0,
+                         target_varea=1):
+    """Computer sub-groupaverage from interpolated GLMdenoise outputs
+
+    After interpolating individual subjects' GLMdenoise outputs to the
+    fsaverage space, we can combine them into a new groupaverage subject
+    for fitting the model to.
+
+    We take the following steps here:
+
+    1. Load in interpolated outputs (if necessary) and restrict to
+       `target_varea`
+
+    2. Calculate each subject's precision: take the inverse of the
+       variance across bootstraps and then average across all voxels and
+       classes
+
+    3. Bootstrap to select subjects (randomly select n with
+       replacement), then perform a precision-weighted average across
+       subjects to get an amplitude estimate per voxel per class per
+       (GLMdenoise) bootstrap
+
+    4. Compute median and standard error across the GLMdenoise
+       bootstraps
+
+    5. Create some plots to help check that these look reasonable, then
+       save these in a hdf5 file that looks like the GLMdenoise output
+       (and so looks like the whole brain, though it will contain 0s
+       everywhere else)
+
+    The outputs will be saved at:
+
+    - save_stem+"_results.hdf5": GLMdenoise-like hdf5 file for
+      sub-groupaverage with this bootstrap
+
+    - save_stem+"_b{plot_bootstrap}_c{plot_class}_models.png": figure
+      showing the amplitude estimates for a single bootstrap of a single
+      class, the median for that class, and the standard error for that
+      class, across the whole visual field
+
+    Parameters
+    ----------
+    interpolated_models : list
+        list of strs or list of arrays. If strs, we assume these are the
+        paths to the hdf5 files created by the
+        `interpolate_GLMdenoise_to_fsaverage_prior` function, one per
+        subject. If arrays, we assume these are the `results/models`
+        field from those hdf5 files (and we check if it's the whole
+        brain or not -- if so, we restrict to `target_varea`, if not, we
+        assume it's already been restricted)
+    save_stem : str
+        the stem of the path to save things at (i.e., should not end in
+        the extension). Should include the seed (we won't add it).
+    seed : int or None, optional
+        seed to pass to random number generator for reproducibility
+    plot_class : int, optional
+        we create a plot showing the amplitudes for one class, one
+        bootstrap. this specifies which class to plot.
+    plot_bootstrap : int, optional
+        we create a plot showing the amplitudes for one class, one
+        bootstrap. this specifies which bootstrap to plot.
+    target_varea : int, optional
+        The visual area we're interpolating. because we interpolate in
+        the visual field, we can only do one visual area at a time
+        (because otherwise they'll interfere with each other)
+
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    x, y, varea, _, _ = get_fsaverage_coords('both', target_varea, True)
+    varea_idx = np.where(varea==target_varea)[0]
+    if isinstance(interpolated_models[0], str):
+        # then these are a list of paths to the hdf5 files
+        subjects = []
+        for p in interpolated_models:
+            with h5py.File(path.format(95, interp), 'r') as f:
+                # and squeeze and restirct to our target varea
+                subjects.append(f['results']['models'][:].squeeze()[..., varea_idx])
+        subjects = np.stack(subjects)
+    else:
+        # then this is a list or array of the results
+        subjects = np.stack(interpolated_models).squeeze()
+        # check if they've been restricted to our target varae
+        if subjects.shape[-1] == len(varea):
+            # if in here, they haven't been, so restrict now
+            subjects = subjects[..., varea_idx]
+    # subjects now has shape (subject, bootstraps, classes, target varea
+    # voxels), so we take the precision (inverse of variance) across
+    # bootstraps so we have one per voxel per class per subject, then
+    # average across voxels and classes so we have one per subject
+    precision = _precision_dist(subjects, 1).mean((-1, -2))
+    # bootstrap: choose (with replacement and with uniform
+    # probabilities) n subjects, where n is the number of subjects we
+    # have
+    choice_idx = np.random.choice(range(len(precision)), len(precision))
+    models_tmp = np.average(subjects[choice_idx], 0, precision[choice_idx])
+    modelmd_tmp = np.median(models_tmp, 0)
+    modelse_tmp = np.diff(np.percentile(models_tmp, [16, 84], 0), axis=0) / 2
+    # this is the shape we want to save it as: (bootstraps, classes, 1,
+    # all brain voxels, 1)
+    models = np.empty((*subjects.shape[1:3], 1, len(varea), 1))
+    # these two have the shape: (classes, 1, all brain voxels, 1)
+    modelmd = np.empty((subjects.shape[2], 1, len(varea), 1))
+    modelse = np.empty((subjects.shape[2], 1, len(varea), 1))
+    models[:, :, 0, varea_idx, 0] = models_tmp
+    modelmd[:, 0, varea_idx, 0] = modelmd_tmp
+    # this mimics how standard error is computed by GLMdenoise: take the
+    # 16th and 84th percentile across bootstraps, take their difference,
+    # and then divide by 2
+    modelse[:, 0, varea_idx, 0] = modelse_tmp
+    fig, axes = plt.subplots(1, 3, figsize=(22.5, 7.5), subplot_kw={'aspect': 1})
+    for ax, data, c  in zip(axes, [models_tmp[plot_bootstrap], modelmd_tmp, modelse_tmp],
+                            [f'bootstrap {plot_bootstrap}', 'median', 'standard error']):
+        # plot_amplitudes expects the data to be (voxels, classes) but
+        # these are (classes, voxels)
+        plot_amplitudes(x, y, data.squeeze().transpose(), 'both', c, 'fsaverage', plot_class,
+                        ax, annotate=False)
+    fig.savefig(save_stem + f"_b{plot_bootstrap:02d}_c{plot_class:02d}_models.png")
+    with h5py.File(save_stem + '_results.hdf5', 'w') as f:
+        f.create_dataset('results/models', data=models, compression='gzip')
+        f.create_dataset('results/modelse', data=modelse, compression='gzip')
+        f.create_dataset('results/modelmd', data=modelmd, compression='gzip')
+    return models

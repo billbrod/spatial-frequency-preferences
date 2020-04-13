@@ -468,10 +468,10 @@ def _transform_angle(x):
     return np.mod(np.radians(ang - 90), 2*np.pi)
 
 
-def _precision_dist(x):
+def _precision_dist(x, axis=None):
     """get precision from a distribution of values (inverse of variance)
     """
-    cis = np.percentile(x, [16, 84])
+    cis = np.percentile(x, [16, 84], axis=axis)
     std_dev = abs(cis[0] - cis[1]) / 2.
     return 1. / (std_dev**2)
 
