@@ -191,9 +191,9 @@ def _add_freq_metainfo(stim_df):
         if x.w_x == 0 and x.w_y == 0:
             sc = 'baseline'
         elif x.w_x == 0 and x.w_y != 0:
-            sc = 'vertical'
-        elif x.w_x != 0 and x.w_y == 0:
             sc = 'horizontal'
+        elif x.w_x != 0 and x.w_y == 0:
+            sc = 'vertical'
         elif x.w_x == x.w_y:
             sc = 'forward diagonal'
         elif x.w_x == -x.w_y:
