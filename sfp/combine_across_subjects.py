@@ -242,7 +242,7 @@ def plot_zero_check(amplitudes, properties, vars=['polar_angle', 'eccentricity']
         return f"No voxels have amplitude {text}"
     else:
         g = sns.pairplot(df, hue, vars=vars, height=5)
-        g.set_title(f"pRF Locations of voxels with amplitude {text}")
+        g.fig.suptitle(f"pRF Locations of voxels with amplitude {text}")
         return g.fig
 
 
