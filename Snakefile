@@ -225,10 +225,10 @@ rule model_all_subj_bootstrap:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
-                     "v1_e1-12_full_b10_r0.001_g0_full_full_full_all_models.csv"),
+                     "task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
-                     "v1_e1-12_full_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
+                     "task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
     
 
 
@@ -236,7 +236,7 @@ rule model_all_subj_visual_field:
     input:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                       "bayesian_posterior", "visual_field_%s" % p,
-                      "v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv") for p in
+                      "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv") for p in
          ['upper', 'lower', 'left', 'right', 'inner', 'outer']],
 
 
@@ -244,17 +244,17 @@ rule model_all_subj:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                     "v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv"),
+                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                     "v1_e1-12_summary_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
+                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
 
 
 rule model_all_subj_cv:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
-                     "bayesian_posterior", "initial_cv", "v1_e1-12_summary_b10_r0.001_g0_s0_"
-                     "all_models.csv"),
+                     "bayesian_posterior", "initial_cv",
+                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_models.csv"),
 
 
 rule all_check_plots:
@@ -1292,16 +1292,17 @@ rule summarize_model_cv:
 
 def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
                    df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='bayesian_posterior',
-                   modeling_goal='initial_cv'):
+                   modeling_goal='initial_cv', task='task-sfprescaled'):
         output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                                    "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
-                                   "{{subject}}_{{session}}_{{task}}_v{vareas}_e{eccen}_{df_mode}_b{batch"
+                                   "{{subject}}_{{session}}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch"
                                    "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
         output_path = output_path.format(vareas=vareas, mat_type=mat_type, batch_size=batch_size,
                                          eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
-                                         modeling_goal=modeling_goal, gpus=gpus,
+                                         modeling_goal=modeling_goal, gpus=gpus, task=task,
                                          crossval_seed=crossval_seed, learning_rate=learning_rate)
-        return [output_path.format(subject=subj, session=ses, task=TASKS[(subj, ses)]) for subj in SUBJECTS for ses in SESSIONS[subj]]
+        return [output_path.format(subject=subj, session=ses)
+                for sub in SUBJECTS for ses in SESSIONS[sub] if TASKS[(sub, ses)] == wildcards.task]
 
 
 rule combine_model_cv_summaries:
@@ -1309,16 +1310,16 @@ rule combine_model_cv_summaries:
         lambda wildcards: get_cv_summary(**wildcards)
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_timing.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_cv_loss.csv"),
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
@@ -1336,9 +1337,10 @@ def gather_model_results_input(wildcards):
     if wildcards.modeling_goal == 'bootstrap':
         loss_files = [get_model_subj_outputs(bootstrap_num=n, **wildcards) for n in range(100)]
     else:
-        loss_files = [get_model_subj_outputs(subject=subj, session=ses, task=TASKS[(subj, ses)],
+        loss_files = [get_model_subj_outputs(subject=subj, session=ses, task=wildcards.task,
                                              **wildcards)
-                      for subj in SUBJECTS for ses in SESSIONS[subj]]
+                      for subj in SUBJECTS for ses in SESSIONS[subj]
+                      if TASKS[(sub, ses)] == wildcards.task]
     # this will return a list of lists of strings, so we need to flatten it
     inputs['loss_files'] = np.array(loss_files).flatten()
     return inputs
@@ -1411,19 +1413,19 @@ rule gather_model_results:
         unpack(gather_model_results_input)
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_timing.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_diff.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_model_history.csv"),
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
@@ -1938,7 +1940,7 @@ rule figure_crossvalidation:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                      'bayesian_posterior', 'initial_cv',
-                     'v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
+                     '{task}_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
         get_noise_ceiling_df,
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "figures", "cv_{cv_type}_{task}.{ext}")
@@ -1974,7 +1976,7 @@ rule figure_crossvalidation:
 def get_params_csv(wildcards):
     path_template = os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model',
                                  'stim_class', 'bayesian_posterior', '%s',
-                                 f'v1_e1-12_%s_b10_r0.001_g0_{wildcards.model_type}_all_models.csv')
+                                 f'{wildcards.task}_v1_e1-12_%s_b10_r0.001_g0_{wildcards.model_type}_all_models.csv')
     paths = []
     if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
                                'dist-overall', 'bootstraps-overall']:
