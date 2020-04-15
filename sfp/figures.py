@@ -1150,6 +1150,57 @@ def model_parameters_compare_plot(df, bootstrap_df):
     return g
 
 
+def training_loss_check(df, hue='test_subset', thresh=.2):
+    """check last epoch training loss
+
+    in order to check that one of the models didn't get stuck in a local
+    optimum in, e.g., one of the cross-validation folds or bootstraps,
+    we here plot the loss for each subject and model, with median and
+    68% CI across batches. they should hopefully look basically all the
+    same
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe with the last epoch loss, as created by
+        `analyze_model.collect_final_loss`
+    hue : str, optional
+        which df column to use as the hue arg for the FacetGrid
+    thresh : float, optional
+        the loss threshold for getting stuck in local optima. we
+        annotate the plot with any training sessions whose median
+        training loss on the last epoch is above this value
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        the FacetGrid containing the plot
+
+    """
+    df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
+                                                       plotting.MODEL_PLOT_ORDER)))
+    order = plotting.get_order('fit_model_type', col_unique=df.fit_model_type.unique())
+    col_order = plotting.get_order('subject', col_unique=df.subject.unique())
+    g = sns.FacetGrid(df, col='subject', hue=hue, col_wrap=4, sharey=False,
+                      aspect=2.5, height=3, col_order=col_order)
+    g.map_dataframe(plotting.scatter_ci_dist, 'fit_model_type', 'loss', x_jitter=True,
+                    x_order=order)
+    for ax in g.axes.flatten():
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=25)
+        if ax.get_ylim()[1] > thresh:
+            ax.hlines(thresh, 0, len(df.fit_model_type.unique())-1, 'gray', 'dashed')
+    # find those training sessions with loss above the threshold
+    above_thresh = df.groupby(['subject', 'fit_model_type', hue]).loss.median()
+    above_thresh = above_thresh.reset_index().query('loss > @thresh')
+    if len(above_thresh) > 0:
+        print('text!')
+        g.fig.text(1.01, .5, ("Probable local optima (median last epoch training loss > "
+                              f"{thresh}):\n" + str(above_thresh)))
+    g.fig.suptitle("Last epoch median training loss (with 68% CI across batches) on each CV fold")
+    g.fig.subplots_adjust(top=.92)
+    return g
+
+
 def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative',
                     feature_type='pref-period', visual_field='all'):
     """plot model predictions based on parameter values

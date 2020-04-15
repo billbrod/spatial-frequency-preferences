@@ -1885,19 +1885,57 @@ rule figure_summarize_1d:
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
-rule figure_crossvalidation_check:
+def get_loss_files(wildcards):
+    # this will return a list of lists of strings, so we need to flatten it
+    if wildcards.modeling_goal == 'initial_cv':
+        return np.array([get_model_subj_outputs(m, sub, ses, crossval_seed=0, **wildcards)
+                         for m in MODEL_TYPES for sub in SUBJECTS for ses in SESSIONS[sub]
+                         if TASKS[(sub, ses)] == wildcards.task]).flatten()
+    elif wildcards.modeling_goal == 'bootstrap':
+        return np.array([get_model_subj_outputs(m, sub, ses, bootstrap_num=n, **wildcards)
+                         for n in range(100) for m in ['full_full_vary', 'absolute_full_vary']
+                         for sub in SUBJECTS for ses in SESSIONS[sub]
+                         if TASKS[(sub, ses)] == wildcards.task]).flatten()
+
+
+rule combine_final_loss:
     input:
-        # this will return a list of lists of strings, so we need to flatten it
-        lambda wildcards: np.array([get_model_subj_outputs(m, sub, ses, wildcards.task, crossval_seed=0,
-                                                           modeling_goal='initial_cv')
-                                    for m in MODEL_TYPES for sub in SUBJECTS for ses in SESSIONS[sub]
-                                    if TASKS[(sub, ses)] == wildcards.task]).flatten()
+        get_loss_files,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "cv_loss-check_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', '{mat_type}', '{atlas_type}', '{modeling_goal}', '{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.csv')
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.log')
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss_benchmark.txt')
     run:
         import sfp
         df = sfp.analyze_model.collect_final_loss(input)
-        df.to_cvs(output[0])
+        df.to_csv(output[0])
+
+
+rule figure_loss_check:
+    input:
+        lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class', 'bayesian_posterior', '{modeling_goal}',
+                                       '{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full'}[wildcards.modeling_goal],
+                                                                                                              modeling_goal=wildcards.modeling_goal, task=wildcards.task)
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{modeling_goal}_training-loss-check_{task}.{ext}")
+    log:
+        os.path.join(config['DATA_DIR'], "code", "figures", "{modeling_goal}_training-loss-check_{task}_{ext}.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "figures", "{modeling_goal}_training-loss-check_{task}_{ext}_benchmark.txt")
+    run:
+        import sfp
+        import seaborn as sns
+        import pandas as pd
+        df = pd.read_csv(input[0])
+        if wildcards.modeling_goal == 'initial_cv':
+            hue = 'test_subset'
+        elif wildcards.modeling_goal == 'bootstrap':
+            hue = 'bootstrap_num'
+        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
+            g = sfp.figures.training_loss_check(df, hue)
+            g.fig.savefig(output[0], bbox_inches='tight')
 
 
 def get_noise_ceiling_df(wildcards):
@@ -2207,3 +2245,5 @@ rule figures:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic_{}.pdf').format(kind)
          for kind in ['2d', 'models', '2d-inputs']],
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'background_period.pdf'),
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_training-loss-check_task-sfprescaled.pdf').format(t)
+         for t in ['initial_cv', 'bootstrap']]
