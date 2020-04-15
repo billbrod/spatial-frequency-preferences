@@ -1301,8 +1301,8 @@ def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1,
                                          eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
                                          modeling_goal=modeling_goal, gpus=gpus, task=task,
                                          crossval_seed=crossval_seed, learning_rate=learning_rate)
-        return [output_path.format(subject=subj, session=ses)
-                for sub in SUBJECTS for ses in SESSIONS[sub] if TASKS[(sub, ses)] == wildcards.task]
+        return [output_path.format(subject=sub, session=ses)
+                for sub in SUBJECTS for ses in SESSIONS[sub] if TASKS[(sub, ses)] == task]
 
 
 rule combine_model_cv_summaries:
@@ -1322,9 +1322,9 @@ rule combine_model_cv_summaries:
                      "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_cv_loss.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
     params:
         base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
     run:
@@ -1337,10 +1337,9 @@ def gather_model_results_input(wildcards):
     if wildcards.modeling_goal == 'bootstrap':
         loss_files = [get_model_subj_outputs(bootstrap_num=n, **wildcards) for n in range(100)]
     else:
-        loss_files = [get_model_subj_outputs(subject=subj, session=ses, task=wildcards.task,
-                                             **wildcards)
+        loss_files = [get_model_subj_outputs(subject=subj, session=ses, **wildcards)
                       for subj in SUBJECTS for ses in SESSIONS[subj]
-                      if TASKS[(sub, ses)] == wildcards.task]
+                      if TASKS[(subj, ses)] == wildcards.task]
     # this will return a list of lists of strings, so we need to flatten it
     inputs['loss_files'] = np.array(loss_files).flatten()
     return inputs
@@ -1385,22 +1384,23 @@ rule summarize_gathered_results:
         lambda wildcards: [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
                                        "bootstrap", "{subject}", "{session}", "{subject}_{session}_{task}_"
                                        "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_"
-                                        "{model_type}_all_models.csv").format(subject=subj, session=ses, task=TASKS[(subj, ses)], **wildcards)
-                           for subj in SUBJECTS for ses in SESSIONS[subj]]
+                                        "{model_type}_all_models.csv").format(subject=subj, session=ses, **wildcards)
+                           for subj in SUBJECTS for ses in SESSIONS[subj]
+                           if TASKS[(subj, ses)] == wildcards.task]
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "bootstrap", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "bootstrap", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "bootstrap", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "bootstrap", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "bootstrap", "v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "bootstrap", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_timing.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
     params:
         base_template = lambda wildcards, input: [i.replace('_all_models.csv', '') for i in input]
     run:
@@ -1428,9 +1428,9 @@ rule gather_model_results:
                      "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_model_history.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
     resources:
         mem = 100,
     params:
@@ -2214,8 +2214,8 @@ rule figures:
          for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'absolute_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-{}_{}_task-sfprescaled.pdf').format(model, vf, kind)
         #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'absolute_full_absolute']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_full_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
-         for vf in ['vertical', 'horizontal', 'eccen']],
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_full_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        #  for vf in ['vertical', 'horizontal', 'eccen']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'absolute_full_absolute_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
         #  for vf in ['vertical', 'horizontal', 'eccen']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(model, kind, angles, frame)
