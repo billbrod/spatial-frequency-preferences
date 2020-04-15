@@ -105,30 +105,33 @@ def simulate_data(true_model, num_voxels=100, noise_level=0, noise_source_path=N
     return df
 
 
-def main(model_orientation_type='iso', model_eccentricity_type='full', model_vary_amplitude=True,
-         sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0, abs_mode_cardinals=0, abs_mode_obliques=0,
-         rel_mode_cardinals=0, rel_mode_obliques=0, abs_amplitude_cardinals=0,
-         abs_amplitude_obliques=0, rel_amplitude_cardinals=0, rel_amplitude_obliques=0,
-         num_voxels=100, noise_level=0, save_path=None, noise_source_path=None):
+def main(model_period_orientation_type='iso', model_eccentricity_type='full',
+         model_amplitude_orientation_type='iso', sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0,
+         abs_mode_cardinals=0, abs_mode_obliques=0, rel_mode_cardinals=0, rel_mode_obliques=0,
+         abs_amplitude_cardinals=0, abs_amplitude_obliques=0, rel_amplitude_cardinals=0,
+         rel_amplitude_obliques=0, num_voxels=100, noise_level=0, save_path=None,
+         noise_source_path=None):
     """Simulate first level data to be fit with 2d tuning model.
 
-    Note that when calling the function, you can set every parameter individually, but, depending
-    on the values of the model_orientation_type, model_eccentricity_type, and
-    model_vary_amplitude, some of them have specific values (often 0), they will be set to. If this
-    happens, a warning will be raised.
+    Note that when calling the function, you can set every parameter
+    individually, but, depending on the values of the
+    model_period_orientation_type, model_eccentricity_type, and
+    model_amplitude_orientation_type, some of them have specific values
+    (often 0), they will be set to. If this happens, a warning will be
+    raised.
 
     """
-    model = sfp_model.LogGaussianDonut(model_orientation_type, model_eccentricity_type,
-                                       model_vary_amplitude, sigma, sf_ecc_slope, sf_ecc_intercept,
-                                       abs_mode_cardinals, abs_mode_obliques, rel_mode_cardinals,
-                                       rel_mode_obliques, abs_amplitude_cardinals,
-                                       abs_amplitude_obliques, rel_amplitude_cardinals,
-                                       rel_amplitude_obliques)
+    model = sfp_model.LogGaussianDonut(model_period_orientation_type, model_eccentricity_type,
+                                       model_amplitude_orientation_type, sigma, sf_ecc_slope,
+                                       sf_ecc_intercept, abs_mode_cardinals, abs_mode_obliques,
+                                       rel_mode_cardinals,rel_mode_obliques,
+                                       abs_amplitude_cardinals, abs_amplitude_obliques,
+                                       rel_amplitude_cardinals, rel_amplitude_obliques)
     model.eval()
     df = simulate_data(model, num_voxels, noise_level, noise_source_path)
-    df['orientation_type'] = model_orientation_type
+    df['period_orientation_type'] = model_period_orientation_type
     df['eccentricity_type'] = model_eccentricity_type
-    df['vary_amplitude'] = model_vary_amplitude
+    df['amplitude_orientation_type'] = model_amplitude_orientation_type
     if df is not None:
         df.to_csv(save_path, index=False)
     return df
@@ -146,8 +149,9 @@ if __name__ == '__main__':
         formatter_class=CustomFormatter)
     parser.add_argument("save_path",
                         help=("Path (should end in .csv) where we'll save the simulated data"))
-    parser.add_argument("--model_orientation_type", '-o', default='iso',
-                        help=("{iso, absolute, relative, full}\n- iso: model is isotropic, "
+    parser.add_argument("--model_period_orientation_type", '-p', default='iso',
+                        help=("{iso, absolute, relative, full}\nEffect of orientation on "
+                              "preferred period\n- iso: model is isotropic, "
                               "predictions identical for all orientations.\n- absolute: model can"
                               " fit differences in absolute orientation, that is, in Cartesian "
                               "coordinates, such that sf_angle=0 correponds to 'to the right'\n- "
@@ -165,11 +169,16 @@ if __name__ == '__main__':
                               "eccentricity and preferred period, though it is constrained to be"
                               " linear (i.e., model solves for a and b in period = a * "
                               "eccentricity + b)"))
-    parser.add_argument("--model_vary_amplitude", '-v', action="store_true",
-                        help=("Whether to allow the model to fit the parameters that control "
-                              "amplitude as a function of orientation (whether this depends on "
-                              "absolute orientation, relative orientation, or both depends on the"
-                              " value of `model_orientation_type`)"))
+    parser.add_argument("--model_amplitude_orientation_type", '-o', default='iso',
+                        help=("{iso, absolute, relative, full}\nEffect of orientation on "
+                              "max_amplitude\n- iso: model is isotropic, "
+                              "predictions identical for all orientations.\n- absolute: model can"
+                              " fit differences in absolute orientation, that is, in Cartesian "
+                              "coordinates, such that sf_angle=0 correponds to 'to the right'\n- "
+                              "relative: model can fit differences in relative orientation, that "
+                              "is, in retinal polar coordinates, such that sf_angle=0 corresponds"
+                              " to 'away from the fovea'\n- full: model can fit differences in "
+                              "both absolute and relative orientations"))
     parser.add_argument("--num_voxels", '-n', default=100, help="Number of voxels to simulate",
                         type=int)
     parser.add_argument("--sigma", '-s', default=.4, type=float, help="Sigma of log-Normal donut")

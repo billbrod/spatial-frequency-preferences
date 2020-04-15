@@ -32,14 +32,16 @@ ORIG_PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
                                        ['cardinals', 'obliques'])])
 PLOT_PARAM_ORDER = [r'$\sigma$', r'$a$', r'$b$', r'$p_1$', r'$p_2$', r'$p_3$', r'$p_4$', r'$A_1$',
                     r'$A_2$', r'$A_3$', r'$A_4$']
-MODEL_ORDER = ['constant_donut_iso_amps-constant', 'scaling_donut_iso_amps-constant',
-               'full_donut_iso_amps-constant', 'full_donut_absolute_amps-constant',
-               'full_donut_relative_amps-constant', 'full_donut_full_amps-constant',
-               'full_donut_absolute_amps-vary', 'full_donut_relative_amps-vary',
-               'full_donut_full_amps-vary']
+MODEL_ORDER = ['constant_donut_period-iso_amps-iso', 'scaling_donut_period-iso_amps-iso',
+               'full_donut_period-iso_amps-iso', 'full_donut_period-absolute_amps-iso',
+               'full_donut_period-relative_amps-iso', 'full_donut_period-full_amps-iso',
+               'full_donut_period-iso_amps-absolute', 'full_donut_period-iso_amps-relative',
+               'full_donut_period-iso_amps-full', 'full_donut_period-absolute_amps-absolute',
+               'full_donut_period-relative_amps-relative', 'full_donut_period-full_amps-absolute',
+               'full_donut_period-full_amps-relative', 'full_donut_period-full_amps-full']
 # these are the 'prettier names' for plotting
-MODEL_PLOT_ORDER = ['constant iso', 'scaling iso', 'full iso', 'full absolute', 'full relative',
-                    'full full', 'full absolute amps', 'full relative amps', 'full full amps']
+MODEL_PLOT_ORDER = (['constant iso', 'scaling iso', 'full iso'] +
+                    [i.replace('_donut', '').replace('_', ' ') for i in MODEL_ORDER[3:]])
 
 
 def get_order(col, reference_frame=None, col_unique=None):

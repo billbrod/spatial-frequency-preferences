@@ -222,33 +222,42 @@ class FirstLevelDataset(torchdata.Dataset):
         return self.df.voxel.nunique()
 
 
-def _check_log_gaussian_params(param_vals, train_params, orientation_type, eccentricity_type,
-                               vary_amplitude):
-        if orientation_type in ['relative', 'iso']:
-            for param, angle in itertools.product(['mode', 'amplitude'],
-                                                  ['cardinals', 'obliques']):
-                if param_vals['abs_%s_%s' % (param, angle)] != 0:
-                    warnings.warn("When orientation_type is %s, all absolute variables must"
-                                  " be 0, correcting this..." % orientation_type)
-                    param_vals['abs_%s_%s' % (param, angle)] = 0
-                train_params['abs_%s_%s' % (param, angle)] = False
-        if orientation_type in ['absolute', 'iso']:
-            for param, angle in itertools.product(['mode', 'amplitude'],
-                                                  ['cardinals', 'obliques']):
-                if param_vals['rel_%s_%s' % (param, angle)] != 0:
-                    warnings.warn("When orientation_type is %s, all relative variables must"
-                                  " be 0, correcting this..." % orientation_type)
-                    param_vals['rel_%s_%s' % (param, angle)] = 0
-                train_params['rel_%s_%s' % (param, angle)] = False
-        if orientation_type not in ['relative', 'absolute', 'iso', 'full']:
-            raise Exception("Don't know how to handle orientation_type %s!" % orientation_type)
-        if not vary_amplitude:
-            for ori, angle in itertools.product(['abs', 'rel'], ['cardinals', 'obliques']):
-                if param_vals['%s_amplitude_%s' % (ori, angle)] != 0:
-                    warnings.warn("When vary_amplitude is False, all amplitude variables must"
-                                  " be 0, correcting this...")
-                    param_vals['%s_amplitude_%s' % (ori, angle)] = 0
-                train_params['%s_amplitude_%s' % (ori, angle)] = False
+def _check_log_gaussian_params(param_vals, train_params, period_orientation_type,
+                               eccentricity_type, amplitude_orientation_type):
+        if period_orientation_type in ['relative', 'iso']:
+            for angle in ['cardinals', 'obliques']:
+                if param_vals[f'abs_mode_{angle}'] != 0:
+                    warnings.warn(f"When period_orientation_type is {period_orientation_type}, "
+                                  "all absolute variables must be 0, correcting this...")
+                    param_vals[f'abs_mode_{angle}'] = 0
+                train_params[f'abs_mode_{angle}'] = False
+        if period_orientation_type in ['absolute', 'iso']:
+            for angle in ['cardinals', 'obliques']:
+                if param_vals[f'rel_mode_{angle}'] != 0:
+                    warnings.warn(f"When period_orientation_type is {period_orientation_type}, "
+                                  "all relative variables must be 0, correcting this...")
+                    param_vals[f'rel_mode_{angle}'] = 0
+                train_params[f'rel_mode_{angle}'] = False
+        if period_orientation_type not in ['relative', 'absolute', 'iso', 'full']:
+            raise Exception("Don't know how to handle period_orientation_type "
+                            f"{period_orientation_type}!")
+        if amplitude_orientation_type in ['relative', 'iso']:
+            for angle in ['cardinals', 'obliques']:
+                if param_vals[f'abs_amplitude_{angle}'] != 0:
+                    warnings.warn(f"When amplitude_orientation_type is {amplitude_orientation_type}, "
+                                  "all absolute variables must be 0, correcting this...")
+                    param_vals[f'abs_amplitude_{angle}'] = 0
+                train_params[f'abs_amplitude_{angle}'] = False
+        if amplitude_orientation_type in ['absolute', 'iso']:
+            for angle in ['cardinals', 'obliques']:
+                if param_vals[f'rel_amplitude_{angle}'] != 0:
+                    warnings.warn(f"When amplitude_orientation_type is {amplitude_orientation_type}, "
+                                  "all relative variables must be 0, correcting this...")
+                    param_vals[f'rel_amplitude_{angle}'] = 0
+                train_params[f'rel_amplitude_{angle}'] = False
+        if amplitude_orientation_type not in ['relative', 'absolute', 'iso', 'full']:
+            raise Exception("Don't know how to handle amplitude_orientation_type "
+                            f"{amplitude_orientation_type}!")
         if eccentricity_type == 'scaling':
             if param_vals['sf_ecc_intercept'] != 0:
                 warnings.warn("When eccentricity_type is scaling, sf_ecc_intercept must be 0! "
@@ -272,26 +281,33 @@ class LogGaussianDonut(torch.nn.Module):
     orientation_type, eccentricity_type, vary_amplitude: together specify what
     kind of model to train
 
-    orientation_type: {iso, absolute, relative, full}.
-    - iso: model is isotropic, predictions identical for all orientations.
-    - absolute: model can fit differences in absolute orientation, that is, in Cartesian
-      coordinates, such that sf_angle=0 correponds to "to the right"
-    - relative: model can fit differences in relative orientation, that is, in retinal polar
-      coordinates, such that sf_angle=0 corresponds to "away from the fovea"
-    - full: model can fit differences in both absolute and relative orientations
+    period_orientation_type: {iso, absolute, relative, full}.
+        How we handle the effect of orientation on preferred period:
+        - iso: model is isotropic, predictions identical for all orientations.
+        - absolute: model can fit differences in absolute orientation, that is, in Cartesian
+          coordinates, such that sf_angle=0 correponds to "to the right"
+        - relative: model can fit differences in relative orientation, that is, in retinal polar
+          coordinates, such that sf_angle=0 corresponds to "away from the fovea"
+        - full: model can fit differences in both absolute and relative orientations
 
     eccentricity_type: {scaling, constant, full}.
-    - scaling: model's relationship between preferred period and eccentricity is exactly scaling,
-      that is, the preferred period is equal to the eccentricity.
-    - constant: model's relationship between preferred period and eccentricity is exactly constant,
-      that is, it does not change with eccentricity but is flat.
-    - full: model discovers the relationship between eccentricity and preferred period, though it
-      is constrained to be linear (i.e., model solves for a and b in $period = a * eccentricity +
-      b$)
+        How we handle the effect of eccentricity on preferred period
+        - scaling: model's relationship between preferred period and eccentricity is exactly scaling,
+          that is, the preferred period is equal to the eccentricity.
+        - constant: model's relationship between preferred period and eccentricity is exactly constant,
+          that is, it does not change with eccentricity but is flat.
+        - full: model discovers the relationship between eccentricity and preferred period, though it
+          is constrained to be linear (i.e., model solves for a and b in $period = a * eccentricity +
+          b$)
 
-    vary_amplitude: boolean. whether to allow the model to fit the parameters that control
-    amplitude as a function of orientation (whether this depends on absolute orientation, relative
-    orientation, or both depends on the value of `orientation_type`)
+    amplitude_orientation_type: {iso, absolute, relative, full}.
+        How we handle the effect of orientation on maximum amplitude:
+        - iso: model is isotropic, predictions identical for all orientations.
+        - absolute: model can fit differences in absolute orientation, that is, in Cartesian
+          coordinates, such that sf_angle=0 correponds to "to the right"
+        - relative: model can fit differences in relative orientation, that is, in retinal polar
+          coordinates, such that sf_angle=0 corresponds to "away from the fovea"
+        - full: model can fit differences in both absolute and relative orientations
 
     all other parameters are initial values. whether they will be fit or not (i.e., whether they
     have `requires_grad=True`) depends on the values of `orientation_type`, `eccentricity_type` and
@@ -303,11 +319,11 @@ class LogGaussianDonut(torch.nn.Module):
     call it with the absolute orientation.
 
     """
-    def __init__(self, orientation_type='iso', eccentricity_type='full', vary_amplitude=True,
-                 sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0, abs_mode_cardinals=0,
-                 abs_mode_obliques=0, rel_mode_cardinals=0, rel_mode_obliques=0,
-                 abs_amplitude_cardinals=0, abs_amplitude_obliques=0, rel_amplitude_cardinals=0,
-                 rel_amplitude_obliques=0):
+    def __init__(self, period_orientation_type='iso', eccentricity_type='full',
+                 amplitude_orientation_type='iso', sigma=.4, sf_ecc_slope=1, sf_ecc_intercept=0,
+                 abs_mode_cardinals=0, abs_mode_obliques=0, rel_mode_cardinals=0,
+                 rel_mode_obliques=0, abs_amplitude_cardinals=0, abs_amplitude_obliques=0,
+                 rel_amplitude_cardinals=0, rel_amplitude_obliques=0):
         super().__init__()
         train_kwargs = {}
         kwargs = {}
@@ -318,15 +334,16 @@ class LogGaussianDonut(torch.nn.Module):
         for var in ['slope', 'intercept']:
             train_kwargs['sf_ecc_%s' % var] = True
             kwargs['sf_ecc_%s' % var] = eval("sf_ecc_%s" % var)
-        kwargs, train_kwargs = _check_log_gaussian_params(kwargs, train_kwargs, orientation_type,
-                                                          eccentricity_type, vary_amplitude)
+        kwargs, train_kwargs = _check_log_gaussian_params(kwargs, train_kwargs,
+                                                          period_orientation_type,
+                                                          eccentricity_type,
+                                                          amplitude_orientation_type)
 
-        self.orientation_type = orientation_type
-        amp_vary_label = {False: 'constant', True: 'vary'}[vary_amplitude]
+        self.period_orientation_type = period_orientation_type
+        self.amplitude_orientation_type = amplitude_orientation_type
         self.eccentricity_type = eccentricity_type
-        self.vary_amplitude = vary_amplitude
-        self.model_type = '%s_donut_%s_amps-%s' % (eccentricity_type, orientation_type,
-                                                   amp_vary_label)
+        self.model_type = (f'{eccentricity_type}_donut_period-{period_orientation_type}_'
+                           f'amps-{amplitude_orientation_type}')
         self.sigma = _cast_as_param(sigma)
 
         self.abs_amplitude_cardinals = _cast_as_param(kwargs['abs_amplitude_cardinals'],
@@ -369,11 +386,9 @@ class LogGaussianDonut(torch.nn.Module):
         # so our re.findall will work as expected
         model_name_map = dict(zip(plotting.MODEL_PLOT_ORDER, plotting.MODEL_ORDER))
         fit_model_type = model_name_map.get(fit_model_type[0], fit_model_type[0])
-        parse_string = r'([a-z]+)_donut_([a-z]+)_amps-([a-z]+)'
-        eccentricity_type, orientation_type, amp_vary_label = re.findall(parse_string,
-                                                                         fit_model_type)[0]
-        return cls(orientation_type, eccentricity_type,
-                   {'vary': True, 'constant': False}[amp_vary_label], **params)
+        parse_string = r'([a-z]+)_donut_period-([a-z]+)_amps-([a-z]+)'
+        ecc, period, amps = re.findall(parse_string, fit_model_type)[0]
+        return cls(period, ecc, amps, **params)
 
     def __str__(self):
         # so we can see the parameters
@@ -874,29 +889,37 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
          bootstrap_num=None, save_path_stem="pytorch", loss_func=weighted_normed_loss):
     """create, train, and save a model on the given first_level_results dataframe
 
-    model_orientation_type, model_eccentricity_type, model_vary_amplitude: together specify what
-    kind of model to train
+    model_period_orientation_type, model_eccentricity_type,
+    model_amplitude_orientation_type: together specify what kind of
+    model to train
 
-    model_orientation_type: {iso, absolute, relative, full}.
-    - iso: model is isotropic, predictions identical for all orientations.
-    - absolute: model can fit differences in absolute orientation, that is, in Cartesian
-      coordinates, such that sf_angle=0 correponds to "to the right"
-    - relative: model can fit differences in relative orientation, that is, in retinal polar
-      coordinates, such that sf_angle=0 corresponds to "away from the fovea"
-    - full: model can fit differences in both absolute and relative orientations
+    model_period_orientation_type: {iso, absolute, relative, full}.
+        How we handle the effect of orientation on preferred period:
+        - iso: model is isotropic, predictions identical for all orientations.
+        - absolute: model can fit differences in absolute orientation, that is, in Cartesian
+          coordinates, such that sf_angle=0 correponds to "to the right"
+        - relative: model can fit differences in relative orientation, that is, in retinal polar
+          coordinates, such that sf_angle=0 corresponds to "away from the fovea"
+        - full: model can fit differences in both absolute and relative orientations
 
     model_eccentricity_type: {scaling, constant, full}.
-    - scaling: model's relationship between preferred period and eccentricity is exactly scaling,
-      that is, the preferred period is equal to the eccentricity.
-    - constant: model's relationship between preferred period and eccentricity is exactly constant,
-      that is, it does not change with eccentricity but is flat.
-    - full: model discovers the relationship between eccentricity and preferred period, though it
-      is constrained to be linear (i.e., model solves for a and b in $period = a * eccentricity +
-      b$)
+        How we handle the effect of eccentricity on preferred period
+        - scaling: model's relationship between preferred period and eccentricity is exactly scaling,
+          that is, the preferred period is equal to the eccentricity.
+        - constant: model's relationship between preferred period and eccentricity is exactly constant,
+          that is, it does not change with eccentricity but is flat.
+        - full: model discovers the relationship between eccentricity and preferred period, though it
+          is constrained to be linear (i.e., model solves for a and b in $period = a * eccentricity +
+          b$)
 
-    model_vary_amplitude: boolean. whether to allow the model to fit the parameters that control
-    amplitude as a function of orientation (whether this depends on absolute orientation, relative
-    orientation, or both depends on the value of `model_orientation_type`)
+    model_amplitude_orientation_type: {iso, absolute, relative, full}.
+        How we handle the effect of orientation on maximum amplitude:
+        - iso: model is isotropic, predictions identical for all orientations.
+        - absolute: model can fit differences in absolute orientation, that is, in Cartesian
+          coordinates, such that sf_angle=0 correponds to "to the right"
+        - relative: model can fit differences in relative orientation, that is, in retinal polar
+          coordinates, such that sf_angle=0 corresponds to "away from the fovea"
+        - full: model can fit differences in both absolute and relative orientations
 
     first_level_results_path: str. Path to the first level results dataframe containing the data to
     fit.
@@ -933,8 +956,8 @@ def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
     # they will probably be small, so we use a max of 1 (things get weird when the orientation
     # effect parameters get too large).
     param_inits = np.random.uniform(0, 1, 11)
-    model = LogGaussianDonut(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
-                             *param_inits)
+    model = LogGaussianDonut(model_period_orientation_type, model_eccentricity_type,
+                             model_amplitude_orientation_type, *param_inits)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.device_count() > 1 and batch_size > torch.cuda.device_count():
         model = torch.nn.DataParallel(model)
@@ -1036,8 +1059,9 @@ if __name__ == '__main__':
         formatter_class=CustomFormatter,
         description=("Load in the first level results Dataframe and train a 2d tuning model on it"
                      ". Will save the model parameters and loss information."))
-    parser.add_argument("model_orientation_type",
-                        help=("{iso, absolute, relative, full}\n- iso: model is isotropic, "
+    parser.add_argument("model_period_orientation_type",
+                        help=("{iso, absolute, relative, full}\nEffect of orientation on "
+                              "preferred period\n- iso: model is isotropic, "
                               "predictions identical for all orientations.\n- absolute: model can"
                               " fit differences in absolute orientation, that is, in Cartesian "
                               "coordinates, such that sf_angle=0 correponds to 'to the right'\n- "
@@ -1055,11 +1079,16 @@ if __name__ == '__main__':
                               "eccentricity and preferred period, though it is constrained to be"
                               " linear (i.e., model solves for a and b in period = a * "
                               "eccentricity + b)"))
-    parser.add_argument("--model_vary_amplitude", '-v', action="store_true",
-                        help=("Whether to allow the model to fit the parameters that control "
-                              "amplitude as a function of orientation (whether this depends on "
-                              "absolute orientation, relative orientation, or both depends on the"
-                              " value of `model_orientation_type`)"))
+    parser.add_argument("--model_amplitude_orientation_type",
+                        help=("{iso, absolute, relative, full}\nEffect of orientation on "
+                              "max_amplitude\n- iso: model is isotropic, "
+                              "predictions identical for all orientations.\n- absolute: model can"
+                              " fit differences in absolute orientation, that is, in Cartesian "
+                              "coordinates, such that sf_angle=0 correponds to 'to the right'\n- "
+                              "relative: model can fit differences in relative orientation, that "
+                              "is, in retinal polar coordinates, such that sf_angle=0 corresponds"
+                              " to 'away from the fovea'\n- full: model can fit differences in "
+                              "both absolute and relative orientations"))
     parser.add_argument("first_level_results_path",
                         help=("Path to the first level results dataframe containing the data to "
                               "fit."))

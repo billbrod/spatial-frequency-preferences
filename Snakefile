@@ -57,9 +57,11 @@ WRONG_TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-TASK',
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
          ('sub-wlsubj045', 'ses-04'): 7}
 VAREAS = [1]
-MODEL_TYPES = ['iso_constant_constant', 'iso_scaling_constant', 'iso_full_constant',
-               'absolute_full_constant', 'relative_full_constant', 'full_full_constant',
-               'absolute_full_vary', 'relative_full_vary', 'full_full_vary']
+MODEL_TYPES = ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso',
+               'absolute_full_iso', 'relative_full_iso', 'full_full_iso',
+               'iso_full_absolute', 'iso_full_relative', 'iso_full_full',
+               'full_full_absolute', 'full_full_relative',
+               'absolute_full_absolute', 'relative_full_relative', 'full_full_full']
 def get_n_classes(session, mat_type):
     if mat_type == 'all_visual':
         return 1
@@ -115,9 +117,9 @@ wildcard_constraints:
     binning="[a-z_]+bin",
     stimulus_class="([0-9,]+|None)",
     bootstrap_num="([0-9,]+|None)",
-    orientation_type="[a-z-]+",
+    period_orientation_type="[a-z-]+",
     eccentricity_type="[a-z-]+",
-    train_amps="[a-z-]+",
+    amplitude_orientation_type="[a-z-]+",
     model_type="[a-z-_]+",
     crossval_seed="[0-9]+",
     gpus="[0-9]+"
@@ -223,10 +225,10 @@ rule model_all_subj_bootstrap:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
-                     "v1_e1-12_full_b10_r0.001_g0_full_full_vary_all_models.csv"),
+                     "v1_e1-12_full_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
-                     "v1_e1-12_full_b10_r0.001_g0_absolute_full_vary_all_models.csv"),
+                     "v1_e1-12_full_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
     
 
 
@@ -234,7 +236,7 @@ rule model_all_subj_visual_field:
     input:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                       "bayesian_posterior", "visual_field_%s" % p,
-                      "v1_e1-12_summary_b10_r0.001_g0_full_full_vary_all_models.csv") for p in
+                      "v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv") for p in
          ['upper', 'lower', 'left', 'right', 'inner', 'outer']],
 
 
@@ -242,10 +244,10 @@ rule model_all_subj:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                     "v1_e1-12_summary_b10_r0.001_g0_full_full_vary_all_models.csv"),
+                     "v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                     "v1_e1-12_summary_b10_r0.001_g0_absolute_full_vary_all_models.csv"),
+                     "v1_e1-12_summary_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
 
 
 rule model_all_subj_cv:
@@ -1159,15 +1161,6 @@ rule tuning_curves_summary_plot:
         " --subject {params.subjects} --task {params.tasks} --session {params.sessions}"
 
 
-def parse_train_amps(wildcards):
-    if wildcards.train_amps == 'vary':
-        return '-v'
-    elif wildcards.train_amps == 'constant':
-        return ''
-    else:
-        raise Exception("train_amps must be either 'vary' or 'constant'!")
-
-
 def to_log_or_not(wildcards):
     """we only log directly if we're not on the cluster, otherwise we trust the cluster to handle it
     """
@@ -1190,13 +1183,13 @@ rule model:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_model_history.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_model.pt"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_model_history.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}", "{modeling_goal}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_model.pt"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_n{bootstrap_num}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}-%j.log")
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 1),
@@ -1206,12 +1199,11 @@ rule model:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
         stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
         bootstrap_num = lambda wildcards: wildcards.bootstrap_num.split(','),
-        train_amps = parse_train_amps,
         logging = to_log_or_not,
         vis_field = visual_field_part,
     shell:
-        "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
-        "{params.train_amps} {input} {params.save_stem} -b "
+        "python -m sfp.model {wildcards.period_orientation_type} {wildcards.eccentricity_type} "
+        "{wildcards.amplitude_orientation_type} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
         "drop_voxels_with_negative_amplitudes,drop_voxels_near_border{params.vis_field} -t 1e-6 -e"
         " 1000 -c {params.stimulus_class} -n {params.bootstrap_num} {params.logging} {log}"
@@ -1451,18 +1443,16 @@ rule gather_model_results:
 
 rule simulate_data_uniform_noise:
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-uniform', 'n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-uniform', 'n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-uniform_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-uniform_n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-uniform_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}-%j.log')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-uniform_n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}-%j.log')
     resources:
         mem=10
-    params:
-        train_amps = parse_train_amps
     shell:
-        "python -m sfp.simulate_data {output} -o {wildcards.orientation_type} -e {wildcards.eccentricity_type} "
-        "{params.train_amps} -n {wildcards.num_voxels} -s {wildcards.sigma} "
+        "python -m sfp.simulate_data {output} -p {wildcards.period_orientation_type} -e {wildcards.eccentricity_type} "
+        "-o {wildcards.amplitude_orientation_type} -n {wildcards.num_voxels} -s {wildcards.sigma} "
         "-a {wildcards.sf_ecc_slope} -rmc {wildcards.rel_mode_cardinals} -rmo "
         "{wildcards.rel_mode_obliques} -rac {wildcards.rel_amplitude_cardinals} -rao "
         "{wildcards.rel_amplitude_obliques} -amc {wildcards.abs_mode_cardinals} -amo "
@@ -1474,18 +1464,16 @@ rule simulate_data_voxel_noise:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_{orientation_type}_{eccentricity_type}_{train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}-%j.log')
+        os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}-%j.log')
     resources:
         mem=10
-    params:
-        train_amps = parse_train_amps
     shell:
-        "python -m sfp.simulate_data {output} -o {wildcards.orientation_type} -e {wildcards.eccentricity_type} "
-        "{params.train_amps} -n {wildcards.num_voxels} -s {wildcards.sigma} "
+        "python -m sfp.simulate_data {output} -p {wildcards.period_orientation_type} -e {wildcards.eccentricity_type} "
+        "-o {wildcards.amplitude_orientation_type} -n {wildcards.num_voxels} -s {wildcards.sigma} "
         "-a {wildcards.sf_ecc_slope} -rmc {wildcards.rel_mode_cardinals} -rmo "
         "{wildcards.rel_mode_obliques} -rac {wildcards.rel_amplitude_cardinals} -rao "
         "{wildcards.rel_amplitude_obliques} -amc {wildcards.abs_mode_cardinals} -amo "
@@ -1496,15 +1484,15 @@ rule simulate_data_voxel_noise:
 
 rule model_simulated_data:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{noise_source}', 'n{num_voxels}_{sim_orientation_type}_{sim_eccentricity_type}_{sim_train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{noise_source}', 'n{num_voxels}_{sim_period_orientation_type}_{sim_eccentricity_type}_{sim_amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "{modeling_goal}", "n{num_voxels}_{sim_orientation_type}_{sim_eccentricity_type}_{sim_train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_loss.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "{modeling_goal}", "n{num_voxels}_{sim_orientation_type}_{sim_eccentricity_type}_{sim_train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_model_history.csv"),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "{modeling_goal}", "n{num_voxels}_{sim_orientation_type}_{sim_eccentricity_type}_{sim_train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_model.pt"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "{modeling_goal}", "n{num_voxels}_{sim_period_orientation_type}_{sim_eccentricity_type}_{sim_amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "{modeling_goal}", "n{num_voxels}_{sim_period_orientation_type}_{sim_eccentricity_type}_{sim_amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_model_history.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "noise-{noise_source}", "{modeling_goal}", "n{num_voxels}_{sim_period_orientation_type}_{sim_eccentricity_type}_{sim_amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_model.pt"),
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_simulated', 'noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_orientation_type}_{sim_eccentricity_type}_{sim_train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_simulated', 'noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_period_orientation_type}_{sim_eccentricity_type}_{sim_amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_benchmark.txt')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_simulated', 'noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_orientation_type}_{sim_eccentricity_type}_{sim_train_amps}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{orientation_type}_{eccentricity_type}_{train_amps}-%j.log')
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_simulated', 'noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_period_orientation_type}_{sim_eccentricity_type}_{sim_amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_b{batch_size}_r{learning_rate}_g{gpus}_c{stimulus_class}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}-%j.log')
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 1),
@@ -1513,11 +1501,10 @@ rule model_simulated_data:
     params:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
         stimulus_class = lambda wildcards: wildcards.stimulus_class.split(','),
-        train_amps = parse_train_amps,
         logging = to_log_or_not,
     shell:
-        "python -m sfp.model {wildcards.orientation_type} {wildcards.eccentricity_type} "
-        "{params.train_amps} {input} {params.save_stem} -b {wildcards.batch_size} "
+        "python -m sfp.model {wildcards.period_orientation_type} {wildcards.eccentricity_type} "
+        "{wildcards.amplitude_orientation_type} {input} {params.save_stem} -b {wildcards.batch_size} "
         "-r {wildcards.learning_rate} -d None -t 1e-6 -e 1000 -c {params.stimulus_class} "
         "{params.logging} {log}"
 
@@ -1527,23 +1514,23 @@ def gather_simulated_model_results_input(wildcards):
     if wildcards.modeling_goal == 'learning_hyperparams_full':
         batch = [1, 10, 100]
         lr = [1e-2, 1e-3, 1e-4]
-        models = ['iso_full_constant', 'full_full_vary']
+        models = ['iso_full_iso', 'full_full_full']
         loss_files = []
         for b, l, m  in itertools.product(batch, lr, models):
             loss_files.append(get_simulated_model_outputs(
-                m, 'iso_full_constant', 1, 4000, b, l, 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0,
+                m, 'iso_full_iso', 1, 4000, b, l, 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0,
                 **wildcards))
             loss_files.append(get_simulated_model_outputs(
-                m, 'full_full_vary', 1, 4000, b, l, 1, .75, .25, .1, .05, .03, .1, .2, .05, .04,
+                m, 'full_full_full', 1, 4000, b, l, 1, .75, .25, .1, .05, .03, .1, .2, .05, .04,
                 .3, **wildcards))
     elif wildcards.modeling_goal == 'model_recovery':
         loss_files = []
         for m  in MODEL_TYPES:
             loss_files.append(get_simulated_model_outputs(
-                m, 'iso_full_constant', 1, 4000, 10, 1e-3, 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0,
+                m, 'iso_full_iso', 1, 4000, 10, 1e-3, 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0,
                 **wildcards))
             loss_files.append(get_simulated_model_outputs(
-                m, 'full_full_vary', 1, 4000, 10, 1e-3, 1, .75, .25, .1, .05, .03, .1, .2, .05,
+                m, 'full_full_full', 1, 4000, 10, 1e-3, 1, .75, .25, .1, .05, .03, .1, .2, .05,
                 .04, .3, **wildcards))
     # this will return a list of lists of strings, so we need to flatten it
     inputs['loss_files'] = np.array(loss_files).flatten()
@@ -1682,8 +1669,8 @@ def get_simulated_cv_summary(batch_size, learning_rate, noise_source, crossval_s
     output_path = output_path.format(batch_size=batch_size, learning_rate=learning_rate,
                                      gpus=gpus, modeling_goal=modeling_goal,
                                      noise_source=noise_source, crossval_seed=crossval_seed)
-    models = [['iso_full_constant', 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0],
-              ['full_full_vary', 1, .75, .25, .1, .05, .03, .1, .2, .05, .04, .03]]
+    models = [['iso_full_iso', 1, .75, .25, 0, 0, 0, 0, 0, 0, 0, 0],
+              ['full_full_full', 1, .75, .25, .1, .05, .03, .1, .2, .05, .04, .03]]
     return [output_path.format(sim_model_type=m, sigma=s, sf_ecc_slope=a, sf_ecc_intercept=b,
                                rel_mode_cardinals=rmc, rel_mode_obliques=rmo,
                                rel_amplitude_cardinals=rac, rel_amplitude_obliques=rao,
@@ -1893,7 +1880,7 @@ def get_loss_files(wildcards):
                          if TASKS[(sub, ses)] == wildcards.task]).flatten()
     elif wildcards.modeling_goal == 'bootstrap':
         return np.array([get_model_subj_outputs(m, sub, ses, bootstrap_num=n, **wildcards)
-                         for n in range(100) for m in ['full_full_vary', 'absolute_full_vary']
+                         for n in range(100) for m in ['full_full_full', 'absolute_full_absolute']
                          for sub in SUBJECTS for ses in SESSIONS[sub]
                          if TASKS[(sub, ses)] == wildcards.task]).flatten()
 
@@ -2222,26 +2209,26 @@ rule figures:
          for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                     'model-remeaned', 'model_point-remeaned', 'raw-nc']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-all_{}_task-sfprescaled.pdf').format(model, kind)
-         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_vary', 'absolute_full_vary']],
+         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'absolute_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-{}_{}_task-sfprescaled.pdf').format(model, vf, kind)
-        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_vary', 'absolute_full_vary']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_vary_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'absolute_full_absolute']],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_full_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
          for vf in ['vertical', 'horizontal', 'eccen']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'absolute_full_vary_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'absolute_full_absolute_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
         #  for vf in ['vertical', 'horizontal', 'eccen']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(model, kind, angles, frame)
          for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
-         for model in ['full_full_vary', 'absolute_full_vary']],
+         for model in ['full_full_full', 'absolute_full_absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(model, feature, kind, frame)
          for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
          for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
-         for model in ['full_full_vary', 'absolute_full_vary']],
+         for model in ['full_full_full', 'absolute_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(model, vf, angles, frame)
         #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
-        #  for model in ['full_full_vary', 'absolute_full_vary']],
+        #  for model in ['full_full_full', 'absolute_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(model, vf, feature, frame)
         #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-        #  for frame in ['relative', 'absolute'] for model in ['full_full_vary', 'absolute_full_vary']],
+        #  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'absolute_full_absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic_{}.pdf').format(kind)
          for kind in ['2d', 'models', '2d-inputs']],
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'background_period.pdf'),

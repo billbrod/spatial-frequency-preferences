@@ -1193,7 +1193,6 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
     above_thresh = df.groupby(['subject', 'fit_model_type', hue]).loss.median()
     above_thresh = above_thresh.reset_index().query('loss > @thresh')
     if len(above_thresh) > 0:
-        print('text!')
         g.fig.text(1.01, .5, ("Probable local optima (median last epoch training loss > "
                               f"{thresh}):\n" + str(above_thresh)))
     g.fig.suptitle("Last epoch median training loss (with 68% CI across batches) on each CV fold")
