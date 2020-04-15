@@ -25,6 +25,7 @@ dependencies:
   - nibabel
   - scikit-learn
   - snakemake>=5.4
+  - tqdm
   - pip:
       - pybids >= 0.7.0
       - neuropythy >= 0.9.0

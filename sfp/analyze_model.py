@@ -18,6 +18,7 @@ import itertools
 import warnings
 from torch.utils import data as torchdata
 from . import model as sfp_model
+from tqdm import tqdm
 
 
 def load_LogGaussianDonut(save_path_stem):
@@ -568,6 +569,10 @@ def collect_final_loss(paths):
     some metadata by parsing the path, and then concatenate and return
     the resulting df
 
+    Note that the assumed use here is collecting the loss.csv files
+    created by the different folds of cross-validation, but we don't
+    explicitly check for that and so this maybe useful in other contexts
+
     Parameters
     ----------
     paths : list
@@ -582,7 +587,11 @@ def collect_final_loss(paths):
 
     """
     df = []
-    for p in paths:
+    print(f"Loading in {len(paths)} total paths")
+    pbar = tqdm(range(len(paths)))
+    for i in pbar:
+        p = paths[i]
+        pbar.set_postfix(path=os.path.split(p)[-1])
         tmp = pd.read_csv(p)
         last_epoch = tmp.epoch_num.unique().max()
         tmp = tmp.query("epoch_num == @last_epoch")
