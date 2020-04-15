@@ -48,10 +48,10 @@ def get_order(col, reference_frame=None, col_unique=None):
     if col == 'stimulus_type':
         return stimulus_type_order(reference_frame)
     elif col == 'fit_model_type':
-        if 'constant iso' in col_unique:
-            return MODEL_PLOT_ORDER
+        if any([i in col_unique for i in MODEL_PLOT_ORDER]):
+            return [i for i in MODEL_PLOT_ORDER if i in col_unique]
         else:
-            return MODEL_ORDER
+            return [i for i in MODEL_ORDER if i in col_unique]
     elif col == 'model_parameter':
         if col_unique is not None and 'sigma' in col_unique:
             return ORIG_PARAM_ORDER
