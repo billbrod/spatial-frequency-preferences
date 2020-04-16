@@ -155,13 +155,18 @@ def plot_amplitudes(x, y, amplitudes, hemi, plot_content, prf_space, class_num=0
         # thus want the x values to be negative. need to copy this
         # otherwise we mess up the prior_x array
         x = x.copy() * -1
-    if vmin is None:
-        vmin = amplitudes[:, class_num].min()
-    if vmax is None:
-        vmax = amplitudes[:, class_num].max()
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(7.5, 7.5), subplot_kw={'aspect': 1})
-    sc = ax.scatter(x, y, c=amplitudes[:, class_num], alpha=.5, cmap='RdBu',
+    amplitudes = amplitudes[:, class_num]
+    # there may be some NaNs, don't plot those
+    x = x[~np.isnan(amplitudes)]
+    y = y[~np.isnan(amplitudes)]
+    amplitudes = amplitudes[~np.isnan(amplitudes)]
+    if vmin is None:
+        vmin = amplitudes.min()
+    if vmax is None:
+        vmax = amplitudes.max()
+    sc = ax.scatter(x, y, c=amplitudes, alpha=.5, cmap='RdBu',
                     norm=MidpointNormalize(vmin, vmax, 0))
     ax.set_title(f'{hemi}, {prf_space}-space: {plot_content} amplitude \n estimates for '
                  f'class {class_num} projected onto visual field')
@@ -593,6 +598,64 @@ def interpolate_GLMdenoise_to_fsaverage_prior(freesurfer_sub, prf_props, save_st
     return interpolated_all
 
 
+def check_nans(subjects):
+    """handle NaNs in subjects
+
+    `compute_groupaverage` handles NaNs well: it ignores them when
+    computing the weighted average across subjects. however, there will
+    be some voxels that are NaNs in all, or almost all, subjects. For
+    those voxels, we just want to ignore them completely.
+
+    we find those voxels that have NaNs in more than half of the
+    subjects and replace all their values with NaNs. this means they
+    will also be NaNs in the groupaverage (and will need to be ignored
+    later on).
+
+    we also double-check that any voxel that has NaN values has NaN
+    values for all bootstraps, all classes (in a given subject), because
+    NaNs should only show up because of the interpolation. We raise an
+    Exception if this is not true
+
+    Parameters
+    ----------
+    subjects : np.array
+        an array with shape (subjects, bootstraps, classes, voxels),
+        contains the interpolated amplitude estimates for several
+        subjects (assumed to be restricted to a single visual area, but
+        this probably works for any)
+
+    Returns
+    -------
+    subjects : np.array
+        The subjects array, same shape as before, modified as described
+        above: with some extra np.nan inserted
+    okay_idx : array
+        a 1d boolean array with length equal to `subjects.shape[-1]`,
+        contains a True for the voxels we did not modify
+
+    """
+    # this is the total number of beta values / amplitude estimates that
+    # a single voxel will have: 1 per bootstrap per class
+    n_betas = subjects.shape[1] * subjects.shape[2]
+    # sum over subjects, bootstraps, and classes
+    nans = np.isnan(subjects).sum((0, 1, 2))
+    # by dividing by n_betas, the values here will show how many
+    # subjects have al NaNs at that voxel
+    nan_nums = nans / n_betas
+    # do a quick check here: voxels should either have all or no NaNs,
+    # not e.g., half NaNs
+    if (nan_nums.astype(int) != nan_nums).any():
+        raise Exception("There are voxels that have some NaNs after interpolation, which "
+                        "shouldn't be the case. All voxels should have either all or no NaNs")
+    # find those voxels where more than half of the subjects have NaNs
+    drop_idx = np.where(nan_nums > (subjects.shape[0] / 2))[0]
+    # and fill them completely with NaNs, so we ignore them
+    subjects[..., drop_idx] = np.nan
+    idx = np.ones_like(nans).astype(bool)
+    idx[drop_idx] = False
+    return subjects, idx
+
+
 def compute_groupaverage(interpolated_models, save_stem, seed=None, plot_class=0, plot_bootstrap=0,
                          target_varea=1):
     """Computer sub-groupaverage from interpolated GLMdenoise outputs
@@ -621,12 +684,13 @@ def compute_groupaverage(interpolated_models, save_stem, seed=None, plot_class=0
     5. Create some plots to help check that these look reasonable, then
        save these in a hdf5 file that looks like the GLMdenoise output
        (and so looks like the whole brain, though it will contain 0s
-       everywhere else)
+       everywhere else) (the file has a .mat extension because that's
+       what the next steps expect; a .mat file is atually a hdf5 file)
 
     The outputs will be saved at:
 
-    - save_stem+"_results.hdf5": GLMdenoise-like hdf5 file for
-      sub-groupaverage with this bootstrap
+    - save_stem+"_results.mat": GLMdenoise-like hdf5 file for
+      sub-groupaverage with this bootstrap.
 
     - save_stem+"_b{plot_bootstrap}_c{plot_class}_models.png": figure
       showing the amplitude estimates for a single bootstrap of a single
@@ -668,7 +732,7 @@ def compute_groupaverage(interpolated_models, save_stem, seed=None, plot_class=0
         # then these are a list of paths to the hdf5 files
         subjects = []
         for p in interpolated_models:
-            with h5py.File(path.format(95, interp), 'r') as f:
+            with h5py.File(p, 'r') as f:
                 # and squeeze and restirct to our target varea
                 subjects.append(f['results']['models'][:].squeeze()[..., varea_idx])
         subjects = np.stack(subjects)
@@ -682,13 +746,38 @@ def compute_groupaverage(interpolated_models, save_stem, seed=None, plot_class=0
     # subjects now has shape (subject, bootstraps, classes, target varea
     # voxels), so we take the precision (inverse of variance) across
     # bootstraps so we have one per voxel per class per subject, then
-    # average across voxels and classes so we have one per subject
-    precision = _precision_dist(subjects, 1).mean((-1, -2))
+    # average across voxels and classes so we have one per subject. we
+    # use nanmean because there may be some NaNs (places where linear
+    # interpolate couldn't reasonably place values, i.e. extrapolated
+    # values)
+    precision = np.nanmean(_precision_dist(subjects, 1), (-1, -2))
     # bootstrap: choose (with replacement and with uniform
     # probabilities) n subjects, where n is the number of subjects we
     # have
     choice_idx = np.random.choice(range(len(precision)), len(precision))
-    models_tmp = np.average(subjects[choice_idx], 0, precision[choice_idx])
+    # we may have NaNs in subjects, depending on the
+    # interpolation. First, we find those voxels where more than half of
+    # the subjects have NaNs, then fill them completely with NaNs (this
+    # effectively means we ignore them; it would be easier to drop them,
+    # but then things get weird when we reinsert them into the whole
+    # brain array)
+    subjects, okay_idx = check_nans(subjects)
+    # then we do the weighted average, ignoring NaNs. This comes from
+    # https://stackoverflow.com/a/35758345 (normal np.nanmean can't be
+    # weighted)
+    masked_subjects = np.ma.masked_array(subjects, np.isnan(subjects))
+    tmp = np.ma.average(masked_subjects[choice_idx], axis=0, weights=precision[choice_idx])
+    # this converts it back to a non-masked array, but there shouldn't
+    # be any NaNs. this can get messed up if we do it in place, so make
+    # sure to assign the output to a new variable
+    models_tmp = tmp.filled(np.nan)
+    # we check to make sure that there are no NaNs in the okay voxels
+    # (those that we didn't cast to all nans in the check_nans
+    # call). This can happen if you don't have enough subjects. at the
+    # extreme, if you have two subjects and choice_idx is the same
+    # number repeated (e.g., [0, 0]), then this will be True
+    if np.isnan(models_tmp[..., okay_idx]).any():
+        raise Exception("Somehow we have NaNs after the weighted average")
     modelmd_tmp = np.median(models_tmp, 0)
     modelse_tmp = np.diff(np.percentile(models_tmp, [16, 84], 0), axis=0) / 2
     # this is the shape we want to save it as: (bootstraps, classes, 1,
@@ -711,7 +800,7 @@ def compute_groupaverage(interpolated_models, save_stem, seed=None, plot_class=0
         plot_amplitudes(x, y, data.squeeze().transpose(), 'both', c, 'fsaverage', plot_class,
                         ax, annotate=False)
     fig.savefig(save_stem + f"_b{plot_bootstrap:02d}_c{plot_class:02d}_models.png")
-    with h5py.File(save_stem + '_results.hdf5', 'w') as f:
+    with h5py.File(save_stem + '_results.mat', 'w') as f:
         f.create_dataset('results/models', data=models, compression='gzip')
         f.create_dataset('results/modelse', data=modelse, compression='gzip')
         f.create_dataset('results/modelmd', data=modelmd, compression='gzip')

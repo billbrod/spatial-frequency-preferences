@@ -3,6 +3,8 @@ import itertools
 import warnings
 import numpy as np
 from glob import glob
+import neuropythy as ny
+import re
 
 configfile:
     "config.yml"
@@ -56,6 +58,8 @@ WRONG_TASKS = {('sub-wlsubj001', 'ses-pilot01'): 'task-TASK',
 # every sub/ses pair that's not in here has the full number of runs, 12
 NRUNS = {('sub-wlsubj001', 'ses-pilot01'): 9, ('sub-wlsubj042', 'ses-pilot00'): 8,
          ('sub-wlsubj045', 'ses-04'): 7}
+N_CLASSES = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48, 'ses-03': 48,
+             'ses-04': 48}
 VAREAS = [1]
 MODEL_TYPES = ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso',
                'absolute_full_iso', 'relative_full_iso', 'full_full_iso',
@@ -66,8 +70,13 @@ def get_n_classes(session, mat_type):
     if mat_type == 'all_visual':
         return 1
     else:
-        n = {'ses-pilot00': 52, 'ses-pilot01': 52, 'ses-01': 48, 'ses-02': 48,
-             'ses-03': 48, 'ses-04': 48}[session]
+        try:
+            n = N_CLASSES[session]
+        except KeyError:
+            # then this is probably the groupaverage session, which is
+            # slightly differnetly formatted
+            ses = re.findall('(ses-[0-9]+)_v[0-9]+_s[0-9]+',session)[0]
+            n = N_CLASSES[ses]
         if 'blanks' in mat_type:
             n += 1
         return n
@@ -93,10 +102,10 @@ SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wl
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50,
              'ses-04': 60}
 wildcard_constraints:
-    subject="sub-[a-z0-9]+",
+    subject="sub-[a-z0-9]+|sub-groupaverage_i-[a-z]+",
     fs_subject="[a-z0-9]+",
     subjects="(sub-[a-z0-9]+,?)+",
-    session="ses-[a-z0-9]+",
+    session="ses-[a-z0-9]+|ses-[0-9]+_v[0-9]+_s[0-9]+",
     sessions="(ses-[a-z0-9]+,?)+",
     run="run-[0-9]+",
     filename_ext='[a-zA-Z0-9_]+\.[a-z.]+',
@@ -135,7 +144,7 @@ wildcard_constraints:
 #  create_GLMdenoise_json. It doesn't matter where the create_*_json rules happen relative to the
 #  GLMdenoise* ones, but they all need to be in a single chain, so this works.
 ruleorder:
-    GLMdenoise_fixed_hrf > GLMdenoise > create_GLMdenoise_fixed_hrf_json > create_GLMdenoise_json
+    compute_groupaverage > GLMdenoise_fixed_hrf > GLMdenoise > create_GLMdenoise_fixed_hrf_json > create_GLMdenoise_json
 
 
 def create_crossval_idx(leave_n_out, session, mat_type, seed=None):
@@ -603,7 +612,7 @@ rule preprocess:
 
 rule rearrange_preprocess_extras:
     input:
-        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_run-{n:02d}_{task}", wildcards.subject, wildcards.session, wildcards.filename_ext), task=TASKS[(wildcards.subject, wildcards.session)], n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))
+        lambda wildcards: expand(os.path.join(config["DATA_DIR"], "derivatives", "preprocessed_run-{n:02d}_{task}", wildcards.subject, wildcards.session, wildcards.filename_ext), task=TASKS.get((wildcards.subject, wildcards.session), None), n=range(1, NRUNS.get((wildcards.subject, wildcards.session), 12)+1))
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "preprocessed", "{subject}", "{session}", "{filename_ext}")
     log:
@@ -912,11 +921,11 @@ rule interpolate_to_fsaverage:
         freesurfer_dir = lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer', '{subject}').format(subject=wildcards.subject.replace('sub-', '')),
         GLMdenoise_path = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat")
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models.hdf5"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_lh_b00_c00_space-subject.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_rh_b00_c00_space-subject.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_lh_b00_c00_space-prior.png"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models_rh_b00_c00_space-prior.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models.hdf5"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-subject.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-prior.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-prior.png"),
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_i-{interp_method}_b00_c00_interpolate_benchmark.txt")
     log:
@@ -940,20 +949,20 @@ rule interpolate_to_fsaverage:
 rule compute_groupaverage:
     input:
         lambda wildcards: [os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}",
-                                        "{atlas_type}", "sub-groupaverage", "{session}", "{subject}",
-                                        "{subject}_{session}_{task}_v{varea}_i-{interp_method}_models.hdf5").format(subject=sub, **wildcards)
+                                        "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}",
+                                        "{subject}_{session}_{task}_v{varea}_models.hdf5").format(subject=sub, **wildcards)
                            for sub in SUBJECTS if wildcards.session in SESSIONS[sub]
                            if TASKS[(sub, wildcards.session)] == wildcards.task]
     output:
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "sub-groupaverage_{session}_{task}_v{varea}_i-{interp_method}_s{boot_seed}_results.hdf5"),
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "sub-groupaverage_{session}_{task}_v{varea}_i-{interp_method}_s{boot_seed}_b00_c00_models.png"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}_v{varea}_s{boot_seed}", "sub-groupaverage_i-{interp_method}_{session}_v{varea}_s{boot_seed}_{task}_results.mat"),
+        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}_v{varea}_s{boot_seed}", "sub-groupaverage_i-{interp_method}_{session}_v{varea}_s{boot_seed}_{task}_b00_c00_models.png"),
     benchmark:
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "sub-groupaverage_{session}_{task}_v{varea}_i-{interp_method}_s{boot_seed}_groupaverage_benchmark.txt"),
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "sub-groupaverage_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_i-{interp_method}_s{boot_seed}_b00_c00_groupaverage_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage", "{session}", "sub-groupaverage_{session}_{task}_v{varea}_i-{interp_method}_s{boot_seed}_groupaverage-%j.log"),
+        os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "sub-groupaverage_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_i-{interp_method}_s{boot_seed}_b00_c00_groupaverage-%j.log")
     run:
         from sfp.combine_across_subjects import compute_groupaverage
-        save_stem = output[0].replace('_results.hdf5', '')
+        save_stem = output[0].replace('_results.mat', '')
         compute_groupaverage(input, save_stem, int(wildcards.boot_seed), 0, 0, int(wildcards.varea))
 
 
@@ -961,14 +970,18 @@ def get_first_level_analysis_input(wildcards):
     input_dict = {}
     input_dict['GLM_results'] = os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_results.mat").format(**wildcards)
     benson_names = ['angle', 'eccen', 'varea']
-    if wildcards.atlas_type == 'atlas':
+    if wildcards.subject.startswith('sub-groupaverage'):
         benson_prefix = 'benson14'
-    elif wildcards.atlas_type == 'bayesian_posterior':
-        benson_prefix = 'inferred'
-    benson_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+'_{filename}.mgz')
+        benson_temp = os.path.join(os.path.dirname(ny.__file__), 'lib', 'data', 'fsaverage', 'surf', '{hemi}.'+benson_prefix+'_{filename}.v4_0.mgz')
+    else:
+        if wildcards.atlas_type == 'atlas':
+            benson_prefix = 'benson14'
+        elif wildcards.atlas_type == 'bayesian_posterior':
+            benson_prefix = 'inferred'
+        benson_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+'_{filename}.mgz')
+        prf_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, 'data', '{hemi}.full-{filename}.mgz')
+        input_dict['prf_sigma_path'] = expand(prf_temp, hemi=['lh', 'rh'], filename=['sigma', 'vexpl'])
     input_dict['benson_paths'] = expand(benson_temp, hemi=['lh', 'rh'], filename=benson_names)
-    prf_temp = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, 'data', '{hemi}.full-{filename}.mgz')
-    input_dict['prf_sigma_path'] = expand(prf_temp, hemi=['lh', 'rh'], filename=['sigma', 'vexpl'])
     return input_dict
 
 
