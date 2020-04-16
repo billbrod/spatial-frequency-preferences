@@ -883,7 +883,7 @@ def train_model(model, dataset, max_epochs=5, batch_size=10, train_thresh=1e-6, 
     return model, loss_df, results_df, model_history_df
 
 
-def main(model_orientation_type, model_eccentricity_type, model_vary_amplitude,
+def main(model_period_orientation_type, model_eccentricity_type, model_amplitude_orientation_type,
          first_level_results_path, random_seed=None, max_epochs=100, train_thresh=1e-6,
          batch_size=10, df_filter=None, learning_rate=1e-3, test_set_stimulus_class=None,
          bootstrap_num=None, save_path_stem="pytorch", loss_func=weighted_normed_loss):
@@ -1079,7 +1079,7 @@ if __name__ == '__main__':
                               "eccentricity and preferred period, though it is constrained to be"
                               " linear (i.e., model solves for a and b in period = a * "
                               "eccentricity + b)"))
-    parser.add_argument("--model_amplitude_orientation_type",
+    parser.add_argument("model_amplitude_orientation_type",
                         help=("{iso, absolute, relative, full}\nEffect of orientation on "
                               "max_amplitude\n- iso: model is isotropic, "
                               "predictions identical for all orientations.\n- absolute: model can"
