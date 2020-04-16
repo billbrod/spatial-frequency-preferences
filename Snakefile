@@ -981,6 +981,7 @@ def get_first_level_analysis_input(wildcards):
     if wildcards.subject.startswith('sub-groupaverage'):
         benson_prefix = 'benson14'
         benson_temp = os.path.join(os.path.dirname(ny.__file__), 'lib', 'data', 'fsaverage', 'surf', '{hemi}.'+benson_prefix+'_{filename}.v4_0.mgz')
+        benson_names += ['sigma']
     else:
         if wildcards.atlas_type == 'atlas':
             benson_prefix = 'benson14'
