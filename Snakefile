@@ -266,6 +266,14 @@ rule model_all_subj_cv:
                      "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_models.csv"),
 
 
+rule groupaverage_all:
+    input:
+        [os.path.join(config['DATA_DIR'], "derivatives", "first_level_analysis", "stim_class",
+                      "bayesian_posterior", "sub-groupaverage_i-linear/ses-04_v1_s{n:02d}/"
+                      "sub-groupaverage_i-linear_ses-04_v1_s{n:02d}_task-sfprescaled_v1_e1-12_summary.csv")
+         for n in range(100)]
+
+
 rule all_check_plots:
     input:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", 'varea_plot.png').format(subject=s, atlas_type=a)
@@ -1006,7 +1014,7 @@ def get_benson_template(wildcards, input):
         path = input.benson_paths
     else:
         path = input.benson_paths[0]
-    return path.replace('lh', '%s').replace('angle', '%s').replace('benson14_', '').replace('inferred_', '').replace(wildcards.atlas_type, '%s'),
+    return path.replace('lh', '%s').replace('angle', '%s').replace('benson14_', '').replace('inferred_', '').replace(wildcards.atlas_type, '%s').replace('surf', '%s'),
 
 
 rule first_level_analysis:
@@ -1024,11 +1032,12 @@ rule first_level_analysis:
         vareas = lambda wildcards: wildcards.vareas.split('-'),
         eccen = lambda wildcards: wildcards.eccen.split('-'),
         benson_template = get_benson_template,
-        benson_names = lambda wildcards, input: [i.split('.')[-2] for i in input if wildcards.atlas_type+'/lh' in i],
+        benson_names = lambda wildcards, input: [os.path.split(i)[-1].split('.')[1] for i in input if wildcards.atlas_type+'/lh' in i or 'surf/lh' in i],
         prf_names = lambda wildcards, input: [i.split('.')[-2] for i in input if 'data/lh' in i],
         class_num = lambda wildcards: get_n_classes(wildcards.session, wildcards.mat_type),
         stim_type = get_stim_type,
-        mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128)
+        mid_val = lambda wildcards: {'ses-pilot01': 127, 'ses-pilot00': 127}.get(wildcards.session, 128),
+        atlas_type = lambda wildcards: 'surf' if wildcards.subject.startswith('sub-groupaverage') else wildcards.atlas_type,
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "first_level_analysis", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{df_mode}_benchmark.txt")
     log:
@@ -1040,7 +1049,7 @@ rule first_level_analysis:
         "--save_stem {params.save_stem} --class_nums {params.class_num} --stim_type "
         "{params.stim_type} --mid_val {params.mid_val} --benson_template_names "
         "{params.benson_names} --results_path {input.GLM_results} "
-        "--benson_template_path {params.benson_template} --benson_atlas_type {wildcards.atlas_type}"
+        "--benson_template_path {params.benson_template} --benson_atlas_type {params.atlas_type}"
         " --prf_data_names {params.prf_names}"
 
 
@@ -2213,7 +2222,8 @@ rule all:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "noise_ceiling", "monte_carlo",
-                     "stim_class", "bayesian_posterior", "monte_carlo_ses-04_task-sfprescaled_v1_e1-12.csv")
+                     "stim_class", "bayesian_posterior", "monte_carlo_ses-04_task-sfprescaled_v1_e1-12.csv"),
+        rules.groupaverage_all.input,
 
 
 rule figures:

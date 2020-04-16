@@ -804,4 +804,7 @@ def compute_groupaverage(interpolated_models, save_stem, seed=None, plot_class=0
         f.create_dataset('results/models', data=models, compression='gzip')
         f.create_dataset('results/modelse', data=modelse, compression='gzip')
         f.create_dataset('results/modelmd', data=modelmd, compression='gzip')
+        # first_level_analysis expects an R2 field, but we have nothing to put there
+        f.create_dataset('results/R2', data=np.nan * np.ones((models.shape[-2], 1)),
+                         compression='gzip')
     return models

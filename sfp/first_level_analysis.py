@@ -641,6 +641,10 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
     df = _add_baseline(df)
     df = _append_precision_col(df)
     df = _normalize_amplitude_estimate(df)
+    # drop any voxel that has at least one NaN value. these should only
+    # show up from interpolation (so only with sub-groupaverage) and
+    # should be very few
+    df = df.groupby('voxel').filter(lambda x: ~np.isnan(x.amplitude_estimate_median).all())
 
     if save_path is not None:
         df.to_csv(save_path, index=False)
@@ -699,7 +703,7 @@ if __name__ == '__main__':
                         help=("list of labels that specify which output files to get from the "
                               "Benson retinotopy. For this analysis to work, must contain 'varea'"
                               " and 'eccen'. Note that some subjects might not have sigma."))
-    parser.add_argument("--prf_data_names", nargs='+',
+    parser.add_argument("--prf_data_names", nargs='*',
                         default=['all00-sigma'],
                         help=("list of labels that specify which output files to get from the "
                               "pRF fits (will insert 'data' into the benson_template_path to find)"
