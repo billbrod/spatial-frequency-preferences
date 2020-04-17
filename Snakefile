@@ -268,9 +268,10 @@ rule model_all_subj_cv:
 
 rule groupaverage_all:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "first_level_analysis", "stim_class",
-                      "bayesian_posterior", "sub-groupaverage_i-linear/ses-04_v1_s{n:02d}/"
-                      "sub-groupaverage_i-linear_ses-04_v1_s{n:02d}_task-sfprescaled_v1_e1-12_summary.csv")
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                      "bayesian_posterior", "initial", "sub-groupaverage_i-linear", "ses-04_v1_s{n:02d}",
+                      "sub-groupaverage_i-linear_ses-04_v1_s{n:02d}_task-sfprescaled_v1_e1-12_"
+                      "summary_b10_r0.001_g0_cNone_nNone_full_full_full_loss.csv").format(n=n)
          for n in range(100)]
 
 
@@ -934,6 +935,8 @@ rule interpolate_to_fsaverage:
         os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-subject.png"),
         os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models_lh_b00_c00_space-prior.png"),
         os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}", "{subject}", "{subject}_{session}_{task}_v{varea}_models_rh_b00_c00_space-prior.png"),
+    resources:
+        mem = 25,
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_i-{interp_method}_b00_c00_interpolate_benchmark.txt")
     log:
@@ -964,6 +967,8 @@ rule compute_groupaverage:
     output:
         os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}_v{varea}_s{boot_seed}", "sub-groupaverage_i-{interp_method}_{session}_v{varea}_s{boot_seed}_{task}_results.mat"),
         os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "{mat_type}", "{atlas_type}", "sub-groupaverage_i-{interp_method}", "{session}_v{varea}_s{boot_seed}", "sub-groupaverage_i-{interp_method}_{session}_v{varea}_s{boot_seed}_{task}_b00_c00_models.png"),
+    resources:
+        mem = 18,
     benchmark:
         os.path.join(config["DATA_DIR"], "code", "GLMdenoise", "sub-groupaverage_{session}_{task}_{mat_type}_{atlas_type}_v{varea}_i-{interp_method}_s{boot_seed}_b00_c00_groupaverage_benchmark.txt")
     log:
