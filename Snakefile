@@ -266,13 +266,26 @@ rule model_all_subj_cv:
                      "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_models.csv"),
 
 
+def get_groupaverage_all(wildcards):
+    path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                        "bayesian_posterior", "initial", "sub-groupaverage_i-linear", "ses-04_v1_s{n:02d}",
+                        "sub-groupaverage_i-linear_ses-04_v1_s{n:02d}_task-sfprescaled_v1_e1-12_"
+                        "summary_b10_r0.001_g0_cNone_nNone_full_full_full_loss.csv")
+    seeds = list(range(104))
+    # there are 4 seeds that won't work, so we remove them. there are
+    # some voxels where some subjects have NaNs after
+    # interpolation. when doing our weighted average across subjects, we
+    # ignore those NaNs, but for these seeds, they managed to pick
+    # subjects that *all* have NaNs in at least one voxel, so there's
+    # nothing we can do.
+    for i in [17, 31, 51, 65]:
+        seeds.remove(i)
+    return [path.format(n=n) for n in seeds]
+
+
 rule groupaverage_all:
     input:
-        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
-                      "bayesian_posterior", "initial", "sub-groupaverage_i-linear", "ses-04_v1_s{n:02d}",
-                      "sub-groupaverage_i-linear_ses-04_v1_s{n:02d}_task-sfprescaled_v1_e1-12_"
-                      "summary_b10_r0.001_g0_cNone_nNone_full_full_full_loss.csv").format(n=n)
-         for n in range(100)]
+        get_groupaverage_all,
 
 
 rule all_check_plots:
@@ -2229,7 +2242,7 @@ rule all:
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "noise_ceiling", "monte_carlo",
                      "stim_class", "bayesian_posterior", "monte_carlo_ses-04_task-sfprescaled_v1_e1-12.csv"),
-        rules.groupaverage_all.input,
+        get_groupaverage_all,
 
 
 rule figures:
