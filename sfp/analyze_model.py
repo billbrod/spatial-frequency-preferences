@@ -27,7 +27,7 @@ def load_LogGaussianDonut(save_path_stem):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # we try and infer model type from the path name, which we can do assuming we used the
     # Snakefile to generate saved model.
-    vary_amps_label = save_path_stem.split('_')[-1]
+    vary_amps = save_path_stem.split('_')[-1]
     ecc_type = save_path_stem.split('_')[-2]
     ori_type = save_path_stem.split('_')[-3]
     model = sfp_model.LogGaussianDonut(ori_type, ecc_type, vary_amps)
