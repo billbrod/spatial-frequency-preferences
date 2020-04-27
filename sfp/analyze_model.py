@@ -28,10 +28,6 @@ def load_LogGaussianDonut(save_path_stem):
     # we try and infer model type from the path name, which we can do assuming we used the
     # Snakefile to generate saved model.
     vary_amps_label = save_path_stem.split('_')[-1]
-    if vary_amps_label == 'vary':
-        vary_amps = True
-    elif vary_amps_label == 'constant':
-        vary_amps = False
     ecc_type = save_path_stem.split('_')[-2]
     ori_type = save_path_stem.split('_')[-3]
     model = sfp_model.LogGaussianDonut(ori_type, ecc_type, vary_amps)
