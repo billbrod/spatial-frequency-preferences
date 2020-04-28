@@ -132,7 +132,7 @@ def existing_studies_df():
     return df
 
 
-def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
+def _demean_df(df, gb_cols=['subject'], y='cv_loss', extra_cols=[]):
     """demean a column of the dataframe
 
     Calculate the mean of `y` across the values in some other column(s)
@@ -166,6 +166,10 @@ def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
         groupby operation)
     y : str, optional
         the column to demean
+    extra_cols : list, optionla
+        list of columns to de/remean using the mean from `y`. for
+        example, you might want to de/remean the noise_ceiling using the
+        mean from the cross-validation loss
 
     Returns
     -------
@@ -185,6 +189,9 @@ def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
     df[f'{y}_mean_overall'] = df.groupby(gb_cols)[y].mean().mean()
     df[f'demeaned_{y}'] = df[y] - df[f'{y}_mean']
     df[f'remeaned_{y}'] = df[f'demeaned_{y}'] + df[f'{y}_mean_overall']
+    for col in extra_cols:
+        df[f'demeaned_{col}'] = df[col] - df[f'{y}_mean']
+        df[f'remeaned_{col}'] = df[f'demeaned_{col}'] + df[f'{y}_mean_overall']
     return df.reset_index()
 
 
@@ -544,6 +551,9 @@ def existing_studies_figure(df, y="Preferred period (dpc)", context='paper'):
         frequency on the y-axis. If preferred period, the y-axis is
         linear; if preferred SF, the y-axis is log-scaled (base 2). The
         ylims will also differ between these two
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
 
     Returns
     -------
@@ -672,6 +682,12 @@ def model_schematic(context='paper'):
     effect of stimulus orientation and retinotopic angle on preferred
     period).
 
+    Parameters
+    ----------
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
+
     Returns
     -------
     fig : plt.Figure
@@ -724,7 +740,7 @@ def model_schematic(context='paper'):
     return fig
 
 
-def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.75,
+def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.9,
              ci=68, plot_kind='strip', x_rotate=True, legend='full', **kwargs):
     """wrapper around seaborn.catplot
 
@@ -790,7 +806,7 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
                 x_rotate = 25
             labels = ax.get_xticklabels()
             if labels:
-                ax.set_xticklabels(labels, rotation=x_rotate)
+                ax.set_xticklabels(labels, rotation=x_rotate, ha='right')
         if (df[y] < 0).any() and (df[y] > 0).any():
             ax.axhline(color='grey', linestyle='dashed')
     if x_rotate:
@@ -801,7 +817,7 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
     return g
 
 
-def cross_validation_raw(df, noise_ceiling_df=None):
+def cross_validation_raw(df, noise_ceiling_df=None, context='paper'):
     """plot raw cross-validation loss
 
     This does no pre-processing of the df and plots subjects on the
@@ -815,6 +831,13 @@ def cross_validation_raw(df, noise_ceiling_df=None):
         dataframe containing the output of the cross-validation
         analyses, combined across sessions (i.e., the output of
         combine_model_cv_summaries snakemake rule)
+    noise_ceiling_df : pd.DataFrame
+        dataframe containing the results of the noise ceiling analyses
+        for all subjects (i.e., the output of the
+        noise_ceiling_monte_carlo_overall rule)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
 
     Returns
     -------
@@ -822,10 +845,15 @@ def cross_validation_raw(df, noise_ceiling_df=None):
         seaborn FacetGrid object containing the plot
 
     """
+    height = 8
+    aspect = .9
+    if context == 'poster':
+        height *= 2
+        aspect = 1
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
-    g = _catplot(df, legend=False)
+    g = _catplot(df, legend=False, height=height)
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
@@ -835,7 +863,7 @@ def cross_validation_raw(df, noise_ceiling_df=None):
     return g
 
 
-def cross_validation_demeaned(df, remeaned=False):
+def cross_validation_demeaned(df, remeaned=False, context='paper'):
     """plot demeaned cross-validation loss
 
     This function demeans the cross-validation loss on a
@@ -863,19 +891,25 @@ def cross_validation_demeaned(df, remeaned=False):
         seaborn FacetGrid object containing the plot
 
     """
+    height = 8
+    aspect = .9
+    if context == 'poster':
+        height *= 2
+        aspect = 1
     df = _demean_df(df)
     if remeaned:
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df, y=f'{name}_cv_loss')
+    g = _catplot(df, y=f'{name}_cv_loss', height=height, aspect=aspect)
     g.fig.suptitle(f"{name.capitalize()} cross-validated loss across subjects")
     g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Subject")
     g._legend.set_title("Model type")
     return g
 
 
-def cross_validation_model(df, plot_kind='strip', remeaned=False):
+def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
+                           context='paper'):
     """plot demeaned cross-validation loss, as function of model type
 
     This function demeans the cross-validation loss on a
@@ -901,6 +935,13 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False):
         only affect the values on the y-axis; the relative placements of
         the points (and the size of the error bars if
         `plot_kind='point'`) will all be the same.
+    noise_ceiling_df : pd.DataFrame
+        dataframe containing the results of the noise ceiling analyses
+        for all subjects (i.e., the output of the
+        noise_ceiling_monte_carlo_overall rule)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
 
     Returns
     -------
@@ -908,7 +949,19 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False):
         seaborn FacetGrid object containing the plot
 
     """
-    df = _demean_df(df)
+    height = 8
+    aspect = .9
+    if context == 'poster':
+        height *= 2
+        aspect = 1
+    if noise_ceiling_df is not None:
+        merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
+        noise_ceiling_df = noise_ceiling_df.groupby(merge_cols).median().reset_index()
+        df = pd.merge(df, noise_ceiling_df, 'inner', on=merge_cols, suffixes=['_cv', '_noise'])
+        extra_cols = ['loss']
+    else:
+        extra_cols = []
+    df = _demean_df(df, extra_cols=extra_cols)
     if plot_kind == 'strip':
         hue = 'subject'
         legend_title = "Subject"
@@ -918,8 +971,13 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False):
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue, plot_kind=plot_kind)
-    g.fig.suptitle(f"{name.capitalize()} cross-validated loss across model types")
+    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue, plot_kind=plot_kind,
+                 height=height, aspect=aspect)
+    title = f"{name.capitalize()} cross-validated loss across model types"
+    if noise_ceiling_df is not None:
+        g.map_dataframe(plotting.plot_noise_ceiling, 'fit_model_type', f'{name}_loss', ci=0)
+        title += "\n Median noise ceiling shown as blue line"
+    g.fig.suptitle(title)
     g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Model type")
     # if plot_kind=='point', then there is no legend, so the following
     # would cause an error
@@ -928,7 +986,7 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False):
     return g
 
 
-def model_types():
+def model_types(context='paper'):
     """Create plot showing which model fits which parameters
 
     We have 11 different parameters, which might seem like a lot, so we
@@ -936,12 +994,21 @@ def model_types():
     plot shows which parameters are fit by each model, in a little
     table.
 
+    Parameters
+    ----------
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
+
     Returns
     -------
     fig : plt.Figure
         The figure with the plot on it
 
     """
+    figsize = (6, 5)
+    if context == 'poster':
+        figsize = [2*i for i in figsize]
     model_names = plotting.MODEL_PLOT_ORDER
     parameters = plotting.PLOT_PARAM_ORDER
     model_variants = np.zeros((len(model_names), len(parameters))).astype(bool)
@@ -964,7 +1031,7 @@ def model_types():
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
     green, red = sns.color_palette('deep', 4)[2:]
     pal = sns.blend_palette([red, green])
-    fig = plt.figure(figsize=(6, 5))
+    fig = plt.figure(figsize=figsize)
     ax = sns.heatmap(model_variants, cmap=pal, cbar=False)
     ax.set_yticklabels(model_names, rotation=0)
     return fig

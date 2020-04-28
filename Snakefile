@@ -2019,13 +2019,15 @@ rule figure_crossvalidation:
             else:
                 remeaned = False
             if wildcards.cv_type.startswith('demeaned'):
-                g = sfp.figures.cross_validation_demeaned(df, remeaned)
+                g = sfp.figures.cross_validation_demeaned(df, remeaned, context=wildcards.context)
             elif wildcards.cv_type.startswith('raw'):
-                g = sfp.figures.cross_validation_raw(df, noise_ceiling)
+                g = sfp.figures.cross_validation_raw(df, noise_ceiling, context=wildcards.context)
             elif wildcards.cv_type.startswith('model_point'):
-                g = sfp.figures.cross_validation_model(df, 'point', remeaned)
+                g = sfp.figures.cross_validation_model(df, 'point', remeaned, noise_ceiling,
+                                                       context=wildcards.context)
             elif wildcards.cv_type.startswith('model'):
-                g = sfp.figures.cross_validation_model(df, remeaned=remeaned)
+                g = sfp.figures.cross_validation_model(df, remeaned=remeaned,
+                                                       context=wildcards.context)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2189,7 +2191,7 @@ rule figure_schematic:
             elif wildcards.schematic_type == '2d-inputs':
                 fig = sfp.figures.input_schematic()
             elif wildcards.schematic_type == 'models':
-                fig = sfp.figures.model_types()
+                fig = sfp.figures.model_types(wildcards.context)
             fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2274,7 +2276,8 @@ def get_figures_all(context='paper', visual_field_analyses=False):
              for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'cv_{}_task-sfprescaled.pdf').format(cv)
              for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
-                        'model-remeaned', 'model_point-remeaned', 'raw-nc']]
+                        'model-remeaned', 'model_point-remeaned', 'raw-nc', 'model_point-nc',
+                        'model_point-remeaned-nc']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_params_visualfield-all_{}_task-sfprescaled.pdf').format(model, kind)
              for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'full_full_absolute']]
     if visual_field_analyses:
