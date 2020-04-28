@@ -1075,7 +1075,8 @@ def period_summary_plot(df, pRF_size_slope=.25394, pRF_size_offset=.100698,
     return windowed_plot
 
 
-def model_schematic(model, axes=None, ylims=None, title=True):
+def model_schematic(model, axes=None, ylims=None, title=True,
+                    orientation=np.linspace(0, np.pi, 4, endpoint=False)):
     """Examine model predictions, intended for example models (not ones fit to data)
 
     In order to better understand the model, it's helpful to examine the
@@ -1142,11 +1143,13 @@ def model_schematic(model, axes=None, ylims=None, title=True):
     ecc = np.arange(12)
     pref_period = analyze_model.create_preferred_period_df(model, reference_frame='relative',
                                                            retinotopic_angle=[single_ret_angle],
-                                                           eccentricity=ecc)
+                                                           eccentricity=ecc,
+                                                           orientation=orientation)
     ret_angle = np.linspace(0, 2*np.pi, 49)
     rel_contour = analyze_model.create_preferred_period_df(model, reference_frame='relative',
                                                            eccentricity=[single_ecc],
-                                                           retinotopic_angle=ret_angle)
+                                                           retinotopic_angle=ret_angle,
+                                                           orientation=orientation)
     titles = [f'Preferred period at retinotopic angle {single_ret_angle}',
               f'Preferred period at eccentricity {single_ecc}']
     for i, (df, ax, proj, t) in enumerate(zip([pref_period, rel_contour], axes,
@@ -1176,6 +1179,8 @@ def model_schematic(model, axes=None, ylims=None, title=True):
         if proj == 'rectilinear':
             ax.axhline(color='gray', linestyle='--')
             ax.axvline(color='gray', linestyle='--')
+        else:
+            ax.set(yticklabels=[0, '', 1, '', 2, '', 3], yticks=[0, .5, 1, 1.5, 2, 2.5, 3])
         ax.vlines(single_x, restricted.min()-.5, restricted.max()+.5, 'r', '--')
     return axes
 

@@ -1885,16 +1885,18 @@ rule figure_summarize_1d:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "1d_{tuning_param}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "1d_{tuning_param}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], 'code', "figures", "1d_{tuning_param}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', "1d_{tuning_param}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', "figures",
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}',
                      "1d_{tuning_param}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
         import sfp
+        font_scale = {'poster': 1.5}.get(wildcards.context, 1)
+        height_scale = {'poster': 2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         ref_frame = {'task-sfpconstant': 'absolute', 'task-sfprescaled': 'relative'}
         if wildcards.tuning_param.endswith('overall'):
@@ -1902,16 +1904,21 @@ rule figure_summarize_1d:
                    'bandwidth-overall': 'tuning_curve_bandwidth'}[wildcards.tuning_param]
             df = sfp.figures.append_precision_col(df, col)
             df = sfp.figures.precision_weighted_bootstrap(df, col=col)
+        sns.set_context(wildcards.context, font_scale=font_scale)
+        kwargs = {'size_plot': [None, 5*height_scale], 'linewidth': 2*(height_scale+1)}
         with sns.axes_style('white'):
             if wildcards.tuning_param == 'pref-period':
-                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None)
+                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None,
+                                               height=4*height_scale, **kwargs)
             elif wildcards.tuning_param == 'bandwidth':
-                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None)
+                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None,
+                                             height=4*height_scale, **kwargs)
             elif wildcards.tuning_param == 'pref-period-overall':
-                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None, height=5,
-                                               ylim=(0, 2))
+                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None,
+                                               height=5*height_scale, ylim=(0, 2), **kwargs)
             elif wildcards.tuning_param == 'bandwidth-overall':
-                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None, height=5)
+                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None,
+                                             height=5*height_scale, **kwargs)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -1949,20 +1956,22 @@ rule figure_loss_check:
                                        '{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full'}[wildcards.modeling_goal],
                                                                                                               modeling_goal=wildcards.modeling_goal, task=wildcards.task)
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{modeling_goal}_training-loss-check_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{modeling_goal}_training-loss-check_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{modeling_goal}_training-loss-check_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{modeling_goal}_training-loss-check_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{modeling_goal}_training-loss-check_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{modeling_goal}_training-loss-check_{task}_{ext}_benchmark.txt")
     run:
         import sfp
         import seaborn as sns
         import pandas as pd
+        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = pd.read_csv(input[0])
         if wildcards.modeling_goal == 'initial_cv':
             hue = 'test_subset'
         elif wildcards.modeling_goal == 'bootstrap':
             hue = 'bootstrap_num'
+        sns.set_context(wildcards.context, font_scale=font_scale)
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             g = sfp.figures.training_loss_check(df, hue)
             g.fig.savefig(output[0], bbox_inches='tight')
@@ -1984,20 +1993,22 @@ rule figure_crossvalidation:
                      '{task}_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
         get_noise_ceiling_df,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "cv_{cv_type}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "cv_{cv_type}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "cv_{cv_type}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "cv_{cv_type}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
         import sfp
+        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         if wildcards.cv_type.endswith('-nc'):
             noise_ceiling = sfp.figures.prep_df(pd.read_csv(input[1]), wildcards.task)
         else:
             noise_ceiling = None
+        sns.set_context(wildcards.context, font_scale=font_scale)
         with sns.axes_style('white'):
             if 'remeaned' in wildcards.cv_type:
                 remeaned = True
@@ -2044,16 +2055,17 @@ rule figure_params:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
         import sfp
         import matplotlib as mpl
+        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = []
         for p in input:
             tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
@@ -2065,6 +2077,7 @@ rule figure_params:
                                                                ['model_parameter',
                                                                 'fit_model_type'])
             df.append(sfp.figures.prep_model_df(tmp))
+        sns.set_context(wildcards.context, font_scale=font_scale)
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.plot_kind.startswith('pair'):
                 if wildcards.plot_kind.endswith('drop'):
@@ -2127,21 +2140,23 @@ rule figure_feature_df:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "figures", "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "figures", "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
         import sfp
+        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         if wildcards.plot_kind.endswith('overall'):
             df = sfp.figures.append_precision_col(df, 'fit_value', ['subject', 'model_parameter',
                                                                     'fit_model_type'])
             df = sfp.figures.precision_weighted_bootstrap(df, 100, 'fit_value',
                                                           ['model_parameter', 'fit_model_type'])
+        sns.set_context(wildcards.context, font_scale=font_scale)
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.angles == 'avg':
                 angles = True
@@ -2154,17 +2169,19 @@ rule figure_feature_df:
 
 rule figure_schematic:
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', 'schematic_{schematic_type}.{ext}')
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'schematic_{schematic_type}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', 'schematic_{schematic_type}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_{schematic_type}_{ext}.log')
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', 'schematic_{schematic_type}_{ext}_benchmark.txt')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_{schematic_type}_{ext}_benchmark.txt')
     run:
         import sfp
         import seaborn as sns
+        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
+        sns.set_context(wildcards.context, font_scale=font_scale)
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.schematic_type == '2d':
-                fig = sfp.figures.model_schematic()
+                fig = sfp.figures.model_schematic(wildcards.context)
             elif wildcards.schematic_type == '2d-inputs':
                 fig = sfp.figures.input_schematic()
             elif wildcards.schematic_type == 'models':
@@ -2174,19 +2191,21 @@ rule figure_schematic:
 
 rule figure_background:
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', 'background_{y_val}.{ext}')
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'background_{y_val}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', 'background_{y_val}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'background_{y_val}_{ext}.log')
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', 'background_{y_val}_{ext}_benchmark.txt')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'background_{y_val}_{ext}_benchmark.txt')
     run:
         import sfp
         import seaborn as sns
-        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
+        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
+        sns.set_context(wildcards.context, font_scale=font_scale)
+        with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
             df = sfp.figures.existing_studies_df()
             y = {'period': 'Preferred period (dpc)',
                  'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
-            g = sfp.figures.existing_studies_figure(df, y)
+            g = sfp.figures.existing_studies_figure(df, y, wildcards.context)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2245,36 +2264,48 @@ rule all:
         get_groupaverage_all,
 
 
+def get_figures_all(context='paper', visual_field_analyses=False):
+    figs = []
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '1d_{}_{}.pdf').format(param, task)
+             for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'cv_{}_task-sfprescaled.pdf').format(cv)
+             for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
+                        'model-remeaned', 'model_point-remeaned', 'raw-nc']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_params_visualfield-all_{}_task-sfprescaled.pdf').format(model, kind)
+             for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'absolute_full_absolute']]
+    if visual_field_analyses:
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_params_visualfield-{}_{}_task-sfprescaled.pdf').format(model, vf, kind)
+                 for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'absolute_full_absolute']]
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'full_full_full_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+                 for vf in ['vertical', 'horizontal', 'eccen']]
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'absolute_full_absolute_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+                 for vf in ['vertical', 'horizontal', 'eccen']]
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(model, vf, angles, frame)
+                 for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
+                 for model in ['full_full_full', 'absolute_full_absolute']],
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(model, vf, feature, frame)
+                 for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
+                 for frame in ['relative', 'absolute'] for model in ['full_full_full', 'absolute_full_absolute']],
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(model, kind, angles, frame)
+             for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
+             for model in ['full_full_full', 'absolute_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(model, feature, kind, frame)
+             for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
+             for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
+             for model in ['full_full_full', 'absolute_full_absolute']]
+    figs +=[os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'schematic_{}.pdf').format(kind)
+            for kind in ['2d', 'models', '2d-inputs']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'background_period.pdf')]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_training-loss-check_task-sfprescaled.pdf').format(t)
+             for t in ['initial_cv', 'bootstrap']]
+    return figs
+
+
 rule figures:
     input:
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '1d_{}_{}.pdf').format(param, task)
-         for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'cv_{}_task-sfprescaled.pdf').format(cv)
-         for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
-                    'model-remeaned', 'model_point-remeaned', 'raw-nc']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-all_{}_task-sfprescaled.pdf').format(model, kind)
-         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'absolute_full_absolute']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-{}_{}_task-sfprescaled.pdf').format(model, vf, kind)
-        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'absolute_full_absolute']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_full_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
-        #  for vf in ['vertical', 'horizontal', 'eccen']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'absolute_full_absolute_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
-        #  for vf in ['vertical', 'horizontal', 'eccen']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(model, kind, angles, frame)
-         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
-         for model in ['full_full_full', 'absolute_full_absolute']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(model, feature, kind, frame)
-         for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-         for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
-         for model in ['full_full_full', 'absolute_full_absolute']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(model, vf, angles, frame)
-        #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
-        #  for model in ['full_full_full', 'absolute_full_absolute']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(model, vf, feature, frame)
-        #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-        #  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'absolute_full_absolute']],
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic_{}.pdf').format(kind)
-         for kind in ['2d', 'models', '2d-inputs']],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'background_period.pdf'),
-        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_training-loss-check_task-sfprescaled.pdf').format(t)
-         for t in ['initial_cv', 'bootstrap']]
+        lambda wildcards: figures_all(),
+
+
+rule figures_poster:
+    input:
+        lambda wildcards: figures_all('poster'),
