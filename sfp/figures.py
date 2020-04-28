@@ -210,6 +210,9 @@ def prep_df(df, task, groupaverage=False):
         a pilot task and so do not allow it for the creation of figures
         (the stimuli were not contrast-rescaled).
     groupaverage : bool, optional
+        whether to grab only the groupaverage subjects (if True) or
+        every other subject (if False). Note that we'll grab/drop both
+        i-linear and i-nearest if they're both present
 
     Returns
     -------
