@@ -237,7 +237,7 @@ rule model_all_subj_bootstrap:
                      "task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
-                     "task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
+                     "task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_absolute_all_models.csv"),
     
 
 
@@ -256,7 +256,7 @@ rule model_all_subj:
                      "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_absolute_full_absolute_all_models.csv"),
+                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_absolute_all_models.csv"),
 
 
 rule model_all_subj_cv:
@@ -266,11 +266,14 @@ rule model_all_subj_cv:
                      "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_models.csv"),
 
 
-def get_groupaverage_all(wildcards):
+def get_groupaverage_all(interp='linear', session='ses-04', task='task-sfprescaled',
+                         model_type='full_full_full', varea='1', eccen='1-12', batch_size=10,
+                         learning_rate=0.001, gpus=0, df_mode='summary'):
     path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
-                        "bayesian_posterior", "initial", "sub-groupaverage_i-linear", "ses-04_v1_s{n:02d}",
-                        "sub-groupaverage_i-linear_ses-04_v1_s{n:02d}_task-sfprescaled_v1_e1-12_"
-                        "summary_b10_r0.001_g0_cNone_nNone_full_full_full_loss.csv")
+                        "bayesian_posterior", "initial", f"sub-groupaverage_i-{interp}",
+                        f"{session}_v{varea}_s{{n:02d}}", f"sub-groupaverage_i-{interp}_{session}"
+                        f"_v{varea}_s{{n:02d}}_{task}_v{varea}_e{eccen}_{df_mode}_b{batch_size}_"
+                        f"r{learning_rate}_g{gpus}_cNone_nNone_{model_type}_loss.csv")
     seeds = list(range(104))
     # there are 4 seeds that won't work, so we remove them. there are
     # some voxels where some subjects have NaNs after
@@ -285,7 +288,7 @@ def get_groupaverage_all(wildcards):
 
 rule groupaverage_all:
     input:
-        get_groupaverage_all,
+        lambda wildcards: get_groupaverage_all(),
 
 
 rule all_check_plots:
@@ -1381,6 +1384,7 @@ def gather_model_results_input(wildcards):
         loss_files = [get_model_subj_outputs(subject=subj, session=ses, **wildcards)
                       for subj in SUBJECTS for ses in SESSIONS[subj]
                       if TASKS[(subj, ses)] == wildcards.task]
+        loss_files += get_groupaverage_all(**wildcards)
     # this will return a list of lists of strings, so we need to flatten it
     inputs['loss_files'] = np.array(loss_files).flatten()
     return inputs
@@ -1923,7 +1927,7 @@ def get_loss_files(wildcards):
                          if TASKS[(sub, ses)] == wildcards.task]).flatten()
     elif wildcards.modeling_goal == 'bootstrap':
         return np.array([get_model_subj_outputs(m, sub, ses, bootstrap_num=n, **wildcards)
-                         for n in range(100) for m in ['full_full_full', 'absolute_full_absolute']
+                         for n in range(100) for m in ['full_full_full', 'full_full_absolute']
                          for sub in SUBJECTS for ses in SESSIONS[sub]
                          if TASKS[(sub, ses)] == wildcards.task]).flatten()
 
@@ -2242,7 +2246,7 @@ rule all:
                      "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "noise_ceiling", "monte_carlo",
                      "stim_class", "bayesian_posterior", "monte_carlo_ses-04_task-sfprescaled_v1_e1-12.csv"),
-        get_groupaverage_all,
+        lambda wildcards: get_groupaverage_all(),
 
 
 rule figures:
@@ -2253,26 +2257,26 @@ rule figures:
          for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                     'model-remeaned', 'model_point-remeaned', 'raw-nc']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-all_{}_task-sfprescaled.pdf').format(model, kind)
-         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'absolute_full_absolute']],
+         for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'full_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_params_visualfield-{}_{}_task-sfprescaled.pdf').format(model, vf, kind)
-        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'absolute_full_absolute']],
+        #  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'full_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_full_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
         #  for vf in ['vertical', 'horizontal', 'eccen']],
-        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'absolute_full_absolute_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'full_full_absolute_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
         #  for vf in ['vertical', 'horizontal', 'eccen']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(model, kind, angles, frame)
          for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
-         for model in ['full_full_full', 'absolute_full_absolute']],
+         for model in ['full_full_full', 'full_full_absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(model, feature, kind, frame)
          for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
          for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
-         for model in ['full_full_full', 'absolute_full_absolute']],
+         for model in ['full_full_full', 'full_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(model, vf, angles, frame)
         #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
-        #  for model in ['full_full_full', 'absolute_full_absolute']],
+        #  for model in ['full_full_full', 'full_full_absolute']],
         # [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{}_feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(model, vf, feature, frame)
         #  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-        #  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'absolute_full_absolute']],
+        #  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'schematic_{}.pdf').format(kind)
          for kind in ['2d', 'models', '2d-inputs']],
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'background_period.pdf'),
