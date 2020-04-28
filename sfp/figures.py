@@ -429,7 +429,7 @@ def _summarize_1d(df, reference_frame, y, row, col, height, **kwargs):
     if row is not None:
         row_order = plotting.get_order(row, col_unique=df[row].unique())
     g = summary_plots.main(df, row=row, col=col, y=y, eccen_range=(0, 11), hue_order=hue_order,
-                           linewidth=2, xlim=(0, 12), x_jitter=[None, .2],height=height,
+                           xlim=(0, 12), x_jitter=[None, .2], height=height,
                            plot_func=[plotting.plot_median_fit, plotting.scatter_ci_dist],
                            palette=pal, col_order=col_order, row_order=row_order, **kwargs)
     g.set_xlabels('Eccentricity (deg)')
@@ -528,7 +528,7 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
     return g
 
 
-def existing_studies_figure(df, y="Preferred period (dpc)"):
+def existing_studies_figure(df, y="Preferred period (dpc)", context='paper'):
     """Plot the results from existing studies
 
     See the docstring for figures.existing_studies_df() for more
@@ -551,16 +551,24 @@ def existing_studies_figure(df, y="Preferred period (dpc)"):
         The FacetGrid containing the plot
 
     """
+    if context == 'paper':
+        size = 4
+        linewidth = 2
+    if context == 'poster':
+        size = 8
+        linewidth = 6
     pal = sns.color_palette('Set3', df.Paper.nunique())
-    g = sns.FacetGrid(df, hue='Paper', size=4, aspect=1.2, palette=pal)
+    g = sns.FacetGrid(df, hue='Paper', size=size, aspect=1.2, palette=pal)
     if y == "Preferred period (dpc)":
-        g.map(plt.plot, 'Eccentricity', y, marker='o', linewidth=2)
+        g.map(plt.plot, 'Eccentricity', y, marker='o', linewidth=linewidth)
         g.ax.set_ylim((0, 6))
     elif y == "Preferred spatial frequency (cpd)":
-        g.map(plt.semilogy, 'Eccentricity', y, marker='o', linewidth=2, basey=2)
+        g.map(plt.semilogy, 'Eccentricity', y, marker='o', linewidth=linewidth, basey=2)
         g.ax.set_ylim((0, 11))
         g.ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(plotting.myLogFormat))
     g.ax.set_xlim((0, 20))
+    if context == 'poster':
+        g.ax.set(xticks=[0, 5, 10, 15, 20])
     g.add_legend()
     g.ax.set_title("Summary of human V1 fMRI results")
     g.ax.set_xlabel('Eccentricity of receptive field center (deg)')
@@ -655,7 +663,7 @@ def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
     return fig
 
 
-def model_schematic():
+def model_schematic(context='paper'):
     """Create model schematic.
 
     In order to better explain the model, its predictions, and the
@@ -670,6 +678,12 @@ def model_schematic():
         Figure containing the schematic
 
     """
+    if context == 'paper':
+        orientation = np.linspace(0, np.pi, 4, endpoint=False)
+        size_scale = 1
+    elif context == 'poster':
+        size_scale = 1.5
+        orientation = np.linspace(0, np.pi, 2, endpoint=False)
     abs_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
                                        abs_mode_cardinals=.4, abs_mode_obliques=.1)
     rel_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
@@ -680,7 +694,7 @@ def model_schematic():
     # we can't use the plotting.feature_df_plot / feature_df_polar_plot
     # functions because they use FacetGrids, each of which creates a
     # separate figure and we want all of this to be on one figure.
-    fig = plt.figure(figsize=(15, 15))
+    fig = plt.figure(figsize=(size_scale*15, size_scale*15))
     gs = mpl.gridspec.GridSpec(figure=fig, ncols=3, nrows=3)
     projs = ['rectilinear', 'polar']
     labels = [r'$p_1>p_2>0$', r'$p_3>p_4>0$', r'$p_1=p_3>p_2=p_4>0$']
@@ -688,17 +702,18 @@ def model_schematic():
     axes = []
     for i, m in enumerate([abs_model, rel_model, full_model]):
         model_axes = [fig.add_subplot(gs[i, j], projection=projs[j]) for j in range(2)]
-        if i==0:
+        if i == 0:
             title = True
         else:
             title = False
-        model_axes = plotting.model_schematic(m, model_axes[:2], [(-.1, 4.2), (-.1, 3)], title)
+        model_axes = plotting.model_schematic(m, model_axes[:2], [(-.1, 4.2), (-.1, 3)], title,
+                                              orientation=orientation)
         if i != 2:
             [ax.set(xlabel='') for ax in model_axes]
-        model_axes[0].text(-.25, .5, labels[i], rotation=90, transform=model_axes[0].transAxes,
-                           va='center', fontsize=15)
+        model_axes[0].text(size_scale*-.25, .5, labels[i], rotation=90,
+                           transform=model_axes[0].transAxes, va='center',
+                           fontsize=1.5*mpl.rcParams['font.size'])
         axes.append(model_axes)
-        
 
     # this needs to be created after the model plots so we can grab
     # their axes
