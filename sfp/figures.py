@@ -188,7 +188,7 @@ def _demean_df(df, gb_cols=['subject'], y='cv_loss'):
     return df.reset_index()
 
 
-def prep_df(df, task):
+def prep_df(df, task, groupaverage=False):
     """prepare the dataframe by restricting to the appropriate subset
 
     The dataframe created by earlier analysis steps contains all
@@ -209,6 +209,7 @@ def prep_df(df, task):
         task-sfpconstant. task-sfp is also exists, but we consider that
         a pilot task and so do not allow it for the creation of figures
         (the stimuli were not contrast-rescaled).
+    groupaverage : bool, optional
 
     Returns
     -------
@@ -226,6 +227,13 @@ def prep_df(df, task):
     if 'fit_model_type' in df.columns:
         df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
                                                            plotting.MODEL_PLOT_ORDER)))
+    if not groupaverage:
+        # drop either of these
+        df = df.query("subject != 'sub-groupaverage_i-linear' & "
+                      "subject != 'sub-groupaverage_i-nearest'")
+    else:
+        df = df.query("subject == 'sub-groupaverage_i-linear' | "
+                      "subject == 'sub-groupaverage_i-nearest'")
     return df
 
 
@@ -932,8 +940,7 @@ def model_types():
 
     """
     model_names = plotting.MODEL_PLOT_ORDER
-    parameters = [r'$\sigma$', r'$a$', r'$b$', r'$p_1$', r'$p_2$', r'$p_3$', r'$p_4$', r'$A_1$',
-                  r'$A_2$', r'$A_3$', r'$A_4$']
+    parameters = plotting.PLOT_PARAM_ORDER
     model_variants = np.zeros((len(model_names), len(parameters))).astype(bool)
     # everyone fits sigma
     model_variants[:, 0] = True
@@ -943,9 +950,14 @@ def model_types():
     model_variants[3, [3, 4]] = True
     model_variants[4, [5, 6]] = True
     model_variants[5, [3, 4, 5, 6]] = True
-    model_variants[6, [3, 4, 7, 8]] = True
-    model_variants[7, [5, 6, 9, 10]] = True
-    model_variants[8, 3:] = True
+    model_variants[6, [7, 8]] = True
+    model_variants[7, [9, 10]] = True
+    model_variants[8, [7, 8, 9, 10]] = True
+    model_variants[9, [3, 4, 7, 8]] = True
+    model_variants[10, [5, 6, 9, 10]] = True
+    model_variants[11, [3, 4, 5, 6, 7, 8]] = True
+    model_variants[12, [3, 4, 5, 6, 9, 10]] = True
+    model_variants[13, 3:] = True
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
     green, red = sns.color_palette('deep', 4)[2:]
     pal = sns.blend_palette([red, green])
@@ -1192,6 +1204,11 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
         the FacetGrid containing the plot
 
     """
+    # to make sure we show the full dataframe below, from
+    # https://stackoverflow.com/a/42293737
+    pd.set_option('display.max_columns', None)
+    # from https://stackoverflow.com/a/25352191
+    pd.set_option('display.max_colwidth', -1)
     df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
                                                        plotting.MODEL_PLOT_ORDER)))
     order = plotting.get_order('fit_model_type', col_unique=df.fit_model_type.unique())
