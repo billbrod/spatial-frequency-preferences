@@ -267,12 +267,15 @@ rule model_all_subj_cv:
 
 
 def get_groupaverage_all(interp='linear', session='ses-04', task='task-sfprescaled',
-                         model_type='full_full_full', varea='1', eccen='1-12', batch_size=10,
-                         learning_rate=0.001, gpus=0, df_mode='summary'):
-    path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
-                        "bayesian_posterior", "initial", f"sub-groupaverage_i-{interp}",
-                        f"{session}_v{varea}_s{{n:02d}}", f"sub-groupaverage_i-{interp}_{session}"
-                        f"_v{varea}_s{{n:02d}}_{task}_v{varea}_e{eccen}_{df_mode}_b{batch_size}_"
+                         model_type='full_full_full', vareas='1', eccen='1-12', batch_size=10,
+                         learning_rate=0.001, gpus=0, df_mode='summary', mat_type='stim_class',
+                         atlas_type='bayesian_posterior', modeling_goal='initial'):
+    if modeling_goal != 'initial':
+        return []
+    path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", mat_type,
+                        atlas_type, "initial", f"sub-groupaverage_i-{interp}",
+                        f"{session}_v{vareas}_s{{n:02d}}", f"sub-groupaverage_i-{interp}_{session}"
+                        f"_v{vareas}_s{{n:02d}}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
                         f"r{learning_rate}_g{gpus}_cNone_nNone_{model_type}_loss.csv")
     seeds = list(range(104))
     # there are 4 seeds that won't work, so we remove them. there are
@@ -2310,9 +2313,9 @@ def get_figures_all(context='paper', visual_field_analyses=False):
 
 rule figures:
     input:
-        lambda wildcards: figures_all(),
+        lambda wildcards: get_figures_all(),
 
 
 rule figures_poster:
     input:
-        lambda wildcards: figures_all('poster'),
+        lambda wildcards: get_figures_all('poster'),
