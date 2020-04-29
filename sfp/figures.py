@@ -847,13 +847,15 @@ def cross_validation_raw(df, noise_ceiling_df=None, context='paper'):
     """
     height = 8
     aspect = .9
+    s = 5
     if context == 'poster':
         height *= 2
         aspect = 1
+        s *= 2
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
-    g = _catplot(df, legend=False, height=height)
+    g = _catplot(df, legend=False, height=height, s=s)
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
@@ -1034,6 +1036,9 @@ def model_types(context='paper'):
     fig = plt.figure(figsize=figsize)
     ax = sns.heatmap(model_variants, cmap=pal, cbar=False)
     ax.set_yticklabels(model_names, rotation=0)
+    if context == 'poster':
+        # we want the labels on the top here, not the bottom
+        ax.tick_params(labelbottom=False, labeltop=True)
     return fig
 
 
