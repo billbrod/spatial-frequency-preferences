@@ -2274,39 +2274,43 @@ rule all:
 
 
 def get_figures_all(context='paper', visual_field_analyses=False):
+    if context == 'paper':
+        ext = 'pdf'
+    else:
+        ext = 'svg'
     figs = []
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '1d_{}_{}.pdf').format(param, task)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'1d_{{}}_{{}}.{ext}').format(param, task)
              for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'cv_{}_task-sfprescaled.pdf').format(cv)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'cv_{{}}_task-sfprescaled.{ext}').format(cv)
              for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                         'model-remeaned', 'model_point-remeaned', 'raw-nc', 'model_point-nc',
                         'model_point-remeaned-nc']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_params_visualfield-all_{}_task-sfprescaled.pdf').format(model, kind)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_params_visualfield-all_{{}}_task-sfprescaled.{ext}').format(model, kind)
              for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'full_full_absolute']]
     if visual_field_analyses:
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_params_visualfield-{}_{}_task-sfprescaled.pdf').format(model, vf, kind)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_params_visualfield-{{}}_{{}}_task-sfprescaled.{ext}').format(model, vf, kind)
                  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'full_full_absolute']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'full_full_full_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'full_full_full_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'full_full_absolute_params_visualfield-{}_compare_task-sfprescaled.pdf').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'full_full_absolute_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-{}_pref-period_median_angles-{}_task-sfprescaled_{}.pdf').format(model, vf, angles, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
                  for model in ['full_full_full', 'full_full_absolute']],
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-{}_{}_median_angles-all_task-sfprescaled_{}.pdf').format(model, vf, feature, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
                  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']],
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-all_pref-period_{}_angles-{}_task-sfprescaled_{}.pdf').format(model, kind, angles, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-all_pref-period_{{}}_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
              for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_feature_visualfield-all_{}_{}_angles-all_task-sfprescaled_{}.pdf').format(model, feature, kind, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-all_{{}}_{{}}_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, kind, frame)
              for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
              for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
-    figs +=[os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'schematic_{}.pdf').format(kind)
+    figs +=[os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'schematic_{{}}.{ext}').format(kind)
             for kind in ['2d', 'models', '2d-inputs']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', 'background_period.pdf')]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', '{}_training-loss-check_task-sfprescaled.pdf').format(t)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'background_period.{ext}')]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_training-loss-check_task-sfprescaled.{ext}').format(t)
              for t in ['initial_cv', 'bootstrap']]
     return figs
 
