@@ -1308,7 +1308,7 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
 
 
 def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative',
-                    feature_type='pref-period', visual_field='all'):
+                    feature_type='pref-period', visual_field='all', context='paper'):
     """plot model predictions based on parameter values
 
     This function is used to create plots showing the preferred period
@@ -1356,6 +1356,9 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         we're plotting. If 'all' (the default), we don't modify the
         title at all, otherwise we append "in {visual_field} visual
         field" to it.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
 
     Returns
     -------
@@ -1363,6 +1366,10 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         the FacetGrid containing the plot
 
     """
+    height = 4
+    aspect = 1
+    if context == 'poster':
+        height *= 2
     kwargs = {'top': .9}
     if df.bootstrap_num.nunique() > 1:
         # then we have each subject's bootstraps, so we use
@@ -1372,6 +1379,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     else:
         plot_func = sns.lineplot
     if feature_type == 'pref-period':
+        if context == 'poster':
+            aspect = 1.3
         if avg_across_retinal_angle:
             pre_boot_gb_func = 'mean'
             row = None
@@ -1380,29 +1389,41 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             row = 'Retinotopic angle (rad)'
         df = analyze_model.create_feature_df(df, reference_frame=reference_frame)
         g = plotting.feature_df_plot(df, col='subject', row=row, pre_boot_gb_func=pre_boot_gb_func,
-                                     plot_func=plot_func, **kwargs)
+                                     plot_func=plot_func, height=height, aspect=aspect, **kwargs)
     else:
+        if context == 'paper':
+            orientation = np.linspace(0, np.pi, 4, endpoint=False)
+        elif context == 'poster':
+            orientation = np.linspace(0, np.pi, 2, endpoint=False)
+            kwargs.update({'top': .76, 'r_ticks': [.25, .5, .75, 1],
+                           'r_ticklabels': ['', .5, '', 1], 'ylabelpad': 60})
         kwargs.update({'hspace': .3, 'all_tick_labels': ['r']})
         if feature_type == 'pref-period-contour':
             df = analyze_model.create_feature_df(df, reference_frame=reference_frame,
-                                                 eccentricity=[5],
+                                                 eccentricity=[5], orientation=orientation,
                                                  retinotopic_angle=np.linspace(0, 2*np.pi, 49))
             g = plotting.feature_df_polar_plot(df, col='subject', row='Eccentricity (deg)',
-                                               r='Preferred period (dpc)', plot_func=plot_func, **kwargs)
+                                               r='Preferred period (dpc)', plot_func=plot_func,
+                                               height=height, aspect=aspect, **kwargs)
         elif feature_type == 'iso-pref-period':
+            if context == 'poster':
+                kwargs.update({'r_ticks': list(range(1, 9)),
+                               'r_ticklabels': [i if i%2==0 else '' for i in range(1, 9)]})
             df = analyze_model.create_feature_df(df, 'preferred_period_contour', period_target=[1],
-                                                 reference_frame=reference_frame)
+                                                 reference_frame=reference_frame,
+                                                 orientation=orientation)
             g = plotting.feature_df_polar_plot(df, col='subject', row='Preferred period (dpc)',
-                                               plot_func=plot_func,
+                                               plot_func=plot_func, height=height, aspect=aspect,
                                                title='Iso-preferred period contours', **kwargs)
         elif feature_type == 'max-amp':
             # this will have only one row, in which case we should use
             # the default value
             kwargs.update({'top': .76})
-            df = analyze_model.create_feature_df(df, 'max_amplitude',
+            df = analyze_model.create_feature_df(df, 'max_amplitude', orientation=orientation,
                                                  reference_frame=reference_frame)
-            g = plotting.feature_df_polar_plot(df, col='subject', r='Max amplitude',
-                                               plot_func=plot_func, title='Max amplitude', **kwargs)
+            g = plotting.feature_df_polar_plot(df, col='subject', r='Max amplitude', height=height,
+                                               aspect=aspect, plot_func=plot_func,
+                                               title='Max amplitude', **kwargs)
         else:
             raise Exception(f"Don't know what to do with feature_type {feature_type}!")
     if visual_field != 'all':

@@ -2172,7 +2172,7 @@ rule figure_feature_df:
             elif wildcards.angles == 'all':
                 angles = False
             g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame, wildcards.feature_type,
-                                            wildcards.vf)
+                                            wildcards.vf, wildcards.context)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 

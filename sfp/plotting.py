@@ -86,7 +86,7 @@ def get_palette(col, reference_frame=None, col_unique=None, as_dict=False):
     elif col == 'subject':
         pal = sns.color_palette('Dark2', len(col_unique))
     elif col == 'fit_model_type':
-        pal = sns.color_palette('Accent', len(col_unique))
+        pal = sns.color_palette('deep', len(col_unique))
     elif col == 'model_parameter':
         pal = sns.color_palette('viridis', len(col_unique))
     # if col=='stimulus_type', this is already a dict
@@ -1335,8 +1335,8 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
 
 def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period (dpc)', row=None,
                           plot_func=sns.lineplot, theta='Retinotopic angle (rad)',
-                          r='Eccentricity (deg)', r_ticks=None, theta_ticks=None,
-                          all_tick_labels=[], height=4, aspect=1, title='Preferred period contours',
+                          r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, r_ticklabels=None,
+                          theta_ticklabels=None, all_tick_labels=[], height=4, aspect=1, title='Preferred period contours',
                           top=.76, hspace=.3, wspace=.1, pal=None, col_order=None, row_order=None,
                           title_position=[.5, 1.15], ylabelpad=30, legend_position=None, ylim=None,
                           xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
@@ -1399,8 +1399,11 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     r : str, optional
         a column in feature_df, which feature to plot as distance from
         the origin
-    {r, theta}ticks : list, optional
+    {r, theta}_ticks : list, optional
         list of floats, which r- and theta-ticks to include on the plot
+    {r, theta}_ticklabels : list, optional
+        list of floats/strs, which r- and theta-tick labels to include
+        on the plot
     all_tick_labels : list, optional
         by default, sns.FacetGrid only puts tick labels on the bottom-
         and left-most facets. this works well for cartesian plots, but
@@ -1492,10 +1495,14 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                 ax.yaxis.labelpad = ylabelpad
             if r_ticks is not None:
                 ax.set_yticks(r_ticks)
+            if r_ticklabels is not None:
+                ax.set_yticklabels(r_ticklabels)
             if 'r' in all_tick_labels:
                 ax.tick_params(labelleft=True)
             if theta_ticks is not None:
                 ax.set_xticks(theta_ticks)
+            if theta_ticklabels is not None:
+                ax.set_xticklabels(theta_ticklabels)
             if 'theta' in all_tick_labels:
                 ax.tick_params(labelbottom=True)
     if legend_position is not None:
