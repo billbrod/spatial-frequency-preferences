@@ -227,15 +227,21 @@ def _check_log_gaussian_params(param_vals, train_params, period_orientation_type
         if period_orientation_type in ['relative', 'iso']:
             for angle in ['cardinals', 'obliques']:
                 if param_vals[f'abs_mode_{angle}'] != 0:
-                    warnings.warn(f"When period_orientation_type is {period_orientation_type}, "
-                                  "all absolute variables must be 0, correcting this...")
+                    # when parsing from df, these can be nan. don't need
+                    # to raise the warning in that case
+                    if not np.isnan(param_vals[f'abs_mode_{angle}']):
+                        warnings.warn(f"When period_orientation_type is {period_orientation_type}, "
+                                      "all absolute variables must be 0, correcting this...")
                     param_vals[f'abs_mode_{angle}'] = 0
                 train_params[f'abs_mode_{angle}'] = False
         if period_orientation_type in ['absolute', 'iso']:
             for angle in ['cardinals', 'obliques']:
                 if param_vals[f'rel_mode_{angle}'] != 0:
-                    warnings.warn(f"When period_orientation_type is {period_orientation_type}, "
-                                  "all relative variables must be 0, correcting this...")
+                    # when parsing from df, these can be nan. don't need
+                    # to raise the warning in that case
+                    if not np.isnan(param_vals[f'rel_mode_{angle}']):
+                        warnings.warn(f"When period_orientation_type is {period_orientation_type}, "
+                                      "all relative variables must be 0, correcting this...")
                     param_vals[f'rel_mode_{angle}'] = 0
                 train_params[f'rel_mode_{angle}'] = False
         if period_orientation_type not in ['relative', 'absolute', 'iso', 'full']:
@@ -244,15 +250,21 @@ def _check_log_gaussian_params(param_vals, train_params, period_orientation_type
         if amplitude_orientation_type in ['relative', 'iso']:
             for angle in ['cardinals', 'obliques']:
                 if param_vals[f'abs_amplitude_{angle}'] != 0:
-                    warnings.warn(f"When amplitude_orientation_type is {amplitude_orientation_type}, "
-                                  "all absolute variables must be 0, correcting this...")
+                    # when parsing from df, these can be nan. don't need
+                    # to raise the warning in that case
+                    if not np.isnan(param_vals[f'abs_amplitude_{angle}']):
+                        warnings.warn(f"When amplitude_orientation_type is {amplitude_orientation_type}, "
+                                      "all absolute variables must be 0, correcting this...")
                     param_vals[f'abs_amplitude_{angle}'] = 0
                 train_params[f'abs_amplitude_{angle}'] = False
         if amplitude_orientation_type in ['absolute', 'iso']:
             for angle in ['cardinals', 'obliques']:
                 if param_vals[f'rel_amplitude_{angle}'] != 0:
-                    warnings.warn(f"When amplitude_orientation_type is {amplitude_orientation_type}, "
-                                  "all relative variables must be 0, correcting this...")
+                    # when parsing from df, these can be nan. don't need
+                    # to raise the warning in that case
+                    if not np.isnan(param_vals[f'rel_amplitude_{angle}']):
+                        warnings.warn(f"When amplitude_orientation_type is {amplitude_orientation_type}, "
+                                      "all relative variables must be 0, correcting this...")
                     param_vals[f'rel_amplitude_{angle}'] = 0
                 train_params[f'rel_amplitude_{angle}'] = False
         if amplitude_orientation_type not in ['relative', 'absolute', 'iso', 'full']:
@@ -260,14 +272,20 @@ def _check_log_gaussian_params(param_vals, train_params, period_orientation_type
                             f"{amplitude_orientation_type}!")
         if eccentricity_type == 'scaling':
             if param_vals['sf_ecc_intercept'] != 0:
-                warnings.warn("When eccentricity_type is scaling, sf_ecc_intercept must be 0! "
-                              "correcting...")
+                # when parsing from df, these can be nan. don't need
+                # to raise the warning in that case
+                if not np.isnan(param_vals[f'sf_ecc_intercept']):
+                    warnings.warn("When eccentricity_type is scaling, sf_ecc_intercept must be 0! "
+                                  "correcting...")
                 param_vals['sf_ecc_intercept'] = 0
             train_params['sf_ecc_intercept'] = False
         elif eccentricity_type == 'constant':
             if param_vals['sf_ecc_slope'] != 0:
-                warnings.warn("When eccentricity_type is constant, sf_ecc_slope must be 0! "
-                              "correcting...")
+                # when parsing from df, these can be nan. don't need
+                # to raise the warning in that case
+                if not np.isnan(param_vals[f'sf_ecc_slope']):
+                    warnings.warn("When eccentricity_type is constant, sf_ecc_slope must be 0! "
+                                  "correcting...")
                 param_vals['sf_ecc_slope'] = 0
             train_params['sf_ecc_slope'] = False
         elif eccentricity_type != 'full':
