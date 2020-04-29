@@ -741,7 +741,7 @@ def model_schematic(context='paper'):
 
 
 def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.9,
-             ci=68, plot_kind='strip', x_rotate=True, legend='full', **kwargs):
+             ci=68, plot_kind='strip', x_rotate=False, legend='full', **kwargs):
     """wrapper around seaborn.catplot
 
     several figures call seaborn.catplot and are pretty similar, so this
@@ -855,7 +855,7 @@ def cross_validation_raw(df, noise_ceiling_df=None, context='paper'):
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
-    g = _catplot(df, legend=False, height=height, s=s)
+    g = _catplot(df, legend=False, height=height, s=s, x_rotate=True)
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
@@ -903,7 +903,7 @@ def cross_validation_demeaned(df, remeaned=False, context='paper'):
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df, y=f'{name}_cv_loss', height=height, aspect=aspect)
+    g = _catplot(df, y=f'{name}_cv_loss', height=height, aspect=aspect, x_rotate=True)
     g.fig.suptitle(f"{name.capitalize()} cross-validated loss across subjects")
     g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Subject")
     g._legend.set_title("Model type")
@@ -1248,7 +1248,7 @@ def model_parameters_compare_plot(df, bootstrap_df):
     g.map_dataframe(plotting.scatter_ci_dist, 'subject', 'fit_value_bs')
     g.map_dataframe(plt.scatter, 'subject', 'fit_value')
     for ax in g.axes.flatten():
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=25)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=25, ha='right')
     return g
 
 
@@ -1285,7 +1285,7 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
     # from https://stackoverflow.com/a/25352191
     pd.set_option('display.max_colwidth', -1)
     df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
-                                                       plotting.MODEL_PLOT_ORDER)))
+                                                       plotting.MODEL_PLOT_ORDER_FULL)))
     order = plotting.get_order('fit_model_type', col_unique=df.fit_model_type.unique())
     col_order = plotting.get_order('subject', col_unique=df.subject.unique())
     g = sns.FacetGrid(df, col='subject', hue=hue, col_wrap=4, sharey=False,
@@ -1293,7 +1293,7 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
     g.map_dataframe(plotting.scatter_ci_dist, 'fit_model_type', 'loss', x_jitter=True,
                     x_order=order)
     for ax in g.axes.flatten():
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=25)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=25, ha='right')
         if ax.get_ylim()[1] > thresh:
             ax.hlines(thresh, 0, len(df.fit_model_type.unique())-1, 'gray', 'dashed')
     # find those training sessions with loss above the threshold

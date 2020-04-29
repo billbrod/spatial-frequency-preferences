@@ -40,8 +40,9 @@ MODEL_ORDER = ['constant_donut_period-iso_amps-iso', 'scaling_donut_period-iso_a
                'full_donut_period-relative_amps-relative', 'full_donut_period-full_amps-absolute',
                'full_donut_period-full_amps-relative', 'full_donut_period-full_amps-full']
 # these are the 'prettier names' for plotting
-MODEL_PLOT_ORDER = (['constant iso', 'scaling iso', 'full iso'] +
-                    [i.replace('_donut', '').replace('_', ' ') for i in MODEL_ORDER[3:]])
+MODEL_PLOT_ORDER_FULL = (['constant iso', 'scaling iso', 'full iso'] +
+                         [i.replace('_donut', '').replace('_', ' ') for i in MODEL_ORDER[3:]])
+MODEL_PLOT_ORDER = list(range(1, len(MODEL_ORDER)+1))
 
 
 def get_order(col, reference_frame=None, col_unique=None):
@@ -52,6 +53,8 @@ def get_order(col, reference_frame=None, col_unique=None):
     elif col == 'fit_model_type':
         if any([i in col_unique for i in MODEL_PLOT_ORDER]):
             return [i for i in MODEL_PLOT_ORDER if i in col_unique]
+        elif any([i in col_unique for i in MODEL_PLOT_ORDER_FULL]):
+            return [i for i in MODEL_PLOT_ORDER_FULL if i in col_unique]
         else:
             return [i for i in MODEL_ORDER if i in col_unique]
     elif col == 'model_parameter':
