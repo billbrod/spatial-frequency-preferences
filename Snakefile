@@ -2000,11 +2000,11 @@ rule figure_crossvalidation:
                      '{task}_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
         get_noise_ceiling_df,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "cv_{cv_type}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "cv_{cv_type}_{orient}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{orient}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{orient}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2022,14 +2022,17 @@ rule figure_crossvalidation:
             else:
                 remeaned = False
             if wildcards.cv_type.startswith('demeaned'):
-                g = sfp.figures.cross_validation_demeaned(df, remeaned, context=wildcards.context)
+                g = sfp.figures.cross_validation_demeaned(df, remeaned, context=wildcards.context,
+                                                          orient=wildcards.orient)
             elif wildcards.cv_type.startswith('raw'):
-                g = sfp.figures.cross_validation_raw(df, noise_ceiling, context=wildcards.context)
+                g = sfp.figures.cross_validation_raw(df, noise_ceiling, context=wildcards.context,
+                                                     orient=wildcards.orient)
             elif wildcards.cv_type.startswith('model_point'):
                 g = sfp.figures.cross_validation_model(df, 'point', remeaned, noise_ceiling,
-                                                       context=wildcards.context)
+                                                       context=wildcards.context,
+                                                       orient=wildcards.orient)
             elif wildcards.cv_type.startswith('model'):
-                g = sfp.figures.cross_validation_model(df, remeaned=remeaned,
+                g = sfp.figures.cross_validation_model(df, remeaned=remeaned, orient=wildcards.orient,
                                                        context=wildcards.context)
             g.fig.savefig(output[0], bbox_inches='tight')
 
@@ -2193,8 +2196,12 @@ rule figure_schematic:
                 fig = sfp.figures.model_schematic(wildcards.context)
             elif wildcards.schematic_type == '2d-inputs':
                 fig = sfp.figures.input_schematic()
-            elif wildcards.schematic_type == 'models':
-                fig = sfp.figures.model_types(wildcards.context)
+            elif wildcards.schematic_type.startswith('models'):
+                if 'annot' in wildcards.schematic_type:
+                    annotate = True
+                else:
+                    annotate = False
+                fig = sfp.figures.model_types(wildcards.context, annotate=annotate)
             fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2281,10 +2288,12 @@ def get_figures_all(context='paper', visual_field_analyses=False):
     figs = []
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'1d_{{}}_{{}}.{ext}').format(param, task)
              for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'cv_{{}}_task-sfprescaled.{ext}').format(cv)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'cv_{{}}_v_task-sfprescaled.{ext}').format(cv)
              for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                         'model-remeaned', 'model_point-remeaned', 'raw-nc', 'model_point-nc',
                         'model_point-remeaned-nc']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'cv_{{}}_h_task-sfprescaled.{ext}').format(cv)
+             for cv in ['model_point', 'model_point-remeaned']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_params_visualfield-all_{{}}_task-sfprescaled.{ext}').format(model, kind)
              for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'full_full_absolute']]
     if visual_field_analyses:

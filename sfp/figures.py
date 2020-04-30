@@ -623,10 +623,6 @@ def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
     def get_xy(distance, angle, origin=(500, 500)):
         return [o + distance * func(angle) for o, func in zip(origin, [np.cos, np.sin])]
-    def draw_arrow(xy, xytext, text="", arrowprops={}, **kwargs):
-        arrowprops['linewidth'] = 2
-        ax.annotate(text, xy=xy, xytext=xytext, xycoords='data', textcoords='data',
-                    arrowprops=arrowprops, **kwargs)
     pal = sns.color_palette('deep', 2)
     if (np.array(prf_loc) > 500).any() or (np.array(prf_loc) < 0).any():
         raise Exception("the coordinates of prf_loc must be between 0 and 500, but got "
@@ -649,25 +645,28 @@ def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
     prf_angle = np.arctan2(*prf_loc[::-1])
     phi_loc = get_xy(100, prf_angle)
     e_loc = get_xy(prf_ecc/2, prf_angle + np.pi/13)
-    draw_arrow((500, 500), abs_prf_loc, arrowprops={'connectionstyle': 'arc3', 'arrowstyle': '<-',
-                                                    'color': pal[1]})
+    plotting.draw_arrow(ax, (500, 500), abs_prf_loc, arrowprops={'connectionstyle': 'arc3',
+                                                                 'arrowstyle': '<-',
+                                                                 'color': pal[1]})
     ax.text(*e_loc, r'$e$', {'size': 15})
-    draw_arrow(phi_loc, (600, 500), arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-',
-                                                'color': pal[1]})
+    plotting.draw_arrow(ax, phi_loc, (600, 500), arrowprops={'connectionstyle': 'angle3',
+                                                             'arrowstyle': '-',
+                                                             'color': pal[1]})
     ax.text(600, 500 + 50*np.sin(prf_angle/2), r'$\phi$', {'size': 15})
     # so that this is the normal vector, the 7000 is just an arbitrary
     # scale factor to make the vector a reasonable length
     normal_len = 7000 * np.sqrt(np.square(stim_freq).sum())
     normal_angle = np.arctan2(*stim_freq[::-1])
     omega_loc = get_xy(normal_len, normal_angle, abs_prf_loc)
-    draw_arrow(abs_prf_loc, omega_loc, r'$\omega$', {'connectionstyle': 'arc3', 'arrowstyle': '<-',
-                                                     'color': pal[0]}, size=15)
+    plotting.draw_arrow(ax, abs_prf_loc, omega_loc, r'$\omega$', {'connectionstyle': 'arc3',
+                                                                  'arrowstyle': '<-',
+                                                                  'color': pal[0]}, size=15)
     arc_loc = get_xy(1.2*normal_len/2, normal_angle, abs_prf_loc)
-    draw_arrow(arc_loc, (abs_prf_loc[0] + 1.2*normal_len/2, abs_prf_loc[1]),
-               arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-', 'color': pal[0]})
-    draw_arrow((abs_prf_loc[0] + normal_len, abs_prf_loc[1]), abs_prf_loc,
-               arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-', 'color': '.5',
-                           'linestyle': ':'})
+    plotting.draw_arrow(ax, arc_loc, (abs_prf_loc[0] + 1.2*normal_len/2, abs_prf_loc[1]),
+                        arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-', 'color': pal[0]})
+    plotting.draw_arrow(ax, (abs_prf_loc[0] + normal_len, abs_prf_loc[1]), abs_prf_loc,
+                        arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-', 'color': '.5',
+                                    'linestyle': ':'})
     theta_loc = get_xy(1.3*normal_len/2, normal_angle/4, abs_prf_loc)
     ax.text(*theta_loc, r'$\theta$', {'size': 15})
     return fig
@@ -741,7 +740,7 @@ def model_schematic(context='paper'):
 
 
 def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspect=.9,
-             ci=68, plot_kind='strip', x_rotate=False, legend='full', **kwargs):
+             ci=68, plot_kind='strip', x_rotate=False, legend='full', orient='v', **kwargs):
     """wrapper around seaborn.catplot
 
     several figures call seaborn.catplot and are pretty similar, so this
@@ -797,9 +796,14 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         # want the different hues to be in a consistent order on the
         # x-axis, which requires this
         kwargs.update({'jitter': False, 'dodge': True})
+    if orient == 'h':
+        x_copy = x
+        x = y
+        y = x_copy
+        aspect = 1/aspect
     g = sns.catplot(x, y, hue, data=df, hue_order=hue_order, legend=legend, height=height,
                     kind=plot_kind, aspect=aspect, order=order, palette=pal, ci=ci,
-                    estimator=np.median, **kwargs)
+                    estimator=np.median, orient=orient, **kwargs)
     for ax in g.axes.flatten():
         if x_rotate:
             if x_rotate is True:
@@ -807,17 +811,23 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
             labels = ax.get_xticklabels()
             if labels:
                 ax.set_xticklabels(labels, rotation=x_rotate, ha='right')
-        if (df[y] < 0).any() and (df[y] > 0).any():
-            ax.axhline(color='grey', linestyle='dashed')
+        if orient == 'v':
+            if (df[y] < 0).any() and (df[y] > 0).any():
+                ax.axhline(color='grey', linestyle='dashed')
+        else:
+            if (df[x] < 0).any() and (df[x] > 0).any():
+                ax.axvline(color='grey', linestyle='dashed')
     if x_rotate:
         if x == 'subject':
             g.fig.subplots_adjust(bottom=.15)
         else:
             g.fig.subplots_adjust(bottom=.2)
+    if orient == 'h':
+        g.fig.subplots_adjust(top=.95)
     return g
 
 
-def cross_validation_raw(df, noise_ceiling_df=None, context='paper'):
+def cross_validation_raw(df, noise_ceiling_df=None, orient='v', context='paper'):
     """plot raw cross-validation loss
 
     This does no pre-processing of the df and plots subjects on the
@@ -855,17 +865,20 @@ def cross_validation_raw(df, noise_ceiling_df=None, context='paper'):
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
-    g = _catplot(df, legend=False, height=height, s=s, x_rotate=True)
+    g = _catplot(df, legend=False, height=height, s=s, x_rotate=True, orient=orient)
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
-    g.set(ylabel="Cross-validated loss", xlabel="Subject")
+    if orient == 'v':
+        g.set(ylabel="Cross-validated loss", xlabel="Subject")
+    elif orient == 'h':
+        g.set(xlabel="Cross-validated loss", ylabel="Subject")
     g.add_legend()
     g._legend.set_title("Model type")
     return g
 
 
-def cross_validation_demeaned(df, remeaned=False, context='paper'):
+def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
     """plot demeaned cross-validation loss
 
     This function demeans the cross-validation loss on a
@@ -903,15 +916,19 @@ def cross_validation_demeaned(df, remeaned=False, context='paper'):
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df, y=f'{name}_cv_loss', height=height, aspect=aspect, x_rotate=True)
+    g = _catplot(df, y=f'{name}_cv_loss', height=height, aspect=aspect, x_rotate=True,
+                 orient=orient)
     g.fig.suptitle(f"{name.capitalize()} cross-validated loss across subjects")
-    g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Subject")
+    if orient == 'v':
+        g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Subject")
+    elif orient == 'h':
+        g.set(xlabel=f"Cross-validated loss ({name} by subject)", ylabel="Subject")
     g._legend.set_title("Model type")
     return g
 
 
 def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
-                           context='paper'):
+                           orient='v', context='paper'):
     """plot demeaned cross-validation loss, as function of model type
 
     This function demeans the cross-validation loss on a
@@ -929,7 +946,7 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     plot_kind : {'strip', 'point'}, optional
         whether to create a strip plot (each subject as a separate
         point) or a point plot (combine across subjects, plotting the
-        median and bootstrapped 95% CI)
+        median and bootstrapped 68% CI)
     remeaned : bool, optional
         whether to use the demeaned cross-validation loss or the
         remeaned one. Remeaned has the mean across subjects added back
@@ -967,20 +984,25 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     if plot_kind == 'strip':
         hue = 'subject'
         legend_title = "Subject"
+        legend = 'full'
     elif plot_kind == 'point':
         hue = 'fit_model_type'
+        legend = False
     if remeaned:
         name = 'remeaned'
     else:
         name = 'demeaned'
     g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue, plot_kind=plot_kind,
-                 height=height, aspect=aspect)
+                 height=height, aspect=aspect, orient=orient, legend=legend)
     title = f"{name.capitalize()} cross-validated loss across model types"
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'fit_model_type', f'{name}_loss', ci=0)
         title += "\n Median noise ceiling shown as blue line"
     g.fig.suptitle(title)
-    g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Model type")
+    if orient == 'v':
+        g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Model type")
+    elif orient == 'h':
+        g.set(xlabel=f"Cross-validated loss ({name} by subject)", ylabel="Model type")
     # if plot_kind=='point', then there is no legend, so the following
     # would cause an error
     if plot_kind == 'strip':
@@ -988,7 +1010,7 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     return g
 
 
-def model_types(context='paper'):
+def model_types(context='paper', palette_type='model', annotate=False):
     """Create plot showing which model fits which parameters
 
     We have 11 different parameters, which might seem like a lot, so we
@@ -1001,6 +1023,17 @@ def model_types(context='paper'):
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
+    palette_type : {'model', 'simple', 'simple_r', seaborn palette name}, optional
+        palette to use for this plot. if 'model', the parameter each
+        model fits is shown in its color (as used in other plots). If
+        'simple' or 'simple_r', we'll use a white/black colormap with
+        either black (if 'simple') or white (if 'simple_r') showing the
+        parameter is fit. Else, should be a str giving a seaborn palette
+        name, i.e., an arg that can be passed to seaborn.color_palette.
+    annotate : bool, optional
+        whether to annotate the schematic with info on the parameter
+        categories (e.g., period/amplitude, eccentricity/orientation,
+        etc)
 
     Returns
     -------
@@ -1009,36 +1042,72 @@ def model_types(context='paper'):
 
     """
     figsize = (6, 5)
+    text_size = 10
+    extra_space = 0
+    linewidth = 2
     if context == 'poster':
         figsize = [2*i for i in figsize]
+        text_size *= 2
+        extra_space += .03
+        linewidth *= 2
     model_names = plotting.MODEL_PLOT_ORDER
     parameters = plotting.PLOT_PARAM_ORDER
-    model_variants = np.zeros((len(model_names), len(parameters))).astype(bool)
-    # everyone fits sigma
-    model_variants[:, 0] = True
-    model_variants[1:, 1] = True
-    model_variants[0, 2] = True
-    model_variants[2:, 2] = True
-    model_variants[3, [3, 4]] = True
-    model_variants[4, [5, 6]] = True
-    model_variants[5, [3, 4, 5, 6]] = True
-    model_variants[6, [7, 8]] = True
-    model_variants[7, [9, 10]] = True
-    model_variants[8, [7, 8, 9, 10]] = True
-    model_variants[9, [3, 4, 7, 8]] = True
-    model_variants[10, [5, 6, 9, 10]] = True
-    model_variants[11, [3, 4, 5, 6, 7, 8]] = True
-    model_variants[12, [3, 4, 5, 6, 9, 10]] = True
-    model_variants[13, 3:] = True
+    model_variants = np.zeros((len(model_names), len(parameters)))
+    if palette_type == 'model':
+        pal = [(1, 1, 1)] + plotting.get_palette('fit_model_type', col_unique=model_names)
+        fill_vals = dict(zip(range(len(model_names)), range(1, len(model_names)+1)))
+    else:
+        if palette_type.startswith('simple'):
+            black, white = [(0, 0, 0), (1, 1, 1)]
+            if palette_type.endswith('_r'):
+                pal = [black, white]
+            else:
+                pal = [white, black]
+        else:
+            pal = sns.color_palette(palette_type, 2)
+        fill_vals = dict(zip(range(len(model_names)), len(model_names) * [True]))
+    model_variants[0, [0, 2]] = fill_vals[0]
+    model_variants[1, [0, 1]] = fill_vals[1]
+    model_variants[2, [0, 1, 2]] = fill_vals[2]
+    model_variants[3, [0, 1, 2, 3, 4]] = fill_vals[3]
+    model_variants[4, [0, 1, 2, 5, 6]] = fill_vals[4]
+    model_variants[5, [0, 1, 2, 3, 4, 5, 6]] = fill_vals[5]
+    model_variants[6, [0, 1, 2, 7, 8]] = fill_vals[6]
+    model_variants[7, [0, 1, 2, 9, 10]] = fill_vals[7]
+    model_variants[8, [0, 1, 2, 7, 8, 9, 10]] = fill_vals[8]
+    model_variants[9, [0, 1, 2, 3, 4, 7, 8]] = fill_vals[9]
+    model_variants[10, [0, 1, 2, 5, 6, 9, 10]] = fill_vals[10]
+    model_variants[11, [0, 1, 2, 3, 4, 5, 6, 7, 8]] = fill_vals[11]
+    model_variants[12, [0, 1, 2, 3, 4, 5, 6, 9, 10]] = fill_vals[12]
+    model_variants[13, :] = fill_vals[13]
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
-    green, red = sns.color_palette('deep', 4)[2:]
-    pal = sns.blend_palette([red, green])
     fig = plt.figure(figsize=figsize)
     ax = sns.heatmap(model_variants, cmap=pal, cbar=False)
     ax.set_yticklabels(model_names, rotation=0)
-    if context == 'poster':
-        # we want the labels on the top here, not the bottom
-        ax.tick_params(labelbottom=False, labeltop=True)
+    # we want the labels on the top here, not the bottom
+    ax.tick_params(labelbottom=False, labeltop=True)
+    if annotate:
+        arrowprops = {'connectionstyle': 'bar', 'arrowstyle': '-', 'color': '0',
+                      'linewidth': linewidth}
+        text = ['Eccentricity', 'Absolute', 'Relative', 'Absolute', 'Relative']
+        for i, pos in enumerate(range(1, 10, 2)):
+            plotting.draw_arrow(ax, ((pos+.5)/11, 1.07+extra_space),
+                                ((pos+1.5)/11, 1.07+extra_space), arrowprops=arrowprops,
+                                xycoords='axes fraction', textcoords='axes fraction')
+            ax.text((pos+1)/11, 1.12+extra_space, text[i], {'size': text_size}, transform=ax.transAxes,
+                    ha='center', va='bottom')
+        arrowprops['connectionstyle'] = f'bar,fraction={.3/5}'
+        plotting.draw_arrow(ax, (1.5/11, 1.17+extra_space), (6.5/11, 1.17+extra_space),
+                            arrowprops=arrowprops,
+                            xycoords='axes fraction', textcoords='axes fraction')
+        ax.text(4/11, 1.22+extra_space, 'Period', {'size': text_size}, transform=ax.transAxes,
+                ha='center', va='bottom')
+        arrowprops['connectionstyle'] = f'bar,fraction={.3/3}'
+        plotting.draw_arrow(ax, (7.5/11, 1.17+extra_space), (10.5/11, 1.17+extra_space),
+                            arrowprops=arrowprops,
+                            xycoords='axes fraction', textcoords='axes fraction')
+        ax.text(9/11, 1.22+extra_space, 'Amplitude', {'size': text_size}, transform=ax.transAxes,
+                ha='center', va='bottom')
     return fig
 
 
@@ -1062,7 +1131,7 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         'dist', it's assumed that df contains the fits to all bootstraps
         (thus, 100 values per subject per parameter). this function
         should run if those are not true, but it will look weird:
-        - 'point': point plot, so show 95% CI across subjects
+        - 'point': point plot, so show 68% CI across subjects
         - 'strip': strip plot, so show each subject as a separate point
         - 'dist': distribution, show each each subject as a separate
           point with their own 68% CI across bootstraps

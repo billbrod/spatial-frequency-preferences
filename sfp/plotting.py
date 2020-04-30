@@ -145,6 +145,13 @@ def is_numeric(s):
     return True
 
 
+def draw_arrow(ax, xy, xytext, text="", arrowprops={}, **kwargs):
+    arrowprops.setdefault('linewidth', 2)
+    kwargs.setdefault('xycoords', 'data')
+    kwargs.setdefault('textcoords', 'data')
+    ax.annotate(text, xy=xy, xytext=xytext, arrowprops=arrowprops, **kwargs)
+
+
 class MidpointNormalize(mpl.colors.Normalize):
     def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
         self.midpoint = midpoint
