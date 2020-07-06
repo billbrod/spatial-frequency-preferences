@@ -131,7 +131,8 @@ wildcard_constraints:
     amplitude_orientation_type="[a-z-]+",
     model_type="[a-z-_]+",
     crossval_seed="[0-9]+",
-    gpus="[0-9]+"
+    gpus="[0-9]+",
+    y_val="period|frequency"
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -2042,24 +2043,28 @@ def get_params_csv(wildcards):
                                  'stim_class', 'bayesian_posterior', '%s',
                                  f'{wildcards.task}_v1_e1-12_%s_b10_r0.001_g0_{wildcards.model_type}_all_models.csv')
     paths = []
-    if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
-                               'dist-overall', 'bootstraps-overall']:
-        paths.append(path_template % ('bootstrap', 'full'))
-    if wildcards.plot_kind in ['point', 'strip', 'compare', 'median']:
-        if wildcards.vf == 'vertical':
-            vf = ['upper', 'lower']
-        elif wildcards.vf == 'horizontal':
-            vf = ['left', 'right']
-        elif wildcards.vf == 'eccen':
-            vf = ['inner', 'outer']
-        else:
-            vf = [wildcards.vf]
-        for v in vf:
-            if v == 'all':
-                folder = 'initial'
+    try:
+        if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
+                                   'dist-overall', 'bootstraps-overall']:
+            paths.append(path_template % ('bootstrap', 'full'))
+        if wildcards.plot_kind in ['point', 'strip', 'compare', 'median']:
+            if wildcards.vf == 'vertical':
+                vf = ['upper', 'lower']
+            elif wildcards.vf == 'horizontal':
+                vf = ['left', 'right']
+            elif wildcards.vf == 'eccen':
+                vf = ['inner', 'outer']
             else:
-                folder = 'visual_field_%s' % v
-            paths.append(path_template % (folder, 'summary'))
+                vf = [wildcards.vf]
+            for v in vf:
+                if v == 'all':
+                    folder = 'initial'
+                else:
+                    folder = 'visual_field_%s' % v
+                paths.append(path_template % (folder, 'summary'))
+    except AttributeError:
+        # this is the figure_background_with_current rule
+        paths = path_template % ('bootstrap', 'full')
     return paths
 
 
@@ -2225,6 +2230,29 @@ rule figure_background:
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
+rule figure_background_with_current:
+    input:
+        get_params_csv,
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{task}_background_{y_val}_{model_type}.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{task}_background_{y_val}_{model_type}_{ext}.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{task}_background_{y_val}_{model_type}_{ext}_benchmark.txt')
+    run:
+        import sfp
+        import seaborn as sns
+        import pandas as pd
+        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
+        sns.set_context(wildcards.context, font_scale=font_scale)
+        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
+        with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
+            y = {'period': 'Preferred period (dpc)',
+                 'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
+            g = sfp.figures.existing_studies_with_current_figure(df, y, wildcards.context)
+            g.fig.savefig(output[0], bbox_inches='tight')
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),
@@ -2319,6 +2347,8 @@ def get_figures_all(context='paper', visual_field_analyses=False):
     figs +=[os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'schematic_{{}}.{ext}').format(kind)
             for kind in ['2d', 'models', '2d-inputs']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'background_period.{ext}')]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'task-sfprescaled_background_period_{{}}.{ext}').format(model)
+             for model in ['full_full_full', 'full_full_absolute']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_training-loss-check_task-sfprescaled.{ext}').format(t)
              for t in ['initial_cv', 'bootstrap']]
     return figs

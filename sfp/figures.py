@@ -562,13 +562,16 @@ def existing_studies_figure(df, y="Preferred period (dpc)", context='paper'):
 
     """
     if context == 'paper':
-        size = 4
+        height = 4
         linewidth = 2
     if context == 'poster':
-        size = 8
+        height = 8
         linewidth = 6
-    pal = sns.color_palette('Set3', df.Paper.nunique())
-    g = sns.FacetGrid(df, hue='Paper', size=size, aspect=1.2, palette=pal)
+    pal = sns.color_palette('Set2', df.Paper.nunique())
+    pal = dict(zip(df.Paper.unique(), pal))
+    if 'Current study' in df.Paper.unique():
+        pal['Current study'] = (0, 0, 0)
+    g = sns.FacetGrid(df, hue='Paper', height=height, aspect=1.2, palette=pal)
     if y == "Preferred period (dpc)":
         g.map(plt.plot, 'Eccentricity', y, marker='o', linewidth=linewidth)
         g.ax.set_ylim((0, 6))
@@ -780,6 +783,8 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
     legend : str or bool, optional
         the legend arg to pass through to seaborn.catplot, see its
         docstrings for more details
+    orient : {'h', 'v'}, optional
+        orientation of plot (horizontal or vertical)
     kwargs :
         passed to sns.catplot
 
@@ -845,6 +850,8 @@ def cross_validation_raw(df, noise_ceiling_df=None, orient='v', context='paper')
         dataframe containing the results of the noise ceiling analyses
         for all subjects (i.e., the output of the
         noise_ceiling_monte_carlo_overall rule)
+    orient : {'h', 'v'}, optional
+        orientation of plot (horizontal or vertical)
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -899,6 +906,11 @@ def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
         to it, so that there won't be any negative y-values. This will
         only affect the values on the y-axis; the relative placements of
         the points will all be the same.
+    orient : {'h', 'v'}, optional
+        orientation of plot (horizontal or vertical)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
 
     Returns
     -------
@@ -958,6 +970,8 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
         dataframe containing the results of the noise ceiling analyses
         for all subjects (i.e., the output of the
         noise_ceiling_monte_carlo_overall rule)
+    orient : {'h', 'v'}, optional
+        orientation of plot (horizontal or vertical)
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -971,7 +985,7 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     height = 8
     aspect = .9
     if context == 'poster':
-        height *= 2
+        height = 10
         aspect = 1
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
@@ -1498,3 +1512,46 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     if visual_field != 'all':
         g.fig._suptitle.set_text(g.fig._suptitle.get_text() + f' in {visual_field} visual field')
     return g
+
+
+def existing_studies_with_current_figure(df, y="Preferred period (dpc)", context='paper'):
+    """Plot results from existing studies with our results
+
+    This is the same plot as `existing_studies_figure()`, with the
+    results from our study plotted as a black line (so see that figure
+    for more details).
+
+    Note that the `df` argument here is the dataframe containing results
+    from this study, NOT the results from previous studies (we call the
+    `existing_studies_df()` function here)
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects.
+    y : {'Preferred period (dpc)', 'Preferred spatial frequency (cpd)'}
+        Whether to plot the preferred period or preferred spatial
+        frequency on the y-axis. If preferred period, the y-axis is
+        linear; if preferred SF, the y-axis is log-scaled (base 2). The
+        ylims will also differ between these two
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        The FacetGrid containing the plot
+
+    """
+    df = append_precision_col(df, 'fit_value', ['subject', 'model_parameter', 'fit_model_type'])
+    df = precision_weighted_bootstrap(df, 100, 'fit_value', ['model_parameter', 'fit_model_type'])
+    df = analyze_model.create_feature_df(df, reference_frame='relative')
+    df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)']).agg('mean').reset_index()
+    df['Paper'] = 'Current study'
+    df = df.rename(columns={'Eccentricity (deg)': 'Eccentricity'})
+    df['Preferred spatial frequency (cpd)'] = 1 / df['Preferred period (dpc)']
+    df = df[['Paper', 'Preferred spatial frequency (cpd)', 'Preferred period (dpc)', 'Eccentricity']]
+    df = existing_studies_df().append(df, True, sort=False)
+    return existing_studies_figure(df, y, context)
