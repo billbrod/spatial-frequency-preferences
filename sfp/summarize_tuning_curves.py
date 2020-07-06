@@ -10,15 +10,33 @@ import pandas as pd
 PATH_TEMPLATE = ("tuning_curves/(?P<mat_type>[a-z0-9_]+)/(?P<atlas_type>[a-z_]+)/"
                  "(?P<subject>sub-[a-z0-9]+)/(?P<session>ses-[a-z0-9]+)/(?P=subject)_(?P=session)"
                  "_(?P<task>task-[a-z0-9]+).*(?P<df_mode>summary|full)\.csv")
+GROUPAVERAGE_PATH_TEMPLATE = ("tuning_curves/(?P<mat_type>[a-z0-9_]+)/(?P<atlas_type>[a-z_]+)/"
+                              "(?P<subject>sub-[a-z0-9]+)_i-(?P<interpolation>[a-z]+)/"
+                              "(?P<session>ses-[a-z0-9]+)_v[0-9-]+_s(?P<seed>[0-9]+)/(?P=subject)_"
+                              "i-(?P=interpolation)_(?P=session)_v[0-9]+_s(?P=seed)"
+                              "_(?P<task>task-[a-z0-9]+).*(?P<df_mode>summary|full)\.csv")
 
 
-def main(root_dir, save_path=None, **kwargs):
+def main(root_dir, save_path=None, groupaverage=False, **kwargs):
     """finds all tuning curve dataframes under root_dir and consolidates them
 
     kwargs can be any of mat_type, atlas_type, subject, session, task, or df_mode, and will limit
     which tuning curve dataframes we consolidate to only those whose values for that field match
     the specified value(s)
+
+    If `groupaverage=False`, we will not include any contains
+    'sub-groupaverage' in its path. If `groupaverage=True`, we will only
+    include those paths.
+
     """
+    if groupaverage:
+        template = GROUPAVERAGE_PATH_TEMPLATE
+        # in this case, we want only the sub-groupaverage subject
+        skip_condition = lambda x: 'sub-groupaverage' not in x
+    else:
+        template = PATH_TEMPLATE
+        # don't want to include the groupaverage subject
+        skip_condition = lambda x: 'sub-groupaverage' in x
     limit_kwargs = {}
     for k, v in kwargs.items():
         if isinstance(v, str) or not hasattr(v, '__iter__'):
@@ -31,8 +49,10 @@ def main(root_dir, save_path=None, **kwargs):
     df = []
     duplicate_check_cols = ['varea', 'eccen', 'stimulus_superclass', 'frequency_type']
     for p in csv_paths:
+        if skip_condition(p):
+            continue
         try:
-            info_dict = re.search(PATH_TEMPLATE, p).groupdict()
+            info_dict = re.search(template, p).groupdict()
         except AttributeError:
             # in this case, we've grabbed a file in this directory that
             # does not match our template. a good example of this would
@@ -68,7 +88,10 @@ if __name__ == '__main__':
     parser.add_argument("root_dir",
                         help="Root of directory tree that we'll find everything underneath")
     parser.add_argument("save_path", help="Path to save resulting consolidated dataframe at")
-    parser.add_argument("df_mode", help="{summary | full}. Whether to gather the summary or full"
-                                        " tuning curve dataframes.")
+    parser.add_argument("df_mode", help=("{summary | full}. Whether to gather the summary or full"
+                                         " tuning curve dataframes."))
+    parser.add_argument('--groupaverage', '-g', action='store_true',
+                        help=("Whether to grab the regular subjects (if not passed) or "
+                              "groupaverage subject (if passed)"))
     args = vars(parser.parse_args())
     main(**args)

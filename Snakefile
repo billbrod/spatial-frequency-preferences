@@ -267,17 +267,24 @@ rule model_all_subj_cv:
                      "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_models.csv"),
 
 
-def get_groupaverage_all(interp='linear', session='ses-04', task='task-sfprescaled',
-                         model_type='full_full_full', vareas='1', eccen='1-12', batch_size=10,
+def get_groupaverage_all(tuning_type='2d', interp='linear', session='ses-04', task='task-sfprescaled',
+                         model_type='full_full_absolute', vareas='1', eccen='1-12', batch_size=10,
                          learning_rate=0.001, gpus=0, df_mode='summary', mat_type='stim_class',
                          atlas_type='bayesian_posterior', modeling_goal='initial'):
     if modeling_goal != 'initial':
         return []
-    path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", mat_type,
-                        atlas_type, "initial", f"sub-groupaverage_i-{interp}",
-                        f"{session}_v{vareas}_s{{n:02d}}", f"sub-groupaverage_i-{interp}_{session}"
-                        f"_v{vareas}_s{{n:02d}}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
-                        f"r{learning_rate}_g{gpus}_cNone_nNone_{model_type}_loss.csv")
+    if tuning_type == '2d':
+        path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", mat_type,
+                            atlas_type, "initial", f"sub-groupaverage_i-{interp}",
+                            f"{session}_v{vareas}_s{{n:02d}}", f"sub-groupaverage_i-{interp}_{session}"
+                            f"_v{vareas}_s{{n:02d}}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                            f"r{learning_rate}_g{gpus}_cNone_nNone_{model_type}_loss.csv")
+    elif tuning_type == 'curve':
+        path = os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', mat_type,
+                            atlas_type, f'sub-groupaverage_i-{interp}', f'{session}_v{vareas}_s{{n:02d}}',
+                            f'sub-groupaverage_i-{interp}_{session}_v{vareas}_s{{n:02d}}_{task}_'
+                            f'v{vareas}_e{eccen}_eccen_bin_{df_mode}.csv')
+        
     seeds = list(range(104))
     # there are 4 seeds that won't work, so we remove them. there are
     # some voxels where some subjects have NaNs after
@@ -292,7 +299,9 @@ def get_groupaverage_all(interp='linear', session='ses-04', task='task-sfprescal
 
 rule groupaverage_all:
     input:
-        lambda wildcards: get_groupaverage_all(),
+        lambda wildcards: get_groupaverage_all(model_type='full_full_full'),
+        lambda wildcards: get_groupaverage_all(model_type='full_full_absolute'),
+        lambda wildcards: get_groupaverage_all('curve'),
 
 
 rule all_check_plots:
@@ -1113,6 +1122,9 @@ rule tuning_curves:
         os.path.join(config['DATA_DIR'], "derivatives", "first_level_binned", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv")
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{subject}", "{session}", "{subject}_{session}_{task}_v{vareas}_e{eccen}_{binning}_{df_mode}.csv")
+    resources:
+        cpus_per_task = 1,
+        mem = lambda wildcards: {'full': 30, 'summary': 10}[wildcards.df_mode]
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves", "{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
@@ -1140,45 +1152,49 @@ rule plots:
 
 
 def get_tuning_curves(wildcards):
-    if wildcards.atlas_type == 'atlas':
-        subjects = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
-        sessions = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot01'],
-                    'sub-wlsubj045': ['ses-pilot01']}
-    else:
-        subjects = SUBJECTS
-        sessions = SESSIONS
-    vareas = wildcards.vareas.split('-')
-    return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}',
-                         '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_'
-                         'v{vareas}_e{eccen}_{binning}_{df_mode}.csv').format(mat_type=wildcards.mat_type,
-                                                                             atlas_type=wildcards.atlas_type,
-                                                                             subject=sub, session=ses,
-                                                                             task=TASKS[(sub, ses)],
-                                                                             vareas=v,
-                                                                             eccen=wildcards.eccen,
-                                                                             binning=wildcards.binning,
-                                                                             df_mode=wildcards.df_mode)
-            for sub in subjects for ses in sessions[sub] for v in vareas]
+    if wildcards.groupaverage == 'individual':
+        if wildcards.atlas_type == 'atlas':
+            subjects = ['sub-wlsubj001', 'sub-wlsubj042', 'sub-wlsubj045']
+            sessions = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot01'],
+                        'sub-wlsubj045': ['ses-pilot01']}
+        else:
+            subjects = SUBJECTS
+            sessions = SESSIONS
+        vareas = wildcards.vareas.split('-')
+        return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}',
+                             '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_'
+                             'v{vareas}_e{eccen}_{binning}_{df_mode}.csv').format(mat_type=wildcards.mat_type,
+                                                                                 atlas_type=wildcards.atlas_type,
+                                                                                 subject=sub, session=ses,
+                                                                                 task=TASKS[(sub, ses)],
+                                                                                 vareas=v,
+                                                                                 eccen=wildcards.eccen,
+                                                                                 binning=wildcards.binning,
+                                                                                 df_mode=wildcards.df_mode)
+                for sub in subjects for ses in sessions[sub] for v in vareas]
+    elif wildcards.groupaverage == 'sub-groupaverage':
+        return get_groupaverage_all('curve')
 
 
 rule tuning_curves_summary:
     input:
         get_tuning_curves
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_{df_mode}.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{groupaverage}_v{vareas}_e{eccen}_{binning}_tuning_curves_{df_mode}.csv")
     params:
-        input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}")
+        input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}"),
+        groupaverage = lambda wildcards: {'sub-groupaverage': '-g', 'individual': ''}[wildcards.groupaverage]
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
-        "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode}"
+        "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode} {params.groupaverage}"
 
 
 rule tuning_curves_summary_plot:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "v{vareas}_e{eccen}_{binning}_tuning_curves_summary.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "individual_v{vareas}_e{eccen}_{binning}_tuning_curves_summary.csv")
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}',
                      "v{vareas}_e{eccen}_{binning}_tuning_curves_summary_plot_{subjects}_{sessions}_"
@@ -2300,12 +2316,20 @@ rule all:
         rules.model_all_subj_cv.input,
         rules.all_check_plots.input,
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
+                     "bayesian_posterior", "individual_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv"),
+                     "bayesian_posterior", "individual_v1_e1-12_eccen_bin_tuning_curves_full.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "noise_ceiling", "monte_carlo",
                      "stim_class", "bayesian_posterior", "monte_carlo_ses-04_task-sfprescaled_v1_e1-12.csv"),
-        lambda wildcards: get_groupaverage_all(),
+        # this would ideally be just rules.groupaverage_all.input but
+        # can't do that because groupaverage_all.input consists of three
+        # functions (it doesn't evaluate them first), so need
+        # this. eventually we'll have an output that combines across
+        # seeds, and use that instead
+        lambda wildcards: get_groupaverage_all(model_type='full_full_full'),
+        lambda wildcards: get_groupaverage_all(model_type='full_full_absolute'),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
+                     "bayesian_posterior", "sub-groupaverage_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
 
 
 def get_figures_all(context='paper', visual_field_analyses=False):
