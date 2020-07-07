@@ -67,7 +67,7 @@ def load_single_model(save_path_stem, load_results_df=True):
     return model, loss_df, results_df, model_history_df
 
 
-def combine_models(base_path_template, load_results_df=True):
+def combine_models(base_path_template, load_results_df=True, groupaverage=False):
     """load in many models and combine into dataframes
 
     returns: model_df, loss_df, results_df
@@ -80,6 +80,11 @@ def combine_models(base_path_template, load_results_df=True):
     load_results_df: boolean. Whether to load the results_df or not. Set False if your results_df
     are too big and you're worried about having them all in memory. In this case, the returned
     results_df will be None.
+
+    groupaverage : boolean. Whether to grab the individual subject fits
+    or the sub-groupaverage subject (which is a bootstrapped average
+    subject)
+
     """
     models = []
     loss_df = []
@@ -87,6 +92,10 @@ def combine_models(base_path_template, load_results_df=True):
     model_history_df = []
     path_stems = []
     for p in glob.glob(base_path_template):
+        if groupaverage and 'sub-groupaverage' not in p:
+            continue
+        if not groupaverage and 'sub-groupaverage' in p:
+            continue
         path_stem = (p.replace('_loss.csv', '').replace('_model.pt', '')
                      .replace('_results_df.csv', '').replace('_model_history.csv', ''))
         # we do this to make sure we're not loading in the outputs of a model twice (by finding
@@ -99,8 +108,13 @@ def combine_models(base_path_template, load_results_df=True):
         if 'tuning_2d_simulated' in path_stem:
             metadata['modeling_goal'] = path_stem.split(os.sep)[-2]
         elif 'tuning_2d_model' in path_stem:
-            metadata['session'] = path_stem.split(os.sep)[-2]
             metadata['subject'] = path_stem.split(os.sep)[-3]
+            if not groupaverage:
+                metadata['session'] = path_stem.split(os.sep)[-2]
+            else:
+                session_dir = path_stem.split(os.sep)[-2]
+                metadata['session'] = session_dir.split('_')[0]
+                metadata['groupaverage_seed'] = session_dir.split('_')[-1]
             metadata['modeling_goal'] = path_stem.split(os.sep)[-4]
             metadata['mat_type'] = path_stem.split(os.sep)[-5]
             metadata['atlas_type'] = path_stem.split(os.sep)[-6]
@@ -676,7 +690,7 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
     cv_loss_csv.to_csv(outputs[0], index=False)
 
 
-def gather_results(base_path, outputs, metadata, cv_loss_files=None):
+def gather_results(base_path, outputs, metadata, cv_loss_files=None, groupaverage=False):
     """Combine model dataframes
 
     We fit a huge number of models as part of this analysis pipeline. In
@@ -696,8 +710,8 @@ def gather_results(base_path, outputs, metadata, cv_loss_files=None):
     base_path : str
         path template where we should find the results. Should contain
         no string formatting symbols, but should contain at least one
-        '*' because we will use glob to find them. We do not search fo
-        rthem recursively, so you will need multiple '*'s if you want to
+        '*' because we will use glob to find them. We do not search for
+        them recursively, so you will need multiple '*'s if you want to
         combine dataframes contained in different folders
     outputs : list
         list of 5 or 6 strs giving the paths to save models,
@@ -713,9 +727,13 @@ def gather_results(base_path, outputs, metadata, cv_loss_files=None):
         strs. because of how these dataframes were constructed, we
         simply concatenate them, doing none fo the fancy groupby we do
         for the other dataframes
+    groupaverage : bool, optional
+        whether to grab the individual subject fits or the
+        sub-groupaverage subject (which is a bootstrapped average
+        subject)
 
     """
-    models, loss_df, _, model_history = combine_models(base_path, False)
+    models, loss_df, _, model_history = combine_models(base_path, False, groupaverage)
     timing_df = loss_df.groupby(metadata + ['epoch_num']).time.max().reset_index()
     grouped_loss = loss_df.groupby(metadata + ['epoch_num', 'time']).loss.mean().reset_index()
     grouped_loss = grouped_loss.groupby(metadata).last().reset_index()

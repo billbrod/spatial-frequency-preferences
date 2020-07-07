@@ -254,10 +254,10 @@ rule model_all_subj:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv"),
+                     "individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial",
-                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_absolute_all_models.csv"),
+                     "individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_absolute_all_models.csv"),
 
 
 rule model_all_subj_cv:
@@ -299,9 +299,15 @@ def get_groupaverage_all(tuning_type='2d', interp='linear', session='ses-04', ta
 
 rule groupaverage_all:
     input:
-        lambda wildcards: get_groupaverage_all(model_type='full_full_full'),
-        lambda wildcards: get_groupaverage_all(model_type='full_full_absolute'),
-        lambda wildcards: get_groupaverage_all('curve'),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                     "bayesian_posterior", "initial",
+                     "sub-groupaverage_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
+                     "bayesian_posterior", "initial",
+                     "sub-groupaverage_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_absolute_all_models.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
+                     "bayesian_posterior", "sub-groupaverage_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
+        
 
 
 rule all_check_plots:
@@ -1398,13 +1404,20 @@ rule combine_model_cv_summaries:
 
 def gather_model_results_input(wildcards):
     inputs = {}
+    # wildcards is not an actual dictionary (it just functions like one
+    # in some regards) and so we need to make one if we want to do the
+    # pop() call below
+    format_kwargs = dict(wildcards)
+    groupaverage = format_kwargs.pop('groupaverage', 'individual')
     if wildcards.modeling_goal == 'bootstrap':
-        loss_files = [get_model_subj_outputs(bootstrap_num=n, **wildcards) for n in range(100)]
+        loss_files = [get_model_subj_outputs(bootstrap_num=n, **format_kwargs) for n in range(100)]
     else:
-        loss_files = [get_model_subj_outputs(subject=subj, session=ses, **wildcards)
-                      for subj in SUBJECTS for ses in SESSIONS[subj]
-                      if TASKS[(subj, ses)] == wildcards.task]
-        loss_files += get_groupaverage_all(**wildcards)
+        if groupaverage == 'individual':
+            loss_files = [get_model_subj_outputs(subject=subj, session=ses, **format_kwargs)
+                          for subj in SUBJECTS for ses in SESSIONS[subj]
+                          if TASKS[(subj, ses)] == wildcards.task]
+        elif groupaverage == 'sub-groupaverage':
+            loss_files = get_groupaverage_all(**format_kwargs)
     # this will return a list of lists of strings, so we need to flatten it
     inputs['loss_files'] = np.array(loss_files).flatten()
     return inputs
@@ -1478,34 +1491,35 @@ rule gather_model_results:
         unpack(gather_model_results_input)
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_timing.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_diff.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_{model_type}_all_model_history.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
     resources:
         mem = 100,
     params:
         base_path = lambda wildcards, output: os.path.join(os.path.dirname(output[0]), '*', '*',
                                                            '*'+wildcards.model_type+'*'),
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
-                    'fit_model_type', 'indicator', 'bootstrap_num', 'test_subset']
+                    'fit_model_type', 'indicator', 'bootstrap_num', 'test_subset'],
+        groupaverage = lambda wildcards: {'sub-groupaverage': True, 'individual': False}[wildcards.groupaverage]
     run:
         import sfp
-        sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
+        sfp.analyze_model.gather_results(params.base_path, output, params.metadata, groupaverage=params.groupaverage)
 
 
 rule simulate_data_uniform_noise:
@@ -2321,15 +2335,7 @@ rule all:
                      "bayesian_posterior", "individual_v1_e1-12_eccen_bin_tuning_curves_full.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "noise_ceiling", "monte_carlo",
                      "stim_class", "bayesian_posterior", "monte_carlo_ses-04_task-sfprescaled_v1_e1-12.csv"),
-        # this would ideally be just rules.groupaverage_all.input but
-        # can't do that because groupaverage_all.input consists of three
-        # functions (it doesn't evaluate them first), so need
-        # this. eventually we'll have an output that combines across
-        # seeds, and use that instead
-        lambda wildcards: get_groupaverage_all(model_type='full_full_full'),
-        lambda wildcards: get_groupaverage_all(model_type='full_full_absolute'),
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "sub-groupaverage_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
+        rules.groupaverage_all.input,
 
 
 def get_figures_all(context='paper', visual_field_analyses=False):
