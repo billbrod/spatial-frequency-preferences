@@ -1920,15 +1920,17 @@ rule prepare_image_computable:
 
 rule figure_summarize_1d:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "v1_e1-12_eccen_bin_tuning_curves_full.csv")
+        lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
+                                       "bayesian_posterior", "{{groupaverage}}_v1_e1-12_eccen_bin_tuning_curves_{}.csv").format(
+                                           {'sub-groupaverage': 'summary', 'individual': 'full'}[wildcards.groupaverage]
+                                       )
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "1d_{tuning_param}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_1d_{tuning_param}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', "1d_{tuning_param}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', "{groupaverage}_1d_{tuning_param}_{task}_{ext}.log")
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}',
-                     "1d_{tuning_param}_{task}_{ext}_benchmark.txt")
+                     "{groupaverage}_1d_{tuning_param}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -1937,26 +1939,28 @@ rule figure_summarize_1d:
         height_scale = {'poster': 2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         ref_frame = {'task-sfpconstant': 'absolute', 'task-sfprescaled': 'relative'}
+        kwargs = {'size_plot': [None, 5*height_scale], 'linewidth': 2*(height_scale+1)}
         if wildcards.tuning_param.endswith('overall'):
+            if wildcards.groupaverage == 'sub-groupaverage':
+                raise Exception(f"Can't use sub-groupaverage with {wildcards.tuning_param}! Drop "
+                                "the '-overall'")
             col = {'pref-period-overall': 'preferred_period',
                    'bandwidth-overall': 'tuning_curve_bandwidth'}[wildcards.tuning_param]
             df = sfp.figures.append_precision_col(df, col)
             df = sfp.figures.precision_weighted_bootstrap(df, col=col)
+            height = 5
+        else:
+            height = 4
+        if wildcards.tuning_param.startswith('pref-period'):
+            function = sfp.figures.pref_period_1d
+            if wildcards.tuning_param.endswith('overall') or wildcards.groupaverage == 'sub-groupaverage':
+                kwargs['ylim'] = (0, 2)
+        elif wildcards.tuning_param.startswith('bandwidth'):
+            function = sfp.figures.bandwidth_1d
         sns.set_context(wildcards.context, font_scale=font_scale)
-        kwargs = {'size_plot': [None, 5*height_scale], 'linewidth': 2*(height_scale+1)}
         with sns.axes_style('white'):
-            if wildcards.tuning_param == 'pref-period':
-                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None,
-                                               height=4*height_scale, **kwargs)
-            elif wildcards.tuning_param == 'bandwidth':
-                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None,
-                                             height=4*height_scale, **kwargs)
-            elif wildcards.tuning_param == 'pref-period-overall':
-                g = sfp.figures.pref_period_1d(df, ref_frame[wildcards.task], row=None,
-                                               height=5*height_scale, ylim=(0, 2), **kwargs)
-            elif wildcards.tuning_param == 'bandwidth-overall':
-                g = sfp.figures.bandwidth_1d(df, ref_frame[wildcards.task], row=None,
-                                             height=5*height_scale, **kwargs)
+            g = function(df, ref_frame[wildcards.task], row=None, height=height*height_scale,
+                         **kwargs)
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2344,8 +2348,9 @@ def get_figures_all(context='paper', visual_field_analyses=False):
     else:
         ext = 'svg'
     figs = []
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'1d_{{}}_{{}}.{ext}').format(param, task)
-             for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_1d_{{}}_{{}}.{ext}').format(group, param, task)
+             for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']
+             for group in ['individual', 'sub-groupaverage']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'cv_{{}}_v_task-sfprescaled.{ext}').format(cv)
              for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                         'model-remeaned', 'model_point-remeaned', 'raw-nc', 'model_point-nc',

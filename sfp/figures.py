@@ -237,13 +237,6 @@ def prep_df(df, task, groupaverage=False):
     if 'fit_model_type' in df.columns:
         df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
                                                            plotting.MODEL_PLOT_ORDER)))
-    if not groupaverage:
-        # drop either of these
-        df = df.query("subject != 'sub-groupaverage_i-linear' & "
-                      "subject != 'sub-groupaverage_i-nearest'")
-    else:
-        df = df.query("subject == 'sub-groupaverage_i-linear' | "
-                      "subject == 'sub-groupaverage_i-nearest'")
     return df
 
 
