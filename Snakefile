@@ -2085,24 +2085,25 @@ def get_params_csv(wildcards):
             else:
                 raise Exception(f"Can't do sub-groupaverage with plot_kind {wildcards.plot_kind}!"
                                 " Only 'dist', 'strip', 'bootstraps' are allowed")
-        if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
-                                   'dist-overall', 'bootstraps-overall']:
-            paths.append(path_template % ('bootstrap', 'full'))
-        if wildcards.plot_kind in ['point', 'strip', 'compare', 'median']:
-            if wildcards.vf == 'vertical':
-                vf = ['upper', 'lower']
-            elif wildcards.vf == 'horizontal':
-                vf = ['left', 'right']
-            elif wildcards.vf == 'eccen':
-                vf = ['inner', 'outer']
-            else:
-                vf = [wildcards.vf]
-            for v in vf:
-                if v == 'all':
-                    folder = 'initial'
+        else:
+            if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
+                                       'dist-overall', 'bootstraps-overall']:
+                paths.append(path_template % ('bootstrap', 'full'))
+            if wildcards.plot_kind in ['point', 'strip', 'compare', 'median']:
+                if wildcards.vf == 'vertical':
+                    vf = ['upper', 'lower']
+                elif wildcards.vf == 'horizontal':
+                    vf = ['left', 'right']
+                elif wildcards.vf == 'eccen':
+                    vf = ['inner', 'outer']
                 else:
-                    folder = 'visual_field_%s' % v
-                paths.append(path_template % (folder, 'summary'))
+                    vf = [wildcards.vf]
+                for v in vf:
+                    if v == 'all':
+                        folder = 'initial'
+                    else:
+                        folder = 'visual_field_%s' % v
+                    paths.append(path_template % (folder, 'summary'))
     except AttributeError:
         # this is the figure_background_with_current rule
         if wildcards.groupaverage == 'sub-groupaverage':
