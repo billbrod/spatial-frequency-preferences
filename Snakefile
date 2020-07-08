@@ -132,7 +132,8 @@ wildcard_constraints:
     model_type="[a-z-_]+",
     crossval_seed="[0-9]+",
     gpus="[0-9]+",
-    y_val="period|frequency"
+    y_val="period|frequency",
+    groupaverage="individual|sub-groupaverage"
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -235,10 +236,10 @@ rule model_all_subj_bootstrap:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
-                     "task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_full_all_models.csv"),
+                     "individual_task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_full_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "bootstrap",
-                     "task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_absolute_all_models.csv"),
+                     "individual_task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_absolute_all_models.csv"),
     
 
 
@@ -246,7 +247,7 @@ rule model_all_subj_visual_field:
     input:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                       "bayesian_posterior", "visual_field_%s" % p,
-                      "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv") for p in
+                      "individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_full_all_models.csv") for p in
          ['upper', 'lower', 'left', 'right', 'inner', 'outer']],
 
 
@@ -264,7 +265,7 @@ rule model_all_subj_cv:
     input:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class",
                      "bayesian_posterior", "initial_cv",
-                     "task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_models.csv"),
+                     "individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_models.csv"),
 
 
 def get_groupaverage_all(tuning_type='2d', interp='linear', session='ses-04', task='task-sfprescaled',
@@ -1380,21 +1381,21 @@ rule combine_model_cv_summaries:
         lambda wildcards: get_cv_summary(**wildcards)
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_timing.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "{modeling_goal}", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
+                     "{modeling_goal}", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
                      "g{gpus}_s{crossval_seed}_all_cv_loss.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all-%j.log")
     params:
         base_template = lambda wildcards, input: [i.replace('_all_cv_loss.csv', '') for i in input]
     run:
@@ -1467,18 +1468,18 @@ rule summarize_gathered_results:
                            if TASKS[(subj, ses)] == wildcards.task]
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "bootstrap", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
-                     "g{gpus}_{model_type}_all_models.csv"),
+                     "bootstrap", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}"
+                     "_r{learning_rate}_g{gpus}_{model_type}_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "bootstrap", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
-                     "g{gpus}_{model_type}_all_loss.csv"),
+                     "bootstrap", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}"
+                     "_r{learning_rate}_g{gpus}_{model_type}_all_loss.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}", "{atlas_type}",
-                     "bootstrap", "{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_"
-                     "g{gpus}_{model_type}_all_timing.csv"),
+                     "bootstrap", "{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}"
+                     "_r{learning_rate}_g{gpus}_{model_type}_all_timing.csv"),
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model", "{mat_type}_{atlas_type}_bootstrap_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_{model_type}_all-%j.log")
     params:
         base_template = lambda wildcards, input: [i.replace('_all_models.csv', '') for i in input]
     run:
@@ -2032,14 +2033,14 @@ rule figure_crossvalidation:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                      'bayesian_posterior', 'initial_cv',
-                     '{task}_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
+                     '{groupaverage}_{task}_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
         get_noise_ceiling_df,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "cv_{cv_type}_{orient}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{orient}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "cv_{cv_type}_{orient}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2075,9 +2076,15 @@ rule figure_crossvalidation:
 def get_params_csv(wildcards):
     path_template = os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model',
                                  'stim_class', 'bayesian_posterior', '%s',
-                                 f'{wildcards.task}_v1_e1-12_%s_b10_r0.001_g0_{wildcards.model_type}_all_models.csv')
+                                 f'{wildcards.groupaverage}_{wildcards.task}_v1_e1-12_%s_b10_r0.001_g0_{wildcards.model_type}_all_models.csv')
     paths = []
     try:
+        if wildcards.groupaverage == 'sub-groupaverage':
+            if wildcards.plot_kind in ['dist', 'strip', 'bootstraps']:
+                paths.append(path_template % ('initial', 'summary'))
+            else:
+                raise Exception(f"Can't do sub-groupaverage with plot_kind {wildcards.plot_kind}!"
+                                " Only 'dist', 'strip', 'bootstraps' are allowed")
         if wildcards.plot_kind in ['dist', 'pair', 'pair-drop', 'compare', 'bootstraps',
                                    'dist-overall', 'bootstraps-overall']:
             paths.append(path_template % ('bootstrap', 'full'))
@@ -2098,7 +2105,10 @@ def get_params_csv(wildcards):
                 paths.append(path_template % (folder, 'summary'))
     except AttributeError:
         # this is the figure_background_with_current rule
-        paths = path_template % ('bootstrap', 'full')
+        if wildcards.groupaverage == 'sub-groupaverage':
+            paths = path_template % ('initial', 'summary')
+        else:
+            paths = path_template % ('bootstrap', 'full')
     return paths
 
 
@@ -2106,11 +2116,11 @@ rule figure_params:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2181,6 +2191,9 @@ rule figure_params:
             else:
                 # don't add a legend if the plot_kind is point or dist-overall
                 add_legend = {'point': False, 'dist-overall': False}.get(wildcards.plot_kind, True)
+                # or if we're plotting the sub-groupaverage
+                if wildcards.groupaverage == 'sub-groupaverage':
+                    add_legend = False
                 plot_kind = wildcards.plot_kind.replace('-overall', '')
                 fig = sfp.figures.model_parameters(df[0], plot_kind, wildcards.vf,
                                                    add_legend=add_legend)
@@ -2191,11 +2204,11 @@ rule figure_feature_df:
     input:
         get_params_csv,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2268,11 +2281,11 @@ rule figure_background_with_current:
     input:
         get_params_csv,
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{task}_background_{y_val}_{model_type}.{ext}')
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{task}_background_{y_val}_{model_type}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}_{ext}.log')
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{task}_background_{y_val}_{model_type}_{ext}_benchmark.txt')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}_{ext}_benchmark.txt')
     run:
         import sfp
         import seaborn as sns
@@ -2348,42 +2361,51 @@ def get_figures_all(context='paper', visual_field_analyses=False):
     else:
         ext = 'svg'
     figs = []
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_1d_{{}}_{{}}.{ext}').format(group, param, task)
-             for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_1d_{{}}_{{}}.{ext}').format(param, task)
+             for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_1d_{{}}_{{}}.{ext}').format(param, task)
+             for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled', 'task-sfpconstant']
              for group in ['individual', 'sub-groupaverage']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'cv_{{}}_v_task-sfprescaled.{ext}').format(cv)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_cv_{{}}_v_task-sfprescaled.{ext}').format(cv)
              for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                         'model-remeaned', 'model_point-remeaned', 'raw-nc', 'model_point-nc',
                         'model_point-remeaned-nc']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'cv_{{}}_h_task-sfprescaled.{ext}').format(cv)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_cv_{{}}_h_task-sfprescaled.{ext}').format(cv)
              for cv in ['model_point', 'model_point-remeaned']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_params_visualfield-all_{{}}_task-sfprescaled.{ext}').format(model, kind)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-all_{{}}_task-sfprescaled.{ext}').format(model, kind)
              for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'full_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_params_visualfield-all_{{}}_task-sfprescaled.{ext}').format(model, kind)
+             for kind  in ['dist', 'strip'] for model in ['full_full_full', 'full_full_absolute']]
     if visual_field_analyses:
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_params_visualfield-{{}}_{{}}_task-sfprescaled.{ext}').format(model, vf, kind)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-{{}}_{{}}_task-sfprescaled.{ext}').format(model, vf, kind)
                  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'full_full_absolute']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'full_full_full_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_full_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'full_full_absolute_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_absolute_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
                  for model in ['full_full_full', 'full_full_absolute']],
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
                  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']],
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-all_pref-period_{{}}_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_{{}}_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
              for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_feature_visualfield-all_{{}}_{{}}_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, kind, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_pref-period_bootstraps_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, angles, frame)
+             for angles in ['all', 'avg'] for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_{{}}_{{}}_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, kind, frame)
              for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
              for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_{{}}_bootstraps_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, frame)
+             for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
+             for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']]
     figs +=[os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'schematic_{{}}.{ext}').format(kind)
             for kind in ['2d', 'models', '2d-inputs']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'background_period.{ext}')]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'task-sfprescaled_background_period_{{}}.{ext}').format(model)
-             for model in ['full_full_full', 'full_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_task-sfprescaled_background_period_{{}}.{ext}').format(group, model)
+             for model in ['full_full_full', 'full_full_absolute'] for group in ['individual', 'sub-groupaverage']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_training-loss-check_task-sfprescaled.{ext}').format(t)
              for t in ['initial_cv', 'bootstrap']]
     return figs

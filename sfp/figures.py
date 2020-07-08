@@ -1181,8 +1181,14 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         pal = plotting.get_palette('model_parameter', col_unique=df.model_parameter.unique(),
                                    as_dict=True)
     elif plot_kind == 'strip':
-        pal = plotting.get_palette('subject', col_unique=df.subject.unique(), as_dict=True)
-        hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
+        # then we're showing this across subjects
+        if 'subject' in df.columns and df.subject.nunique() > 1:
+            hue = 'subject'
+        # this is sub-groupaverage
+        else:
+            hue = 'groupaverage_seed'
+        pal = plotting.get_palette(hue, col_unique=df[hue].unique(), as_dict=True)
+        hue_order = plotting.get_order(hue, col_unique=df[hue].unique())
     elif plot_kind == 'dist':
         # then we're showing this across subjects
         if 'subject' in df.columns and df.subject.nunique() > 1:
@@ -1210,7 +1216,7 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
             # want to make sure that the different hues end up in the
             # same order everytime, which requires doing this with
             # jitter and dodge
-            sns.stripplot('model_parameter', 'fit_value', 'subject', data=tmp, ax=ax,
+            sns.stripplot('model_parameter', 'fit_value', hue, data=tmp, ax=ax,
                           order=ax_order, palette=pal, hue_order=hue_order, jitter=False,
                           dodge=True, **kwargs)
         elif plot_kind == 'dist':
@@ -1454,6 +1460,18 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         kwargs.update({'draw_ctr_pts': False, 'ci_mode': 'fill', 'join': True})
     else:
         plot_func = sns.lineplot
+    # in this case, we have the individual fits
+    if df.subject.nunique() > 1:
+        gb_cols = ['subject', 'bootstrap_num']
+        col = 'subject'
+        pre_boot_gb_cols = ['subject', 'reference_frame', 'Stimulus type', 'bootstrap_num',
+                          'Eccentricity (deg)']
+    # in this case, we have the sub-groupaverage
+    else:
+        gb_cols = ['groupaverage_seed']
+        col = None
+        pre_boot_gb_cols = ['reference_frame', 'Stimulus type', 'groupaverage_seed',
+                            'Eccentricity (deg)']
     if feature_type == 'pref-period':
         if context == 'poster':
             aspect = 1.3
@@ -1463,9 +1481,11 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         else:
             pre_boot_gb_func = None
             row = 'Retinotopic angle (rad)'
-        df = analyze_model.create_feature_df(df, reference_frame=reference_frame)
-        g = plotting.feature_df_plot(df, col='subject', row=row, pre_boot_gb_func=pre_boot_gb_func,
-                                     plot_func=plot_func, height=height, aspect=aspect, **kwargs)
+        df = analyze_model.create_feature_df(df, reference_frame=reference_frame, gb_cols=gb_cols)
+        return df
+        g = plotting.feature_df_plot(df, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
+                                     plot_func=plot_func, height=height, aspect=aspect,
+                                     pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
     else:
         if context == 'paper':
             orientation = np.linspace(0, np.pi, 4, endpoint=False)
@@ -1477,29 +1497,33 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         if feature_type == 'pref-period-contour':
             df = analyze_model.create_feature_df(df, reference_frame=reference_frame,
                                                  eccentricity=[5], orientation=orientation,
-                                                 retinotopic_angle=np.linspace(0, 2*np.pi, 49))
-            g = plotting.feature_df_polar_plot(df, col='subject', row='Eccentricity (deg)',
+                                                 retinotopic_angle=np.linspace(0, 2*np.pi, 49),
+                                                 gb_cols=gb_cols)
+            g = plotting.feature_df_polar_plot(df, col=col, row='Eccentricity (deg)',
                                                r='Preferred period (dpc)', plot_func=plot_func,
-                                               height=height, aspect=aspect, **kwargs)
+                                               height=height, aspect=aspect,
+                                               pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
         elif feature_type == 'iso-pref-period':
             if context == 'poster':
                 kwargs.update({'r_ticks': list(range(1, 9)),
                                'r_ticklabels': [i if i%2==0 else '' for i in range(1, 9)]})
             df = analyze_model.create_feature_df(df, 'preferred_period_contour', period_target=[1],
                                                  reference_frame=reference_frame,
-                                                 orientation=orientation)
-            g = plotting.feature_df_polar_plot(df, col='subject', row='Preferred period (dpc)',
+                                                 orientation=orientation, gb_cols=gb_cols)
+            g = plotting.feature_df_polar_plot(df, col=col, row='Preferred period (dpc)',
                                                plot_func=plot_func, height=height, aspect=aspect,
-                                               title='Iso-preferred period contours', **kwargs)
+                                               title='Iso-preferred period contours',
+                                               pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
         elif feature_type == 'max-amp':
             # this will have only one row, in which case we should use
             # the default value
             kwargs.update({'top': .76})
             df = analyze_model.create_feature_df(df, 'max_amplitude', orientation=orientation,
-                                                 reference_frame=reference_frame)
-            g = plotting.feature_df_polar_plot(df, col='subject', r='Max amplitude', height=height,
+                                                 reference_frame=reference_frame, gb_cols=gb_cols)
+            g = plotting.feature_df_polar_plot(df, col=col, r='Max amplitude', height=height,
                                                aspect=aspect, plot_func=plot_func,
-                                               title='Max amplitude', **kwargs)
+                                               title='Max amplitude',
+                                               pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
         else:
             raise Exception(f"Don't know what to do with feature_type {feature_type}!")
     if visual_field != 'all':

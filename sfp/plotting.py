@@ -89,6 +89,8 @@ def get_palette(col, reference_frame=None, col_unique=None, as_dict=False):
         pal = sns.color_palette('deep', len(col_unique))
     elif col == 'model_parameter':
         pal = sns.color_palette('viridis', len(col_unique))
+    else:
+        pal = sns.color_palette('Blues', len(col_unique))
     # if col=='stimulus_type', this is already a dict
     if as_dict and col != 'stimulus_type':
         order = get_order(col, reference_frame, col_unique)
