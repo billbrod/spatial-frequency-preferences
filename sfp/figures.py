@@ -1461,7 +1461,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     else:
         plot_func = sns.lineplot
     # in this case, we have the individual fits
-    if df.subject.nunique() > 1:
+    if 'groupaverage_seed' not in df.columns:
         gb_cols = ['subject', 'bootstrap_num']
         col = 'subject'
         pre_boot_gb_cols = ['subject', 'reference_frame', 'Stimulus type', 'bootstrap_num',
@@ -1482,7 +1482,6 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             pre_boot_gb_func = None
             row = 'Retinotopic angle (rad)'
         df = analyze_model.create_feature_df(df, reference_frame=reference_frame, gb_cols=gb_cols)
-        return df
         g = plotting.feature_df_plot(df, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
                                      plot_func=plot_func, height=height, aspect=aspect,
                                      pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
