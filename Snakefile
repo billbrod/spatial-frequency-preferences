@@ -2379,8 +2379,7 @@ def get_figures_all(context='paper', visual_field_analyses=False):
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_1d_{{}}_{{}}.{ext}').format(param, task)
              for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_1d_{{}}_{{}}.{ext}').format(param, task)
-             for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled', 'task-sfpconstant']
-             for group in ['individual', 'sub-groupaverage']]
+             for param in ['bandwidth', 'pref-period'] for task in ['task-sfprescaled']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_cv_{{}}_v_task-sfprescaled.{ext}').format(cv)
              for cv in ['raw', 'demeaned', 'model', 'model_point', 'demeaned-remeaned',
                         'model-remeaned', 'model_point-remeaned', 'raw-nc', 'model_point-nc',
