@@ -601,12 +601,16 @@ def collect_final_loss(paths):
     pbar = tqdm(range(len(paths)))
     for i in pbar:
         p = paths[i]
+        regexes = [r'(sub-[a-z0-9]+)', r'(ses-[a-z0-9]+)', r'(task-[a-z0-9]+)']
+        regex_names = ['subject', 'session', 'task']
+        if 'sub-groupaverage' in p:
+            regex_names.append('groupaverage_seed')
+            regexes.append(r'(_s[0-9]+)')
         pbar.set_postfix(path=os.path.split(p)[-1])
         tmp = pd.read_csv(p)
         last_epoch = tmp.epoch_num.unique().max()
         tmp = tmp.query("epoch_num == @last_epoch")
-        regexes = [r'(sub-[a-z0-9]+)', r'(ses-[a-z0-9]+)', r'(task-[a-z0-9]+)']
-        for n, regex in zip(['subject', 'session', 'task'], regexes):
+        for n, regex in zip(regex_names, regexes):
             res = re.findall(regex, p)
             if len(set(res)) != 1:
                 raise Exception(f"Unable to infer {n} from path {p}!")

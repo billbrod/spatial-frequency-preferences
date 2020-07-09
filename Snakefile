@@ -181,9 +181,7 @@ rule model_recovery_cv_initial:
 
 def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, learning_rate=1e-3,
                            crossval_seed=None, bootstrap_num=None, vareas=1, eccen='1-12', df_mode='summary', gpus=0,
-                           mat_type='stim_class', atlas_type='bayesian_posterior', modeling_goal='initial',
-                           groupaverage='individual'):
-    # for now, ignore groupaverage
+                           mat_type='stim_class', atlas_type='bayesian_posterior', modeling_goal='initial'):
     output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                                "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
                                "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch}_"
@@ -1970,16 +1968,26 @@ rule figure_summarize_1d:
 
 
 def get_loss_files(wildcards):
+    # wildcards is not an actual dictionary (it just functions like one
+    # in some regards) and so we need to make one if we want to do the
+    # pop() call below
+    format_kwargs = dict(wildcards)
+    groupaverage = format_kwargs.pop('groupaverage')
     # this will return a list of lists of strings, so we need to flatten it
-    if wildcards.modeling_goal == 'initial_cv':
-        return np.array([get_model_subj_outputs(m, sub, ses, crossval_seed=0, **wildcards)
-                         for m in MODEL_TYPES for sub in SUBJECTS for ses in SESSIONS[sub]
-                         if TASKS[(sub, ses)] == wildcards.task]).flatten()
-    elif wildcards.modeling_goal == 'bootstrap':
-        return np.array([get_model_subj_outputs(m, sub, ses, bootstrap_num=n, **wildcards)
-                         for n in range(100) for m in ['full_full_full', 'full_full_absolute']
-                         for sub in SUBJECTS for ses in SESSIONS[sub]
-                         if TASKS[(sub, ses)] == wildcards.task]).flatten()
+    if groupaverage == 'individual':
+        if wildcards.modeling_goal == 'initial_cv':
+            return np.array([get_model_subj_outputs(m, sub, ses, crossval_seed=0, **format_kwargs)
+                             for m in MODEL_TYPES for sub in SUBJECTS for ses in SESSIONS[sub]
+                             if TASKS[(sub, ses)] == wildcards.task]).flatten()
+        elif wildcards.modeling_goal == 'bootstrap':
+            return np.array([get_model_subj_outputs(m, sub, ses, bootstrap_num=n, **format_kwargs)
+                             for n in range(100) for m in ['full_full_full', 'full_full_absolute']
+                             for sub in SUBJECTS for ses in SESSIONS[sub]
+                             if TASKS[(sub, ses)] == wildcards.task]).flatten()
+    elif groupaverage == 'sub-groupaverage':
+        if wildcards.modeling_goal == 'initial':
+            return np.array([get_groupaverage_all(model_type=m, **format_kwargs)
+                             for m in ['full_full_full', 'full_full_absolute']]).flatten()
 
 
 rule combine_final_loss:
@@ -2000,7 +2008,7 @@ rule combine_final_loss:
 rule figure_loss_check:
     input:
         lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class', 'bayesian_posterior', '{modeling_goal}',
-                                       '{groupaverage}_{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full'}[wildcards.modeling_goal],
+                                       '{groupaverage}_{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full', 'initial': 'summary'}[wildcards.modeling_goal],
                                                                                                                              modeling_goal=wildcards.modeling_goal, task=wildcards.task, groupaverage=wildcards.groupaverage)
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{modeling_goal}_training-loss-check_{task}.{ext}")
@@ -2018,6 +2026,8 @@ rule figure_loss_check:
             hue = 'test_subset'
         elif wildcards.modeling_goal == 'bootstrap':
             hue = 'bootstrap_num'
+        elif wildcards.modeling_goal == 'initial':
+            hue = 'groupaverage_seed'
         sns.set_context(wildcards.context, font_scale=font_scale)
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             g = sfp.figures.training_loss_check(df, hue)
@@ -2413,6 +2423,7 @@ def get_figures_all(context='paper', visual_field_analyses=False):
              for model in ['full_full_full', 'full_full_absolute'] for group in ['individual', 'sub-groupaverage']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_training-loss-check_task-sfprescaled.{ext}').format(t)
              for t in ['initial_cv', 'bootstrap']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_initial_training-loss-check_task-sfprescaled.{ext}')]
     return figs
 
 
