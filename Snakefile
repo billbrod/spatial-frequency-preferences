@@ -181,7 +181,9 @@ rule model_recovery_cv_initial:
 
 def get_model_subj_outputs(model_type, subject, session, task, batch_size=10, learning_rate=1e-3,
                            crossval_seed=None, bootstrap_num=None, vareas=1, eccen='1-12', df_mode='summary', gpus=0,
-                           mat_type='stim_class', atlas_type='bayesian_posterior', modeling_goal='initial'):
+                           mat_type='stim_class', atlas_type='bayesian_posterior', modeling_goal='initial',
+                           groupaverage='individual'):
+    # for now, ignore groupaverage
     output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                                "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
                                "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch}_"
@@ -1363,17 +1365,19 @@ rule summarize_model_cv:
 
 def get_cv_summary(crossval_seed=0, batch_size=10, learning_rate=1e-3, vareas=1, eccen='1-12',
                    df_mode='summary', gpus=0, mat_type='stim_class', atlas_type='bayesian_posterior',
-                   modeling_goal='initial_cv', task='task-sfprescaled'):
-        output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
-                                   "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
-                                   "{{subject}}_{{session}}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch"
-                                   "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
-        output_path = output_path.format(vareas=vareas, mat_type=mat_type, batch_size=batch_size,
-                                         eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
-                                         modeling_goal=modeling_goal, gpus=gpus, task=task,
-                                         crossval_seed=crossval_seed, learning_rate=learning_rate)
-        return [output_path.format(subject=sub, session=ses)
-                for sub in SUBJECTS for ses in SESSIONS[sub] if TASKS[(sub, ses)] == task]
+                   modeling_goal='initial_cv', task='task-sfprescaled', groupaverage='individual'):
+    # for now, groupaverage does nothing because we don't do
+    # cross-validation on sub-groupaverage
+    output_path = os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                               "{atlas_type}", "{modeling_goal}", "{{subject}}", "{{session}}",
+                               "{{subject}}_{{session}}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch"
+                               "_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_all_cv_loss.csv")
+    output_path = output_path.format(vareas=vareas, mat_type=mat_type, batch_size=batch_size,
+                                     eccen=eccen, atlas_type=atlas_type, df_mode=df_mode,
+                                     modeling_goal=modeling_goal, gpus=gpus, task=task,
+                                     crossval_seed=crossval_seed, learning_rate=learning_rate)
+    return [output_path.format(subject=sub, session=ses)
+            for sub in SUBJECTS for ses in SESSIONS[sub] if TASKS[(sub, ses)] == task]
 
 
 rule combine_model_cv_summaries:
@@ -1982,11 +1986,11 @@ rule combine_final_loss:
     input:
         get_loss_files,
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', '{mat_type}', '{atlas_type}', '{modeling_goal}', '{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', '{mat_type}', '{atlas_type}', '{modeling_goal}', '{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.csv')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.log')
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.log')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{modeling_goal}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss_benchmark.txt')
     run:
         import sfp
         df = sfp.analyze_model.collect_final_loss(input)
@@ -1996,14 +2000,14 @@ rule combine_final_loss:
 rule figure_loss_check:
     input:
         lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class', 'bayesian_posterior', '{modeling_goal}',
-                                       '{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full'}[wildcards.modeling_goal],
-                                                                                                              modeling_goal=wildcards.modeling_goal, task=wildcards.task)
+                                       '{groupaverage}_{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full'}[wildcards.modeling_goal],
+                                                                                                                             modeling_goal=wildcards.modeling_goal, task=wildcards.task, groupaverage=wildcards.groupaverage)
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{modeling_goal}_training-loss-check_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{modeling_goal}_training-loss-check_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{modeling_goal}_training-loss-check_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{modeling_goal}_training-loss-check_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{modeling_goal}_training-loss-check_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{modeling_goal}_training-loss-check_{task}_{ext}_benchmark.txt")
     run:
         import sfp
         import seaborn as sns
@@ -2407,7 +2411,7 @@ def get_figures_all(context='paper', visual_field_analyses=False):
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'background_period.{ext}')]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_task-sfprescaled_background_period_{{}}.{ext}').format(group, model)
              for model in ['full_full_full', 'full_full_absolute'] for group in ['individual', 'sub-groupaverage']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_training-loss-check_task-sfprescaled.{ext}').format(t)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_training-loss-check_task-sfprescaled.{ext}').format(t)
              for t in ['initial_cv', 'bootstrap']]
     return figs
 
