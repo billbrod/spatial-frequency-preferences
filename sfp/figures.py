@@ -1453,8 +1453,9 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     if context == 'poster':
         height *= 2
     kwargs = {'top': .9}
-    if df.bootstrap_num.nunique() > 1:
-        # then we have each subject's bootstraps, so we use
+    if df.bootstrap_num.nunique() > 1 or 'groupaverage_seed' in df.columns:
+        # then we have each subject's bootstraps or the groupaverage
+        # subject (which has also already been bootstrapped), so we use
         # scatter_ci_dist to plot across them
         plot_func = plotting.scatter_ci_dist
         kwargs.update({'draw_ctr_pts': False, 'ci_mode': 'fill', 'join': True})
@@ -1465,7 +1466,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         gb_cols = ['subject', 'bootstrap_num']
         col = 'subject'
         pre_boot_gb_cols = ['subject', 'reference_frame', 'Stimulus type', 'bootstrap_num',
-                          'Eccentricity (deg)']
+                            'Eccentricity (deg)']
     # in this case, we have the sub-groupaverage
     else:
         gb_cols = ['groupaverage_seed']
