@@ -6,12 +6,72 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pandas as pd
+import re
 from . import summary_plots
 from . import analyze_model
 from . import plotting
 from . import model
 from . import utils
 from . import first_level_analysis
+
+
+def create_precision_df(paths, summary_func=np.mean,
+                        df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
+    """Create dataframe summarizing subjects' precision
+
+    When combining parameter estimates into an 'overall' value, we want
+    to use the precision of each subject's data. To do that, we take the
+    first level summary dfs (using regex to extract the subject,
+    session, and task from the path) and call `summary_func` on the
+    `precision` column. This gives us a single number, which we'll use
+    when performing the precision-weighted mean
+
+    df_filter_string can be used to filter the voxels we examine, so
+    that we look only at those voxels that the model was fit to
+
+    Parameters
+    ----------
+    paths : list
+        list of strings giving the paths to the first level summary
+        dfs.
+    summary_func : callable, optional
+        function we use to summarize the precision. Must take an array
+        as its first input, not require any other inputs, and return a
+        single value
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Should probably use the default, which is what all
+        models are trained using.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        dataframe containing one row per (subject, session) pair, giving
+        the precision for that scanning session. used to weight
+        bootstraps
+
+    """
+    regex_names = ['subject', 'session', 'task']
+    regexes = [r'(sub-[a-z0-9]+)', r'(ses-[a-z0-9]+)', r'(task-[a-z0-9]+)']
+    df = []
+    for p in paths:
+        tmp = pd.read_csv(p)
+        if df_filter_string is not None:
+            df_filter = model.construct_df_filter(df_filter_string)
+            tmp = df_filter(tmp).reset_index()
+        val = summary_func(tmp.precision.values)
+        if hasattr(val, '__len__') and len(val) > 1:
+            raise Exception(f"summary_func {summary_func} returned more than one value!")
+        data = {'precision': val}
+        for n, regex in zip(regex_names, regexes):
+            res = re.findall(regex, p)
+            if len(set(res)) != 1:
+                raise Exception(f"Unable to infer {n} from path {p}!")
+            data[n] = res[0]
+        df.append(pd.DataFrame(data, [0]))
+    return pd.concat(df).reset_index(drop=True)
 
 
 def existing_studies_df():
@@ -323,7 +383,8 @@ def append_precision_col(df, col='preferred_period',
 
 
 def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
-                                 gb_cols=['varea', 'stimulus_superclass', 'eccen']):
+                                 gb_cols=['varea', 'stimulus_superclass', 'eccen'],
+                                 precision_col='preferred_period_precision'):
     """calculate the precision-weighted bootstrap of a column
 
     to combine across subjects, we want to use a precision-weighted
@@ -352,6 +413,9 @@ def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
     gb_cols : list, optional
         list of strs containing the columns we want to groupby. we will
         compute the bootstraps for each combination of values here.
+    precision_col : str, optional
+        name of the column that contains the precision, used in the
+        precision-weighted mean
 
     Returns
     -------
@@ -374,7 +438,7 @@ def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
         tmp = dict(zip(gb_cols, n))
         for j in range(n_bootstraps):
             t = g.sample(len(g), replace=True)
-            tmp[col] = np.average(t[col], weights=t[f'{col}_precision'])
+            tmp[col] = np.average(t[col], weights=t[precision_col])
             tmp['bootstrap_num'] = j
             bootstraps.append(pd.DataFrame(tmp, [0]))
     bootstraps = pd.concat(bootstraps).reset_index(drop=True)
@@ -1531,7 +1595,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     return g
 
 
-def existing_studies_with_current_figure(df, y="Preferred period (dpc)", context='paper'):
+def existing_studies_with_current_figure(df, precision_df, y="Preferred period (dpc)",
+                                         context='paper'):
     """Plot results from existing studies with our results
 
     This is the same plot as `existing_studies_figure()`, with the
@@ -1547,6 +1612,9 @@ def existing_studies_with_current_figure(df, y="Preferred period (dpc)", context
     df : pd.DataFrame
         dataframe containing all the model parameter values, across
         subjects.
+    precision_df : pd.dataFrame
+        dataframe containing the precision for each scanning session in
+        df
     y : {'Preferred period (dpc)', 'Preferred spatial frequency (cpd)'}
         Whether to plot the preferred period or preferred spatial
         frequency on the y-axis. If preferred period, the y-axis is
@@ -1562,8 +1630,9 @@ def existing_studies_with_current_figure(df, y="Preferred period (dpc)", context
         The FacetGrid containing the plot
 
     """
-    df = append_precision_col(df, 'fit_value', ['subject', 'model_parameter', 'fit_model_type'])
-    df = precision_weighted_bootstrap(df, 100, 'fit_value', ['model_parameter', 'fit_model_type'])
+    df = df.merge(precision_df, on=['subject', 'session', 'task'])
+    df = precision_weighted_bootstrap(df, 100, 'fit_value', ['model_parameter', 'fit_model_type'],
+                                      'precision')
     df = analyze_model.create_feature_df(df, reference_frame='relative')
     df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)']).agg('mean').reset_index()
     df['Paper'] = 'Current study'
