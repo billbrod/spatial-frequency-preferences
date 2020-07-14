@@ -2416,7 +2416,7 @@ def get_figures_all(context='paper', visual_field_analyses=False):
              for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
              for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']]
     figs +=[os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'schematic_{{}}.{ext}').format(kind)
-            for kind in ['2d', 'models', '2d-inputs']]
+            for kind in ['2d', 'models', '2d-inputs', 'models-annot']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'background_period.{ext}')]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_task-sfprescaled_background_period_{{}}.{ext}').format(group, model)
              for model in ['full_full_full', 'full_full_absolute'] for group in ['individual', 'sub-groupaverage']]
