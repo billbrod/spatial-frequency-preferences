@@ -1631,16 +1631,13 @@ def existing_studies_with_current_figure(df, precision_df=None, y="Preferred per
         The FacetGrid containing the plot
 
     """
+    # this gets us the median parameter value for each subject and fit
+    # model type
+    df = df.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
     if precision_df is not None:
-        df = df.merge(precision_df, on=['subject', 'session', 'task'])
+        df = df.merge(precision_df, on=['subject'])
         df = precision_weighted_bootstrap(df, 100, 'fit_value', ['model_parameter', 'fit_model_type'],
                                           'precision')
-    else:
-        # this gets us the median and precision across any other
-        # columns. since precision_df is None, this should only contain
-        # a single model
-        df = append_precision_col(df, 'fit_value', ['subject', 'model_parameter',
-                                                    'fit_model_type'])
     gb_cols = [c for c in ['subject', 'bootstrap_num'] if c in df.columns]
     df = analyze_model.create_feature_df(df, reference_frame='relative', gb_cols=gb_cols)
     df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)']).agg('mean').reset_index()

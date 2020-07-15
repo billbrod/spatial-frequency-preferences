@@ -2187,8 +2187,10 @@ rule figure_params:
         for p in input.params:
             tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
             if wildcards.plot_kind.endswith('overall'):
+                # get the median parameter value per subject and model type
+                tmp = tmp.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
                 precision = pd.read_csv(input.precision[0])
-                tmp = tmp.merge(precision, on=['subject', 'session', 'task'])
+                tmp = tmp.merge(precision, on=['subject'])
                 tmp = sfp.figures.precision_weighted_bootstrap(tmp, 100, 'fit_value',
                                                                ['model_parameter',
                                                                 'fit_model_type'], 'precision')
@@ -2271,8 +2273,10 @@ rule figure_feature_df:
         font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input.params[0]), wildcards.task)
         if wildcards.plot_kind.endswith('overall'):
+            # get the median parameter value per subject and model type
+            df = df.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
             precision = pd.read_csv(input.precision[0])
-            df = df.merge(precision, on=['subject', 'session', 'task'])
+            df = df.merge(precision, on=['subject'])
             df = sfp.figures.precision_weighted_bootstrap(df, 100, 'fit_value',
                                                           ['model_parameter', 'fit_model_type'],
                                                           'precision')
