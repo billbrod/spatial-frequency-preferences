@@ -1595,7 +1595,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     return g
 
 
-def existing_studies_with_current_figure(df, precision_df, y="Preferred period (dpc)",
+def existing_studies_with_current_figure(df, precision_df=None, y="Preferred period (dpc)",
                                          context='paper'):
     """Plot results from existing studies with our results
 
@@ -1612,9 +1612,10 @@ def existing_studies_with_current_figure(df, precision_df, y="Preferred period (
     df : pd.DataFrame
         dataframe containing all the model parameter values, across
         subjects.
-    precision_df : pd.dataFrame
+    precision_df : pd.dataFrame or None, optional
         dataframe containing the precision for each scanning session in
-        df
+        df. If None, we won't do any bootstrapping, and so assume this
+        already has only one subject
     y : {'Preferred period (dpc)', 'Preferred spatial frequency (cpd)'}
         Whether to plot the preferred period or preferred spatial
         frequency on the y-axis. If preferred period, the y-axis is
@@ -1630,10 +1631,18 @@ def existing_studies_with_current_figure(df, precision_df, y="Preferred period (
         The FacetGrid containing the plot
 
     """
-    df = df.merge(precision_df, on=['subject', 'session', 'task'])
-    df = precision_weighted_bootstrap(df, 100, 'fit_value', ['model_parameter', 'fit_model_type'],
-                                      'precision')
-    df = analyze_model.create_feature_df(df, reference_frame='relative')
+    if precision_df is not None:
+        df = df.merge(precision_df, on=['subject', 'session', 'task'])
+        df = precision_weighted_bootstrap(df, 100, 'fit_value', ['model_parameter', 'fit_model_type'],
+                                          'precision')
+    else:
+        # this gets us the median and precision across any other
+        # columns. since precision_df is None, this should only contain
+        # a single model
+        df = append_precision_col(df, 'fit_value', ['subject', 'model_parameter',
+                                                    'fit_model_type'])
+    gb_cols = [c for c in ['subject', 'bootstrap_num'] if c in df.columns]
+    df = analyze_model.create_feature_df(df, reference_frame='relative', gb_cols=gb_cols)
     df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)']).agg('mean').reset_index()
     df['Paper'] = 'Current study'
     df = df.rename(columns={'Eccentricity (deg)': 'Eccentricity'})

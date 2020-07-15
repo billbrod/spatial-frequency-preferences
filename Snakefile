@@ -133,7 +133,8 @@ wildcard_constraints:
     crossval_seed="[0-9]+",
     gpus="[0-9]+",
     y_val="period|frequency",
-    groupaverage="individual|sub-groupaverage"
+    groupaverage="individual|sub-groupaverage",
+    summary_func="mean|median",
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -1950,7 +1951,8 @@ rule figure_summarize_1d:
             col = {'pref-period-overall': 'preferred_period',
                    'bandwidth-overall': 'tuning_curve_bandwidth'}[wildcards.tuning_param]
             df = sfp.figures.append_precision_col(df, col)
-            df = sfp.figures.precision_weighted_bootstrap(df, col=col)
+            df = sfp.figures.precision_weighted_bootstrap(df, col=col,
+                                                          precision_col=f"{col}_precision")
             height = 5
         else:
             height = 4
@@ -2185,7 +2187,7 @@ rule figure_params:
         for p in input.params:
             tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
             if wildcards.plot_kind.endswith('overall'):
-                precision = pd.read_csv(input.precision)
+                precision = pd.read_csv(input.precision[0])
                 tmp = tmp.merge(precision, on=['subject', 'session', 'task'])
                 tmp = sfp.figures.precision_weighted_bootstrap(tmp, 100, 'fit_value',
                                                                ['model_parameter',
@@ -2269,11 +2271,11 @@ rule figure_feature_df:
         font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input.params[0]), wildcards.task)
         if wildcards.plot_kind.endswith('overall'):
-            precision = pd.read_csv(input.precision)
-            tmp = tmp.merge(precision, on=['subject', 'session', 'task'])
-            tmp = sfp.figures.precision_weighted_bootstrap(tmp, 100, 'fit_value',
-                                                           ['model_parameter', 'fit_model_type'],
-                                                           'precision')
+            precision = pd.read_csv(input.precision[0])
+            df = df.merge(precision, on=['subject', 'session', 'task'])
+            df = sfp.figures.precision_weighted_bootstrap(df, 100, 'fit_value',
+                                                          ['model_parameter', 'fit_model_type'],
+                                                          'precision')
         sns.set_context(wildcards.context, font_scale=font_scale)
         with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
             if wildcards.angles == 'avg':
@@ -2346,8 +2348,12 @@ rule figure_background_with_current:
         import pandas as pd
         font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         sns.set_context(wildcards.context, font_scale=font_scale)
-        df = sfp.figures.prep_df(pd.read_csv(input.params[0]), wildcards.task)
-        precision = pd.read_csv(input.precision)
+        df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
+        try:
+            precision = pd.read_csv(input.precision[0])
+        except AttributeError:
+            # then there was no precision in input
+            precision = None
         with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
             y = {'period': 'Preferred period (dpc)',
                  'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
@@ -2448,7 +2454,7 @@ def get_figures_all(context='paper', visual_field_analyses=False):
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_{{}}_mean_filter_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
              for kind  in ['median', 'bootstraps'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_bootstraps-overall_{{}}_{{}}_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, angles, f, filt, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_bootstraps-overall_{{}}_{{}}_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, f, filt, angles, frame)
              for angles in ['all', 'avg'] for frame in ['relative', 'absolute'] for f in ['mean', 'median'] for filt in ['filter', 'no-filter']
              for model in ['full_full_full', 'full_full_absolute']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_pref-period_bootstraps_mean_filter_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, angles, frame)
