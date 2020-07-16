@@ -2421,10 +2421,8 @@ rule all:
 
 
 def get_figures_all(context='paper', visual_field_analyses=False):
-    if context == 'paper':
-        ext = 'pdf'
-    else:
-        ext = 'svg'
+    # now we're only going to use svg
+    ext = 'svg'
     figs = []
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_1d_{{}}_{{}}.{ext}').format(param, task)
              for param in ['bandwidth', 'pref-period', 'bandwidth-overall', 'pref-period-overall'] for task in ['task-sfprescaled', 'task-sfpconstant']]
