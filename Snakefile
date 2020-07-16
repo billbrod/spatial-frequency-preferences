@@ -2126,7 +2126,7 @@ def get_params_csv(wildcards):
                                  f'{wildcards.groupaverage}_{wildcards.task}_v1_e1-12_%s_b10_r0.001_g0_{wildcards.model_type}_all_models.csv')
     precision = os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
                              'stim_class', 'bayesian_posterior', f'{wildcards.task}_v1_e1-12_'
-                             f'summary_{wildcards.summary_func}_{wildcards.df_filter}_precision.csv'),
+                             f'summary_mean_no-filter_precision.csv'),
     paths = {}
     try:
         ps = []
@@ -2172,11 +2172,11 @@ rule figure_params:
     input:
         unpack(get_params_csv),
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{summary_func}_{df_filter}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{summary_func}_{df_filter}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{summary_func}_{df_filter}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2261,11 +2261,11 @@ rule figure_feature_df:
     input:
         unpack(get_params_csv),
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_{summary_func}_{df_filter}_angles-{angles}_{task}_{ref_frame}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_{summary_func}_{df_filter}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_{summary_func}_{df_filter}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_{task}_{ref_frame}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2341,11 +2341,11 @@ rule figure_background_with_current:
     input:
         unpack(get_params_csv),
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}_{summary_func}_{df_filter}.{ext}')
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}_{summary_func}_{df_filter}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}_{ext}.log')
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}_{summary_func}_{df_filter}_{ext}_benchmark.txt')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{task}_background_{y_val}_{model_type}_{ext}_benchmark.txt')
     run:
         import sfp
         import seaborn as sns
@@ -2436,51 +2436,40 @@ def get_figures_all(context='paper', visual_field_analyses=False):
                         'model_point-remeaned-nc']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_cv_{{}}_h_task-sfprescaled.{ext}').format(cv)
              for cv in ['model_point', 'model_point-remeaned']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-all_{{}}_mean_filter_task-sfprescaled.{ext}').format(model, kind)
-             for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop'] for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-all_dist-overall_{{}}_{{}}_task-sfprescaled.{ext}').format(model, f, filt)
-             for model in ['full_full_full', 'full_full_absolute'] for f in ['median', 'mean'] for filt in ['filter', 'no-filter']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_params_visualfield-all_{{}}_mean_filter_task-sfprescaled.{ext}').format(model, kind)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-all_{{}}_task-sfprescaled.{ext}').format(model, kind)
+             for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'full_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_params_visualfield-all_{{}}_task-sfprescaled.{ext}').format(model, kind)
              for kind  in ['dist', 'strip'] for model in ['full_full_full', 'full_full_absolute']]
     if visual_field_analyses:
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-{{}}_{{}}_mean_filter_task-sfprescaled.{ext}').format(model, vf, kind)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-{{}}_{{}}_task-sfprescaled.{ext}').format(model, vf, kind)
                  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'full_full_absolute']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_full_params_visualfield-{{}}_compare_mean_filter_task-sfprescaled.{ext}').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_full_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_absolute_params_visualfield-{{}}_compare_mean_filter_task-sfprescaled.{ext}').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_absolute_params_visualfield-{{}}_compare_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_mean_filter_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
                  for model in ['full_full_full', 'full_full_absolute']],
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_mean_filter_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
                  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']],
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_{{}}_mean_filter_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
-             for kind  in ['median', 'bootstraps'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_{{}}_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
+             for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_bootstraps-overall_{{}}_{{}}_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, f, filt, angles, frame)
-             for angles in ['all', 'avg'] for frame in ['relative', 'absolute'] for f in ['mean', 'median'] for filt in ['filter', 'no-filter']
-             for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_pref-period_bootstraps_mean_filter_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, angles, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_pref-period_bootstraps_angles-{{}}_task-sfprescaled_{{}}.{ext}').format(model, angles, frame)
              for angles in ['all', 'avg'] for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_{{}}_{{}}_mean_filter_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, kind, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_{{}}_{{}}_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, kind, frame)
              for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-             for kind  in ['median', 'bootstraps'] for frame in ['relative', 'absolute']
+             for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_{{}}_bootstraps-overall_{{}}_{{}}_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, f, filt, frame)
-             for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp'] for frame in ['relative', 'absolute']
-             for f in ['mean', 'median'] for filt in ['filter', 'no-filter']
-             for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_{{}}_bootstraps_mean_filter_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_{{}}_bootstraps_angles-all_task-sfprescaled_{{}}.{ext}').format(model, feature, frame)
              for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
              for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']]
     figs +=[os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'schematic_{{}}.{ext}').format(kind)
             for kind in ['2d', 'models', '2d-inputs', 'models-annot']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'background_period.{ext}')]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_task-sfprescaled_background_period_{{}}_mean_filter.{ext}').format(model)
-             for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_task-sfprescaled_background_period_{{}}_{{}}_{{}}.{ext}').format(model, f, filt)
-             for model in ['full_full_full', 'full_full_absolute'] for f in ['mean', 'median'] for filt in ['filter', 'no-filter']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'{{}}_task-sfprescaled_background_period_{{}}.{ext}').format(group, model)
+             for model in ['full_full_full', 'full_full_absolute'] for group in ['sub-groupaverage', 'individual']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_training-loss-check_task-sfprescaled.{ext}').format(t)
              for t in ['initial_cv', 'bootstrap']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_initial_training-loss-check_task-sfprescaled.{ext}')]
