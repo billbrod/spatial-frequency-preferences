@@ -2365,6 +2365,30 @@ rule figure_background_with_current:
             g.fig.savefig(output[0], bbox_inches='tight')
 
 
+def get_compose_input(wildcards):
+    path_template = os.path.join(config['DATA_DIR'], 'derivatives', "figures", wildcards.context,
+                                 "%s.svg")
+    if wildcards.figure_name == "crossvalidation":
+        paths = [path_template % "schematic_models-annot",
+                 path_template % 'individual_cv_model_point-remeaned_h_task-sfprescaled']
+    return paths
+
+rule compose_figures:
+    input:
+        get_compose_input,
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'compose_figures', '{context}', '{figure_name}.svg')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'compose_figures', '{context}', '{figure_name}_svg.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'compose_figures', '{context}', '{figure_name}_svg_benchmark.txt')
+    run:
+        from svgutils import compose
+        import sfp
+        if wildcards.figure_name == 'crossvalidation':
+            sfp.compose_figures.crossvalidation(*input, output[0])
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),

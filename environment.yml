@@ -37,3 +37,4 @@ dependencies:
       - pyrtools
       - torchvision
       - torch>=1.0.1
+      - svgutils

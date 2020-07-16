@@ -1039,10 +1039,10 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
         seaborn FacetGrid object containing the plot
 
     """
-    height = 8
+    height = 4.67
     aspect = .9
     if context == 'poster':
-        height = 10
+        height *= 2
         aspect = 1
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
@@ -1073,7 +1073,7 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     if orient == 'v':
         g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Model type")
     elif orient == 'h':
-        g.set(xlabel=f"Cross-validated loss ({name} by subject)", ylabel="Model type")
+        g.set(xlabel=f"Cross-validated loss ({name} by subject)", ylabel="")
     # if plot_kind=='point', then there is no legend, so the following
     # would cause an error
     if plot_kind == 'strip':
@@ -1155,6 +1155,7 @@ def model_types(context='paper', palette_type='model', annotate=False):
     fig = plt.figure(figsize=figsize)
     ax = sns.heatmap(model_variants, cmap=pal, cbar=False)
     ax.set_yticklabels(model_names, rotation=0)
+    ax.set_ylabel("Model type")
     # we want the labels on the top here, not the bottom
     ax.tick_params(labelbottom=False, labeltop=True)
     if annotate:
