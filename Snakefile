@@ -2331,7 +2331,7 @@ rule figure_background:
         sns.set_context(wildcards.context, font_scale=font_scale)
         with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
             df = sfp.figures.existing_studies_df()
-            y = {'period': 'Preferred period (dpc)',
+            y = {'period': 'Preferred period (deg)',
                  'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
             g = sfp.figures.existing_studies_figure(df, y, wildcards.context)
             g.fig.savefig(output[0], bbox_inches='tight')
@@ -2359,7 +2359,7 @@ rule figure_background_with_current:
             # then there was no precision in input
             precision = None
         with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
-            y = {'period': 'Preferred period (dpc)',
+            y = {'period': 'Preferred period (deg)',
                  'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
             g = sfp.figures.existing_studies_with_current_figure(df, precision, y, wildcards.context)
             g.fig.savefig(output[0], bbox_inches='tight')
@@ -2371,6 +2371,8 @@ def get_compose_input(wildcards):
     if wildcards.figure_name == "crossvalidation":
         paths = [path_template % "schematic_models-annot",
                  path_template % 'individual_cv_model_point-remeaned_h_task-sfprescaled']
+    if "with_legend" in wildcards.figure_name:
+        paths = [path_template % wildcards.figure_name.replace('_with_legend', '')]
     return paths
 
 rule compose_figures:
@@ -2387,6 +2389,9 @@ rule compose_figures:
         import sfp
         if wildcards.figure_name == 'crossvalidation':
             sfp.compose_figures.crossvalidation(*input, output[0])
+        if 'with_legend' in wildcards.figure_name:
+            if 'pref-period_bootstraps-overall' in wildcards.figure_name:
+                sfp.compose_figures.add_legend(input[0], (270, 260), (120, 140), output[0])
 
 
 rule report:

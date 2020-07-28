@@ -1178,7 +1178,7 @@ def model_schematic(model, axes=None, ylims=None, title=True,
                  if k in df['Stimulus type'].unique()]
         pal = get_palette('stimulus_type', df.reference_frame.unique()[0],
                           df['Stimulus type'].unique(), True)
-        sns.lineplot(x, 'Preferred period (dpc)', 'Stimulus type', data=df, ax=ax, hue_order=order,
+        sns.lineplot(x, 'Preferred period (deg)', 'Stimulus type', data=df, ax=ax, hue_order=order,
                      palette=pal, estimator=np.median, ci=68)
         ax.legend_.remove()
         if i > 0:
@@ -1187,7 +1187,7 @@ def model_schematic(model, axes=None, ylims=None, title=True,
             ax.set_title(t, y=[1.1, 1.1][i])
         if ylims is not None:
             ax.set_ylim(ylims[i])
-        restricted = df[df['Eccentricity (deg)'] == single_ecc]['Preferred period (dpc)']
+        restricted = df[df['Eccentricity (deg)'] == single_ecc]['Preferred period (deg)']
         if proj == 'rectilinear':
             ax.axhline(color='gray', linestyle='--')
             ax.axvline(color='gray', linestyle='--')
@@ -1198,12 +1198,13 @@ def model_schematic(model, axes=None, ylims=None, title=True,
 
 
 def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad)', row=None,
-                    plot_func=sns.lineplot, x='Eccentricity (deg)', y='Preferred period (dpc)',
+                    plot_func=sns.lineplot, x='Eccentricity (deg)', y='Preferred period (deg)',
                     yticks=[0, 1, 2], xticks=[0, 2, 4, 6, 8, 10], height=4, aspect=1,
                     title='Preferred period', top=.85, pal=None, col_order=None, row_order=None,
                     ylim=None, xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
                     pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
-                                      'bootstrap_num', 'Eccentricity (deg)'], **kwargs):
+                                      'bootstrap_num', 'Eccentricity (deg)'],
+                    facetgrid_legend=True, **kwargs):
     """Create plot from feature_df
 
     This function takes the feature_df created by
@@ -1307,6 +1308,10 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
+    facetgrid_legend : bool, optional
+        whether to use the `FacetGrid.add_legend` method to add a
+        legend. if False, will not add a legend (and so you must do it
+        yourself)
     kwargs :
         passed to plot_func
 
@@ -1328,7 +1333,8 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
                       palette=pal, xlim=xlim, ylim=ylim, col_wrap=col_wrap, col_order=col_order,
                       row_order=row_order)
     g.map_dataframe(plot_func, x, y, ci=ci, estimator=np.median, **kwargs)
-    g.add_legend()
+    if facetgrid_legend:
+        g.add_legend()
     for ax in g.axes.flatten():
         ax.axhline(color='gray', linestyle='--')
         ax.axvline(color='gray', linestyle='--')
@@ -1339,10 +1345,12 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     if title is not None:
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=top)
+    if feature_df[col].nunique() == 1 and col == 'subject':
+        g.set(title='')
     return g
 
 
-def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period (dpc)', row=None,
+def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period (deg)', row=None,
                           plot_func=sns.lineplot, theta='Retinotopic angle (rad)',
                           r='Eccentricity (deg)', r_ticks=None, theta_ticks=None, r_ticklabels=None,
                           theta_ticklabels=None, all_tick_labels=[], height=4, aspect=1, title='Preferred period contours',

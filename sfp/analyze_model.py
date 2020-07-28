@@ -289,7 +289,7 @@ def create_preferred_period_df(model, reference_frame='absolute',
         tmp = tmp.reset_index().rename(columns={'index': 'Retinotopic angle (rad)'})
         tmp['Orientation (rad)'] = o
         df.append(pd.melt(tmp, ['Retinotopic angle (rad)', 'Orientation (rad)'],
-                          var_name='Eccentricity (deg)', value_name='Preferred period (dpc)'))
+                          var_name='Eccentricity (deg)', value_name='Preferred period (deg)'))
     return _finish_feature_df(df, reference_frame)
 
 
@@ -379,8 +379,8 @@ def create_preferred_period_contour_df(model, reference_frame='absolute',
             tmp = model.preferred_period_contour(p, retinotopic_angle, rel_sf_angle=orientation)
         tmp = pd.DataFrame(tmp.detach().numpy(), index=retinotopic_angle, columns=orientation)
         tmp = tmp.reset_index().rename(columns={'index': 'Retinotopic angle (rad)'})
-        tmp['Preferred period (dpc)'] = p
-        df.append(pd.melt(tmp, ['Retinotopic angle (rad)', 'Preferred period (dpc)'],
+        tmp['Preferred period (deg)'] = p
+        df.append(pd.melt(tmp, ['Retinotopic angle (rad)', 'Preferred period (deg)'],
                           var_name='Orientation (rad)', value_name='Eccentricity (deg)'))
     return _finish_feature_df(df, reference_frame)
 
@@ -499,7 +499,7 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
                                     eccentricity=[5],
                                     retinotopic_angle=np.linspace(0, 2*np.pi, 49))
     sfp.plotting.feature_df_polar_plot(pref_period, col='Eccentricity (deg)', 
-                                       r='Preferred period (dpc)')
+                                       r='Preferred period (deg)')
     ```
 
     3. iso-preferred period lines as a function of retinotopic angle and

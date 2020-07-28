@@ -89,7 +89,7 @@ def existing_studies_df():
       preferred spatial frequency at
     - Preferred spatial frequency (cpd): the preferred spatial frequency
       measured at this eccentricity (in cycles per degree)
-    - Preferred period (dpc): the preferred period measured at this
+    - Preferred period (deg): the preferred period measured at this
       eccentricity (in degrees per cycle); this is just the inverse of
       the preferred spatial frequency
 
@@ -187,7 +187,7 @@ def existing_studies_df():
 
     df = pd.DataFrame(data_dict)
     df = df.sort_values(['Paper','Eccentricity',])
-    df["Preferred period (dpc)"] = 1. / df['Preferred spatial frequency (cpd)']
+    df["Preferred period (deg)"] = 1. / df['Preferred spatial frequency (cpd)']
 
     return df
 
@@ -542,7 +542,7 @@ def pref_period_1d(df, reference_frame='relative', row='session', col='subject',
     """
     kwargs.setdefault('ylim', (0, 4))
     g = _summarize_1d(df, reference_frame, 'preferred_period', row, col, height, **kwargs)
-    g.set_ylabels('Preferred period (dpc)')
+    g.set_ylabels('Preferred period (deg)')
     yticks = [i for i in range(4) if i <= kwargs['ylim'][1]]
     g.set(yticks=yticks)
     g.fig.suptitle("Preferred period of 1d tuning curves in each eccentricity band")
@@ -592,7 +592,7 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
     return g
 
 
-def existing_studies_figure(df, y="Preferred period (dpc)", context='paper'):
+def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
     """Plot the results from existing studies
 
     See the docstring for figures.existing_studies_df() for more
@@ -603,7 +603,7 @@ def existing_studies_figure(df, y="Preferred period (dpc)", context='paper'):
     df : pd.DataFrame
         The existing studies df, as returned by the function
         figures.existing_studies_df().
-    y : {'Preferred period (dpc)', 'Preferred spatial frequency (cpd)'}
+    y : {'Preferred period (deg)', 'Preferred spatial frequency (cpd)'}
         Whether to plot the preferred period or preferred spatial
         frequency on the y-axis. If preferred period, the y-axis is
         linear; if preferred SF, the y-axis is log-scaled (base 2). The
@@ -629,7 +629,7 @@ def existing_studies_figure(df, y="Preferred period (dpc)", context='paper'):
     if 'Current study' in df.Paper.unique():
         pal['Current study'] = (0, 0, 0)
     g = sns.FacetGrid(df, hue='Paper', height=height, aspect=1.2, palette=pal)
-    if y == "Preferred period (dpc)":
+    if y == "Preferred period (deg)":
         g.map(plt.plot, 'Eccentricity', y, marker='o', linewidth=linewidth)
         g.ax.set_ylim((0, 6))
     elif y == "Preferred spatial frequency (cpd)":
@@ -1539,6 +1539,12 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         pre_boot_gb_cols = ['reference_frame', 'Stimulus type', 'groupaverage_seed',
                             'Eccentricity (deg)']
     if feature_type == 'pref-period':
+        if col is None or df.subject.nunique() == 1:
+            facetgrid_legend = False
+            suptitle = False
+        else:
+            facetgrid_legend = True
+            suptitle = True 
         if context == 'poster':
             aspect = 1.3
         if avg_across_retinal_angle:
@@ -1550,7 +1556,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         df = analyze_model.create_feature_df(df, reference_frame=reference_frame, gb_cols=gb_cols)
         g = plotting.feature_df_plot(df, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
                                      plot_func=plot_func, height=height, aspect=aspect,
-                                     pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
+                                     pre_boot_gb_cols=pre_boot_gb_cols,
+                                     facetgrid_legend=facetgrid_legend, **kwargs)
     else:
         if context == 'paper':
             orientation = np.linspace(0, np.pi, 4, endpoint=False)
@@ -1565,7 +1572,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                  retinotopic_angle=np.linspace(0, 2*np.pi, 49),
                                                  gb_cols=gb_cols)
             g = plotting.feature_df_polar_plot(df, col=col, row='Eccentricity (deg)',
-                                               r='Preferred period (dpc)', plot_func=plot_func,
+                                               r='Preferred period (deg)', plot_func=plot_func,
                                                height=height, aspect=aspect,
                                                pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
         elif feature_type == 'iso-pref-period':
@@ -1575,7 +1582,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             df = analyze_model.create_feature_df(df, 'preferred_period_contour', period_target=[1],
                                                  reference_frame=reference_frame,
                                                  orientation=orientation, gb_cols=gb_cols)
-            g = plotting.feature_df_polar_plot(df, col=col, row='Preferred period (dpc)',
+            g = plotting.feature_df_polar_plot(df, col=col, row='Preferred period (deg)',
                                                plot_func=plot_func, height=height, aspect=aspect,
                                                title='Iso-preferred period contours',
                                                pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
@@ -1593,10 +1600,12 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             raise Exception(f"Don't know what to do with feature_type {feature_type}!")
     if visual_field != 'all':
         g.fig._suptitle.set_text(g.fig._suptitle.get_text() + f' in {visual_field} visual field')
+    if not suptitle:
+        g.fig.suptitle('')
     return g
 
 
-def existing_studies_with_current_figure(df, precision_df=None, y="Preferred period (dpc)",
+def existing_studies_with_current_figure(df, precision_df=None, y="Preferred period (deg)",
                                          context='paper'):
     """Plot results from existing studies with our results
 
@@ -1617,7 +1626,7 @@ def existing_studies_with_current_figure(df, precision_df=None, y="Preferred per
         dataframe containing the precision for each scanning session in
         df. If None, we won't do any bootstrapping, and so assume this
         already has only one subject
-    y : {'Preferred period (dpc)', 'Preferred spatial frequency (cpd)'}
+    y : {'Preferred period (deg)', 'Preferred spatial frequency (cpd)'}
         Whether to plot the preferred period or preferred spatial
         frequency on the y-axis. If preferred period, the y-axis is
         linear; if preferred SF, the y-axis is log-scaled (base 2). The
@@ -1644,7 +1653,7 @@ def existing_studies_with_current_figure(df, precision_df=None, y="Preferred per
     df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)']).agg('mean').reset_index()
     df['Paper'] = 'Current study'
     df = df.rename(columns={'Eccentricity (deg)': 'Eccentricity'})
-    df['Preferred spatial frequency (cpd)'] = 1 / df['Preferred period (dpc)']
-    df = df[['Paper', 'Preferred spatial frequency (cpd)', 'Preferred period (dpc)', 'Eccentricity']]
+    df['Preferred spatial frequency (cpd)'] = 1 / df['Preferred period (deg)']
+    df = df[['Paper', 'Preferred spatial frequency (cpd)', 'Preferred period (deg)', 'Eccentricity']]
     df = existing_studies_df().append(df, True, sort=False)
     return existing_studies_figure(df, y, context)

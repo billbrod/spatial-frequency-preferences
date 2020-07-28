@@ -626,7 +626,7 @@ def check_stim_properties(size, origin, max_visual_angle, w_r=0, w_a=range(10),
         sf['local_freq_cpp'] = sf['local_freq_cpd'] / (rad.max() / np.sqrt(2*(max_visual_angle/2.)**2))
         # period is easier to think about
         sf['local_period_ppc'] = 1. / sf['local_freq_cpp']
-        sf['local_period_dpc'] = 1. / sf['local_freq_cpd']
+        sf['local_period_deg'] = 1. / sf['local_freq_cpd']
         sf_df.append(sf.reset_index())
     return pd.concat(mask_df), pd.concat(sf_df).reset_index(drop=True)
 
