@@ -148,7 +148,6 @@ def is_numeric(s):
 
 
 def draw_arrow(ax, xy, xytext, text="", arrowprops={}, **kwargs):
-    arrowprops.setdefault('linewidth', 2)
     kwargs.setdefault('xycoords', 'data')
     kwargs.setdefault('textcoords', 'data')
     ax.annotate(text, xy=xy, xytext=xytext, arrowprops=arrowprops, **kwargs)

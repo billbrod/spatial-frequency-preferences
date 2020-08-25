@@ -2300,21 +2300,21 @@ rule figure_schematic:
         os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_{schematic_type}_{ext}_benchmark.txt')
     run:
         import sfp
-        import seaborn as sns
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
-        sns.set_context(wildcards.context, font_scale=font_scale)
-        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
-            if wildcards.schematic_type == '2d':
-                fig = sfp.figures.model_schematic(wildcards.context)
-            elif wildcards.schematic_type == '2d-inputs':
-                fig = sfp.figures.input_schematic()
-            elif wildcards.schematic_type.startswith('models'):
-                if 'annot' in wildcards.schematic_type:
-                    annotate = True
-                else:
-                    annotate = False
-                fig = sfp.figures.model_types(wildcards.context, annotate=annotate)
-            fig.savefig(output[0], bbox_inches='tight')
+        import matplotlib.pyplot as plt
+        figsize = {'poster': 'full', 'paper': 'half'}[wildcards.context]
+        params, fig_width = sfp.style.plotting_style(wildcards.context, figsize=figsize)
+        plt.style.use(params)
+        if wildcards.schematic_type == '2d':
+            fig = sfp.figures.model_schematic(wildcards.context)
+        elif wildcards.schematic_type == '2d-inputs':
+            fig = sfp.figures.input_schematic()
+        elif wildcards.schematic_type.startswith('models'):
+            if 'annot' in wildcards.schematic_type:
+                annotate = True
+            else:
+                annotate = False
+            fig = sfp.figures.model_types(annotate=annotate, figure_width=fig_width)
+        fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_background:

@@ -1081,8 +1081,8 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     return g
 
 
-def model_types(context='paper', palette_type='model', annotate=False):
-    """Create plot showing which model fits which parameters
+def model_types(palette_type='model', annotate=False, figure_width=3.25):
+    """Create plot showing which model fits which parameters.
 
     We have 11 different parameters, which might seem like a lot, so we
     do cross-validation to determine whether they're all necessary. This
@@ -1091,9 +1091,6 @@ def model_types(context='paper', palette_type='model', annotate=False):
 
     Parameters
     ----------
-    context : {'paper', 'poster'}, optional
-        plotting context that's being used for this figure (as in
-        seaborn's set_context function). if poster, will scale things up
     palette_type : {'model', 'simple', 'simple_r', seaborn palette name}, optional
         palette to use for this plot. if 'model', the parameter each
         model fits is shown in its color (as used in other plots). If
@@ -1105,6 +1102,9 @@ def model_types(context='paper', palette_type='model', annotate=False):
         whether to annotate the schematic with info on the parameter
         categories (e.g., period/amplitude, eccentricity/orientation,
         etc)
+    figure_width : float, optional
+        width of the overall figure (which this will take up half of), in
+        inches. will scale everything proportional to this
 
     Returns
     -------
@@ -1112,15 +1112,8 @@ def model_types(context='paper', palette_type='model', annotate=False):
         The figure with the plot on it
 
     """
-    figsize = (6, 5)
-    text_size = 10
+    figsize = (figure_width, figure_width)
     extra_space = 0
-    linewidth = 2
-    if context == 'poster':
-        figsize = [2*i for i in figsize]
-        text_size *= 2
-        extra_space += .03
-        linewidth *= 2
     model_names = plotting.MODEL_PLOT_ORDER
     parameters = plotting.PLOT_PARAM_ORDER
     model_variants = np.zeros((len(model_names), len(parameters)))
@@ -1157,28 +1150,28 @@ def model_types(context='paper', palette_type='model', annotate=False):
     ax.set_yticklabels(model_names, rotation=0)
     ax.set_ylabel("Model type")
     # we want the labels on the top here, not the bottom
-    ax.tick_params(labelbottom=False, labeltop=True)
+    ax.tick_params(labelbottom=False, labeltop=True, pad=-2)
     if annotate:
-        arrowprops = {'connectionstyle': 'bar', 'arrowstyle': '-', 'color': '0',
-                      'linewidth': linewidth}
+        arrowprops = {'connectionstyle': 'bar', 'arrowstyle': '-', 'color': '0'}
         text = ['Eccentricity', 'Absolute', 'Relative', 'Absolute', 'Relative']
+        text = ['Ecc', 'Abs', 'Rel', 'Abs', 'Rel']
         for i, pos in enumerate(range(1, 10, 2)):
             plotting.draw_arrow(ax, ((pos+.5)/11, 1.07+extra_space),
                                 ((pos+1.5)/11, 1.07+extra_space), arrowprops=arrowprops,
                                 xycoords='axes fraction', textcoords='axes fraction')
-            ax.text((pos+1)/11, 1.12+extra_space, text[i], {'size': text_size}, transform=ax.transAxes,
+            ax.text((pos+1)/11, 1.11+extra_space, text[i], transform=ax.transAxes,
                     ha='center', va='bottom')
         arrowprops['connectionstyle'] = f'bar,fraction={.3/5}'
         plotting.draw_arrow(ax, (1.5/11, 1.17+extra_space), (6.5/11, 1.17+extra_space),
                             arrowprops=arrowprops,
                             xycoords='axes fraction', textcoords='axes fraction')
-        ax.text(4/11, 1.22+extra_space, 'Period', {'size': text_size}, transform=ax.transAxes,
+        ax.text(4/11, 1.22+extra_space, 'Period', transform=ax.transAxes,
                 ha='center', va='bottom')
         arrowprops['connectionstyle'] = f'bar,fraction={.3/3}'
         plotting.draw_arrow(ax, (7.5/11, 1.17+extra_space), (10.5/11, 1.17+extra_space),
                             arrowprops=arrowprops,
                             xycoords='axes fraction', textcoords='axes fraction')
-        ax.text(9/11, 1.22+extra_space, 'Amplitude', {'size': text_size}, transform=ax.transAxes,
+        ax.text(9/11, 1.22+extra_space, 'Amplitude', transform=ax.transAxes,
                 ha='center', va='bottom')
     return fig
 
