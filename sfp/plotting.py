@@ -1357,7 +1357,8 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                           title_position=[.5, 1.15], ylabelpad=30, legend_position=None, ylim=None,
                           xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
                           pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
-                                            'Eccentricity (deg)'], **kwargs):
+                                            'Eccentricity (deg)'],
+                          facetgrid_legend=True, **kwargs):
     """Create polar plot from feature_df
 
     This function takes the feature_df created by
@@ -1482,6 +1483,10 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
     pre_boot_gb_cols : list, optional
         The columns to use for the optional groupby. See above for more
         details
+    facetgrid_legend : bool, optional
+        whether to use the `FacetGrid.add_legend` method to add a
+        legend. if False, will not add a legend (and so you must do it
+        yourself)
     kwargs :
         passed to plot_func
 
@@ -1521,10 +1526,11 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                 ax.set_xticklabels(theta_ticklabels)
             if 'theta' in all_tick_labels:
                 ax.tick_params(labelbottom=True)
-    if legend_position is not None:
-        g.add_legend(bbox_to_anchor=legend_position)
-    else:
-        g.add_legend()
+    if facetgrid_legend:
+        if legend_position is not None:
+            g.add_legend(bbox_to_anchor=legend_position)
+        else:
+            g.add_legend()
     if title is not None:
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=top)

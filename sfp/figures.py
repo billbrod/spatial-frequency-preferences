@@ -1531,13 +1531,19 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         col = None
         pre_boot_gb_cols = ['reference_frame', 'Stimulus type', 'groupaverage_seed',
                             'Eccentricity (deg)']
+    if col is None or df.subject.nunique() == 1:
+        facetgrid_legend = False
+        suptitle = False
+        split_oris = True
+        col = 'orientation_type'
+        ori_map = {k: ['cardinals', 'obliques'][i%2] for i, k in
+                   enumerate(np.linspace(0, np.pi, 4, endpoint=False))}
+        pre_boot_gb_cols += [col]
+    else:
+        facetgrid_legend = True
+        suptitle = True
+        split_oris = False
     if feature_type == 'pref-period':
-        if col is None or df.subject.nunique() == 1:
-            facetgrid_legend = False
-            suptitle = False
-        else:
-            facetgrid_legend = True
-            suptitle = True 
         if context == 'poster':
             aspect = 1.3
         if avg_across_retinal_angle:
@@ -1546,7 +1552,12 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         else:
             pre_boot_gb_func = None
             row = 'Retinotopic angle (rad)'
-        df = analyze_model.create_feature_df(df, reference_frame=reference_frame, gb_cols=gb_cols)
+        if split_oris:
+            orientation = np.linspace(0, np.pi, 2, endpoint=False)
+        df = analyze_model.create_feature_df(df, reference_frame=reference_frame, gb_cols=gb_cols,
+                                             orientation=orientation)
+        if split_oris:
+            df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
         g = plotting.feature_df_plot(df, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
                                      plot_func=plot_func, height=height, aspect=aspect,
                                      pre_boot_gb_cols=pre_boot_gb_cols,
@@ -1558,43 +1569,78 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             orientation = np.linspace(0, np.pi, 2, endpoint=False)
             kwargs.update({'top': .76, 'r_ticks': [.25, .5, .75, 1],
                            'r_ticklabels': ['', .5, '', 1], 'ylabelpad': 60})
-        kwargs.update({'hspace': .3, 'all_tick_labels': ['r']})
+        kwargs.update({'hspace': .3, 'all_tick_labels': ['r'], 'wspace': .3})
         if feature_type == 'pref-period-contour':
+            rticks = np.arange(2, 15, 2) / 10
+            rticklabels = [j if i%2==0 else '' for i, j in enumerate(rticks)]
+            if not split_oris:
+                # there's a weird interaction where if we set the rticks before
+                # calling scatter (which we do when split_oris is True), it
+                # competely messes up the plot. unsure why.
+                kwargs.update({'r_ticks': rticks, 'r_ticklabels': rticklabels})
             df = analyze_model.create_feature_df(df, reference_frame=reference_frame,
                                                  eccentricity=[5], orientation=orientation,
                                                  retinotopic_angle=np.linspace(0, 2*np.pi, 49),
                                                  gb_cols=gb_cols)
+            if split_oris:
+                df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
+            r = 'Preferred period (deg)'
             g = plotting.feature_df_polar_plot(df, col=col, row='Eccentricity (deg)',
-                                               r='Preferred period (deg)', plot_func=plot_func,
+                                               r=r, plot_func=plot_func,
                                                height=height, aspect=aspect,
-                                               pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
+                                               pre_boot_gb_cols=pre_boot_gb_cols,
+                                               facetgrid_legend=facetgrid_legend, **kwargs)
         elif feature_type == 'iso-pref-period':
             if context == 'poster':
                 kwargs.update({'r_ticks': list(range(1, 9)),
                                'r_ticklabels': [i if i%2==0 else '' for i in range(1, 9)]})
+            if split_oris:
+                df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
             df = analyze_model.create_feature_df(df, 'preferred_period_contour', period_target=[1],
                                                  reference_frame=reference_frame,
                                                  orientation=orientation, gb_cols=gb_cols)
-            g = plotting.feature_df_polar_plot(df, col=col, row='Preferred period (deg)',
+            r = 'Eccentricity (deg)'
+            g = plotting.feature_df_polar_plot(df, col=col, row='Preferred period (deg)', r=r,
                                                plot_func=plot_func, height=height, aspect=aspect,
-                                               title='Iso-preferred period contours',
-                                               pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
+                                               title='ISO-preferred period contours',
+                                               pre_boot_gb_cols=pre_boot_gb_cols,
+                                               facetgrid_legend=facetgrid_legend, **kwargs)
         elif feature_type == 'max-amp':
-            # this will have only one row, in which case we should use
-            # the default value
-            kwargs.update({'top': .76})
+            rticks = np.arange(2, 13, 2) / 10
+            rticklabels = [j if i%2==0 else '' for i, j in enumerate(rticks)]
+            if not split_oris:
+                # there's a weird interaction where if we set the rticks before
+                # calling scatter (which we do when split_oris is True), it
+                # competely messes up the plot. unsure why.
+                kwargs.update({'r_ticks': rticks, 'r_ticklabels': rticklabels})
             df = analyze_model.create_feature_df(df, 'max_amplitude', orientation=orientation,
                                                  reference_frame=reference_frame, gb_cols=gb_cols)
-            g = plotting.feature_df_polar_plot(df, col=col, r='Max amplitude', height=height,
+            if split_oris:
+                df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
+            r = 'Max amplitude'
+            g = plotting.feature_df_polar_plot(df, col=col, r=r, height=height,
                                                aspect=aspect, plot_func=plot_func,
                                                title='Max amplitude',
-                                               pre_boot_gb_cols=pre_boot_gb_cols, **kwargs)
+                                               pre_boot_gb_cols=pre_boot_gb_cols,
+                                               facetgrid_legend=facetgrid_legend, **kwargs)
         else:
             raise Exception(f"Don't know what to do with feature_type {feature_type}!")
+        if split_oris:
+            th = np.linspace(0, 2*np.pi, 8, endpoint=False)
+            r_val = 1 # df[r].mean()
+            for ax in g.axes.flatten():
+                ax.scatter(th, len(th)*[r_val], c='k')
+            # for some reason, can't call the set_rticks until after all
+            # scatters have been called, or they get messed up
+            for ax in g.axes.flatten():
+                ax.set_yticks(rticks)
+                ax.set_yticklabels(rticklabels)
     if visual_field != 'all':
         g.fig._suptitle.set_text(g.fig._suptitle.get_text() + f' in {visual_field} visual field')
     if not suptitle:
         g.fig.suptitle('')
+        for ax in g.axes.flatten():
+            ax.set_title('')
     return g
 
 
