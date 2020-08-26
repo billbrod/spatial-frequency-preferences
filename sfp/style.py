@@ -51,7 +51,12 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
                   'axes.spines.left': True, 'axes.spines.bottom': True,
                   'axes.spines.right': False, 'axes.spines.top': False,
                   'xtick.bottom': False, 'ytick.left': False,
-                  'figure.dpi': 100, 'text.usetex': True}
+                  'figure.dpi': 90,
+                  'text.usetex': False, }
+                  # this is necessary for dealing with underscores in column
+                  # names, see
+                  # https://github.com/matplotlib/matplotlib/issues/17774
+                  # 'text.latex.preamble': r"\usepackage{underscore}"}
         if context == 'paper':
             params.update({'font.size': 12,
                            'axes.labelsize': 12,
@@ -77,12 +82,12 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
             elif figsize == 'half':
                 figure_width = 3.25
         elif context == 'poster':
-            params.update({'font.size': 28.8,
-                           'axes.labelsize': 28.8,
-                           'axes.titlesize': 28.8,
-                           'xtick.labelsize': 26.4,
-                           'ytick.labelsize': 26.4,
-                           'legend.fontsize': 28.8,
+            params.update({'font.size': 24,
+                           'axes.labelsize': 24,
+                           'axes.titlesize': 24,
+                           'xtick.labelsize': 20,
+                           'ytick.labelsize': 20,
+                           'legend.fontsize': 24,
                            'axes.linewidth': 2.5,
                            'grid.linewidth': 2,
                            'lines.linewidth': 3.0,
@@ -101,9 +106,9 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
             # work for pngs (and other raster graphics), but for svgs (which is
             # what we actually use), it will only be approximately correct
             if figsize == 'full':
-                figure_width = 1080 / params['figure.dpi']
+                figure_width = 1920 / params['figure.dpi']
             elif figsize == 'half':
-                figure_width = 540 / params['figure.dpi']
+                figure_width = (1920/2) / params['figure.dpi']
         params['figure.titlesize'] = params['axes.titlesize']
     elif for_package == 'svgutils':
         if context == 'paper':
