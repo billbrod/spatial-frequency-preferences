@@ -67,10 +67,18 @@ def crossvalidation(annotated_model_schematic, horizontal_cv_loss, save_path,
         and horizontal cv loss figures, respectively
     save_path : str
         path to save the composed figure at
+    figure_width : str or float
+        width of the figure to create. will attempt to scale things properly to
+        different sizes, but will probably require some manual tuning
+    text_params: dict
+        parameters to pass to the svgutils.compose.Text objects for the panel
+        labels.
 
     """
     figure_width = _convert_to_pix(figure_width)
     figure_height = figure_width * .6
+    # this scaling doesn't really work right now, will properly require more
+    # manual adjustment if you want different sizes
     scale = figure_width / _convert_to_pix('6.5in')
     compose.Figure(figure_width, figure_height,
                    compose.SVG(horizontal_cv_loss).scale(calc_scale()).move(240*scale, 64*scale),
