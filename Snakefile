@@ -2060,33 +2060,33 @@ rule figure_crossvalidation:
     run:
         import pandas as pd
         import seaborn as sns
+        import matplotlib.pyplot as plt
         import sfp
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
+        params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
+        plt.style.use(params)
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         if wildcards.cv_type.endswith('-nc'):
             noise_ceiling = sfp.figures.prep_df(pd.read_csv(input[1]), wildcards.task)
         else:
             noise_ceiling = None
-        sns.set_context(wildcards.context, font_scale=font_scale)
-        with sns.axes_style('white'):
-            if 'remeaned' in wildcards.cv_type:
-                remeaned = True
-            else:
-                remeaned = False
-            if wildcards.cv_type.startswith('demeaned'):
-                g = sfp.figures.cross_validation_demeaned(df, remeaned, context=wildcards.context,
-                                                          orient=wildcards.orient)
-            elif wildcards.cv_type.startswith('raw'):
-                g = sfp.figures.cross_validation_raw(df, noise_ceiling, context=wildcards.context,
-                                                     orient=wildcards.orient)
-            elif wildcards.cv_type.startswith('model_point'):
-                g = sfp.figures.cross_validation_model(df, 'point', remeaned, noise_ceiling,
-                                                       context=wildcards.context,
-                                                       orient=wildcards.orient)
-            elif wildcards.cv_type.startswith('model'):
-                g = sfp.figures.cross_validation_model(df, remeaned=remeaned, orient=wildcards.orient,
-                                                       context=wildcards.context)
-            g.fig.savefig(output[0], bbox_inches='tight')
+        if 'remeaned' in wildcards.cv_type:
+            remeaned = True
+        else:
+            remeaned = False
+        if wildcards.cv_type.startswith('demeaned'):
+            g = sfp.figures.cross_validation_demeaned(df, remeaned, context=wildcards.context,
+                                                      orient=wildcards.orient)
+        elif wildcards.cv_type.startswith('raw'):
+            g = sfp.figures.cross_validation_raw(df, noise_ceiling, context=wildcards.context,
+                                                 orient=wildcards.orient)
+        elif wildcards.cv_type.startswith('model_point'):
+            g = sfp.figures.cross_validation_model(df, 'point', remeaned, noise_ceiling,
+                                                   context=wildcards.context,
+                                                   orient=wildcards.orient)
+        elif wildcards.cv_type.startswith('model'):
+            g = sfp.figures.cross_validation_model(df, remeaned=remeaned, orient=wildcards.orient,
+                                                   context=wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 def get_first_level_files(wildcards):
@@ -2301,8 +2301,7 @@ rule figure_schematic:
     run:
         import sfp
         import matplotlib.pyplot as plt
-        figsize = {'poster': 'full', 'paper': 'half'}[wildcards.context]
-        params, fig_width = sfp.style.plotting_style(wildcards.context, figsize=figsize)
+        params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
         plt.style.use(params)
         if wildcards.schematic_type == '2d':
             fig = sfp.figures.model_schematic(wildcards.context)
@@ -2387,8 +2386,9 @@ rule compose_figures:
     run:
         from svgutils import compose
         import sfp
+        params, figure_width = sfp.style.plotting_style(wildcards.context, 'svgutils', 'full')
         if wildcards.figure_name == 'crossvalidation':
-            sfp.compose_figures.crossvalidation(*input, output[0])
+            sfp.compose_figures.crossvalidation(*input, output[0], figure_width, params)
         if 'with_legend' in wildcards.figure_name:
             if 'pref-period_bootstraps-overall' in wildcards.figure_name:
                 sfp.compose_figures.add_legend(input[0], (270, 260), (120, 140), output[0])

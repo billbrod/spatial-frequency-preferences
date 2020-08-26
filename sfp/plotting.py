@@ -447,7 +447,8 @@ def scatter_ci_dist(x, y, ci=68, x_jitter=None, join=False, estimator=np.median,
     return dots, lines, cis
 
 
-def plot_noise_ceiling(x, y, ci=68, x_extent=.5, estimator=np.median, ci_alpha=.2, **kwargs):
+def plot_noise_ceiling(x, y, ci=68, x_extent=.5, estimator=np.median, ci_alpha=.2,
+                       orient='v', **kwargs):
     """plot the noise ceiling
 
     this is similar to scatter_ci_dist except that we want to plot each
@@ -472,6 +473,8 @@ def plot_noise_ceiling(x, y, ci=68, x_extent=.5, estimator=np.median, ci_alpha=.
         as plotted if either draw_ctr_pts or join is True.
     ci_alpha : float, optional
         the alpha value for the CI, if ci_mode=='fill'
+    orient : {'h', 'v'}, optional
+        orientation of plot (horizontal or vertical)
     kwargs :
         must contain data. Other expected keys:
         - ax: the axis to draw on (otherwise, we grab current axis)
@@ -496,10 +499,24 @@ def plot_noise_ceiling(x, y, ci=68, x_extent=.5, estimator=np.median, ci_alpha=.
     x_order = kwargs.pop('x_order', None)
     x_data, plot_data, plot_cis, _ = _map_dataframe_prep(data, x, y, estimator, None, None, None,
                                                          ci)
+    if is_numeric(x_data):
+        warnings.warn("With numeric x_data, there's a confusion between the integer values and "
+                      f"the categorical labels -- we're subtracting off the min value, {min(x_data)},"
+                      " to avoid this situation")
+        x_data -= min(x_data)
+    y_extent = 0
+    # then flip everything
+    if orient == 'h':
+        x_tmp = x_data
+        x_data = plot_data
+        plot_data = x_tmp
+        y_extent = x_extent
+        x_extent = 0
     lines = []
     cis = []
     for x, d, ci_low, ci_high in zip(x_data, plot_data, *plot_cis):
-        lines.append(ax.plot([x-x_extent, x+x_extent], [d, d], label='noise ceiling', **kwargs))
+        lines.append(ax.plot([x-x_extent, x+x_extent], [d-y_extent, d+y_extent],
+                             label='noise ceiling', **kwargs))
         cis.append(ax.fill_between([x-x_extent, x+x_extent], ci_low, ci_high, alpha=ci_alpha,
                                    **kwargs))
     return lines, cis

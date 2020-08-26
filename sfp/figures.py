@@ -863,9 +863,14 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         x = y
         y = x_copy
         aspect = 1/aspect
+    # facetgrid seems to ignore the defaults for these, but we want to use them
+    # so its consistent with other figures
+    gridspec_kws = {k: mpl.rcParams[f'figure.subplot.{k}']
+                    for k in ['top', 'bottom', 'left', 'right']}
     g = sns.catplot(x, y, hue, data=df, hue_order=hue_order, legend=legend, height=height,
                     kind=plot_kind, aspect=aspect, order=order, palette=pal, ci=ci,
-                    estimator=np.median, orient=orient, **kwargs)
+                    estimator=np.median, orient=orient, facet_kws={'gridspec_kws': gridspec_kws},
+                    **kwargs)
     for ax in g.axes.flatten():
         if x_rotate:
             if x_rotate is True:
@@ -884,8 +889,6 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
             g.fig.subplots_adjust(bottom=.15)
         else:
             g.fig.subplots_adjust(bottom=.2)
-    if orient == 'h':
-        g.fig.subplots_adjust(top=.95)
     return g
 
 
@@ -997,7 +1000,7 @@ def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
 
 
 def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
-                           orient='v', context='paper'):
+                           orient='v', context='paper', figure_width=3.25):
     """plot demeaned cross-validation loss, as function of model type
 
     This function demeans the cross-validation loss on a
@@ -1032,6 +1035,8 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
+    figure_width : int, optional
+        width of this figure, in inches
 
     Returns
     -------
@@ -1039,11 +1044,8 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
         seaborn FacetGrid object containing the plot
 
     """
-    height = 4.67
-    aspect = .9
-    if context == 'poster':
-        height *= 2
-        aspect = 1
+    aspect = 1
+    height = figure_width
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         noise_ceiling_df = noise_ceiling_df.groupby(merge_cols).median().reset_index()
@@ -1063,13 +1065,14 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue, plot_kind=plot_kind,
-                 height=height, aspect=aspect, orient=orient, legend=legend)
+    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue,
+                 plot_kind=plot_kind, height=height, aspect=aspect, orient=orient,
+                 legend=legend)
     title = f"{name.capitalize()} cross-validated loss across model types"
     if noise_ceiling_df is not None:
-        g.map_dataframe(plotting.plot_noise_ceiling, 'fit_model_type', f'{name}_loss', ci=0)
+        g.map_dataframe(plotting.plot_noise_ceiling, 'fit_model_type', f'{name}_loss', ci=0,
+                        orient=orient)
         title += "\n Median noise ceiling shown as blue line"
-    g.fig.suptitle(title)
     if orient == 'v':
         g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Model type")
     elif orient == 'h':
@@ -1078,6 +1081,16 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     # would cause an error
     if plot_kind == 'strip':
         g._legend.set_title(legend_title)
+    # don't want title in the paper version
+    if context != 'paper':
+        g.fig.suptitle(title)
+    else:
+        if orient == 'h':
+            # also want to remove the y axis, since it's duplicating the one from
+            # the other figure
+            for ax in g.axes.flatten():
+                ax.yaxis.set_visible(False)
+                ax.spines['left'].set_visible(False)
     return g
 
 
@@ -1103,8 +1116,7 @@ def model_types(palette_type='model', annotate=False, figure_width=3.25):
         categories (e.g., period/amplitude, eccentricity/orientation,
         etc)
     figure_width : float, optional
-        width of the overall figure (which this will take up half of), in
-        inches. will scale everything proportional to this
+        width of this figure, in inches
 
     Returns
     -------
@@ -1156,8 +1168,8 @@ def model_types(palette_type='model', annotate=False, figure_width=3.25):
         text = ['Eccentricity', 'Absolute', 'Relative', 'Absolute', 'Relative']
         text = ['Ecc', 'Abs', 'Rel', 'Abs', 'Rel']
         for i, pos in enumerate(range(1, 10, 2)):
-            plotting.draw_arrow(ax, ((pos+.5)/11, 1.07+extra_space),
-                                ((pos+1.5)/11, 1.07+extra_space), arrowprops=arrowprops,
+            plotting.draw_arrow(ax, ((pos+.5)/11, 1.08+extra_space),
+                                ((pos+1.5)/11, 1.08+extra_space), arrowprops=arrowprops,
                                 xycoords='axes fraction', textcoords='axes fraction')
             ax.text((pos+1)/11, 1.11+extra_space, text[i], transform=ax.transAxes,
                     ha='center', va='bottom')
