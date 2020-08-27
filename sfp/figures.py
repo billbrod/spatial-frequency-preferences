@@ -13,6 +13,7 @@ from . import plotting
 from . import model
 from . import utils
 from . import first_level_analysis
+from . import style
 
 
 def create_precision_df(paths, summary_func=np.mean,
@@ -1000,7 +1001,7 @@ def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
 
 
 def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
-                           orient='v', context='paper', figure_width=3.25):
+                           orient='v', context='paper'):
     """plot demeaned cross-validation loss, as function of model type
 
     This function demeans the cross-validation loss on a
@@ -1035,8 +1036,6 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
-    figure_width : int, optional
-        width of this figure, in inches
 
     Returns
     -------
@@ -1044,8 +1043,10 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
         seaborn FacetGrid object containing the plot
 
     """
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    height = fig_width
     aspect = 1
-    height = figure_width
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         noise_ceiling_df = noise_ceiling_df.groupby(merge_cols).median().reset_index()
@@ -1094,7 +1095,7 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
     return g
 
 
-def model_types(palette_type='model', annotate=False, figure_width=3.25):
+def model_types(context='paper', palette_type='model', annotate=False):
     """Create plot showing which model fits which parameters.
 
     We have 11 different parameters, which might seem like a lot, so we
@@ -1104,6 +1105,9 @@ def model_types(palette_type='model', annotate=False, figure_width=3.25):
 
     Parameters
     ----------
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
     palette_type : {'model', 'simple', 'simple_r', seaborn palette name}, optional
         palette to use for this plot. if 'model', the parameter each
         model fits is shown in its color (as used in other plots). If
@@ -1115,8 +1119,6 @@ def model_types(palette_type='model', annotate=False, figure_width=3.25):
         whether to annotate the schematic with info on the parameter
         categories (e.g., period/amplitude, eccentricity/orientation,
         etc)
-    figure_width : float, optional
-        width of this figure, in inches
 
     Returns
     -------
@@ -1124,7 +1126,9 @@ def model_types(palette_type='model', annotate=False, figure_width=3.25):
         The figure with the plot on it
 
     """
-    figsize = (figure_width, figure_width)
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    figsize = (fig_width, fig_width)
     extra_space = 0
     model_names = plotting.MODEL_PLOT_ORDER
     parameters = plotting.PLOT_PARAM_ORDER
@@ -1518,10 +1522,15 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         the FacetGrid containing the plot
 
     """
-    height = 4
     aspect = 1
-    if context == 'poster':
-        height *= 2
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    if feature_type == 'pref-period':
+        height = (fig_width/2) / aspect
+    else:
+        # the polar plots have two subplots, so they're half the height of the
+        # pref-period one in order to get the same width
+        height = (fig_width/4) / aspect
     kwargs = {'top': .9}
     if df.bootstrap_num.nunique() > 1 or 'groupaverage_seed' in df.columns:
         # then we have each subject's bootstraps or the groupaverage
@@ -1575,16 +1584,20 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                      pre_boot_gb_cols=pre_boot_gb_cols,
                                      facetgrid_legend=facetgrid_legend, **kwargs)
     else:
+        kwargs.update({'all_tick_labels': ['r'], })
         if context == 'paper':
             orientation = np.linspace(0, np.pi, 4, endpoint=False)
+            kwargs.update({'ylabelpad': 10, 'theta_ticklabels': [], 'wspace': .1,
+                           'hspace': .1})
         elif context == 'poster':
             orientation = np.linspace(0, np.pi, 2, endpoint=False)
-            kwargs.update({'top': .76, 'r_ticks': [.25, .5, .75, 1],
-                           'r_ticklabels': ['', .5, '', 1], 'ylabelpad': 60})
-        kwargs.update({'hspace': .3, 'all_tick_labels': ['r'], 'wspace': .3})
+            kwargs.update({'top': .76, 'r_ticks': [.25, .5, .75, 1], 'wspace': .3,
+                           'r_ticklabels': ['', .5, '', 1], 'ylabelpad': 60,
+                           'hspace': .3})
         if feature_type == 'pref-period-contour':
-            rticks = np.arange(2, 15, 2) / 10
-            rticklabels = [j if i%2==0 else '' for i, j in enumerate(rticks)]
+            rticks = np.arange(.25, 1.5, .25)
+            # rticklabels = [j if i%2==1 else '' for i, j in enumerate(rticks)]
+            rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
             if not split_oris:
                 # there's a weird interaction where if we set the rticks before
                 # calling scatter (which we do when split_oris is True), it
@@ -1602,6 +1615,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                height=height, aspect=aspect,
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
+            if context == 'paper':
+                g.axes[0, 0].set_ylabel('Preferred\nperiod (deg)')
         elif feature_type == 'iso-pref-period':
             if context == 'poster':
                 kwargs.update({'r_ticks': list(range(1, 9)),
@@ -1618,8 +1633,9 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
         elif feature_type == 'max-amp':
-            rticks = np.arange(2, 13, 2) / 10
-            rticklabels = [j if i%2==0 else '' for i, j in enumerate(rticks)]
+            rticks = np.arange(.25, 1.3, .25)
+            # rticklabels = [j if i%2==1 else '' for i, j in enumerate(rticks)]
+            rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
             if not split_oris:
                 # there's a weird interaction where if we set the rticks before
                 # calling scatter (which we do when split_oris is True), it
@@ -1641,12 +1657,23 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             th = np.linspace(0, 2*np.pi, 8, endpoint=False)
             r_val = 1 # df[r].mean()
             for ax in g.axes.flatten():
-                ax.scatter(th, len(th)*[r_val], c='k')
+                ax.scatter(th, len(th)*[r_val], c='k',
+                           s=mpl.rcParams['lines.markersize']**2 / 2)
             # for some reason, can't call the set_rticks until after all
             # scatters have been called, or they get messed up
             for ax in g.axes.flatten():
                 ax.set_yticks(rticks)
                 ax.set_yticklabels(rticklabels)
+        if context == 'paper':
+            # remove the xlabel from one of them and place the remaining one in
+            # between the two subplots, because it's redundant
+            g.axes[0, 0].set_xlabel('')
+            # this can have its xlabel removed, since it will be above another plot which has one
+            if feature_type == 'pref-period-contour':
+                g.axes[0, 1].set_xlabel('')
+            else:
+                g.axes[0, 1].set_xlabel(g.axes.flatten()[1].get_xlabel(), x=-.2,
+                                        ha='center', labelpad=-5)
     if visual_field != 'all':
         g.fig._suptitle.set_text(g.fig._suptitle.get_text() + f' in {visual_field} visual field')
     if not suptitle:

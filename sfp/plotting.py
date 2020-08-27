@@ -1345,9 +1345,13 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
         row_order = stimulus_type_order(feature_df.reference_frame.unique())
     if pre_boot_gb_func is not None:
         feature_df = feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index()
+    # facetgrid seems to ignore the defaults for these, but we want to use them
+    # so its consistent with other figures
+    gridspec_kws = {k: mpl.rcParams[f'figure.subplot.{k}']
+                    for k in ['top', 'bottom', 'left', 'right']}
     g = sns.FacetGrid(feature_df, hue=hue, col=col, row=row, height=height, aspect=aspect,
                       palette=pal, xlim=xlim, ylim=ylim, col_wrap=col_wrap, col_order=col_order,
-                      row_order=row_order)
+                      row_order=row_order, gridspec_kws=gridspec_kws)
     g.map_dataframe(plot_func, x, y, ci=ci, estimator=np.median, **kwargs)
     if facetgrid_legend:
         g.add_legend()
@@ -1521,9 +1525,14 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
         row_order = stimulus_type_order(feature_df.reference_frame.unique())
     if pre_boot_gb_func is not None:
         feature_df = feature_df.groupby(pre_boot_gb_cols).agg(pre_boot_gb_func).reset_index()
+    # facetgrid seems to ignore the defaults for these, but we want to use them
+    # so its consistent with other figures
+    gridspec_kws = {k: mpl.rcParams[f'figure.subplot.{k}']
+                    for k in ['top', 'bottom', 'left', 'right']}
     g = sns.FacetGrid(feature_df, col=col, hue=hue, row=row, subplot_kws={'projection': 'polar'},
                       despine=False, height=height, aspect=aspect, palette=pal, xlim=xlim,
-                      ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order)
+                      ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order,
+                      gridspec_kws=gridspec_kws)
     g.map_dataframe(plot_func, theta, r, ci=ci, estimator=np.median, **kwargs)
     for i, axes in enumerate(g.axes):
         for j, ax in enumerate(axes):

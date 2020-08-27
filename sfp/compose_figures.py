@@ -4,8 +4,11 @@
 import re
 import os.path as op
 from svgutils import compose
-LEGEND_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
-                      'stimulus-legend-relative.svg')
+from . import style
+REL_LEGEND_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
+                          'stimulus-legend-relative.svg')
+ABS_LEGEND_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
+                          'stimulus-legend-absolute.svg')
 
 
 def calc_scale():
@@ -34,9 +37,26 @@ def calc_scale():
     return 90/72
 
 
-def _convert_to_pix(val):
-    """Convert value into pixels to make our lives easier.
+class SVG(compose.SVG):
+    """SVG from file.
+
+    This is the same as svgutils.compose.SVG, except we automatically scale it
+    appropriately (see docstring of calc_scale() for details)
+
+    Parameters
+    ----------
+    fname : str
+       full path to the file
+
     """
+
+    def __init__(self, fname=None):
+        super().__init__(fname)
+        self.scale(calc_scale())
+
+
+def _convert_to_pix(val):
+    """Convert value into pixels to make our lives easier."""
     if not isinstance(val, str):
         return val
     else:
@@ -47,15 +67,14 @@ def _convert_to_pix(val):
         if units == 'in':
             return float(v) * 90
         elif units == 'pt':
-            return float(v) * 72
+            return float(v) * (90/72)
         else:
             return compose.Unit(val).to('px').value
 
 
 def crossvalidation(annotated_model_schematic, horizontal_cv_loss, save_path,
-                    figure_width='6.5in',
-                    text_params={'font': 'Helvetica', 'size': '12pt'}):
-    """create the crossvalidation figure
+                    context='paper'):
+    """Create the crossvalidation figure.
 
     Note that we don't do any resizing, but the sizes used to create the
     input figures should work for this
@@ -67,29 +86,73 @@ def crossvalidation(annotated_model_schematic, horizontal_cv_loss, save_path,
         and horizontal cv loss figures, respectively
     save_path : str
         path to save the composed figure at
-    figure_width : str or float
-        width of the figure to create. will attempt to scale things properly to
-        different sizes, but will probably require some manual tuning
-    text_params: dict
-        parameters to pass to the svgutils.compose.Text objects for the panel
-        labels.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
 
     """
+    text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
     figure_height = figure_width * .6
-    # this scaling doesn't really work right now, will properly require more
-    # manual adjustment if you want different sizes
-    scale = figure_width / _convert_to_pix('6.5in')
     compose.Figure(figure_width, figure_height,
-                   compose.SVG(horizontal_cv_loss).scale(calc_scale()).move(240*scale, 64*scale),
-                   compose.SVG(annotated_model_schematic).scale(calc_scale()),
-                   compose.Text("B", (280+25)*scale, 40*scale, **text_params),
-                   compose.Text("A", 25*scale, 40*scale, **text_params),
+                   SVG(horizontal_cv_loss).move(240, 64),
+                   SVG(annotated_model_schematic),
+                   compose.Text("B", (280+25), 40, **text_params),
+                   compose.Text("A", 25, 40, **text_params),
                    ).save(save_path)
 
 
+def feature_df_summary(rel_feature_df_plots, abs_feature_df_plots, save_path,
+                       context='paper'):
+    """Create the figure summarizing feature df plots.
+
+    Note that we don't do any resizing, but the sizes used to create the
+    input figures should work for this
+
+    Parameters
+    ----------
+    rel_feature_df_plots, abs_feature_df_plots : list
+        lists of strs giving the paths to the svgs containing the
+        feature_df_plots to add to this image. They should be in the
+        appropriate order: each should have the preferred period, then the
+        preferred period contour, then max amplitude
+    save_path : str
+        path to save the composed figure at
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
+
+    """
+    text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width
+    compose.Figure(
+        figure_width, figure_height,
+        SVG(rel_feature_df_plots[0]).move(0, -10),
+        SVG(rel_feature_df_plots[1]).move(figure_width / 2, -10),
+        SVG(rel_feature_df_plots[2]).move(
+            figure_width / 2 + _convert_to_pix('14pt'),
+            figure_height / 4 - 24),
+        SVG(REL_LEGEND_PATH).scale(2.5).move(figure_width / 4,
+                                             figure_height / 4 - 10),
+        compose.Text("A", 10, _convert_to_pix('12pt'), **text_params),
+        SVG(abs_feature_df_plots[0]).move(0, figure_height / 2 - 10),
+        SVG(abs_feature_df_plots[1]).move(figure_width / 2,
+                                          figure_height / 2 - 10),
+        SVG(abs_feature_df_plots[2]).move(
+            figure_width / 2 + _convert_to_pix('14pt'),
+            figure_height / 2 + figure_height / 4 - 24),
+        SVG(ABS_LEGEND_PATH).scale(2.5).move(
+            figure_width / 4, figure_height / 2 + figure_height / 4 - 10),
+        compose.Text("B", 10, figure_height / 2 + _convert_to_pix('12pt') - 10,
+                     **text_params),
+    ).save(save_path)
+
+
 def add_legend(figure, figsize, legend_location, save_path):
-    """add legend to figure
+    """Add legend to figure.
 
     Note that we scale the legend by 3, but don't change the size of the figure
     at all. will probably eventually want to determine how best to do this.

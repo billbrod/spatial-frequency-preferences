@@ -2062,8 +2062,6 @@ rule figure_crossvalidation:
         import seaborn as sns
         import matplotlib.pyplot as plt
         import sfp
-        params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
-        plt.style.use(params)
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         if wildcards.cv_type.endswith('-nc'):
             noise_ceiling = sfp.figures.prep_df(pd.read_csv(input[1]), wildcards.task)
@@ -2301,8 +2299,6 @@ rule figure_schematic:
     run:
         import sfp
         import matplotlib.pyplot as plt
-        params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
-        plt.style.use(params)
         if wildcards.schematic_type == '2d':
             fig = sfp.figures.model_schematic(wildcards.context)
         elif wildcards.schematic_type == '2d-inputs':
@@ -2312,7 +2308,7 @@ rule figure_schematic:
                 annotate = True
             else:
                 annotate = False
-            fig = sfp.figures.model_types(annotate=annotate, figure_width=fig_width)
+            fig = sfp.figures.model_types(wildcards.context, annotate=annotate)
         fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2370,9 +2366,18 @@ def get_compose_input(wildcards):
     if wildcards.figure_name == "crossvalidation":
         paths = [path_template % "schematic_models-annot",
                  path_template % 'individual_cv_model_point-remeaned_h_task-sfprescaled']
-    if "with_legend" in wildcards.figure_name:
+    elif "with_legend" in wildcards.figure_name:
         paths = [path_template % wildcards.figure_name.replace('_with_legend', '')]
+    elif '2d_summary' in wildcards.figure_name:
+        groupaverage, model = re.findall("([a-z-]+)_([a-z_]+)_2d_summary", wildcards.figure_name)[0]
+        template_name = (f'{groupaverage}_{model}_feature_visualfield-all_{{}}_bootstraps-overall_'
+                         'angles-{}_task-sfprescaled_{}')
+        angles = {'pref-period': 'avg', 'pref-period-contour': 'all', 'max-amp': 'all'}
+        paths = [path_template % template_name.format(feature, angles[feature], frame) for
+                 frame, feature in itertools.product(['relative', 'absolute'],
+                                                     ['pref-period', 'pref-period-contour', 'max-amp'])]
     return paths
+
 
 rule compose_figures:
     input:
@@ -2386,12 +2391,14 @@ rule compose_figures:
     run:
         from svgutils import compose
         import sfp
-        params, figure_width = sfp.style.plotting_style(wildcards.context, 'svgutils', 'full')
         if wildcards.figure_name == 'crossvalidation':
-            sfp.compose_figures.crossvalidation(*input, output[0], figure_width, params)
-        if 'with_legend' in wildcards.figure_name:
+            sfp.compose_figures.crossvalidation(*input, output[0], wildcards.context)
+        elif 'with_legend' in wildcards.figure_name:
             if 'pref-period_bootstraps-overall' in wildcards.figure_name:
                 sfp.compose_figures.add_legend(input[0], (270, 260), (120, 140), output[0])
+        elif '2d_summary' in wildcards.figure_name:
+            sfp.compose_figures.feature_df_summary(input[:3], input[3:],
+                                                   output[0], wildcards.context)
 
 
 rule report:
