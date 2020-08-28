@@ -871,7 +871,7 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
 def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
     data = kwargs.pop('data')
     color = kwargs.pop('color')
-    if 'bootstrap_num' in data.columns:
+    if 'bootstrap_num' in data.columns and data.bootstrap_num.nunique() > 1:
         xs, ys = [], []
         for n, g in data.groupby('bootstrap_num'):
             x, y = tuning_curves.get_tuning_curve_xy_from_df(g, norm=norm)
