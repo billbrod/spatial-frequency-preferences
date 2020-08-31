@@ -21,7 +21,7 @@ SAVE_TEMPLATE = ("tuning_curves_summary_plot_{mat_type}_{atlas_type}_{subject}_{
 
 def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col='varea',
          hue='stimulus_superclass', save_path=None, sharey='row', sharex='all', plot_func=plt.plot,
-         eccen_range=(1, 12), eccen_soft_exclude=None, **kwargs):
+         eccen_range=(1, 12), eccen_soft_exclude=None, facetgrid_legend=True, **kwargs):
     """make plots of tuning curve parameters
 
     kwargs can be any of varea, atlas_type, mat_type, subject, session, task, or
@@ -143,8 +143,9 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
         elif col is None:
             titles = titles.replace(" | {col_name}", "")
         g.set_titles(titles)
-    g._legend_data = dict((k, v) for k, v in g._legend_data.items() if k in legend_keys)
-    g.add_legend(label_order=legend_keys)
+    if facetgrid_legend:
+        g._legend_data = dict((k, v) for k, v in g._legend_data.items() if k in legend_keys)
+        g.add_legend(label_order=legend_keys)
     if save_path is not None:
         g.fig.savefig(save_path)
     return g

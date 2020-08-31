@@ -448,7 +448,8 @@ def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
     return bootstraps
 
 
-def _summarize_1d(df, reference_frame, y, row, col, height, **kwargs):
+def _summarize_1d(df, reference_frame, y, row, col, height, facetgrid_legend,
+                  **kwargs):
     """helper function for pref_period_1d and bandwidth_1d
 
     since they're very similar functions.
@@ -493,19 +494,21 @@ def _summarize_1d(df, reference_frame, y, row, col, height, **kwargs):
         col_order = plotting.get_order(col, col_unique=df[col].unique())
     if row is not None:
         row_order = plotting.get_order(row, col_unique=df[row].unique())
+    kwargs.setdefault('xlim', (0, 12))
     g = summary_plots.main(df, row=row, col=col, y=y, eccen_range=(0, 11), hue_order=hue_order,
-                           xlim=(0, 12), x_jitter=[None, .2], height=height,
+                           x_jitter=[None, .2], height=height,
                            plot_func=[plotting.plot_median_fit, plotting.scatter_ci_dist],
-                           palette=pal, col_order=col_order, row_order=row_order, **kwargs)
+                           palette=pal, col_order=col_order, row_order=row_order,
+                           facetgrid_legend=facetgrid_legend, **kwargs)
     g.set_xlabels('Eccentricity (deg)')
-    g._legend.set_title("Stimulus class")
-    g.fig.subplots_adjust(top=.85)
+    if facetgrid_legend:
+        g._legend.set_title("Stimulus class")
     return g
 
 
-def pref_period_1d(df, reference_frame='relative', row='session', col='subject', height=4,
-                   **kwargs):
-    """plot the preferred period of the 1d model fits
+def pref_period_1d(df, context='paper', reference_frame='relative',
+                   row='session', col='subject', **kwargs):
+    """Plot the preferred period of the 1d model fits.
 
     Note that we do not restrict the input dataframe in any way, so we
     will plot all data contained within it. If this is not what you want
@@ -522,6 +525,9 @@ def pref_period_1d(df, reference_frame='relative', row='session', col='subject',
         created by the summarize_tuning_curves.py script. If you want
         confidence intervals, this should be the "full" version of that
         df (i.e., including the fits to each bootstrap).
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
     reference_frame : {'relative', 'absolute'}, optional
         whether the data contained here is in the relative or absolute
         reference frame. this will determine both the palette used and
@@ -530,8 +536,6 @@ def pref_period_1d(df, reference_frame='relative', row='session', col='subject',
         which column of the df to facet the plot's rows on
     col : str, optional
         which column of the df to facet the plot's column on
-    height : float, optional
-        height of each plot facet
     kwargs :
         passed to sfp.figures._summarize_1d
 
@@ -541,16 +545,37 @@ def pref_period_1d(df, reference_frame='relative', row='session', col='subject',
         seaborn FacetGrid object containing the plot
 
     """
-    kwargs.setdefault('ylim', (0, 4))
-    g = _summarize_1d(df, reference_frame, 'preferred_period', row, col, height, **kwargs)
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    if context == 'paper':
+        facetgrid_legend = False
+        kwargs['xlim'] = (-.55, 11.55)
+        kwargs['ylim'] = (-.1, 2.1)
+    else:
+        kwargs.setdefault('ylim', (0, 4))
+        facetgrid_legend = True
+    g = _summarize_1d(df, reference_frame, 'preferred_period', row, col,
+                      fig_width, facetgrid_legend, **kwargs)
     g.set_ylabels('Preferred period (deg)')
     yticks = [i for i in range(4) if i <= kwargs['ylim'][1]]
     g.set(yticks=yticks)
-    g.fig.suptitle("Preferred period of 1d tuning curves in each eccentricity band")
+    if context != 'paper':
+        g.fig.suptitle("Preferred period of 1d tuning curves in each eccentricity band")
+        g.fig.subplots_adjust(top=.85)
+    else:
+        if len(g.axes) == 1:
+            # remove title if there's only one plot (otherwise it tells us which
+            # subject is which)
+            g.axes.flatten()[0].set_title('')
+        for ax in g.axes.flatten():
+            ax.axhline(color='gray', linestyle='--')
+            ax.axvline(color='gray', linestyle='--')
+            ax.set(xticks=[0, 2, 4, 6, 8, 10])
     return g
 
 
-def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', height=4, **kwargs):
+def bandwidth_1d(df, context='paper', reference_frame='relative',
+                 row='session', col='subject', **kwargs):
     """plot the bandwidth of the 1d model fits
 
     Note that we do not restrict the input dataframe in any way, so we
@@ -568,6 +593,9 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
         created by the summarize_tuning_curves.py script. If you want
         confidence intervals, this should be the "full" version of that
         df (i.e., including the fits to each bootstrap).
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
     reference_frame : {'relative', 'absolute'}, optional
         whether the data contained here is in the relative or absolute
         reference frame. this will determine both the palette used and
@@ -576,8 +604,6 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
         which column of the df to facet the plot's rows on
     col : str, optional
         which column of the df to facet the plot's column on
-    height : float, optional
-        height of each plot facet
     kwargs :
         passed to sfp.figures._summarize_1d
 
@@ -587,9 +613,22 @@ def bandwidth_1d(df, reference_frame='relative', row='session', col='subject', h
         seaborn FacetGrid object containing the plot
 
     """
-    g = _summarize_1d(df, reference_frame, 'tuning_curve_bandwidth', row, col, height, **kwargs)
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    if context == 'paper':
+        facetgrid_legend = False
+    else:
+        facetgrid_legend = True
+    g = _summarize_1d(df, reference_frame, 'tuning_curve_bandwidth', row, col,
+                      fig_width, facetgrid_legend, **kwargs)
     g.set_ylabels('Tuning curve FWHM (octaves)')
-    g.fig.suptitle("Full-Width Half-Max of 1d tuning curves in each eccentricity band")
+    if context != 'paper':
+        g.fig.suptitle("Full-Width Half-Max of 1d tuning curves in each eccentricity band")
+        g.fig.subplots_adjust(top=.85)
+    elif len(g.axes) == 1:
+        # remove title if there's only one plot (otherwise it tells us which
+        # subject is which)
+        g.axes.flatten()[0].set_title('')
     return g
 
 
@@ -1567,6 +1606,9 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     if feature_type == 'pref-period':
         if context == 'poster':
             aspect = 1.3
+        else:
+            kwargs['ylim'] = (-.1, 2.1)
+            kwargs['xlim'] = (-.55, 11.55)
         if avg_across_retinal_angle:
             pre_boot_gb_func = 'mean'
             row = None

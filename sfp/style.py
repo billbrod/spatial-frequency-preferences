@@ -58,12 +58,12 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
                   # https://github.com/matplotlib/matplotlib/issues/17774
                   # 'text.latex.preamble': r"\usepackage{underscore}"}
         if context == 'paper':
-            params.update({'font.size': 12,
-                           'axes.labelsize': 12,
-                           'axes.titlesize': 12,
-                           'xtick.labelsize': 10,
-                           'ytick.labelsize': 10,
-                           'legend.fontsize': 12,
+            params.update({'font.size': 10,
+                           'axes.labelsize': 10,
+                           'axes.titlesize': 10,
+                           'xtick.labelsize': 8,
+                           'ytick.labelsize': 8,
+                           'legend.fontsize': 10,
                            'axes.linewidth': 1.0,
                            'grid.linewidth': 0.8,
                            'lines.linewidth': 1.2,
@@ -112,7 +112,7 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
         params['figure.titlesize'] = params['axes.titlesize']
     elif for_package == 'svgutils':
         if context == 'paper':
-            params = {'font': 'Helvetica', 'size': '12pt'}
+            params = {'font': 'Helvetica', 'size': '10pt'}
             if figsize == 'full':
                 figure_width = '6.5in'
             elif figsize == 'half':

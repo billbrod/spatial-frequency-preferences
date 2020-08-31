@@ -1939,11 +1939,9 @@ rule figure_summarize_1d:
         import pandas as pd
         import seaborn as sns
         import sfp
-        font_scale = {'poster': 1.5}.get(wildcards.context, 1)
-        height_scale = {'poster': 2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         ref_frame = {'task-sfpconstant': 'absolute', 'task-sfprescaled': 'relative'}
-        kwargs = {'size_plot': [None, 5*height_scale], 'linewidth': 2*(height_scale+1)}
+        kwargs = {}
         if wildcards.tuning_param.endswith('overall'):
             if wildcards.groupaverage == 'sub-groupaverage':
                 raise Exception(f"Can't use sub-groupaverage with {wildcards.tuning_param}! Drop "
@@ -1953,20 +1951,15 @@ rule figure_summarize_1d:
             df = sfp.figures.append_precision_col(df, col)
             df = sfp.figures.precision_weighted_bootstrap(df, col=col,
                                                           precision_col=f"{col}_precision")
-            height = 5
-        else:
-            height = 4
         if wildcards.tuning_param.startswith('pref-period'):
             function = sfp.figures.pref_period_1d
             if wildcards.tuning_param.endswith('overall') or wildcards.groupaverage == 'sub-groupaverage':
                 kwargs['ylim'] = (0, 2)
         elif wildcards.tuning_param.startswith('bandwidth'):
             function = sfp.figures.bandwidth_1d
-        sns.set_context(wildcards.context, font_scale=font_scale)
-        with sns.axes_style('white'):
-            g = function(df, ref_frame[wildcards.task], row=None, height=height*height_scale,
-                         **kwargs)
-            g.fig.savefig(output[0], bbox_inches='tight')
+        g = function(df, wildcards.context, ref_frame[wildcards.task], row=None,
+                     **kwargs)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 def get_loss_files(wildcards):
@@ -2268,7 +2261,6 @@ rule figure_feature_df:
         import pandas as pd
         import seaborn as sns
         import sfp
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = sfp.figures.prep_df(pd.read_csv(input.params[0]), wildcards.task)
         if wildcards.plot_kind.endswith('overall'):
             # get the median parameter value per subject and model type
@@ -2278,15 +2270,13 @@ rule figure_feature_df:
             df = sfp.figures.precision_weighted_bootstrap(df, 100, 'fit_value',
                                                           ['model_parameter', 'fit_model_type'],
                                                           'precision')
-        sns.set_context(wildcards.context, font_scale=font_scale)
-        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
-            if wildcards.angles == 'avg':
-                angles = True
-            elif wildcards.angles == 'all':
-                angles = False
-            g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame, wildcards.feature_type,
-                                            wildcards.vf, wildcards.context)
-            g.fig.savefig(output[0], bbox_inches='tight')
+        if wildcards.angles == 'avg':
+            angles = True
+        elif wildcards.angles == 'all':
+            angles = False
+        g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame, wildcards.feature_type,
+                                        wildcards.vf, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_schematic:
@@ -2394,8 +2384,9 @@ rule compose_figures:
         if wildcards.figure_name == 'crossvalidation':
             sfp.compose_figures.crossvalidation(*input, output[0], wildcards.context)
         elif 'with_legend' in wildcards.figure_name:
-            if 'pref-period_bootstraps-overall' in wildcards.figure_name:
-                sfp.compose_figures.add_legend(input[0], (270, 260), (120, 140), output[0])
+            if '1d_pref-period-overall' in wildcards.figure_name:
+                sfp.compose_figures.add_legend(input[0], 'half', (143, 136), output[0],
+                                               1, 'rel', wildcards.context)
         elif '2d_summary' in wildcards.figure_name:
             sfp.compose_figures.feature_df_summary(input[:3], input[3:],
                                                    output[0], wildcards.context)
@@ -2518,3 +2509,12 @@ rule figures:
 rule figures_poster:
     input:
         lambda wildcards: get_figures_all('poster'),
+
+rule figures_paper:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
+                     'crossvalidation.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
+                     'individual_full_full_absolute_2d_summary.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
+                     'individual_1d_pref-period-overall_task-sfprescaled_with_legend.svg'),

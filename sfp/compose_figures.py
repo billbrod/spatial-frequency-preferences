@@ -128,30 +128,33 @@ def feature_df_summary(rel_feature_df_plots, abs_feature_df_plots, save_path,
     text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
     figure_height = figure_width
+    font_size = _convert_to_pix(text_params.pop('size'))
+    line_height = font_size + _convert_to_pix('2pt')
     compose.Figure(
         figure_width, figure_height,
         SVG(rel_feature_df_plots[0]).move(0, -10),
         SVG(rel_feature_df_plots[1]).move(figure_width / 2, -10),
         SVG(rel_feature_df_plots[2]).move(
-            figure_width / 2 + _convert_to_pix('14pt'),
+            figure_width / 2 + line_height,
             figure_height / 4 - 24),
         SVG(REL_LEGEND_PATH).scale(2.5).move(figure_width / 4,
                                              figure_height / 4 - 10),
-        compose.Text("A", 10, _convert_to_pix('12pt'), **text_params),
+        compose.Text("A", 10, font_size, size=font_size, **text_params),
         SVG(abs_feature_df_plots[0]).move(0, figure_height / 2 - 10),
         SVG(abs_feature_df_plots[1]).move(figure_width / 2,
                                           figure_height / 2 - 10),
         SVG(abs_feature_df_plots[2]).move(
-            figure_width / 2 + _convert_to_pix('14pt'),
+            figure_width / 2 + line_height,
             figure_height / 2 + figure_height / 4 - 24),
         SVG(ABS_LEGEND_PATH).scale(2.5).move(
             figure_width / 4, figure_height / 2 + figure_height / 4 - 10),
-        compose.Text("B", 10, figure_height / 2 + _convert_to_pix('12pt') - 10,
+        compose.Text("B", 10, figure_height / 2 + font_size - 10, size=font_size,
                      **text_params),
     ).save(save_path)
 
 
-def add_legend(figure, figsize, legend_location, save_path):
+def add_legend(figure, figsize, legend_location, save_path, aspect=1,
+               legend='rel', context='paper'):
     """Add legend to figure.
 
     Note that we scale the legend by 3, but don't change the size of the figure
@@ -161,15 +164,33 @@ def add_legend(figure, figsize, legend_location, save_path):
     ----------
     figure : str
         path to the svg file containing the figure to add legend to
-    figsize : tuple
-        tuple specifying the width, height of the finished figure
+    figsize : {'half', 'full'}
+        whether this figure should be full or half-width
     legend_location: tuple
         tuple specifying the x, y position of the legend
     save_path : str
         path to save the composed figure at
+    aspect : float, optional
+        aspect ratio of the figure to create
+    legend : {'rel', 'abs'}
+        whether to use the relative or absolute legend
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
 
     """
-    compose.Figure(*figsize,
-                   compose.SVG(figure),
-                   compose.SVG(LEGEND_PATH).scale(3).move(*legend_location),
+    text_params, figure_width = style.plotting_style(context, 'svgutils', figsize)
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width * aspect
+    if isinstance(legend_location, str):
+        legend_location = [eval(i.replace('height', figure_height).replace('width', figure_width))
+                           for i in legend_location]
+    if legend == 'rel':
+        legend = REL_LEGEND_PATH
+    elif legend == 'abs':
+        legend = ABS_LEGEND_PATH
+    compose.Figure(figure_width, figure_height,
+                   SVG(figure),
+                   SVG(legend).scale(2.5).move(*legend_location),
                    ).save(save_path)
