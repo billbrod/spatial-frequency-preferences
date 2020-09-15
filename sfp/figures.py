@@ -383,7 +383,7 @@ def append_precision_col(df, col='preferred_period',
     return df.groupby(gb_cols).median().reset_index()
 
 
-def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
+def precision_weighted_bootstrap(df, seed, n_bootstraps=100, col='preferred_period',
                                  gb_cols=['varea', 'stimulus_superclass', 'eccen'],
                                  precision_col='preferred_period_precision'):
     """calculate the precision-weighted bootstrap of a column
@@ -406,6 +406,8 @@ def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
         the df that we want to bootstrap (must already have precision
         column, i.e., this should be the df returned by
         append_precision_col())
+    seed : int
+        seed for numpy's RNG
     n_bootstraps : int, optional
         the number of independent bootstraps to draw
     col : str, optional
@@ -426,6 +428,7 @@ def precision_weighted_bootstrap(df, n_bootstraps=100, col='preferred_period',
         *gb_cols, and bootstrap_num
 
     """
+    np.random.seed(seed)
     if type(gb_cols) != list:
         raise Exception("gb_cols must be a list!")
     bootstraps = []
@@ -932,7 +935,7 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
     return g
 
 
-def cross_validation_raw(df, noise_ceiling_df=None, orient='v', context='paper'):
+def cross_validation_raw(df, seed, noise_ceiling_df=None, orient='v', context='paper'):
     """plot raw cross-validation loss
 
     This does no pre-processing of the df and plots subjects on the
@@ -946,6 +949,8 @@ def cross_validation_raw(df, noise_ceiling_df=None, orient='v', context='paper')
         dataframe containing the output of the cross-validation
         analyses, combined across sessions (i.e., the output of
         combine_model_cv_summaries snakemake rule)
+    seed : int
+        seed for numpy's RNG
     noise_ceiling_df : pd.DataFrame
         dataframe containing the results of the noise ceiling analyses
         for all subjects (i.e., the output of the
@@ -962,6 +967,7 @@ def cross_validation_raw(df, noise_ceiling_df=None, orient='v', context='paper')
         seaborn FacetGrid object containing the plot
 
     """
+    np.random.seed(seed)
     height = 8
     aspect = .9
     s = 5
@@ -985,7 +991,7 @@ def cross_validation_raw(df, noise_ceiling_df=None, orient='v', context='paper')
     return g
 
 
-def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
+def cross_validation_demeaned(df, seed, remeaned=False, orient='v', context='paper'):
     """plot demeaned cross-validation loss
 
     This function demeans the cross-validation loss on a
@@ -1000,6 +1006,8 @@ def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
         dataframe containing the output of the cross-validation
         analyses, combined across sessions (i.e., the output of
         combine_model_cv_summaries snakemake rule)
+    seed : int
+        seed for numpy's RNG
     remeaned : bool, optional
         whether to use the demeaned cross-validation loss or the
         remeaned one. Remeaned has the mean across subjects added back
@@ -1018,6 +1026,7 @@ def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
         seaborn FacetGrid object containing the plot
 
     """
+    np.random.seed(seed)
     height = 8
     aspect = .9
     if context == 'poster':
@@ -1039,7 +1048,7 @@ def cross_validation_demeaned(df, remeaned=False, orient='v', context='paper'):
     return g
 
 
-def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
+def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
                            orient='v', context='paper'):
     """plot demeaned cross-validation loss, as function of model type
 
@@ -1055,6 +1064,8 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
         dataframe containing the output of the cross-validation
         analyses, combined across sessions (i.e., the output of
         combine_model_cv_summaries snakemake rule)
+    seed : int
+        seed for numpy's RNG
     plot_kind : {'strip', 'point'}, optional
         whether to create a strip plot (each subject as a separate
         point) or a point plot (combine across subjects, plotting the
@@ -1082,6 +1093,7 @@ def cross_validation_model(df, plot_kind='strip', remeaned=False, noise_ceiling_
         seaborn FacetGrid object containing the plot
 
     """
+    np.random.seed(seed)
     params, fig_width = style.plotting_style(context, figsize='half')
     plt.style.use(params)
     height = fig_width
@@ -1232,7 +1244,7 @@ def model_types(context='paper', palette_type='model', annotate=False):
 
 
 def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_legend=True,
-                     **kwargs):
+                     context='paper', **kwargs):
     """plot model parameter values, across subjects
 
     Parameters
@@ -1271,6 +1283,9 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
     add_legend : bool, optional
         whether to add a legend or not. If True, will add just outside
         the right-most axis
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
     kwargs :
         Passed directly to the plotting function, which depends on the
         value of plot_kind
@@ -1281,12 +1296,15 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         Figure containin the plot
 
     """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
     # in order to make the distance between the hues appear roughly
     # equivalent, need to set the ax_xlims in a particular way
-    ax_xlims = [[-1, 1], [-1, 2], [-.5, 7.5]]
+    ax_xlims = [[-.5, .5], [-.5, 1.5], [-.5, 7.5]]
+    yticks = [[0, .5, 1, 1.5, 2, 2.5], [0, .1, .2, .3, .4], [-.03, 0, .03, .06, .09]]
     if fig is None:
-        fig, axes = plt.subplots(1, 3, figsize=(20, 10),
-                                 gridspec_kw={'width_ratios': [.15, .3, .6]})
+        fig, axes = plt.subplots(1, 3, figsize=(fig_width, fig_width/2),
+                                 gridspec_kw={'width_ratios': [.12, .25, .6]})
     else:
         axes = fig.axes
     order = plotting.get_order('model_parameter', col_unique=df.model_parameter.unique())
@@ -1340,24 +1358,30 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
                                                       x_dodge=dodge[j], x_order=ax_order, **kwargs)
                 handles.append(dots)
                 labels.append(n)
-        ax.set(xlim=ax_xlims[i])
+        ax.set(xlim=ax_xlims[i], yticks=yticks[i])
+        ax.tick_params(pad=0)
         if ax.legend_:
             ax.legend_.remove()
-        if i==2 and add_legend:
-            if plot_kind == 'dist':
-                legend = ax.legend(handles, labels, loc=(1.01, .3), borderaxespad=0, frameon=False)
-            else:
-                legend = ax.legend(loc=(1.01, .3), borderaxespad=0, frameon=False)
-            # explicitly adding the legend artist allows us to add a
-            # second legend if we want
-            ax.add_artist(legend)
-        ax.axhline(color='grey', linestyle='dashed')
-        ax.set(ylabel='Fit value', xlabel='Parameter')
-    suptitle = "Model parameters"
-    if visual_field != 'all':
-        suptitle += f' in {visual_field} visual field'
-    fig.suptitle(suptitle)
-    fig.subplots_adjust(top=.85)
+        if i == 2:
+            if add_legend:
+                if plot_kind == 'dist':
+                    legend = ax.legend(handles, labels, loc=(1.01, .3), borderaxespad=0, frameon=False)
+                else:
+                    legend = ax.legend(loc=(1.01, .3), borderaxespad=0, frameon=False)
+                # explicitly adding the legend artist allows us to add a
+                # second legend if we want
+                ax.add_artist(legend)
+            ax.axhline(color='grey', linestyle='dashed')
+        if i == 0:
+            ax.set(ylabel='Parameter value')
+    fig.text(.5, 0, "Parameter", ha='center')
+    if context != 'paper':
+        # don't want title in paper context
+        suptitle = "Model parameters"
+        if visual_field != 'all':
+            suptitle += f' in {visual_field} visual field'
+        fig.suptitle(suptitle)
+        fig.subplots_adjust(top=.85)
     return fig
 
 
@@ -1725,7 +1749,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     return g
 
 
-def existing_studies_with_current_figure(df, precision_df=None, y="Preferred period (deg)",
+def existing_studies_with_current_figure(df, seed=None, precision_df=None, y="Preferred period (deg)",
                                          context='paper'):
     """Plot results from existing studies with our results
 
@@ -1742,6 +1766,8 @@ def existing_studies_with_current_figure(df, precision_df=None, y="Preferred per
     df : pd.DataFrame
         dataframe containing all the model parameter values, across
         subjects.
+    seed : int or None
+        seed for numpy's RNG. can only be None if precision_df is None
     precision_df : pd.dataFrame or None, optional
         dataframe containing the precision for each scanning session in
         df. If None, we won't do any bootstrapping, and so assume this
@@ -1766,7 +1792,7 @@ def existing_studies_with_current_figure(df, precision_df=None, y="Preferred per
     df = df.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
     if precision_df is not None:
         df = df.merge(precision_df, on=['subject'])
-        df = precision_weighted_bootstrap(df, 100, 'fit_value', ['model_parameter', 'fit_model_type'],
+        df = precision_weighted_bootstrap(df, seed, 100, 'fit_value', ['model_parameter', 'fit_model_type'],
                                           'precision')
     gb_cols = [c for c in ['subject', 'bootstrap_num'] if c in df.columns]
     df = analyze_model.create_feature_df(df, reference_frame='relative', gb_cols=gb_cols)
@@ -1777,3 +1803,38 @@ def existing_studies_with_current_figure(df, precision_df=None, y="Preferred per
     df = df[['Paper', 'Preferred spatial frequency (cpd)', 'Preferred period (deg)', 'Eccentricity']]
     df = existing_studies_df().append(df, True, sort=False)
     return existing_studies_figure(df, y, context)
+
+
+def mtf(mtf_func, context='paper'):
+    """Plot the MTF as a function of spatial frequencies
+
+    This plots the function we use to invert the display MTF when constructing
+    our stimuli. We plot a semilogx plot, from 1/512 to 1/2 cycles per pixel,
+    labeled as pixels per period (the reciprocal of spatial frequency), with
+    y-values going from .5 to 1
+
+    Parameters
+    ----------
+    mtf_func : function
+        python function that takes array of spatial frequencies as its only
+        argument and returns the MTF at those spatial frequencies.
+
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
+
+    Returns
+    -------
+    fig : plt.figure
+        Figure containing the MTF plot
+
+    """
+    sfs = np.linspace(0, .5)
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.6))
+    ax.semilogx(sfs, mtf_func(sfs), basex=2)
+    ticks = [512, 128, 32, 8, 2]
+    ax.set(xticks=[1/i for i in ticks], xticklabels=ticks, xlabel='Pixels per period',
+           ylabel='Michelson contrast', yticks=[.5, .75, 1])
+    return fig
