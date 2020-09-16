@@ -1838,3 +1838,42 @@ def mtf(mtf_func, context='paper'):
     ax.set(xticks=[1/i for i in ticks], xticklabels=ticks, xlabel='Pixels per period',
            ylabel='Michelson contrast', yticks=[.5, .75, 1])
     return fig
+
+
+def sigma_interpretation(df):
+    """Generate string interpreting relative size of a, b, and sigma.
+
+    This function returns a string (meant to be printed or saved to txt file)
+    that describes the preferred period at 0, the standard deviation, and how
+    many degrees you'd have to move in order to shift your preferred period by
+    a single standard deviation.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects. note that this should first have gone through
+        prep_model_df, which renames the values of the model_parameter
+        columns.
+
+    Returns
+    -------
+    result : str
+        string containing the description discussed above
+
+    """
+    # get the median value of the parameters we're interested
+    median_params = df.groupby('model_parameter').fit_value.median()
+    a = median_params['$a$']
+    b = median_params['$b$']
+    sigma = median_params['$\sigma$']
+    n_degrees = (b * (2**sigma - 1)) / a
+    pref_period_there = b + n_degrees * a
+    result = (
+        f"Preferred period at 0 degrees is {b:.03f}, with slope {a:.03f}.\n"
+        f"Standard deviation of the log-Gaussian is {sigma:.03f} octaves.\n"
+        f"Therefore, you'd need to move to {n_degrees:.03f} degrees eccentricity to move by a std dev.\n"
+        f"At that eccentricity, preferred period is {pref_period_there:.03f}.\n"
+        "All this is calculated using the median across bootstraps, average across polar angle and orientations."
+    )
+    return result

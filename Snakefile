@@ -2152,7 +2152,8 @@ def get_params_csv(wildcards):
             if wildcards.plot_kind.endswith('overall'):
                 paths['precision'] = precision
     except AttributeError:
-        # this is the figure_background_with_current rule
+        # this is the figure_background_with_current or sigma_interpretation
+        # rules (neither of which have wildcards.plot_kind)
         if wildcards.groupaverage == 'sub-groupaverage':
             ps = path_template % ('initial', 'summary')
         else:
@@ -2173,10 +2174,8 @@ rule figure_params:
         os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{model_type}_params_visualfield-{vf}_{plot_kind}_s-{seed}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
-        import seaborn as sns
         import sfp
         import matplotlib as mpl
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
         df = []
         for p in input.params:
             tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
@@ -2189,66 +2188,64 @@ rule figure_params:
                                                                ['model_parameter',
                                                                 'fit_model_type'], 'precision')
             df.append(sfp.figures.prep_model_df(tmp))
-        sns.set_context(wildcards.context, font_scale=font_scale)
-        with sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False}):
-            if wildcards.plot_kind.startswith('pair'):
-                if wildcards.plot_kind.endswith('drop'):
-                    drop_outlier = True
-                else:
-                    drop_outlier = False
-                # this returns the PairPlot, so we need to do .fig to
-                # grab the underlying Figure
-                fig = sfp.figures.model_parameters_pairplot(df[0], drop_outlier).fig
-            elif wildcards.plot_kind == 'compare':
-                if wildcards.vf == 'all':
-                    # this returns the FacetGrid, so we need to do .fig to
-                    # grab the underlying Figure. bootstrap_df comes before
-                    # regular one
-                    fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
-                else:
-                    # first draw the distribution of model parameters
-                    # for model fit to whole visual field
-                    fig = sfp.figures.model_parameters(df[0], 'dist', wildcards.vf, size=7)
-                    # this sets the markers and labels we'll use to
-                    # distinguish the different parts of the visual
-                    # field
-                    if wildcards.vf == 'vertical':
-                        kwargs = [{'marker': '^', 'size': 7}, {'marker': 'v', 'size': 7}]
-                        labels = ['Upper visual field', 'Lower visual field']
-                    elif wildcards.vf == 'horizontal':
-                        kwargs = [{'marker': '<', 'size': 7}, {'marker': '>', 'size': 7}]
-                        labels = ['Left visual field', 'Right visual field']
-                    elif wildcards.vf == 'eccen':
-                        kwargs = [{'size': 5, 'marker': 'o'}, {'marker': "o", 'size': 10}]
-                        labels = ['Inner visual field', 'Outer visual field']
-                    kwargs.append({'marker': 'o', 'size': 7})
-                    labels.append('Full visual field')
-                    # add the two estimates from parts of the visual
-                    # field onto the existing figure, as strip plots
-                    # (because we only have a single estimate per model,
-                    # not the full distribution). we don't update the
-                    # legend within the function...
-                    fig = sfp.figures.model_parameters(df[1], 'strip', wildcards.vf, fig, False,
-                                                       **kwargs[0])
-                    fig = sfp.figures.model_parameters(df[2], 'strip', wildcards.vf, fig, False,
-                                                       **kwargs[1])
-                    # instead doing it manually with some dummy markers
-                    dummy_markers = []
-                    for m, l in zip(kwargs[::-1], labels[::-1]):
-                        m['markersize'] = m.pop('size')
-                        dummy_markers.append(mpl.lines.Line2D([], [], linewidth=0, color='gray',
-                                                              label=l, **m))
-                    fig.axes[-1].legend(handles=dummy_markers, loc=(1.01, .5), frameon=False)
+        if wildcards.plot_kind.startswith('pair'):
+            if wildcards.plot_kind.endswith('drop'):
+                drop_outlier = True
             else:
-                # don't add a legend if the plot_kind is point or dist-overall
-                add_legend = {'point': False, 'dist-overall': False}.get(wildcards.plot_kind, True)
-                # or if we're plotting the sub-groupaverage
-                if wildcards.groupaverage == 'sub-groupaverage':
-                    add_legend = False
-                plot_kind = wildcards.plot_kind.replace('-overall', '')
-                fig = sfp.figures.model_parameters(df[0], plot_kind, wildcards.vf,
-                                                   add_legend=add_legend)
-            fig.savefig(output[0], bbox_inches='tight')
+                drop_outlier = False
+            # this returns the PairPlot, so we need to do .fig to
+            # grab the underlying Figure
+            fig = sfp.figures.model_parameters_pairplot(df[0], drop_outlier).fig
+        elif wildcards.plot_kind == 'compare':
+            if wildcards.vf == 'all':
+                # this returns the FacetGrid, so we need to do .fig to
+                # grab the underlying Figure. bootstrap_df comes before
+                # regular one
+                fig = sfp.figures.model_parameters_compare_plot(df[1], df[0]).fig
+            else:
+                # first draw the distribution of model parameters
+                # for model fit to whole visual field
+                fig = sfp.figures.model_parameters(df[0], 'dist', wildcards.vf, size=7)
+                # this sets the markers and labels we'll use to
+                # distinguish the different parts of the visual
+                # field
+                if wildcards.vf == 'vertical':
+                    kwargs = [{'marker': '^', 'size': 7}, {'marker': 'v', 'size': 7}]
+                    labels = ['Upper visual field', 'Lower visual field']
+                elif wildcards.vf == 'horizontal':
+                    kwargs = [{'marker': '<', 'size': 7}, {'marker': '>', 'size': 7}]
+                    labels = ['Left visual field', 'Right visual field']
+                elif wildcards.vf == 'eccen':
+                    kwargs = [{'size': 5, 'marker': 'o'}, {'marker': "o", 'size': 10}]
+                    labels = ['Inner visual field', 'Outer visual field']
+                kwargs.append({'marker': 'o', 'size': 7})
+                labels.append('Full visual field')
+                # add the two estimates from parts of the visual
+                # field onto the existing figure, as strip plots
+                # (because we only have a single estimate per model,
+                # not the full distribution). we don't update the
+                # legend within the function...
+                fig = sfp.figures.model_parameters(df[1], 'strip', wildcards.vf, fig, False,
+                                                   **kwargs[0])
+                fig = sfp.figures.model_parameters(df[2], 'strip', wildcards.vf, fig, False,
+                                                   **kwargs[1])
+                # instead doing it manually with some dummy markers
+                dummy_markers = []
+                for m, l in zip(kwargs[::-1], labels[::-1]):
+                    m['markersize'] = m.pop('size')
+                    dummy_markers.append(mpl.lines.Line2D([], [], linewidth=0, color='gray',
+                                                          label=l, **m))
+                fig.axes[-1].legend(handles=dummy_markers, loc=(1.01, .5), frameon=False)
+        else:
+            # don't add a legend if the plot_kind is point or dist-overall
+            add_legend = {'point': False, 'dist-overall': False}.get(wildcards.plot_kind, True)
+            # or if we're plotting the sub-groupaverage
+            if wildcards.groupaverage == 'sub-groupaverage':
+                add_legend = False
+            plot_kind = wildcards.plot_kind.replace('-overall', '')
+            fig = sfp.figures.model_parameters(df[0], plot_kind, wildcards.vf,
+                                               add_legend=add_legend)
+        fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_feature_df:
@@ -2415,6 +2412,32 @@ rule figure_mtf:
         fig.savefig(output[0], bbox_inches='tight')
 
 
+rule sigma_interpretation:
+    input:
+        unpack(get_params_csv),
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', "{groupaverage}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}.txt")
+    log:
+        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}_benchmark.txt")
+    run:
+        import pandas as pd
+        import sfp
+        df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
+        # get the median parameter value per subject and model type
+        df = df.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
+        precision = pd.read_csv(input.precision[0])
+        df = df.merge(precision, on=['subject'])
+        df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), 100, 'fit_value',
+                                                       ['model_parameter',
+                                                        'fit_model_type'], 'precision')
+        df = sfp.figures.prep_model_df(df)
+        result = sfp.figures.sigma_interpretation(df)
+        with open(output[0], 'w') as f:
+            f.writelines(result)
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),
@@ -2501,6 +2524,8 @@ def get_figures_all(context='paper', visual_field_analyses=False):
         figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_s-5_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
                  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']],
+        figs += [os.path.join(config['DATA_DIR'], "derivatives", 'figures', "individual_{}_sigma-interp_visualfield-{}_s-5_task-sfprescaled.txt").format(model, vf)
+                 for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for model in ['full_full_full', 'full_full_absolute']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_{{}}_angles-{{}}_s-5_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
              for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
@@ -2522,6 +2547,8 @@ def get_figures_all(context='paper', visual_field_analyses=False):
              for t in ['initial_cv', 'bootstrap']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_initial_training-loss-check_task-sfprescaled.{ext}')]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'mtf.{ext}')]
+    figs += [os.path.join(config['DATA_DIR'], "derivatives", 'figures', "{}_{}_sigma-interp_visualfield-all_s-{}_task-sfprescaled.txt").format(group, model, seed)
+             for model in ['full_full_full', 'full_full_absolute'] for group, seed in zip(['sub-groupaverage', 'individual'], [7, 5])]
     return figs
 
 
@@ -2544,4 +2571,6 @@ rule figures_paper:
                      'individual_full_full_absolute_params_visualfield-all_dist-overall_s-5_task-sfprescaled.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
                      'individual_1d_pref-period-overall_s-8_task-sfprescaled_with_legend.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures',
+                     "individual_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
