@@ -760,8 +760,8 @@ def input_schematic(context='paper', prf_loc=(250, 250), prf_radius=100,
     plotting.draw_arrow(ax, (500, 500), abs_prf_loc, arrowprops={'connectionstyle': 'arc3',
                                                                  'arrowstyle': '<-',
                                                                  'color': pal[1]})
-    ax.text(*e_loc, r'$e$')
-    ax.text(600, 500 + 100*np.sin(prf_angle/2), r'$\phi$')
+    ax.text(*e_loc, r'$e_v$')
+    ax.text(600, 500 + 100*np.sin(prf_angle/2), r'$\phi_v$')
     angle = mpl.patches.Arc((500, 500), 200, 200, 0, 0, np.rad2deg(prf_angle),
                             fc='none', ec=pal[1], linestyle='-')
     ax.add_artist(angle)
@@ -770,7 +770,7 @@ def input_schematic(context='paper', prf_loc=(250, 250), prf_radius=100,
     normal_len = 7000 * np.sqrt(np.square(stim_freq).sum())
     normal_angle = np.arctan2(*stim_freq[::-1])
     omega_loc = get_xy(normal_len, normal_angle, abs_prf_loc)
-    plotting.draw_arrow(ax, abs_prf_loc, omega_loc, r'$\omega$', {'connectionstyle': 'arc3',
+    plotting.draw_arrow(ax, abs_prf_loc, omega_loc, r'$\omega_l$', {'connectionstyle': 'arc3',
                                                                   'arrowstyle': '<-',
                                                                   'color': pal[0]})
     angle = mpl.patches.Arc(abs_prf_loc, 1.2*normal_len, 1.2*normal_len, 0, 0,
@@ -784,7 +784,7 @@ def input_schematic(context='paper', prf_loc=(250, 250), prf_radius=100,
                         arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-', 'color': '.5',
                                     'linestyle': ':'})
     theta_loc = get_xy(1.3*normal_len/2, normal_angle/2, abs_prf_loc)
-    ax.text(*theta_loc, r'$\theta$')
+    ax.text(*theta_loc, r'$\theta_l$')
     return fig
 
 
