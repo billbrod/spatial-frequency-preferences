@@ -64,6 +64,7 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
                            'xtick.labelsize': 8,
                            'ytick.labelsize': 8,
                            'legend.fontsize': 10,
+                           'legend.title_fontsize': 10,
                            'axes.linewidth': 1.0,
                            'grid.linewidth': 0.8,
                            'lines.linewidth': 1.2,

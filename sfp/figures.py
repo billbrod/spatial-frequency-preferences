@@ -661,29 +661,29 @@ def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
         The FacetGrid containing the plot
 
     """
-    if context == 'paper':
-        height = 4
-        linewidth = 2
-    if context == 'poster':
-        height = 8
-        linewidth = 6
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    fig_height = fig_width / 1.2
     pal = sns.color_palette('Set2', df.Paper.nunique())
     pal = dict(zip(df.Paper.unique(), pal))
     if 'Current study' in df.Paper.unique():
         pal['Current study'] = (0, 0, 0)
-    g = sns.FacetGrid(df, hue='Paper', height=height, aspect=1.2, palette=pal)
+    g = sns.FacetGrid(df, hue='Paper', height=fig_height, aspect=1.2, palette=pal)
     if y == "Preferred period (deg)":
-        g.map(plt.plot, 'Eccentricity', y, marker='o', linewidth=linewidth)
+        g.map(plt.plot, 'Eccentricity', y, marker='o')
         g.ax.set_ylim((0, 6))
     elif y == "Preferred spatial frequency (cpd)":
-        g.map(plt.semilogy, 'Eccentricity', y, marker='o', linewidth=linewidth, basey=2)
+        g.map(plt.semilogy, 'Eccentricity', y, marker='o', basey=2)
         g.ax.set_ylim((0, 11))
         g.ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(plotting.myLogFormat))
     g.ax.set_xlim((0, 20))
     if context == 'poster':
         g.ax.set(xticks=[0, 5, 10, 15, 20])
+        g.ax.set_title("Summary of human V1 fMRI results")
     g.add_legend()
-    g.ax.set_title("Summary of human V1 fMRI results")
+    # facetgrid doesn't let us set the title fontsize directly, so need to do
+    # this hacky work-around
+    g.fig.legends[0].get_title().set_size(mpl.rcParams['legend.title_fontsize'])
     g.ax.set_xlabel('Eccentricity of receptive field center (deg)')
     return g
 

@@ -2575,3 +2575,5 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
+                     "individual_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
