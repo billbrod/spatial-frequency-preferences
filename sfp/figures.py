@@ -688,8 +688,9 @@ def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
     return g
 
 
-def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
-    """schematic to explain 2d model inputs
+def input_schematic(context='paper', prf_loc=(250, 250), prf_radius=100,
+                    stim_freq=(.01, .03)):
+    """Schematic to explain 2d model inputs.
 
     This schematic explains the various inputs of our 2d model:
     eccentricity, retinotopic angle, spatial frequency, and
@@ -706,6 +707,9 @@ def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
 
     Parameters
     ----------
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
     prf_loc : tuple, optional
         2-tuple of floats, location of the prf. Both numbers must lie
         between 0 and 500 (i.e., we require this to be in the first
@@ -723,9 +727,15 @@ def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
         Figure containing the schematic
 
     """
-    fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    figsize = (fig_width, fig_width)
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
     def get_xy(distance, angle, origin=(500, 500)):
-        return [o + distance * func(angle) for o, func in zip(origin, [np.cos, np.sin])]
+        return [o + distance * func(angle) for o, func in
+                zip(origin, [np.cos, np.sin])]
+
     pal = sns.color_palette('deep', 2)
     if (np.array(prf_loc) > 500).any() or (np.array(prf_loc) < 0).any():
         raise Exception("the coordinates of prf_loc must be between 0 and 500, but got "
@@ -741,21 +751,20 @@ def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
     ax.set(xlim=(450, 1001), ylim=(450, 1001))
     for s in ax.spines.keys():
         ax.spines[s].set_visible(False)
-    prf = mpl.patches.Circle(abs_prf_loc, prf_radius, fc='none', ec='k', linewidth=4,
+    prf = mpl.patches.Circle(abs_prf_loc, prf_radius, fc='none', ec='k', linewidth=2,
                              linestyle='--', zorder=10)
     ax.add_artist(prf)
     prf_ecc = np.sqrt(np.square(prf_loc).sum())
     prf_angle = np.arctan2(*prf_loc[::-1])
-    phi_loc = get_xy(100, prf_angle)
     e_loc = get_xy(prf_ecc/2, prf_angle + np.pi/13)
     plotting.draw_arrow(ax, (500, 500), abs_prf_loc, arrowprops={'connectionstyle': 'arc3',
                                                                  'arrowstyle': '<-',
                                                                  'color': pal[1]})
-    ax.text(*e_loc, r'$e$', {'size': 15})
-    plotting.draw_arrow(ax, phi_loc, (600, 500), arrowprops={'connectionstyle': 'angle3',
-                                                             'arrowstyle': '-',
-                                                             'color': pal[1]})
-    ax.text(600, 500 + 50*np.sin(prf_angle/2), r'$\phi$', {'size': 15})
+    ax.text(*e_loc, r'$e$')
+    ax.text(600, 500 + 100*np.sin(prf_angle/2), r'$\phi$')
+    angle = mpl.patches.Arc((500, 500), 200, 200, 0, 0, np.rad2deg(prf_angle),
+                            fc='none', ec=pal[1], linestyle='-')
+    ax.add_artist(angle)
     # so that this is the normal vector, the 7000 is just an arbitrary
     # scale factor to make the vector a reasonable length
     normal_len = 7000 * np.sqrt(np.square(stim_freq).sum())
@@ -763,15 +772,19 @@ def input_schematic(prf_loc=(250, 250), prf_radius=100, stim_freq=(.01, .03)):
     omega_loc = get_xy(normal_len, normal_angle, abs_prf_loc)
     plotting.draw_arrow(ax, abs_prf_loc, omega_loc, r'$\omega$', {'connectionstyle': 'arc3',
                                                                   'arrowstyle': '<-',
-                                                                  'color': pal[0]}, size=15)
-    arc_loc = get_xy(1.2*normal_len/2, normal_angle, abs_prf_loc)
-    plotting.draw_arrow(ax, arc_loc, (abs_prf_loc[0] + 1.2*normal_len/2, abs_prf_loc[1]),
-                        arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-', 'color': pal[0]})
+                                                                  'color': pal[0]})
+    angle = mpl.patches.Arc(abs_prf_loc, 1.2*normal_len, 1.2*normal_len, 0, 0,
+                            # small adjustment appears to be necessary for some
+                            # reason -- but really only for some spatial
+                            # frequencies.
+                            np.rad2deg(normal_angle)-3,
+                            fc='none', ec=pal[0], linestyle='-')
+    ax.add_artist(angle)
     plotting.draw_arrow(ax, (abs_prf_loc[0] + normal_len, abs_prf_loc[1]), abs_prf_loc,
                         arrowprops={'connectionstyle': 'angle3', 'arrowstyle': '-', 'color': '.5',
                                     'linestyle': ':'})
-    theta_loc = get_xy(1.3*normal_len/2, normal_angle/4, abs_prf_loc)
-    ax.text(*theta_loc, r'$\theta$', {'size': 15})
+    theta_loc = get_xy(1.3*normal_len/2, normal_angle/2, abs_prf_loc)
+    ax.text(*theta_loc, r'$\theta$')
     return fig
 
 

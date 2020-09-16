@@ -2292,7 +2292,7 @@ rule figure_schematic:
         if wildcards.schematic_type == '2d':
             fig = sfp.figures.model_schematic(wildcards.context)
         elif wildcards.schematic_type == '2d-inputs':
-            fig = sfp.figures.input_schematic()
+            fig = sfp.figures.input_schematic(wildcards.context)
         elif wildcards.schematic_type.startswith('models'):
             if 'annot' in wildcards.schematic_type:
                 annotate = True
@@ -2574,3 +2574,4 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
