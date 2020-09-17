@@ -91,7 +91,7 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
     joint_plot_func_kwargs = {}
     separate_plot_func_kwargs = [dict() for i in plot_func]
     additional_plot_args = []
-    for k in set(kwargs.keys()) - set(inspect.getargspec(sns.FacetGrid.__init__)[0]):
+    for k in set(kwargs.keys()) - set(inspect.signature(sns.FacetGrid.__init__).parameters.keys()):
         if k.endswith('_plot'):
             if k == 'hue_plot':
                 # we need to handle hue slightly differently because of how FacetGrid.map handles
