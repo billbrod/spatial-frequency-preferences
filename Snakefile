@@ -2270,12 +2270,15 @@ rule figure_feature_df:
             df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), 100, 'fit_value',
                                                           ['model_parameter', 'fit_model_type'],
                                                           'precision')
+            col_wrap = None
+        else:
+            col_wrap = 3
         if wildcards.angles == 'avg':
             angles = True
         elif wildcards.angles == 'all':
             angles = False
         g = sfp.figures.feature_df_plot(df, angles, wildcards.ref_frame, wildcards.feature_type,
-                                        wildcards.vf, wildcards.context)
+                                        wildcards.vf, wildcards.context, col_wrap=col_wrap)
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2518,22 +2521,24 @@ def get_figures_all(context='paper', visual_field_analyses=False):
                  for vf in ['vertical', 'horizontal', 'eccen']]
         figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_absolute_params_visualfield-{{}}_compare_s-5_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_s-5_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_s-None_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
                  for model in ['full_full_full', 'full_full_absolute']],
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_s-5_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_{{}}_median_angles-all_s-None_task-sfprescaled_{{}}.{ext}').format(model, vf, feature, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
                  for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']],
         figs += [os.path.join(config['DATA_DIR'], "derivatives", 'figures', "individual_{}_sigma-interp_visualfield-{}_s-5_task-sfprescaled.txt").format(model, vf)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_{{}}_angles-{{}}_s-5_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, frame)
-             for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_pref-period_{{}}_angles-{{}}_s-{{}}_task-sfprescaled_{{}}.{ext}').format(model, kind, angles, seed, frame)
+             for seed, kind in zip([None, None, 5], ['median', 'bootstraps', 'bootstraps-overall'])
+             for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_pref-period_bootstraps_angles-{{}}_s-5_task-sfprescaled_{{}}.{ext}').format(model, angles, frame)
              for angles in ['all', 'avg'] for frame in ['relative', 'absolute'] for model in ['full_full_full', 'full_full_absolute']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_{{}}_{{}}_angles-all_s-5_task-sfprescaled_{{}}.{ext}').format(model, feature, kind, frame)
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-all_{{}}_{{}}_angles-all_s-{{}}_task-sfprescaled_{{}}.{ext}').format(model, feature, kind, seed, frame)
              for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
-             for kind  in ['median', 'bootstraps', 'bootstraps-overall'] for frame in ['relative', 'absolute']
+             for seed, kind in zip([None, None, 5], ['median', 'bootstraps', 'bootstraps-overall'])
+             for frame in ['relative', 'absolute']
              for model in ['full_full_full', 'full_full_absolute']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_feature_visualfield-all_{{}}_bootstraps_angles-all_s-5_task-sfprescaled_{{}}.{ext}').format(model, feature, frame)
              for feature in ['pref-period-contour', 'iso-pref-period', 'max-amp']
@@ -2577,3 +2582,15 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_full_full_absolute_feature_visualfield-all_pref-period-contour_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_relative.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_full_full_absolute_feature_visualfield-all_pref-period-contour_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_absolute.svg'),

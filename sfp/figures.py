@@ -1540,7 +1540,8 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
 
 
 def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative',
-                    feature_type='pref-period', visual_field='all', context='paper'):
+                    feature_type='pref-period', visual_field='all', context='paper',
+                    col_wrap=None):
     """plot model predictions based on parameter values
 
     This function is used to create plots showing the preferred period
@@ -1601,13 +1602,10 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     aspect = 1
     params, fig_width = style.plotting_style(context, figsize='full')
     plt.style.use(params)
-    if feature_type == 'pref-period':
-        height = (fig_width/2) / aspect
-    else:
-        # the polar plots have two subplots, so they're half the height of the
-        # pref-period one in order to get the same width
-        height = (fig_width/4) / aspect
     kwargs = {'top': .9}
+    axes_titles = True
+    title_kwargs = {}
+    adjust_kwargs = {}
     if df.bootstrap_num.nunique() > 1 or 'groupaverage_seed' in df.columns:
         # then we have each subject's bootstraps or the groupaverage
         # subject (which has also already been bootstrapped), so we use
@@ -1631,15 +1629,28 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     if col is None or df.subject.nunique() == 1:
         facetgrid_legend = False
         suptitle = False
+        axes_titles = False
         split_oris = True
         col = 'orientation_type'
         ori_map = {k: ['cardinals', 'obliques'][i%2] for i, k in
                    enumerate(np.linspace(0, np.pi, 4, endpoint=False))}
         pre_boot_gb_cols += [col]
+        if feature_type == 'pref-period':
+            height = (fig_width/2) / aspect
+        else:
+            # the polar plots have two subplots, so they're half the height of the
+            # pref-period one in order to get the same width
+            height = (fig_width/4) / aspect
     else:
-        facetgrid_legend = True
-        suptitle = True
+        if context != 'paper':
+            facetgrid_legend = True
+            suptitle = True
+        else:
+            facetgrid_legend = False
+            suptitle = False
         split_oris = False
+        if col_wrap is not None:
+            height = (fig_width / col_wrap) / aspect
     if feature_type == 'pref-period':
         if context == 'poster':
             aspect = 1.3
@@ -1654,13 +1665,15 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             row = 'Retinotopic angle (rad)'
         if split_oris:
             orientation = np.linspace(0, np.pi, 2, endpoint=False)
+        else:
+            orientation = np.linspace(0, np.pi, 4, endpoint=False)
         df = analyze_model.create_feature_df(df, reference_frame=reference_frame, gb_cols=gb_cols,
                                              orientation=orientation)
         if split_oris:
             df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
         g = plotting.feature_df_plot(df, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
                                      plot_func=plot_func, height=height, aspect=aspect,
-                                     pre_boot_gb_cols=pre_boot_gb_cols,
+                                     pre_boot_gb_cols=pre_boot_gb_cols, col_wrap=col_wrap,
                                      facetgrid_legend=facetgrid_legend, **kwargs)
     else:
         kwargs.update({'all_tick_labels': ['r'], })
@@ -1688,14 +1701,18 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                  gb_cols=gb_cols)
             if split_oris:
                 df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
+            row = 'Eccentricity (deg)'
+            if df[row].nunique() == 1:
+                row = None
             r = 'Preferred period (deg)'
-            g = plotting.feature_df_polar_plot(df, col=col, row='Eccentricity (deg)',
-                                               r=r, plot_func=plot_func,
+            g = plotting.feature_df_polar_plot(df, col=col, row=row,
+                                               r=r, plot_func=plot_func, col_wrap=col_wrap,
                                                height=height, aspect=aspect,
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
             if context == 'paper':
-                g.axes[0, 0].set_ylabel('Preferred\nperiod (deg)')
+                for axes in g.axes:
+                    axes[0].set_ylabel('Preferred\nperiod (deg)')
         elif feature_type == 'iso-pref-period':
             if context == 'poster':
                 kwargs.update({'r_ticks': list(range(1, 9)),
@@ -1706,10 +1723,14 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                  reference_frame=reference_frame,
                                                  orientation=orientation, gb_cols=gb_cols)
             r = 'Eccentricity (deg)'
-            g = plotting.feature_df_polar_plot(df, col=col, row='Preferred period (deg)', r=r,
+            row = 'Preferred period (deg)'
+            if df[row].nunique() == 1:
+                row = None
+            g = plotting.feature_df_polar_plot(df, col=col, r=r, row=row,
                                                plot_func=plot_func, height=height, aspect=aspect,
                                                title='ISO-preferred period contours',
                                                pre_boot_gb_cols=pre_boot_gb_cols,
+                                               col_wrap=col_wrap,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
         elif feature_type == 'max-amp':
             rticks = np.arange(.25, 1.3, .25)
@@ -1727,7 +1748,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             r = 'Max amplitude'
             g = plotting.feature_df_polar_plot(df, col=col, r=r, height=height,
                                                aspect=aspect, plot_func=plot_func,
-                                               title='Max amplitude',
+                                               title='Max amplitude',col_wrap=col_wrap,
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
         else:
@@ -1743,7 +1764,12 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             for ax in g.axes.flatten():
                 ax.set_yticks(rticks)
                 ax.set_yticklabels(rticklabels)
+        else:
+            adjust_kwargs.update({'wspace': -.1, 'hspace': .15})
         if context == 'paper':
+            for ax in g.axes.flatten():
+                if ax.get_xlabel():
+                    ax.set_xlabel(ax.get_xlabel(), labelpad=-5)
             # remove the xlabel from one of them and place the remaining one in
             # between the two subplots, because it's redundant
             g.axes[0, 0].set_xlabel('')
@@ -1753,12 +1779,18 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             else:
                 g.axes[0, 1].set_xlabel(g.axes.flatten()[1].get_xlabel(), x=-.2,
                                         ha='center', labelpad=-5)
+            title_kwargs['pad'] = -13
     if visual_field != 'all':
         g.fig._suptitle.set_text(g.fig._suptitle.get_text() + f' in {visual_field} visual field')
     if not suptitle:
         g.fig.suptitle('')
+    if not axes_titles:
         for ax in g.axes.flatten():
             ax.set_title('')
+    else:
+        g.set_titles(col_template="{col_name}", **title_kwargs)
+        g.tight_layout()
+    g.fig.subplots_adjust(**adjust_kwargs)
     return g
 
 

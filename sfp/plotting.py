@@ -1534,6 +1534,15 @@ def feature_df_polar_plot(feature_df, hue="Stimulus type", col='Preferred period
                       ylim=ylim, col_wrap=col_wrap, col_order=col_order, row_order=row_order,
                       gridspec_kws=gridspec_kws)
     g.map_dataframe(plot_func, theta, r, ci=ci, estimator=np.median, **kwargs)
+    if col_wrap is not None:
+        g_axes = g.axes
+        # if col_wrap is not None, g.axes will be a single list of axes. we
+        # want it to be a list of lists, where the i-th entry contains a list
+        # with all axes in the i-th column
+        g_axes = [g_axes[col_wrap*i:col_wrap*(i+1)] for i in range(len(g_axes)//col_wrap+1)]
+        # drop any empty lists
+        g_axes = [ax for ax in g_axes if len(ax) > 0]
+        g._axes = np.array(g_axes)
     for i, axes in enumerate(g.axes):
         for j, ax in enumerate(axes):
             ax.title.set_position(title_position)
