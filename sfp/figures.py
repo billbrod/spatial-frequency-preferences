@@ -548,7 +548,17 @@ def pref_period_1d(df, context='paper', reference_frame='relative',
         seaborn FacetGrid object containing the plot
 
     """
-    params, fig_width = style.plotting_style(context, figsize='half')
+    # if we're wrapping columns, then we need this to take up the full width in
+    # order for it to be readable
+    if 'col_wrap' in kwargs.keys():
+        fig_width = 'full'
+    else:
+        fig_width = 'half'
+    params, fig_width = style.plotting_style(context, figsize=fig_width)
+    print(fig_width)
+    if 'col_wrap' in kwargs.keys():
+        fig_width /= kwargs['col_wrap']
+    print(fig_width)
     plt.style.use(params)
     if context == 'paper':
         facetgrid_legend = False
@@ -1651,6 +1661,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         split_oris = False
         if col_wrap is not None:
             height = (fig_width / col_wrap) / aspect
+    print(height)
     if feature_type == 'pref-period':
         if context == 'poster':
             aspect = 1.3

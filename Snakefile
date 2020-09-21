@@ -1953,8 +1953,6 @@ rule figure_summarize_1d:
                                                           precision_col=f"{col}_precision")
         if wildcards.tuning_param.startswith('pref-period'):
             function = sfp.figures.pref_period_1d
-            if wildcards.tuning_param.endswith('overall') or wildcards.groupaverage == 'sub-groupaverage':
-                kwargs['ylim'] = (0, 2)
         elif wildcards.tuning_param.startswith('bandwidth'):
             function = sfp.figures.bandwidth_1d
         g = function(df, wildcards.context, ref_frame[wildcards.task], row=None,
@@ -2594,3 +2592,5 @@ rule figures_paper:
                      'individual_full_full_absolute_feature_visualfield-all_pref-period-contour_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_absolute.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     "individual_1d_pref-period_s-None_task-sfprescaled.svg",)
