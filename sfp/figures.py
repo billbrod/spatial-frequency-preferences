@@ -1688,8 +1688,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                            'hspace': .3})
         if feature_type == 'pref-period-contour':
             rticks = np.arange(.25, 1.5, .25)
-            # rticklabels = [j if i%2==1 else '' for i, j in enumerate(rticks)]
-            rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
+            # rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
+            rticklabels = ['' for i in rticks]
             if not split_oris:
                 # there's a weird interaction where if we set the rticks before
                 # calling scatter (which we do when split_oris is True), it
@@ -1701,6 +1701,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                  gb_cols=gb_cols)
             if split_oris:
                 df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
+                kwargs['ylim'] = (0, 1.25)
             row = 'Eccentricity (deg)'
             if df[row].nunique() == 1:
                 row = None
@@ -1733,9 +1734,9 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                col_wrap=col_wrap,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
         elif feature_type == 'max-amp':
-            rticks = np.arange(.25, 1.3, .25)
-            # rticklabels = [j if i%2==1 else '' for i, j in enumerate(rticks)]
-            rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
+            rticks = np.arange(.25, 1.1, .25)
+            # rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
+            rticklabels = ['' for i in rticks]
             if not split_oris:
                 # there's a weird interaction where if we set the rticks before
                 # calling scatter (which we do when split_oris is True), it
@@ -1745,6 +1746,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                  reference_frame=reference_frame, gb_cols=gb_cols)
             if split_oris:
                 df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
+                kwargs['ylim'] = (0, 1.15)
             r = 'Max amplitude'
             g = plotting.feature_df_polar_plot(df, col=col, r=r, height=height,
                                                aspect=aspect, plot_func=plot_func,
