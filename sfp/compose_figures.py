@@ -94,11 +94,11 @@ def crossvalidation(annotated_model_schematic, horizontal_cv_loss, save_path,
     """
     text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
-    figure_height = figure_width * .6
+    figure_height = figure_width * .63
     compose.Figure(figure_width, figure_height,
-                   SVG(horizontal_cv_loss).move(240, 64),
+                   SVG(horizontal_cv_loss).move(290, 67),
                    SVG(annotated_model_schematic),
-                   compose.Text("B", (280+25), 40, **text_params),
+                   compose.Text("B", (290+25), 40, **text_params),
                    compose.Text("A", 25, 40, **text_params),
                    ).save(save_path)
 
@@ -127,28 +127,28 @@ def feature_df_summary(rel_feature_df_plots, abs_feature_df_plots, save_path,
     """
     text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
-    figure_height = figure_width
+    figure_height = figure_width * 1.05
     font_size = _convert_to_pix(text_params.pop('size'))
     line_height = font_size + _convert_to_pix('2pt')
     compose.Figure(
         figure_width, figure_height,
-        SVG(rel_feature_df_plots[0]).move(0, -10),
-        SVG(rel_feature_df_plots[1]).move(figure_width / 2, -10),
+        SVG(rel_feature_df_plots[0]).move(-8, -13),
+        SVG(rel_feature_df_plots[1]).move(figure_width / 2 - 16, -13),
         SVG(rel_feature_df_plots[2]).move(
-            figure_width / 2 + line_height,
-            figure_height / 4 - 24),
+            figure_width / 2 + line_height - 16,
+            figure_height / 4 - 27),
         SVG(REL_LEGEND_PATH).scale(2.5).move(figure_width / 4,
-                                             figure_height / 4 - 10),
-        compose.Text("A", 10, font_size, size=font_size, **text_params),
-        SVG(abs_feature_df_plots[0]).move(0, figure_height / 2 - 10),
-        SVG(abs_feature_df_plots[1]).move(figure_width / 2,
+                                             figure_height / 4),
+        compose.Text("A", 5, font_size, size=font_size, **text_params),
+        SVG(abs_feature_df_plots[0]).move(-8, figure_height / 2 - 10),
+        SVG(abs_feature_df_plots[1]).move(figure_width / 2 - 16,
                                           figure_height / 2 - 10),
         SVG(abs_feature_df_plots[2]).move(
-            figure_width / 2 + line_height,
+            figure_width / 2 + line_height - 16,
             figure_height / 2 + figure_height / 4 - 24),
         SVG(ABS_LEGEND_PATH).scale(2.5).move(
-            figure_width / 4, figure_height / 2 + figure_height / 4 - 10),
-        compose.Text("B", 10, figure_height / 2 + font_size - 10, size=font_size,
+            figure_width / 4, figure_height / 2 + figure_height / 4 + 3),
+        compose.Text("B", 5, figure_height / 2 + font_size - 10, size=font_size,
                      **text_params),
     ).save(save_path)
 

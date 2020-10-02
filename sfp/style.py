@@ -52,7 +52,11 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
                   'axes.spines.right': False, 'axes.spines.top': False,
                   'xtick.bottom': False, 'ytick.left': False,
                   'figure.dpi': 90,
-                  'text.usetex': False, }
+                  'text.usetex': False,
+                  'figure.subplot.left': .075,
+                  'figure.subplot.right': .96,
+                  'figure.subplot.bottom': .11,
+                  'figure.subplot.top': .97}
                   # this is necessary for dealing with underscores in column
                   # names, see
                   # https://github.com/matplotlib/matplotlib/issues/17774

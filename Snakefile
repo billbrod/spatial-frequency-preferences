@@ -1941,7 +1941,6 @@ rule figure_summarize_1d:
         import sfp
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
         ref_frame = {'task-sfpconstant': 'absolute', 'task-sfprescaled': 'relative'}
-        kwargs = {}
         if wildcards.tuning_param.endswith('overall'):
             if wildcards.groupaverage == 'sub-groupaverage':
                 raise Exception(f"Can't use sub-groupaverage with {wildcards.tuning_param}! Drop "
@@ -1951,12 +1950,15 @@ rule figure_summarize_1d:
             df = sfp.figures.append_precision_col(df, col)
             df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), col=col,
                                                           precision_col=f"{col}_precision")
+            col_wrap = None
+        else:
+            col_wrap = 3
         if wildcards.tuning_param.startswith('pref-period'):
             function = sfp.figures.pref_period_1d
         elif wildcards.tuning_param.startswith('bandwidth'):
             function = sfp.figures.bandwidth_1d
         g = function(df, wildcards.context, ref_frame[wildcards.task], row=None,
-                     **kwargs)
+                     col_wrap=col_wrap)
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2508,16 +2510,18 @@ def get_figures_all(context='paper', visual_field_analyses=False):
                         'model_point-remeaned-nc']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_cv_{{}}_h_s-3_task-sfprescaled.{ext}').format(cv)
              for cv in ['model_point', 'model_point-remeaned']]
-    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-all_{{}}_s-5_task-sfprescaled.{ext}').format(model, kind)
-             for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop', 'dist-overall'] for model in ['full_full_full', 'full_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-all_dist-overall_s-5_task-sfprescaled.{ext}').format(model)
+             for model in ['full_full_full', 'full_full_absolute']]
+    figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-all_{{}}_s-None_task-sfprescaled.{ext}').format(model, kind)
+             for kind  in ['point', 'strip', 'dist', 'compare', 'pair', 'pair-drop'] for model in ['full_full_full', 'full_full_absolute']]
     figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'sub-groupaverage_{{}}_params_visualfield-all_{{}}_s-7_task-sfprescaled.{ext}').format(model, kind)
              for kind  in ['dist', 'strip'] for model in ['full_full_full', 'full_full_absolute']]
     if visual_field_analyses:
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-{{}}_{{}}_s_5_task-sfprescaled.{ext}').format(model, vf, kind)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_params_visualfield-{{}}_{{}}_s-None_task-sfprescaled.{ext}').format(model, vf, kind)
                  for vf in ['all', 'inner', 'outer', 'left', 'right', 'upper', 'lower'] for kind  in ['point', 'strip'] for model in ['full_full_full', 'full_full_absolute']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_full_params_visualfield-{{}}_compare_s-5_task-sfprescaled.{ext}').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_full_params_visualfield-{{}}_compare_s-None_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
-        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_absolute_params_visualfield-{{}}_compare_s-5_task-sfprescaled.{ext}').format(vf)
+        figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_full_full_absolute_params_visualfield-{{}}_compare_s-None_task-sfprescaled.{ext}').format(vf)
                  for vf in ['vertical', 'horizontal', 'eccen']]
         figs += [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', f'{context}', f'individual_{{}}_feature_visualfield-{{}}_pref-period_median_angles-{{}}_s-None_task-sfprescaled_{{}}.{ext}').format(model, vf, angles, frame)
                  for vf in ['inner', 'outer', 'left', 'right', 'upper', 'lower'] for angles in ['all', 'avg'] for frame in ['relative', 'absolute']
@@ -2593,4 +2597,6 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_absolute.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     "individual_1d_pref-period_s-None_task-sfprescaled.svg",)
+                     "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     f"individual_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg")

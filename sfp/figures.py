@@ -510,7 +510,7 @@ def _summarize_1d(df, reference_frame, y, row, col, height, facetgrid_legend,
 
 
 def pref_period_1d(df, context='paper', reference_frame='relative',
-                   row='session', col='subject', **kwargs):
+                   row='session', col='subject', col_wrap=None, **kwargs):
     """Plot the preferred period of the 1d model fits.
 
     Note that we do not restrict the input dataframe in any way, so we
@@ -550,13 +550,22 @@ def pref_period_1d(df, context='paper', reference_frame='relative',
     """
     # if we're wrapping columns, then we need this to take up the full width in
     # order for it to be readable
-    if 'col_wrap' in kwargs.keys():
+    if col_wrap is not None:
         fig_width = 'full'
     else:
         fig_width = 'half'
     params, fig_width = style.plotting_style(context, figsize=fig_width)
-    if 'col_wrap' in kwargs.keys():
-        fig_width /= kwargs['col_wrap']
+    if col_wrap is not None:
+        fig_width /= col_wrap
+        # there is, as of seaborn 0.11.0, a bug that interacts with our xtick
+        # label size and height (see
+        # https://github.com/mwaskom/seaborn/issues/2293), which causes an
+        # issue if col_wrap == 3. this manual setting is about the same size
+        # and fixes it
+        if col_wrap == 3:
+            fig_width = 2.23
+    elif col is not None:
+        fig_width /= df[col].nunique()
     plt.style.use(params)
     if context == 'paper':
         facetgrid_legend = False
@@ -566,7 +575,7 @@ def pref_period_1d(df, context='paper', reference_frame='relative',
         kwargs.setdefault('ylim', (0, 4))
         facetgrid_legend = True
     g = _summarize_1d(df, reference_frame, 'preferred_period', row, col,
-                      fig_width, facetgrid_legend, **kwargs)
+                      fig_width, facetgrid_legend, col_wrap=col_wrap, **kwargs)
     g.set_ylabels('Preferred period (deg)')
     yticks = [i for i in range(4) if i <= kwargs['ylim'][1]]
     g.set(yticks=yticks)
@@ -582,6 +591,7 @@ def pref_period_1d(df, context='paper', reference_frame='relative',
             ax.axhline(color='gray', linestyle='--')
             ax.axvline(color='gray', linestyle='--')
             ax.set(xticks=[0, 2, 4, 6, 8, 10])
+        g.fig.subplots_adjust(wspace=.05, hspace=.15)
     return g
 
 
@@ -1323,9 +1333,11 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
     # equivalent, need to set the ax_xlims in a particular way
     ax_xlims = [[-.5, .5], [-.5, 1.5], [-.5, 7.5]]
     yticks = [[0, .5, 1, 1.5, 2, 2.5], [0, .1, .2, .3, .4], [-.03, 0, .03, .06, .09]]
+    axhline = [2]
     if fig is None:
         fig, axes = plt.subplots(1, 3, figsize=(fig_width, fig_width/2),
-                                 gridspec_kw={'width_ratios': [.12, .25, .6]})
+                                 gridspec_kw={'width_ratios': [.12, .25, .63],
+                                              'wspace': .3})
     else:
         axes = fig.axes
     order = plotting.get_order('model_parameter', col_unique=df.model_parameter.unique())
@@ -1351,6 +1363,11 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
             # at lines 368 and 1190 in categorical.py (version 0.9.0)
             dodge = np.linspace(0, .8 - (.8 / df.subject.nunique()), df.subject.nunique())
             dodge -= dodge.mean()
+            yticks = [[0, .5, 1, 1.5, 2, 2.5, 3.0],
+                      [-.1, 0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1],
+                      [-.2, -.1, 0, .1, .2, .3]]
+            ax_xlims = [[-1, 1], [-1, 2], [-.75, 7.5]]
+            axhline += [1]
         # else we've combined across all subjects
         else:
             pal = plotting.get_palette('model_parameter', col_unique=df.model_parameter.unique(),
@@ -1386,12 +1403,14 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         if i == 2:
             if add_legend:
                 if plot_kind == 'dist':
-                    legend = ax.legend(handles, labels, loc=(1.01, .3), borderaxespad=0, frameon=False)
+                    legend = ax.legend(handles, labels, loc=(-.9, -.5), ncol=3,
+                                       borderaxespad=0, frameon=False)
                 else:
                     legend = ax.legend(loc=(1.01, .3), borderaxespad=0, frameon=False)
                 # explicitly adding the legend artist allows us to add a
                 # second legend if we want
                 ax.add_artist(legend)
+        if i in axhline:
             ax.axhline(color='grey', linestyle='dashed')
         if i == 0:
             ax.set(ylabel='Parameter value')
@@ -1659,6 +1678,13 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         split_oris = False
         if col_wrap is not None:
             height = (fig_width / col_wrap) / aspect
+            # there is, as of seaborn 0.11.0, a bug that interacts with our
+            # xtick label size and height (see
+            # https://github.com/mwaskom/seaborn/issues/2293), which causes an
+            # issue if col_wrap == 3. this manual setting is about the same
+            # size and fixes it
+            if col_wrap == 3:
+                height = 2.23
     if feature_type == 'pref-period':
         if context == 'poster':
             aspect = 1.3

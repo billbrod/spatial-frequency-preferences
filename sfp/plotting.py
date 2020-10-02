@@ -1353,6 +1353,15 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
                       palette=pal, xlim=xlim, ylim=ylim, col_wrap=col_wrap, col_order=col_order,
                       row_order=row_order, gridspec_kws=gridspec_kws)
     g.map_dataframe(plot_func, x, y, ci=ci, estimator=np.median, **kwargs)
+    if col_wrap is not None:
+        g_axes = g.axes
+        # if col_wrap is not None, g.axes will be a single list of axes. we
+        # want it to be a list of lists, where the i-th entry contains a list
+        # with all axes in the i-th column
+        g_axes = [g_axes[col_wrap*i:col_wrap*(i+1)] for i in range(len(g_axes)//col_wrap+1)]
+        # drop any empty lists
+        g_axes = [ax for ax in g_axes if len(ax) > 0]
+        g._axes = np.array(g_axes)
     if facetgrid_legend:
         g.add_legend()
     for ax in g.axes.flatten():
