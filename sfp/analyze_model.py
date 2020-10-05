@@ -16,6 +16,7 @@ import argparse
 import glob
 import itertools
 import warnings
+from sklearn import metrics
 from torch.utils import data as torchdata
 from . import model as sfp_model
 from tqdm import tqdm
@@ -681,16 +682,35 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
         test_subset = [int(i) for i in test_subset[0].split(',')]
         pred = m(features[:, test_subset, :])
         preds[:, test_subset] = pred
-    cv_loss = sfp_model.weighted_normed_loss(preds, targets).item()
     data = dict(wildcards)
-    data['loss_func'] = 'weighted_normed_loss'
-    data['dataset_df_path'] = dataset_path
     data.pop('model_type')
+    data['loss_func'] = []
+    data['cv_loss'] = []
+    for loss_func in ['weighted_normed_loss', 'crosscorrelation', 'normed_loss',
+                      'explained_variance_score']:
+        if loss_func == 'crosscorrelation':
+            # targets[..., 0] contains the actual targets, targets[..., 1]
+            # contains the precision, unimportant right here
+            corr = np.corrcoef(targets[..., 0].cpu().detach().numpy(),
+                               preds.cpu().detach().numpy())
+            cv_loss = corr[0, 1]
+        elif loss_func == 'weighted_normed_loss':
+            cv_loss = sfp_model.weighted_normed_loss(preds, targets).item()
+        elif loss_func == 'normed_loss':
+            cv_loss = sfp_model.weighted_normed_loss(preds, targets, weighted=False).item()
+        elif loss_func == 'explained_variance_score':
+            # targets[..., 0] contains the actual targets, targets[..., 1]
+            # contains the precision, unimportant right here
+            cv_loss = metrics.explained_variance_score(targets[..., 0].cpu().detach().numpy(),
+                                                       preds.cpu().detach().numpy(),
+                                                       multioutput='uniform_average')
+        data['loss_func'].append(loss_func)
+        data['cv_loss'].append(cv_loss)
+    data['dataset_df_path'] = dataset_path
     data['fit_model_type'] = l.fit_model_type.unique()[0]
     if 'true_model_type' in l.columns:
         data['true_model_type'] = l.true_model_type.unique()[0]
-    data['cv_loss'] = cv_loss
-    cv_loss_csv = pd.DataFrame(data, index=[0])
+    cv_loss_csv = pd.DataFrame(data)
     cv_loss_csv.to_csv(outputs[0], index=False)
 
 

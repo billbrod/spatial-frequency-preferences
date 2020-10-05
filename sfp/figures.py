@@ -193,7 +193,7 @@ def existing_studies_df():
     return df
 
 
-def _demean_df(df, gb_cols=['subject'], y='cv_loss', extra_cols=[]):
+def _demean_df(df, gb_cols=['subject', 'loss_func'], y='cv_loss', extra_cols=[]):
     """demean a column of the dataframe
 
     Calculate the mean of `y` across the values in some other column(s)
@@ -1009,7 +1009,7 @@ def cross_validation_raw(df, seed, noise_ceiling_df=None, orient='v', context='p
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
-    g = _catplot(df, legend=False, height=height, s=s, x_rotate=True, orient=orient)
+    g = _catplot(df, legend=False, height=height, s=s, x_rotate=True, orient=orient, col='loss_func')
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
@@ -1069,7 +1069,7 @@ def cross_validation_demeaned(df, seed, remeaned=False, orient='v', context='pap
     else:
         name = 'demeaned'
     g = _catplot(df, y=f'{name}_cv_loss', height=height, aspect=aspect, x_rotate=True,
-                 orient=orient)
+                 orient=orient, col='loss_func')
     g.fig.suptitle(f"{name.capitalize()} cross-validated loss across subjects")
     if orient == 'v':
         g.set(ylabel=f"Cross-validated loss ({name} by subject)", xlabel="Subject")
@@ -1148,7 +1148,7 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue,
+    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue, col='loss_func',
                  plot_kind=plot_kind, height=height, aspect=aspect, orient=orient,
                  legend=legend)
     title = f"{name.capitalize()} cross-validated loss across model types"

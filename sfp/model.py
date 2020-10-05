@@ -685,7 +685,7 @@ def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_sam
     return ax
 
 
-def weighted_normed_loss(predictions, target):
+def weighted_normed_loss(predictions, target, weighted=True):
     """takes in the predictions and target, returns weighted norm loss
 
     note all of these must be tensors, not numpy arrays
@@ -693,7 +693,7 @@ def weighted_normed_loss(predictions, target):
     target must contain both the targets and the precision (along the last axis)
 
     if we weren't multiplying by the precision, this would be equivalent to cosine distance (times
-    a constant: num_classes / 2)
+    a constant: num_classes / 2). set weighted=False to use this
 
     """
     precision = target.select(-1, 1)
@@ -710,10 +710,14 @@ def weighted_normed_loss(predictions, target):
     # returned by our FirstLevelDataset) or 2d (multiple voxels, as returned by the DataLoader)
     normed_predictions = predictions / predictions.norm(2, -1, True)
     normed_target = target / target.norm(2, -1, True)
-    # this isn't really necessary (all the values along that dimension should be identical, based
-    # on how we calculated it), but just in case. and this gets it in the right shape
-    precision = precision.mean(-1, True)
-    squared_error = precision * (normed_predictions - normed_target)**2
+    if weighted:
+        # this isn't really necessary (all the values along that dimension
+        # should be identical, based on how we calculated it), but just in
+        # case. and this gets it in the right shape
+        precision = precision.mean(-1, True)
+        squared_error = precision * (normed_predictions - normed_target)**2
+    else:
+        squared_error = (normed_predictions - normed_target)**2
     return squared_error.mean()
 
 
