@@ -937,6 +937,9 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         x = y
         y = x_copy
         aspect = 1/aspect
+        kwargs['sharex'] = False
+    else:
+        kwargs['sharey'] = False
     # facetgrid seems to ignore the defaults for these, but we want to use them
     # so its consistent with other figures
     gridspec_kws = {k: mpl.rcParams[f'figure.subplot.{k}']
