@@ -322,6 +322,9 @@ rule all_check_plots:
             subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config["DATA_DIR"], "derivatives", "first_level_binned", "stim_class", "bayesian_posterior", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_eccen_bin_full_data.svg").format(
             subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', 'stim_class', 'bayesian_posterior', '{subject}', '{session}', '{subject}_{session}_{task}_v1_e1-12_summary'
+                      '_{df_filter}_precision_check.png').format(subject=sub, session=ses, task=TASKS[(sub, ses)], df_filter=filt) for sub in SUBJECTS for ses in SESSIONS[sub]
+         for filt in ['filter', 'no-filter']]
 
 
 rule GLMdenoise_all_visual:
@@ -2112,7 +2115,28 @@ rule create_precision_df:
             df_filter_string = None
         df = sfp.figures.create_precision_df(input, summary_func, df_filter_string)
         df.to_csv(output[0], index=False)
-        
+
+
+rule precision_check_figure:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check.png'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check_benchmark.txt'),
+    run:
+        import sfp
+        import pandas as pd
+        if wildcards.df_filter == 'filter':
+            df_filter_string = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+        elif wildcards.df_filter == 'no-filter':
+            df_filter_string = None
+        fig = sfp.plotting.voxel_property_plot(pd.read_csv(input[0]), 'precision', df_filter_string=df_filter_string)
+        fig.savefig(output[0])
+
+
 
 def get_params_csv(wildcards):
     path_template = os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model',
