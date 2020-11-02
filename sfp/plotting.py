@@ -1693,9 +1693,12 @@ def voxel_property_plot(first_level_df, plot_property='precision', figsize=(10, 
     voxels = first_level_df.drop_duplicates('voxel')
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='polar')
+    size = voxels[plot_property].values.copy()
+    while size.max() < 50:
+        size *= 10
     c = ax.scatter(voxels.angle.values, voxels.eccen.values,
                    c=voxels[plot_property].values,
-                   alpha=.75, s=voxels[plot_property].values)
+                   alpha=.75, s=size)
     ax.set(ylim=(0, 12.5))
     plt.colorbar(c)
     return fig

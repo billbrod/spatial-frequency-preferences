@@ -135,6 +135,7 @@ wildcard_constraints:
     y_val="period|frequency",
     groupaverage="individual|sub-groupaverage",
     summary_func="mean|median",
+    df_filter="filter|no-filter",
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -324,7 +325,10 @@ rule all_check_plots:
             subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', 'stim_class', 'bayesian_posterior', '{subject}', '{session}', '{subject}_{session}_{task}_v1_e1-12_summary'
                       '_{df_filter}_precision_check.png').format(subject=sub, session=ses, task=TASKS[(sub, ses)], df_filter=filt) for sub in SUBJECTS for ses in SESSIONS[sub]
-         for filt in ['filter', 'no-filter'] if ses=='ses-04']
+         for filt in ['filter', 'no-filter'] if ses=='ses-04'],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                      "v1_e1-12_summary_b10_r0.001_g0_s0_{model_type}_cv_loss_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)], model_type=m) for sub in SUBJECTS
+         for ses in SESSIONS[sub] for m in ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso'] if ses=='ses-04'],
 
 
 rule GLMdenoise_all_visual:
@@ -2149,6 +2153,56 @@ rule precision_check_figure:
         g = sfp.plotting.voxel_property_joint(pd.read_csv(input[0]), 'hex', ['eccen', 'precision'], df_filter_string)
         g.fig.savefig(output[1])
 
+
+rule understand_loss_figure:
+    input:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_preds.pt"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                     '{mat_type}', '{atlas_type}', '{subject}', '{session}',
+                     '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss_{df_filter}_{loss_func}.png"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss_{df_filter}_{loss_func}_joint.png"),
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
+                     "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_loss_"
+                     "{df_filter}_{loss_func}_plot-%j.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
+                     "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_loss_"
+                     "{df_filter}_{loss_func}_plot-%j_benchmark.txt")
+    run:
+        import sfp
+        import torch
+        import pandas as pd
+        if wildcards.df_filter == 'filter':
+            df_filter_string = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+        elif wildcards.df_filter == 'no-filter':
+            df_filter_string = None
+        first_level_df = pd.read_csv(input[1])
+        if df_filter_string is not None:
+            df_filter = sfp.model.construct_df_filter(df_filter_string)
+            first_level_df = df_filter(first_level_df).reset_index()
+        voxels = first_level_df.drop_duplicates('voxel')
+        preds = torch.load(input[0])
+        loss = sfp.analyze_model._calc_loss(preds['predictions'], preds['targets'], wildcards.loss_func,
+                                            False)
+        voxels[wildcards.loss_func] = loss
+        fig = sfp.plotting.voxel_property_plot(voxels, wildcards.loss_func, df_filter_string=None)
+        fig.savefig(output[0])
+        g = sfp.plotting.voxel_property_joint(voxels, 'hex', ['eccen', wildcards.loss_func], None)
+        g.fig.savefig(output[1])
 
 
 def get_params_csv(wildcards):

@@ -685,7 +685,7 @@ def show_image(donut, voxel_eccentricity=1, voxel_angle=0, extent=(-5, 5), n_sam
     return ax
 
 
-def weighted_normed_loss(predictions, target, weighted=True):
+def weighted_normed_loss(predictions, target, weighted=True, average=True):
     """takes in the predictions and target, returns weighted norm loss
 
     note all of these must be tensors, not numpy arrays
@@ -694,6 +694,10 @@ def weighted_normed_loss(predictions, target, weighted=True):
 
     if we weren't multiplying by the precision, this would be equivalent to cosine distance (times
     a constant: num_classes / 2). set weighted=False to use this
+
+    if average is True, we return a single value (averaging across voxels and
+    stimulus classes). If average is False, we return the full `(n_voxels,
+    n_classes)` matrix
 
     """
     precision = target.select(-1, 1)
@@ -718,7 +722,9 @@ def weighted_normed_loss(predictions, target, weighted=True):
         squared_error = precision * (normed_predictions - normed_target)**2
     else:
         squared_error = (normed_predictions - normed_target)**2
-    return squared_error.mean()
+    if average:
+        squared_error = squared_error.mean()
+    return squared_error
 
 
 def construct_history_df(history, var_name='batch_num', value_name='loss'):

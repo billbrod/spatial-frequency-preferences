@@ -620,6 +620,72 @@ def collect_final_loss(paths):
     return pd.concat(df)
 
 
+def _calc_loss(preds, targets, loss_func, average=True):
+    """Compute loss from preds and targets.
+
+    Parameters
+    ----------
+    preds : torch.tensor
+        The torch tensor containing the predictions
+    targets : torch.tensor
+        The torch tensor containing the targets
+    loss_func : str
+        The loss function to compute. One of: {'weighted_normed_loss',
+        'crosscorrelation', 'normed_loss', 'explained_variance_score',
+        'cosine_distance', 'cosine_distance_scaled'}.
+    average : bool, optional
+        If True, we average the cv loss so we have only one value. If False, we
+        return one value per voxel.
+
+    Returns
+    -------
+    loss : array or float
+        The loss, either overall or per voxel.
+
+    """
+    if loss_func == 'crosscorrelation':
+        # targets[..., 0] contains the actual targets, targets[..., 1]
+        # contains the precision, unimportant right here
+        corr = np.corrcoef(targets[..., 0].cpu().detach().numpy(),
+                           preds.cpu().detach().numpy())
+        cv_loss = corr[0, 1]
+        if not average:
+            raise Exception("crosscorrelation must be averaged!")
+    elif 'normed_loss' in loss_func:
+        if loss_func.startswith('weighted'):
+            weighted = True
+        else:
+            weighted = False
+        cv_loss = sfp_model.weighted_normed_loss(preds, targets, weighted=weighted,
+                                                 average=average)
+        if not average:
+            cv_loss = cv_loss.cpu().detach().numpy().mean(1)
+        else:
+            cv_loss = cv_loss.item()
+    elif loss_func == 'explained_variance_score':
+        # targets[..., 0] contains the actual targets, targets[..., 1]
+        # contains the precision, unimportant right here
+        cv_loss = metrics.explained_variance_score(targets[..., 0].cpu().detach().numpy(),
+                                                   preds.cpu().detach().numpy(),
+                                                   multioutput='uniform_average')
+        if not average:
+            raise Exception("explained variance score must be averaged!")
+    elif loss_func.startswith('cosine_distance'):
+        cv_loss = metrics.pairwise.cosine_distances(targets[..., 0].cpu().detach().numpy(),
+                                                    preds.cpu().detach().numpy())
+        if loss_func.endswith('_scaled'):
+            # see paper / notebook for derivation, but I determined that
+            # our normed loss (without precision-weighting) is 2/n times
+            # the cosine distance (where n is the number of classes, 48 in
+            # our case, so that's equal to 1/24)
+            cv_loss *= 1/24
+        if average:
+            cv_loss = cv_loss.mean()
+        else:
+            cv_loss = cv_loss.mean(1)
+    return cv_loss
+
+
 def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
                   df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
     """Calculate cross-validated loss and save as new dataframe
@@ -692,31 +758,7 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
     for loss_func in ['weighted_normed_loss', 'crosscorrelation', 'normed_loss',
                       'explained_variance_score', 'cosine_distance',
                       'cosine_distance_scaled']:
-        if loss_func == 'crosscorrelation':
-            # targets[..., 0] contains the actual targets, targets[..., 1]
-            # contains the precision, unimportant right here
-            corr = np.corrcoef(targets[..., 0].cpu().detach().numpy(),
-                               preds.cpu().detach().numpy())
-            cv_loss = corr[0, 1]
-        elif loss_func == 'weighted_normed_loss':
-            cv_loss = sfp_model.weighted_normed_loss(preds, targets).item()
-        elif loss_func == 'normed_loss':
-            cv_loss = sfp_model.weighted_normed_loss(preds, targets, weighted=False).item()
-        elif loss_func == 'explained_variance_score':
-            # targets[..., 0] contains the actual targets, targets[..., 1]
-            # contains the precision, unimportant right here
-            cv_loss = metrics.explained_variance_score(targets[..., 0].cpu().detach().numpy(),
-                                                       preds.cpu().detach().numpy(),
-                                                       multioutput='uniform_average')
-        elif loss_func.startswith('cosine_distance'):
-            cv_loss = metrics.pairwise.cosine_distances(targets[..., 0].cpu().detach().numpy(),
-                                                        preds.cpu().detach().numpy()).mean()
-            if loss_func.endswith('_scaled'):
-                # see paper / notebook for derivation, but I determined that
-                # our normed loss (without precision-weighting) is 2/n times
-                # the cosine distance (where n is the number of classes, 48 in
-                # our case, so that's equal to 1/24)
-                cv_loss *= 1/24
+        cv_loss = _calc_loss(preds, targets, loss_func, True)
         data['loss_func'].append(loss_func)
         data['cv_loss'].append(cv_loss)
     data['dataset_df_path'] = dataset_path
