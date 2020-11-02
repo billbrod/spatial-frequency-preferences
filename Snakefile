@@ -1295,7 +1295,11 @@ rule calc_cv_error:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                      "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
                      "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
-                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv")
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_preds.pt"),
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
                      "{task}_{mat_type}_{atlas_type}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
@@ -1643,6 +1647,12 @@ rule calc_simulated_cv_error:
                      "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
                      "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
                      "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss.csv"),
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_simulated", "{noise_source}",
+                     "{modeling_goal}", "n{num_voxels}_{sim_model_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_"
+                     "rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_"
+                     "rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_"
+                     "aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_"
+                     "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_preds.pt"),
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_simulated_cv_loss",
                      "noise-{noise_source}_{modeling_goal}_n{num_voxels}_{sim_model_type}_s{sigma}_"

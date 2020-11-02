@@ -637,6 +637,8 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
     loss, as well as other identifying information, and save it at the
     specified path.
 
+    We also save out the predictions and targets tensors.
+
     The arguments for this function are a bit strange because it's
     expressly meant to be called by a snakemake rule and not directly
     from a python interpreter (it gets called by the rules calc_cv_error
@@ -657,8 +659,8 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
         (e.g., subject, session, crossvalidation seed, model type,
         etc). Automatically put together by snakemake
     outputs : list
-        list containing a single str, the path to save this dataframe at
-        (as a csv)
+        list containing two strings, the paths to save the loss dataframe (as a
+        csv) and the predictions / targets tensors (as a pt)
     df_filter_string : str or None, optional
         a str specifying how to filter the voxels in the dataset. see
         the docstrings for sfp.model.FirstLevelDataset and
@@ -682,12 +684,14 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
         test_subset = [int(i) for i in test_subset[0].split(',')]
         pred = m(features[:, test_subset, :])
         preds[:, test_subset] = pred
+    torch.save({'predictions': preds, 'targets': targets}, outputs[1])
     data = dict(wildcards)
     data.pop('model_type')
     data['loss_func'] = []
     data['cv_loss'] = []
     for loss_func in ['weighted_normed_loss', 'crosscorrelation', 'normed_loss',
-                      'explained_variance_score']:
+                      'explained_variance_score', 'cosine_distance',
+                      'cosine_distance_scaled']:
         if loss_func == 'crosscorrelation':
             # targets[..., 0] contains the actual targets, targets[..., 1]
             # contains the precision, unimportant right here
@@ -704,6 +708,15 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
             cv_loss = metrics.explained_variance_score(targets[..., 0].cpu().detach().numpy(),
                                                        preds.cpu().detach().numpy(),
                                                        multioutput='uniform_average')
+        elif loss_func.startswith('cosine_distance'):
+            cv_loss = metrics.pairwise.cosine_distances(targets[..., 0].cpu().detach().numpy(),
+                                                        preds.cpu().detach().numpy()).mean()
+            if loss_func.endswith('_scaled'):
+                # see paper / notebook for derivation, but I determined that
+                # our normed loss (without precision-weighting) is 2/n times
+                # the cosine distance (where n is the number of classes, 48 in
+                # our case, so that's equal to 1/24)
+                cv_loss *= 1/24
         data['loss_func'].append(loss_func)
         data['cv_loss'].append(cv_loss)
     data['dataset_df_path'] = dataset_path

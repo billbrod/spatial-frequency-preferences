@@ -1012,7 +1012,9 @@ def cross_validation_raw(df, seed, noise_ceiling_df=None, orient='v', context='p
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
         df = pd.merge(df, noise_ceiling_df, 'outer', on=merge_cols, suffixes=['_cv', '_noise'])
-    g = _catplot(df.query('loss_func in ["weighted_normed_loss", "normed_loss"]'), legend=False, height=height, s=s, x_rotate=True, orient=orient, col='loss_func')
+    g = _catplot(df.query('loss_func in ["weighted_normed_loss", "normed_loss", "cosine_distance_scaled"]'),
+                 legend=False, height=height, s=s, x_rotate=True, orient=orient,
+                 col='loss_func')
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'subject', 'loss')
     g.fig.suptitle("Cross-validated loss across subjects")
@@ -1154,7 +1156,8 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df.query('loss_func in ["weighted_normed_loss", "normed_loss"]'), x='fit_model_type', y=f'{name}_cv_loss', hue=hue, col='loss_func',
+    g = _catplot(df.query('loss_func in ["weighted_normed_loss", "normed_loss", "cosine_distance_scaled"]'),
+                 x='fit_model_type', y=f'{name}_cv_loss', hue=hue, col='loss_func',
                  plot_kind=plot_kind, height=height, aspect=aspect, orient=orient,
                  legend=legend)
     title = f"{name.capitalize()} cross-validated loss across model types"
