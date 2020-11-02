@@ -324,7 +324,7 @@ rule all_check_plots:
             subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', 'stim_class', 'bayesian_posterior', '{subject}', '{session}', '{subject}_{session}_{task}_v1_e1-12_summary'
                       '_{df_filter}_precision_check.png').format(subject=sub, session=ses, task=TASKS[(sub, ses)], df_filter=filt) for sub in SUBJECTS for ses in SESSIONS[sub]
-         for filt in ['filter', 'no-filter']]
+         for filt in ['filter', 'no-filter'] if ses=='ses-04']
 
 
 rule GLMdenoise_all_visual:
@@ -2122,6 +2122,7 @@ rule precision_check_figure:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv'),
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check.png'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_joint.png'),
     log:
         os.path.join(config['DATA_DIR'], 'code', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check.log'),
     benchmark:
@@ -2135,6 +2136,8 @@ rule precision_check_figure:
             df_filter_string = None
         fig = sfp.plotting.voxel_property_plot(pd.read_csv(input[0]), 'precision', df_filter_string=df_filter_string)
         fig.savefig(output[0])
+        g = sfp.plotting.voxel_property_joint(pd.read_csv(input[0]), 'hex', ['eccen', 'precision'], df_filter_string)
+        g.fig.savefig(output[1])
 
 
 

@@ -1652,6 +1652,7 @@ def flat_cortex_plot(freesurfer_sub, plot_property, output_path=None, mask=None)
         fig.savefig(output_path)
     return fig
 
+
 def voxel_property_plot(first_level_df, plot_property='precision', figsize=(10, 10),
                         df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
     """Plot a voxel property (as size and color) on polar plot.
@@ -1698,6 +1699,52 @@ def voxel_property_plot(first_level_df, plot_property='precision', figsize=(10, 
     ax.set(ylim=(0, 12.5))
     plt.colorbar(c)
     return fig
+
+
+def voxel_property_joint(first_level_df, plot_kind='hex',
+                         plot_properties=['eccen', 'precision'],
+                         df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
+    """Plot a joint distribution plot (sns.jointplot) of two voxel properties.
+
+    Must be a property that each voxel has a unique value for (like precision);
+    if it's a property that voxel shav emultiple values for (like
+    amplitude_estimate), this plot will be misleading, because we drop all rows
+    that have duplicate values for voxel
+
+    df_filter_string can be used to filter the voxels we examine, so
+    that we look only at those voxels that the model was fit to
+
+    Parameters
+    ----------
+    first_level_df : pd.DataFrame
+        DataFrame containing the outputs of first level analysis. Contains
+        voxels with their angle, eccentricity, and several properties
+    plot_properties : list, optional
+        list of strs, each of which is a the voxel property to plot and thus
+        must be a column in first_level_df
+    plot_kind : str, optional
+        type of plot to use for joint plot. see sns.jointplot docstring for
+        details
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Should probably use the default, which is what all
+        models are trained using.
+
+    Returns
+    -------
+    g : sns.JointGrid
+        JointGrid containing the figure with the plot
+
+    """
+    if df_filter_string is not None:
+        df_filter = sfp_model.construct_df_filter(df_filter_string)
+        first_level_df = df_filter(first_level_df).reset_index()
+    voxels = first_level_df.drop_duplicates('voxel')
+    g = sns.jointplot(x=plot_properties[0], y=plot_properties[1], data=voxels,
+                      kind=plot_kind)
+    return g
 
 
 def _parse_save_path_for_kwargs(save_path):
