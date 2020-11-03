@@ -1365,7 +1365,7 @@ rule summarize_model_cv:
                      "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_benchmark.txt")
     params:
         base_path = lambda wildcards, input: os.path.join(os.path.dirname(input.loss_files[0]),
-                                                          '*c*.pt'),
+                                                          '*c*model.pt'),
         metadata = ["mat_type", 'atlas_type', 'modeling_goal', 'subject', 'session', 'task',
                     'fit_model_type', 'test_subset'],
     run:
@@ -1751,7 +1751,7 @@ rule summarize_simulated_cv:
                      "g{gpus}_s{crossval_seed}_benchmark.txt")
     params:
         base_path = lambda wildcards, input: os.path.join(os.path.dirname(input.loss_files[0]),
-                                                          "*c*.pt"),
+                                                          "*c*model.pt"),
         metadata = ['modeling_goal', 'batch_size', 'learning_rate', 'fit_model_type',
                     'true_model_type', 'test_subset']
     run:

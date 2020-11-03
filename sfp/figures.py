@@ -1024,7 +1024,7 @@ def cross_validation_raw(df, seed, noise_ceiling_df=None, orient='v', context='p
         g.set(xlabel="Cross-validated loss", ylabel="Subject")
     g.add_legend()
     g._legend.set_title("Model type")
-    ylims = [(0, .045), (0, .0022)]
+    ylims = [(0, .045), (0, .0022), (0, .0022)]
     for i, ax in enumerate(g.axes.flatten()):
         ax.set(ylim=ylims[i])
     return g

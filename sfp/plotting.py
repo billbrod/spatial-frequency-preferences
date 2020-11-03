@@ -1749,7 +1749,7 @@ def voxel_property_joint(first_level_df, plot_kind='hex',
         first_level_df = df_filter(first_level_df).reset_index()
     voxels = first_level_df.drop_duplicates('voxel')
     g = sns.jointplot(x=plot_properties[0], y=plot_properties[1], data=voxels,
-                      kind=plot_kind)
+                      kind=plot_kind, **kwargs)
     return g
 
 
