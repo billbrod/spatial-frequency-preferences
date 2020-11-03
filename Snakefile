@@ -2150,7 +2150,8 @@ rule precision_check_figure:
             df_filter_string = None
         fig = sfp.plotting.voxel_property_plot(pd.read_csv(input[0]), 'precision', df_filter_string=df_filter_string)
         fig.savefig(output[0])
-        g = sfp.plotting.voxel_property_joint(pd.read_csv(input[0]), 'hex', ['eccen', 'precision'], df_filter_string)
+        g = sfp.plotting.voxel_property_joint(pd.read_csv(input[0]), 'reg', ['eccen', 'precision'], df_filter_string,
+                                              x_bins=20, x_estimator=np.median)
         g.fig.savefig(output[1])
 
 
@@ -2201,7 +2202,8 @@ rule understand_loss_figure:
         voxels[wildcards.loss_func] = loss
         fig = sfp.plotting.voxel_property_plot(voxels, wildcards.loss_func, df_filter_string=None)
         fig.savefig(output[0])
-        g = sfp.plotting.voxel_property_joint(voxels, 'hex', ['eccen', wildcards.loss_func], None)
+        g = sfp.plotting.voxel_property_joint(voxels, 'reg', ['eccen', wildcards.loss_func], None, x_bins=20,
+                                              x_estimator=np.median)
         g.fig.savefig(output[1])
 
 

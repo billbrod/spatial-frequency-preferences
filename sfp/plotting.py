@@ -1706,7 +1706,8 @@ def voxel_property_plot(first_level_df, plot_property='precision', figsize=(10, 
 
 def voxel_property_joint(first_level_df, plot_kind='hex',
                          plot_properties=['eccen', 'precision'],
-                         df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
+                         df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border',
+                         **kwargs):
     """Plot a joint distribution plot (sns.jointplot) of two voxel properties.
 
     Must be a property that each voxel has a unique value for (like precision);
@@ -1734,6 +1735,8 @@ def voxel_property_joint(first_level_df, plot_kind='hex',
         sfp.model.construct_df_filter for more details. If None, we
         won't filter. Should probably use the default, which is what all
         models are trained using.
+    kwargs :
+        passed to sns.jointplot
 
     Returns
     -------
