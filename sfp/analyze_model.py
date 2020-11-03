@@ -98,7 +98,8 @@ def combine_models(base_path_template, load_results_df=True, groupaverage=False)
         if not groupaverage and 'sub-groupaverage' in p:
             continue
         path_stem = (p.replace('_loss.csv', '').replace('_model.pt', '')
-                     .replace('_results_df.csv', '').replace('_model_history.csv', ''))
+                     .replace('_results_df.csv', '').replace('_model_history.csv', '')
+                     .replace('_preds.pt', ''))
         # we do this to make sure we're not loading in the outputs of a model twice (by finding
         # both its loss.csv and its results_df.csv, for example)
         if path_stem in path_stems:
