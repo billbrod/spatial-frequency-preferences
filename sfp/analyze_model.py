@@ -674,6 +674,12 @@ def _calc_loss(preds, targets, loss_func, average=True):
     elif loss_func.startswith('cosine_distance'):
         cv_loss = metrics.pairwise.cosine_distances(targets[..., 0].cpu().detach().numpy(),
                                                     preds.cpu().detach().numpy())
+        # for some reason, this returns a matrix of distances, giving the
+        # distance between each sample in X and Y. in our case, that means the
+        # distance between the targets of each voxel and the prediction of each
+        # voxel. We just want the diagonal, which is the distance between
+        # voxel's target and its own predictions
+        cv_loss = np.diag(cv_loss)
         if loss_func.endswith('_scaled'):
             # see paper / notebook for derivation, but I determined that
             # our normed loss (without precision-weighting) is 2/n times
@@ -682,8 +688,6 @@ def _calc_loss(preds, targets, loss_func, average=True):
             cv_loss *= 1/24
         if average:
             cv_loss = cv_loss.mean()
-        else:
-            cv_loss = cv_loss.mean(1)
     return cv_loss
 
 
