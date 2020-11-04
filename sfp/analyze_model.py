@@ -683,9 +683,8 @@ def _calc_loss(preds, targets, loss_func, average=True):
         if loss_func.endswith('_scaled'):
             # see paper / notebook for derivation, but I determined that
             # our normed loss (without precision-weighting) is 2/n times
-            # the cosine distance (where n is the number of classes, 48 in
-            # our case, so that's equal to 1/24)
-            cv_loss *= 1/24
+            # the cosine distance (where n is the number of classes)
+            cv_loss = cv_loss * (2/preds.shape[-1])
         if average:
             cv_loss = cv_loss.mean()
     return cv_loss
