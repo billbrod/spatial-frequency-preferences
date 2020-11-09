@@ -129,6 +129,36 @@ def create_circle_mask(x, y, rad, size):
     return mask
 
 
+def create_ecc_mask(ecc_range, size, max_visual_angle):
+    """Create mask selecting range of eccentricities.
+
+    Note this only works for square images.
+
+    Parameters
+    ----------
+    ecc_range : tuple
+        2-tuple of floats specifying the eccentricity of the internal and
+        external edges (in that order) of this mask, in degrees.
+    size : int
+        Height/width of the mask, in pixels.
+    max_visual_angle : float
+        Height/width of the mask, in degrees.
+
+    Returns
+    -------
+    mask : np.ndarray
+        2d boolean array containing the mask for this eccentricity range.
+
+    """
+    if ecc_range[0] >= ecc_range[1]:
+        raise Exception("ecc_range[1] must be strictly greater than ecc_range[0]!")
+    ppd = float(size) / max_visual_angle
+    origin = ((size+1) / 2., (size+1) / 2.)
+    min_mask = create_circle_mask(*origin, ecc_range[0]*ppd, size)
+    max_mask = create_circle_mask(*origin, ecc_range[1]*ppd, size)
+    return np.logical_and(max_mask.astype(bool), ~min_mask.astype(bool))
+
+
 def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     """mask array_to_mask the way that masked has been masked
 

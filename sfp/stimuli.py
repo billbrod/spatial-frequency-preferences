@@ -495,6 +495,124 @@ def create_sf_origin_polar_maps_cpd(size, max_visual_angle, origin=None, scale_f
     return dr, da, new_angle
 
 
+def find_presented_sfs(w_r, w_a, ecc_step=1, ecc_range=(1, 12), size=1080,
+                       max_visual_angle=24, stimulus_mask=None,
+                       ecc_masks=None):
+    """Find the average spatial frequency presented in eccentricity bands for given stimulus.
+
+    Only works on square images.
+
+    Parameters
+    ----------
+    w_r, w_a : float
+        The radial and angular frequencies of the stimulus
+    ecc_step : float, optional
+        The width of the eccentricity band, in degrees
+    ecc_range : tuple, optional
+        The 2-tuple of floats giving the minimum and maximum eccentricity to
+        check.
+    size : int, optional
+        Height/width of the mask, in pixels. Default is for the setup used in
+        this experiment.
+    max_visual_angle : float, optional
+        Height/width of the mask, in degrees. Default is for the setup used in
+        this experiment.
+    stimulus_mask : np.ndarray or None, optional
+        The mask applied to each stimulus to block out the aliasing at the
+        center of the stimulus and the extra bits around the edge. If not None,
+        will mask out those parts of the spatial frequency map. Note this means
+        you may end up with some eccentricity bands with 0 spatial frequency
+        (if they lie totally within the masked region).
+    ecc_masks : np.ndarray or None, optional
+        The masks created by sf.utils.create_ecc_mask that define the
+        eccentricity bands. If None, we create them here.
+
+    Returns
+    -------
+    spatial_frequencies : np.ndarray
+        1d array of floats containing the average spatial frequency in each
+        eccentricity band for the specified stimulus.
+
+    """
+    if ecc_masks is None:
+        ecc_masks = []
+        for e in np.arange(*ecc_range, ecc_step):
+            ecc_masks.append(utils.create_ecc_mask((e, e+ecc_step), size, max_visual_angle))
+        ecc_masks = np.dstack(ecc_masks).transpose(2, 0, 1)
+    if stimulus_mask is not None:
+        ecc_masks = stimulus_mask * ecc_masks
+    ecc_masks = ecc_masks.astype(bool)
+    _, _, mag, _ = create_sf_maps_cpd(size, max_visual_angle, w_r=w_r, w_a=w_a)
+    sfs = []
+    for mask in ecc_masks:
+        sfs.append(mag[mask].mean())
+    return np.array(sfs)
+
+
+def find_all_presented_sfs(stim_df, ecc_step=1, ecc_range=(1, 12), size=1080,
+                           max_visual_angle=24, stimulus_mask=None):
+    """Find average spatial frequency presented in eccentricity bands for each stimulus.
+
+    Only works on square images.
+
+    Returns a dataframe with the average spatial frequency presented in
+    user-specified eccentricity bands. In addition to w_r, w_a, and
+    spatial_frequency columns, contains an eccentricity column with the center
+    of each band, as well as additional columns for stimulus_superclass,
+    freq_space_angle, and freq_space_distance.
+
+    Parameters
+    ----------
+    stim_df : pd.DataFrame
+        DataFrame containing the w_r, w_a for each presented stimulus, as
+        created and saved by _create_stim function (or main)
+    ecc_step : float, optional
+        The width of the eccentricity band, in degrees
+    ecc_range : tuple, optional
+        The 2-tuple of floats giving the minimum and maximum eccentricity to
+        check.
+    size : int, optional
+        Height/width of the mask, in pixels. Default is for the setup used in
+        this experiment.
+    max_visual_angle : float, optional
+        Height/width of the mask, in degrees. Default is for the setup used in
+        this experiment.
+    stimulus_mask : np.ndarray or None, optional
+        The mask applied to each stimulus to block out the aliasing at the
+        center of the stimulus and the extra bits around the edge. If not None,
+        will mask out those parts of the spatial frequency map. Note this means
+        you may end up with some eccentricity bands with 0 spatial frequency
+        (if they lie totally within the masked region).
+
+    Returns
+    -------
+    spatial_frequencies : pd.DataFrame
+        DataFrame containing the average spatial frequency presented in each
+        eccentricity band.
+
+    """
+    ecc_masks = []
+    for e in np.arange(*ecc_range, ecc_step):
+        ecc_masks.append(utils.create_ecc_mask((e, e+ecc_step), size, max_visual_angle))
+    ecc_masks = np.dstack(ecc_masks).transpose(2, 0, 1)
+    if stimulus_mask is not None:
+        ecc_masks = stimulus_mask * ecc_masks
+    freqs = stim_df.drop_duplicates(['w_r', 'w_a']).dropna()[['w_r', 'w_a']]
+    df = []
+    # center of each eccentricity band
+    eccs = np.arange(*ecc_range, ecc_step) + ecc_step/2
+    for i, data in freqs.iterrows():
+        data = data.to_dict()
+        sfs = find_presented_sfs(**data, ecc_step=ecc_step,
+                                 ecc_range=ecc_range, size=size,
+                                 max_visual_angle=max_visual_angle,
+                                 ecc_masks=ecc_masks)
+        data.update({'spatial_frequency': sfs, 'eccentricity': eccs})
+        df.append(pd.DataFrame(data))
+    df = pd.concat(df).reset_index(drop=True)
+    return first_level_analysis._add_freq_metainfo(df)
+
+
 def create_antialiasing_mask(size, w_r=0, w_a=0, origin=None, number_of_fade_pixels=3,
                              scale_factor=1):
     """Create mask to hide aliasing

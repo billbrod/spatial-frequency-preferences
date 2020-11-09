@@ -417,7 +417,8 @@ rule rescaled_stimuli:
         "data/stimuli/task-sfprescaled_stimuli.npy",
         "data/stimuli/task-sfprescaled_stim_description.csv",
         "data/stimuli/task-sfpconstantrescaled_stimuli.npy",
-        "data/stimuli/task-sfpconstantrescaled_stim_description.csv"
+        "data/stimuli/task-sfpconstantrescaled_stim_description.csv",
+        "data/stimuli/antialiasing_mask.npy",
     params:
         stim_name = lambda wildcards: os.path.split(wildcards.output[0])[-1],
         csv_name = lambda wildcards: os.path.split(wildcards.output[1])[-1],
@@ -445,6 +446,24 @@ rule stimuli_idx:
         "python -m sfp.stimuli --subject_name {wildcards.subject}_{wildcards.session}"
         " -i -s {params.seed}"
 
+
+rule presented_spatial_frequency:
+    input:
+        os.path.join(config['DATA_DIR'], 'stimuli', 'antialiasing_mask.npy'),
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stim_description.csv')
+    output:
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_presented_frequencies.csv'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'stimuli', '{task}_presented_frequencies.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'stimuli', '{task}_presented_frequencies_benchmark.txt'),
+    run:
+        import sfp
+        import numpy as np
+        import pandas as pd
+        df = sfp.stimuli.find_all_presented_sfs(pd.read_csv(input[1]),
+                                                stimulus_mask=np.load(input[0]))
+        df.to_csv(output[0])
 
 # we assume the prf solutions and freesurfer have been computed
 # separately and copy them in here.
@@ -2489,6 +2508,31 @@ rule compose_figures:
         elif '2d_summary' in wildcards.figure_name:
             sfp.compose_figures.feature_df_summary(input[:3], input[3:],
                                                    output[0], wildcards.context)
+
+rule presented_spatial_frequency_plot:
+    input:
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_presented_frequencies.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', '{task}_presented_frequencies.svg'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_presented_frequencies_svg.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_presented_frequencies_svg_benchmark.txt'),
+    run:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import pandas as pd
+        import sfp
+        df = pd.read_csv(input[0])
+        plot_params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
+        plt.style.use(plot_params)
+        fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width))
+        sns.lineplot(x='eccentricity', y='spatial_frequency',
+                     hue='freq_space_distance', data=df)
+        ax.set(yscale='log', ylabel='Presented spatial frequency (cpd)', xlabel='Eccentricity (deg)')
+        # turn the legend off
+        ax.legend_.set_visible(False)
+        fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_mtf:
