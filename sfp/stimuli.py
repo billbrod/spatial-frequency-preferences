@@ -875,12 +875,17 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     be 10 blank trials per session, pseudo-randomly interspersed (these will be represented as
     arrays full of 0s; there will never be two blank trials in a row).
 
-    The actual stimuli will be saved as {stimuli_name} in the output_dir, while the indices
-    necessary to shuffle it will be saved at {subj}_run_00_idx.npy through {subj}_run_11_idx.npy. A
-    description of the stimuli properties, in the order found in unshuffled, is saved at
-    {stimuli_description_csv_name} in the output folder, as a pandas DataFrame. In order to view
-    the properties of a shuffled one, load that DataFrame in as df, and the index as idx, then call
-    df.iloc[idx]
+    The actual stimuli will be saved as {stimuli_name} in the output_dir, while
+    the indices necessary to shuffle it will be saved at {subj}_run_00_idx.npy
+    through {subj}_run_11_idx.npy. A description of the stimuli properties, in
+    the order found in unshuffled, is saved at {stimuli_description_csv_name}
+    in the output folder, as a pandas DataFrame. In order to view the
+    properties of a shuffled one, load that DataFrame in as df, and the index
+    as idx, then call df.iloc[idx]. Similarly, we save the paired constant
+    stimulus (standard full-field gratings) and the anti-aliasing mask, at
+    {stimuli_name}.replace('task-sfp', 'task-sfpconstant') and
+    {stimuli_name}.replace('task-sfp_stimuli', 'antialiasing_mask'),
+    respectively
 
     NOTE: We create and hold in memory several large arrays full of floats (6 arrays of shape (464,
     1080, 1080)), because we convert them to 8-bit integers (np.uint8) after all of them has been
@@ -904,7 +909,8 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
     exception. Similarly if create_stim is True and either the stimuli .npy file or the descriptive
     dataframe .csv file
 
-    returns the (un-shuffled) stimuli and the (un-shuffled) constant stimuli, for inspection.
+    returns the (un-shuffled) stimuli, the (un-shuffled) constant stimuli, and
+    the anti-aliasing mask, for inspection.
 
     """
     if 'task-sfp' not in stimuli_name:
@@ -1010,7 +1016,9 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
         np.save(os.path.join(output_dir, stimuli_name), stim)
         np.save(os.path.join(output_dir, stimuli_name.replace('task-sfp', 'task-sfpconstant')),
                 constant_stim)
-        return stim, constant_stim
+        np.save(os.path.join(output_dir, stimuli_name.replace('task-sfp_stimuli', 'antialiasing_mask')),
+                mask)
+        return stim, constant_stim, mask
 
 
 if __name__ == '__main__':

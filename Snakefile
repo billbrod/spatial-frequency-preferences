@@ -405,6 +405,7 @@ rule stimuli:
         "data/stimuli/task-sfp_stim_description.csv",
         "data/stimuli/task-sfpconstant_stimuli.npy",
         "data/stimuli/task-sfpconstant_stim_description.csv"
+        "data/stimuli/antialiasing_mask.npy",
     shell:
         "python -m sfp.stimuli -c"
 
