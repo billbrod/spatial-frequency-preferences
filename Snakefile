@@ -463,7 +463,7 @@ rule presented_spatial_frequency:
         import pandas as pd
         df = sfp.stimuli.find_all_presented_sfs(pd.read_csv(input[1]),
                                                 stimulus_mask=np.load(input[0]))
-        df.to_csv(output[0])
+        df.to_csv(output[0], index=False)
 
 # we assume the prf solutions and freesurfer have been computed
 # separately and copy them in here.
