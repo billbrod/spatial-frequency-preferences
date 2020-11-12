@@ -329,6 +329,9 @@ rule all_check_plots:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
                       "v1_e1-12_summary_b10_r0.001_g0_s0_{model_type}_cv_loss_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)], model_type=m) for sub in SUBJECTS
          for ses in SESSIONS[sub] for m in ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso'] if ses=='ses-04'],
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
+                      "v1_e1-12_summary_b10_r0.001_g0_s0_cv_loss_comp_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS
+         for ses in SESSIONS[sub] if ses=='ses-04'],
 
 
 rule GLMdenoise_all_visual:
@@ -2118,6 +2121,61 @@ rule figure_crossvalidation:
                                                    orient=wildcards.orient,
                                                    context=wildcards.context)
         g.fig.savefig(output[0], bbox_inches='tight')
+
+
+rule crossval_comparison_figures:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                     '{mat_type}', '{atlas_type}', '{subject}', '{session}',
+                     '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv'),
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                      "r{learning_rate}_g{gpus}_s{crossval_seed}_%s_cv_preds.pt") % model for
+         model in ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso']],
+    output:
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_cv_loss_comp_"
+                     "{df_filter}_{loss_func}.png"),
+        [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_cv_loss_comp_"
+                      "{df_filter}_{loss_func}_voxels-%s.png") % i for i in range(6)],
+    log:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_voxel_comp", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_cv_loss_comp_"
+                     "{df_filter}_{loss_func}-%j.log"),
+    benchmark:
+        os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_voxel_comp", "{mat_type}",
+                     "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
+                     "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_cv_loss_comp_"
+                     "{df_filter}_{loss_func}_benchmark.txt"),
+    run:
+        import sfp
+        import torch
+        import pandas as pd
+        if wildcards.df_filter == 'filter':
+            df_filter_string = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+        elif wildcards.df_filter == 'no-filter':
+            df_filter_string = None
+        first_level_df = pd.read_csv(input[0])
+        preds = []
+        for i in input[1:]:
+            tmp = torch.load(i)
+            preds.append(tmp['predictions'])
+        figs = sfp.figures.compare_cv_models(first_level_df, tmp['targets'], preds,
+                                             ['constant', 'scaling', 'full'],
+                                             wildcards.loss_func, df_filter_string)
+        for f, o in zip(figs, output):
+            f.savefig(o, bbox_inches='tight')
+
+
 
 
 def get_first_level_files(wildcards):

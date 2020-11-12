@@ -2,11 +2,13 @@
 """functions to create the figures for publication
 """
 import seaborn as sns
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pandas as pd
 import re
+import itertools
 from . import summary_plots
 from . import analyze_model
 from . import plotting
@@ -1908,7 +1910,6 @@ def mtf(mtf_func, context='paper'):
     mtf_func : function
         python function that takes array of spatial frequencies as its only
         argument and returns the MTF at those spatial frequencies.
-
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -1967,3 +1968,148 @@ def sigma_interpretation(df):
         "All this is calculated using the median across bootstraps, average across polar angle and orientations."
     )
     return result
+
+
+def compare_cv_models(first_level_df, targets, predictions, model_names, loss_func='normed_loss',
+                      df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border',
+                      context='paper', voxel_n_check=9):
+    """Create plots to help understand differences in model performance.
+
+    This creates several plots to compare the predictions of different models.
+    We make pairwise comparisons between each of them:
+
+    1. Plot pairwise difference in loss as a function of eccentricity (each
+       comparison on a separate row) (1 plot).
+
+    2. Plot the `voxel_n_check` voxels that are the best for each model in each
+       pairwise comparison (2 plots per pairwise comparison). We plot the voxel
+       response as a function of spatial frequency, and then curves for each
+       model. This means that we're collapsing across stimulus orientation
+       (variation in those responses just shown as confidence intervals).
+
+    Because we're only plotting response as a function of spatial frequency
+    (and not of stimulus orientation), this is really only sufficient for
+    comparing models 1 to 3, those models whose responses are isotropic.
+    Modification to this would be necessary to make informative plots for the
+    other models.
+
+    Parameters
+    ----------
+    first_level_df : pd.DataFrame
+        DataFrame containing the responses of each voxel to each stimulus. Note
+        that we only use the median response, so the summary dataframe (vs
+        full, which includes separate bootstraps) should be used.
+    targets : torch.tensor
+        tensor containing the targets for the model, i.e., the responses and
+        precision of the voxels-to-fit, as saved out by
+        sfp.analyze_model.calc_cv_error
+    predictions : list
+        list of tensors containing the predictions for each model, as saved out
+        by sfp.analyze_model.calc_cv_error
+    model_names : list
+        list of strings containing the names (for plotting purposes) of each
+        model, in same order as predictions.
+    loss_func : str, optional
+        The loss function to compute. One of: {'weighted_normed_loss',
+        'crosscorrelation', 'normed_loss', 'explained_variance_score',
+        'cosine_distance', 'cosine_distance_scaled'}.
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Should probably use the default, which is what all
+        models are trained using.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
+    voxel_n_check : int, optional
+        Number of voxels to plot in second plot type. As you get farther away
+        from default value (9), more likely that plot will look weird.
+
+    Returns
+    -------
+    figs : list
+        List containing the created figures
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    if df_filter_string is not None:
+        df_filter = model.construct_df_filter(df_filter_string)
+        first_level_df = df_filter(first_level_df)
+    voxels = first_level_df.drop_duplicates('voxel')
+    voxels['voxel_new'] = np.arange(len(voxels))
+    tmp = first_level_df.set_index('voxel')
+    tmp['voxel_new'] = voxels['voxel_new']
+    first_level_df = tmp.reset_index()
+    for name, pred in zip(model_names, predictions):
+        loss = analyze_model._calc_loss(pred, targets, loss_func, False)
+        voxels[f'{name}_loss'] = loss
+    # this is the number of combinations of the values in model names with
+    # length 2. for some reason, itertools objects don't have len()
+    n_combos = int(math.factorial(len(model_names)) / 2 /
+                   math.factorial(len(model_names)-2))
+    fig, axes = plt.subplots(n_combos, 2, squeeze=False,
+                             figsize=(fig_width, n_combos/2*fig_width))
+    predictions = dict(zip(model_names, predictions))
+    voxel_comp_figs = []
+    for i, (name_1, name_2) in enumerate(itertools.combinations(model_names, 2)):
+        loss_name = f'{name_1}_loss - {name_2}_loss'
+        voxels[loss_name] = voxels[f'{name_1}_loss'] - voxels[f'{name_2}_loss']
+        ymax = voxels[loss_name].max() + voxels[loss_name].max() / 10
+        ymin = voxels[loss_name].min() + voxels[loss_name].min() / 10
+        sns.scatterplot(x='eccen', y=loss_name, data=voxels, ax=axes[i, 0])
+        axes[i, 0].set_ylim(ymin, ymax)
+        sns.regplot(x='eccen', y=loss_name, data=voxels, ax=axes[i, 1],
+                    x_estimator=np.median, x_bins=50)
+        axes[i, 1].set(ylabel='')
+        axes[i, 0].hlines(0, voxels.eccen.min(), voxels.eccen.max(), linestyles='dashed')
+        axes[i, 1].hlines(0, voxels.eccen.min(), voxels.eccen.max(), linestyles='dashed')
+
+        vox_idx = voxels[loss_name].values.argsort()
+        vox_idx = np.concatenate([vox_idx[-voxel_n_check:], vox_idx[:voxel_n_check]])
+
+        tmp = first_level_df.query(f"voxel_new in @vox_idx")
+
+        data = []
+        for j, v in enumerate(vox_idx):
+            d = {}
+            for name in model_names:
+                pred = predictions[name]
+                val = pred[v]
+                # need to normalize predictions for comparison
+                val = val / val.norm(2, -1, True)
+                d[name] = val.detach()
+            d['voxel_new'] = v
+            d['stimulus_class'] = np.arange(48)
+            d['better_model'] = {True: name_2, False: name_1}[j < voxel_n_check]
+            data.append(pd.DataFrame(d))
+        t = pd.concat(data)
+
+        tmp = tmp.merge(t, 'left', on=['voxel_new', 'stimulus_class'],
+                        validate='1:1', )
+        tmp = tmp.rename(columns={'amplitude_estimate_median_normed':
+                                  'voxel_response'})
+        tmp = pd.melt(tmp, ['voxel_new', 'local_sf_magnitude', 'stimulus_class',
+                            'better_model', 'eccen'],
+                      value_vars=['voxel_response'] + model_names,
+                      var_name='model', value_name='response')
+        for name, other_name in zip([name_1, name_2], [name_2, name_1]):
+            g = sns.relplot(x='local_sf_magnitude', y='response',
+                            data=tmp.query(f"better_model=='{name}'"),
+                            hue='model', col='voxel_new', kind='line',
+                            col_wrap=3, height=fig_width/3)
+            g.fig.suptitle(f'better_model = {name} (vs {other_name})')
+            if voxel_n_check > 6:
+                g.fig.subplots_adjust(top=.9)
+            elif voxel_n_check > 3:
+                g.fig.subplots_adjust(top=.85)
+            else:
+                g.fig.subplots_adjust(top=.75)
+            g.set(xscale='log')
+            for ax in g.axes.flatten():
+                vox_id = int(re.findall('\d+', ax.get_title())[0])
+                ax.set_title(ax.get_title() + f",\neccen = {tmp.query('voxel_new==@vox_id').eccen.unique()[0]:.02f}")
+            voxel_comp_figs.append(g.fig)
+    fig.tight_layout()
+    return [fig] + voxel_comp_figs
