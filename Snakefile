@@ -2132,7 +2132,8 @@ rule crossval_comparison_figures:
                      "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
                      "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
                       "r{learning_rate}_g{gpus}_s{crossval_seed}_%s_cv_preds.pt") % model for
-         model in ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso']],
+         model in ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso', 'full_full_absolute',
+                   'full_full_iso', 'relative_full_iso']],
     output:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                      "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
@@ -2143,7 +2144,7 @@ rule crossval_comparison_figures:
                      "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
                      "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
                      "r{learning_rate}_g{gpus}_s{crossval_seed}_cv_loss_comp_"
-                      "{df_filter}_{loss_func}_voxels-%s.png") % i for i in range(6)],
+                      "{df_filter}_{loss_func}_voxels-%s.png") % i for i in range(30)],
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_voxel_comp", "{mat_type}",
                      "{atlas_type}", "{modeling_goal}", "{subject}", "{session}",
