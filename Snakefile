@@ -2171,7 +2171,8 @@ rule crossval_comparison_figures:
             tmp = torch.load(i)
             preds.append(tmp['predictions'])
         figs = sfp.figures.compare_cv_models(first_level_df, tmp['targets'], preds,
-                                             ['constant', 'scaling', 'full'],
+                                             ['constant', 'scaling', 'full', 'full full absolute',
+                                              'full full iso', 'full relative iso'],
                                              wildcards.loss_func, df_filter_string)
         for f, o in zip(figs, output):
             f.savefig(o, bbox_inches='tight')
