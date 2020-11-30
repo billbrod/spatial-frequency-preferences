@@ -132,23 +132,23 @@ def feature_df_summary(rel_feature_df_plots, abs_feature_df_plots, save_path,
     compose.Figure(
         figure_width, figure_height,
         # want the abs features plots below the corresponding rel feature plots
-        SVG(abs_feature_df_plots[0]).move(-8, figure_height / 2 - 10),
+        SVG(abs_feature_df_plots[0]).move(-8, figure_height / 2 - 1),
         SVG(abs_feature_df_plots[1]).move(figure_width / 2 - 16,
-                                          figure_height / 2 - 10),
+                                          figure_height / 2 - 9.5),
         SVG(abs_feature_df_plots[2]).move(
             figure_width / 2 - 16,
             figure_height / 2 + figure_height / 4 - 24),
-        SVG(rel_feature_df_plots[0]).move(-8, 0),
-        SVG(rel_feature_df_plots[1]).move(figure_width / 2 - 16, 0),
+        SVG(rel_feature_df_plots[0]).move(-8, -1),
+        SVG(rel_feature_df_plots[1]).move(figure_width / 2 - 16, -9.5),
         SVG(rel_feature_df_plots[2]).move(
             figure_width / 2 - 16,
-            figure_height / 4 - 14),
+            figure_height / 4 - 24),
         SVG(REL_LEGEND_PATH).scale(2.5).move(figure_width / 4 - 16,
                                              figure_height / 4 + 20),
         compose.Text("A", 3, font_size - 5, size=font_size, **text_params),
         SVG(ABS_LEGEND_PATH).scale(2.5).move(
-            figure_width / 4 - 16, figure_height / 2 + figure_height / 4 + 10),
-        compose.Text("B", 3, figure_height / 2 + font_size - 15, size=font_size,
+            figure_width / 4 - 16, figure_height / 2 + figure_height / 4 + 19),
+        compose.Text("B", 3, figure_height / 2 + font_size - 6, size=font_size,
                      **text_params),
     ).save(save_path)
 

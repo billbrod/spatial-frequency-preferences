@@ -6,6 +6,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import pandas as pd
 import re
 import itertools
@@ -1733,8 +1734,10 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                            'hspace': .3})
         if feature_type == 'pref-period-contour':
             rticks = np.arange(.25, 1.5, .25)
-            # rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
-            rticklabels = ['' for i in rticks]
+            if context == 'paper':
+                rticklabels = ['' for i in rticks]
+            else:
+                rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
             if not split_oris:
                 # there's a weird interaction where if we set the rticks before
                 # calling scatter (which we do when split_oris is True), it
@@ -1780,8 +1783,10 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                facetgrid_legend=facetgrid_legend, **kwargs)
         elif feature_type == 'max-amp':
             rticks = np.arange(.25, 1.1, .25)
-            # rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
-            rticklabels = ['' for i in rticks]
+            if context == 'paper':
+                rticklabels = ['' for i in rticks]
+            else:
+                rticklabels = [j if j == 1 else '' for i, j in enumerate(rticks)]
             if not split_oris:
                 # there's a weird interaction where if we set the rticks before
                 # calling scatter (which we do when split_oris is True), it
@@ -1798,8 +1803,21 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                title='Relative amplitude', col_wrap=col_wrap,
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
+            ylabel = 'Relative amplitude'
+            if context == 'paper':
+                # the location argument here does nothing, since we over-ride
+                # it with the bbox_to_anchor and bbox_transform arguments. the
+                # size and size_vertical values here look weird because they're
+                # in polar units (so size is in theta, size_vertical is in r)
+                asb = AnchoredSizeBar(g.axes[0, 0].transData, 0, '1', 'center',
+                                      frameon=False, size_vertical=1,
+                                      bbox_to_anchor=(.52, 1),
+                                      sep=5,
+                                      bbox_transform=g.fig.transFigure)
+                g.axes[0, 0].add_artist(asb)
+                ylabel = ylabel.replace(' ', '\n')
             for axes in g.axes:
-                axes[0].set_ylabel('Relative\namplitude')
+                axes[0].set_ylabel(ylabel)
         else:
             raise Exception(f"Don't know what to do with feature_type {feature_type}!")
         if split_oris:
@@ -1826,7 +1844,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             if feature_type == 'pref-period-contour':
                 g.axes[0, 1].set_xlabel('')
             else:
-                g.axes[0, 1].set_xlabel(g.axes.flatten()[1].get_xlabel(), x=-.2,
+                g.axes[0, 1].set_xlabel(g.axes.flatten()[1].get_xlabel(), x=-.05,
                                         ha='center', labelpad=-5)
             title_kwargs['pad'] = -13
     if visual_field != 'all':
