@@ -1795,9 +1795,11 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             r = 'Max amplitude'
             g = plotting.feature_df_polar_plot(df, col=col, r=r, height=height,
                                                aspect=aspect, plot_func=plot_func,
-                                               title='Max amplitude',col_wrap=col_wrap,
+                                               title='Relative amplitude', col_wrap=col_wrap,
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
+            for axes in g.axes:
+                axes[0].set_ylabel('Relative\namplitude')
         else:
             raise Exception(f"Don't know what to do with feature_type {feature_type}!")
         if split_oris:

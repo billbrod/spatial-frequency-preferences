@@ -117,7 +117,7 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
         params['figure.titlesize'] = params['axes.titlesize']
     elif for_package == 'svgutils':
         if context == 'paper':
-            params = {'font': 'Helvetica', 'size': '10pt'}
+            params = {'font': 'Helvetica', 'size': '18pt'}
             if figsize == 'full':
                 figure_width = '6.5in'
             elif figsize == 'half':
