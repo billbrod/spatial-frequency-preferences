@@ -1782,7 +1782,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                col_wrap=col_wrap,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
         elif feature_type == 'max-amp':
-            rticks = np.arange(.25, 1.1, .25)
+            rticks = np.arange(.25, 1.5, .25)
             if context == 'paper':
                 rticklabels = ['' for i in rticks]
             else:
