@@ -2117,7 +2117,7 @@ rule figure_crossvalidation:
                                                    noise_ceiling, context=wildcards.context,
                                                    orient=wildcards.orient)
         elif wildcards.cv_type.startswith('model'):
-            g = sfp.figures.cross_validation_model(df, int(wildacrds.seed), remeaned=remeaned,
+            g = sfp.figures.cross_validation_model(df, int(wildcards.seed), remeaned=remeaned,
                                                    orient=wildcards.orient,
                                                    context=wildcards.context)
         g.fig.savefig(output[0], bbox_inches='tight')
