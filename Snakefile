@@ -2104,6 +2104,9 @@ rule figure_crossvalidation:
             remeaned = True
         else:
             remeaned = False
+        if df.loss_func.nunique() > 1:
+            warnings.warn("This will only show the cross-validated loss for weighted_normed_loss loss_func")
+        df = df.query('loss_func == "weighted_normed_loss"')
         if wildcards.cv_type.startswith('demeaned'):
             g = sfp.figures.cross_validation_demeaned(df, int(wildcards.seed), remeaned,
                                                       context=wildcards.context,
@@ -2120,6 +2123,8 @@ rule figure_crossvalidation:
             g = sfp.figures.cross_validation_model(df, int(wildcards.seed), remeaned=remeaned,
                                                    orient=wildcards.orient,
                                                    context=wildcards.context)
+        if wildcards.context == 'paper':
+            g.axes[0, 0].set_title('')
         g.fig.savefig(output[0], bbox_inches='tight')
 
 

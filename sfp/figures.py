@@ -196,15 +196,15 @@ def existing_studies_df():
     return df
 
 
-def _demean_df(df, gb_cols=['subject', 'loss_func'], y='cv_loss', extra_cols=[]):
+def _demean_df(df, y='cv_loss', extra_cols=[]):
     """demean a column of the dataframe
 
-    Calculate the mean of `y` across the values in some other column(s)
-    `gb_cols`, then demean `y` and return df with several new columns:
-    - `demeaned_{y}`: each y with the gb_cols-wise average of y
-      subtracted off
-    - `{y}_mean`: the gb_cols-wise average of y
-    - `{y}_mean_overall`: the average of `{y}_mean`
+    Calculate the mean of `y` across the values in the 'subject' and
+    'loss_func' columns, then demean `y` and return df with several new
+    columns:
+    - `demeaned_{y}`: each y with `{y}_mean` subtracted off
+    - `{y}_mean`: the average of y per subject per loss_func
+    - `{y}_mean_overall`: the average of `{y}_mean` per loss_func
     - `remeaned_{y}`: the `demeaned_{y}` with `{y}_mean_overall` added
       back to it
 
@@ -225,9 +225,6 @@ def _demean_df(df, gb_cols=['subject', 'loss_func'], y='cv_loss', extra_cols=[])
     ----------
     df : pd.DataFrame
         dataframe to demean
-    gb_cols : list, optional
-        columns to calculate the mean across (name comes from pandas
-        groupby operation)
     y : str, optional
         the column to demean
     extra_cols : list, optionla
@@ -241,16 +238,21 @@ def _demean_df(df, gb_cols=['subject', 'loss_func'], y='cv_loss', extra_cols=[])
         dataframe with new, demeaned column
 
     """
+    gb_cols = ['subject', 'loss_func']
     df = df.set_index(gb_cols)
-    df[f'{y}_mean'] = df.groupby(gb_cols)[y].mean()
-    # here we take the average over the averages. we do this so that we
-    # weight all of the groups the same. For example, if
-    # gb_cols=['subject'] (as default) and one subject had twice as many
-    # rows (because it had two sessions in df, for example), then this
-    # ensures that subject isn't twice as important when computing the
-    # mean (which would be the case if we used df[f'{y}_mean'].mean()
-    # instead)
-    df[f'{y}_mean_overall'] = df.groupby(gb_cols)[y].mean().mean()
+    y_mean = df.groupby(gb_cols)[y].mean()
+    df[f'{y}_mean'] = y_mean
+    # here we take the average over the averages. we do this so that we weight
+    # all of the groups the same. For example, if gb_cols=['subject'] and one
+    # subject had twice as many rows (because it had two sessions in df, for
+    # example), then this ensures that subject isn't twice as important when
+    # computing the mean (which would be the case if we used
+    # df[f'{y}_mean'].mean() instead). We do, however, want to do this
+    # separately for each loss function, since they'll probably have different
+    # means
+    df = df.reset_index()
+    df = df.set_index('loss_func')
+    df[f'{y}_mean_overall'] = y_mean.reset_index().groupby('loss_func')[y].mean()
     df[f'demeaned_{y}'] = df[y] - df[f'{y}_mean']
     df[f'remeaned_{y}'] = df[f'demeaned_{y}'] + df[f'{y}_mean_overall']
     for col in extra_cols:
