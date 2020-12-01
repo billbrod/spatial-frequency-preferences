@@ -136,6 +136,8 @@ wildcard_constraints:
     groupaverage="individual|sub-groupaverage",
     summary_func="mean|median",
     df_filter="filter|no-filter",
+    orient="h|v",
+    sort="sort_|",
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -2085,11 +2087,11 @@ rule figure_crossvalidation:
                      '{groupaverage}_{task}_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
         get_noise_ceiling_df,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_s-{seed}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}s-{seed}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_s-{seed}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}s-{seed}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_s-{seed}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}s-{seed}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2107,6 +2109,12 @@ rule figure_crossvalidation:
         if df.loss_func.nunique() > 1:
             warnings.warn("This will only show the cross-validated loss for weighted_normed_loss loss_func")
         df = df.query('loss_func == "weighted_normed_loss"')
+        if wildcards.sort == 'sort_':
+            sort = True
+            if not wildcards.cv_type.startswith('model_point'):
+                raise Exception("Can only sort model_point plot!")
+        else:
+            sort = False
         if wildcards.cv_type.startswith('demeaned'):
             g = sfp.figures.cross_validation_demeaned(df, int(wildcards.seed), remeaned,
                                                       context=wildcards.context,
@@ -2118,7 +2126,7 @@ rule figure_crossvalidation:
         elif wildcards.cv_type.startswith('model_point'):
             g = sfp.figures.cross_validation_model(df, int(wildcards.seed), 'point', remeaned,
                                                    noise_ceiling, context=wildcards.context,
-                                                   orient=wildcards.orient)
+                                                   orient=wildcards.orient, sort=sort)
         elif wildcards.cv_type.startswith('model'):
             g = sfp.figures.cross_validation_model(df, int(wildcards.seed), remeaned=remeaned,
                                                    orient=wildcards.orient,
@@ -2461,6 +2469,10 @@ rule figure_feature_df:
 
 
 rule figure_schematic:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                     'bayesian_posterior', 'initial_cv',
+                     'individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'schematic_{schematic_type}.{ext}')
     log:
@@ -2470,6 +2482,7 @@ rule figure_schematic:
     run:
         import sfp
         import matplotlib.pyplot as plt
+        import pandas as pd
         if wildcards.schematic_type == '2d':
             fig = sfp.figures.model_schematic(wildcards.context)
         elif wildcards.schematic_type == '2d-inputs':
@@ -2479,7 +2492,15 @@ rule figure_schematic:
                 annotate = True
             else:
                 annotate = False
-            fig = sfp.figures.model_types(wildcards.context, annotate=annotate)
+            if 'sort' in wildcards.schematic_type:
+                warnings.warn("Sorting by remeaned cv loss, using weighted_normed_loss, task-sfprescaled runs")
+                df = sfp.figures.prep_df(pd.read_csv(input[0]), 'task-sfprescaled')
+                df = sfp.figures._demean_df(df.query('loss_func == "weighted_normed_loss"'))
+                gb = df.query("loss_func == 'weighted_normed_loss'").groupby('fit_model_type')
+                order = gb['remeaned_cv_loss'].median().sort_values(ascending=False).index
+            else:
+                order = None
+            fig = sfp.figures.model_types(wildcards.context, annotate=annotate, order=order)
         fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2537,8 +2558,12 @@ def get_compose_input(wildcards):
                                  "%s.svg")
     if "crossvalidation" in wildcards.figure_name:
         seed = re.findall("crossvalidation_s-([0-9]+)", wildcards.figure_name)[0]
-        paths = [path_template % "schematic_models-annot",
-                 path_template % f'individual_cv_model_point-remeaned_h_s-{seed}_task-sfprescaled']
+        fig_names = ["schematic_models-annot",
+                     f'individual_cv_model_point-remeaned_h_s-{seed}_task-sfprescaled']
+        if 'sort' in wildcards.figure_name:
+            fig_names[0] += '-sort'
+            fig_names[1] = fig_names[1].replace('_h_s', '_h_sort_s')
+        paths = [path_template % n for n in fig_names]
     elif "with_legend" in wildcards.figure_name:
         paths = [path_template % wildcards.figure_name.replace('_with_legend', '')]
     elif '2d_summary' in wildcards.figure_name:

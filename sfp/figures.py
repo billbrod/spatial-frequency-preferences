@@ -931,7 +931,10 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
 
     """
     hue_order = plotting.get_order(hue, col_unique=df[hue].unique())
-    order = plotting.get_order(x, col_unique=df[x].unique())
+    if 'order' in kwargs.keys():
+        order = kwargs.pop('order')
+    else:
+        order = plotting.get_order(x, col_unique=df[x].unique())
     pal = plotting.get_palette(hue, col_unique=df[hue].unique())
     if plot_kind == 'strip':
         # want the different hues to be in a consistent order on the
@@ -1093,7 +1096,7 @@ def cross_validation_demeaned(df, seed, remeaned=False, orient='v', context='pap
 
 
 def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
-                           orient='v', context='paper'):
+                           orient='v', sort=False, context='paper'):
     """plot demeaned cross-validation loss, as function of model type
 
     This function demeans the cross-validation loss on a
@@ -1127,6 +1130,9 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
         noise_ceiling_monte_carlo_overall rule)
     orient : {'h', 'v'}, optional
         orientation of plot (horizontal or vertical)
+    sort : bool, optional
+        whether to sort the models by the median loss of the
+        weighted_normed_loss or show them in numbered order
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -1137,6 +1143,7 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
         seaborn FacetGrid object containing the plot
 
     """
+    kwargs = {}
     np.random.seed(seed)
     params, fig_width = style.plotting_style(context, figsize='half')
     plt.style.use(params)
@@ -1161,10 +1168,12 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
         name = 'remeaned'
     else:
         name = 'demeaned'
-    g = _catplot(df.query('loss_func in ["weighted_normed_loss", "normed_loss", "cosine_distance_scaled"]'),
-                 x='fit_model_type', y=f'{name}_cv_loss', hue=hue, col='loss_func',
-                 plot_kind=plot_kind, height=height, aspect=aspect, orient=orient,
-                 legend=legend)
+    if sort:
+        gb = df.query("loss_func == 'weighted_normed_loss'").groupby('fit_model_type')
+        kwargs['order'] = gb[f'{name}_cv_loss'].median().sort_values(ascending=False).index
+    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue,
+                 col='loss_func', plot_kind=plot_kind, height=height,
+                 aspect=aspect, orient=orient, legend=legend, **kwargs)
     title = f"{name.capitalize()} cross-validated loss across model types"
     if noise_ceiling_df is not None:
         g.map_dataframe(plotting.plot_noise_ceiling, 'fit_model_type', f'{name}_loss', ci=0,
@@ -1191,7 +1200,7 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
     return g
 
 
-def model_types(context='paper', palette_type='model', annotate=False):
+def model_types(context='paper', palette_type='model', annotate=False, order=None):
     """Create plot showing which model fits which parameters.
 
     We have 11 different parameters, which might seem like a lot, so we
@@ -1215,6 +1224,9 @@ def model_types(context='paper', palette_type='model', annotate=False):
         whether to annotate the schematic with info on the parameter
         categories (e.g., period/amplitude, eccentricity/orientation,
         etc)
+    order : pandas index or None, optional
+        If None, we plot the models in the default order. Else, should be an
+        index object that gives the order to plot them in (from top to bottom).
 
     Returns
     -------
@@ -1257,9 +1269,11 @@ def model_types(context='paper', palette_type='model', annotate=False):
     model_variants[12, [0, 1, 2, 3, 4, 5, 6, 9, 10]] = fill_vals[12]
     model_variants[13, :] = fill_vals[13]
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
+    if order is not None:
+        model_variants = model_variants.reindex(order)
     fig = plt.figure(figsize=figsize)
     ax = sns.heatmap(model_variants, cmap=pal, cbar=False)
-    ax.set_yticklabels(model_names, rotation=0)
+    ax.set_yticklabels(model_variants.index, rotation=0)
     ax.set_ylabel("Model type")
     # we want the labels on the top here, not the bottom
     ax.tick_params(labelbottom=False, labeltop=True, pad=-2)
