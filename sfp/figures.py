@@ -935,7 +935,8 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         order = kwargs.pop('order')
     else:
         order = plotting.get_order(x, col_unique=df[x].unique())
-    pal = plotting.get_palette(hue, col_unique=df[hue].unique())
+    pal = plotting.get_palette(hue, col_unique=df[hue].unique(),
+                               doubleup='doubleup' in x)
     if plot_kind == 'strip':
         # want the different hues to be in a consistent order on the
         # x-axis, which requires this
@@ -955,7 +956,7 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
     g = sns.catplot(x, y, hue, data=df, hue_order=hue_order, legend=legend, height=height,
                     kind=plot_kind, aspect=aspect, order=order, palette=pal, ci=ci,
                     estimator=np.median, orient=orient, facet_kws={'gridspec_kws': gridspec_kws},
-                    **kwargs)
+                    dodge=0, **kwargs)
     for ax in g.axes.flatten():
         if x_rotate:
             if x_rotate is True:
@@ -1096,7 +1097,7 @@ def cross_validation_demeaned(df, seed, remeaned=False, orient='v', context='pap
 
 
 def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ceiling_df=None,
-                           orient='v', sort=False, context='paper'):
+                           orient='v', sort=False, doubleup=False, context='paper'):
     """plot demeaned cross-validation loss, as function of model type
 
     This function demeans the cross-validation loss on a
@@ -1133,6 +1134,10 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
     sort : bool, optional
         whether to sort the models by the median loss of the
         weighted_normed_loss or show them in numbered order
+    doubleup : bool, optional
+        whether to "double-up" models so that we plot two models on the same
+        row if they're identical except for fitting A3/A4. this then shows the
+        version fitting A3/A4 as a fainter color of the version that doesn't.
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -1171,7 +1176,13 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
     if sort:
         gb = df.query("loss_func == 'weighted_normed_loss'").groupby('fit_model_type')
         kwargs['order'] = gb[f'{name}_cv_loss'].median().sort_values(ascending=False).index
-    g = _catplot(df, x='fit_model_type', y=f'{name}_cv_loss', hue=hue,
+    if doubleup:
+        df['fit_model_doubleup'] = df.fit_model_type.map(dict(zip(plotting.MODEL_PLOT_ORDER,
+                                                                  plotting.MODEL_PLOT_ORDER_DOUBLEUP)))
+        x = 'fit_model_doubleup'
+    else:
+        x = 'fit_model_type'
+    g = _catplot(df, x=x, y=f'{name}_cv_loss', hue=hue,
                  col='loss_func', plot_kind=plot_kind, height=height,
                  aspect=aspect, orient=orient, legend=legend, **kwargs)
     title = f"{name.capitalize()} cross-validated loss across model types"
@@ -1200,7 +1211,8 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
     return g
 
 
-def model_types(context='paper', palette_type='model', annotate=False, order=None):
+def model_types(context='paper', palette_type='model', annotate=False,
+                order=None, doubleup=False):
     """Create plot showing which model fits which parameters.
 
     We have 11 different parameters, which might seem like a lot, so we
@@ -1242,7 +1254,14 @@ def model_types(context='paper', palette_type='model', annotate=False, order=Non
     parameters = plotting.PLOT_PARAM_ORDER
     model_variants = np.zeros((len(model_names), len(parameters)))
     if palette_type == 'model':
-        pal = [(1, 1, 1)] + plotting.get_palette('fit_model_type', col_unique=model_names)
+        pal = plotting.get_palette('fit_model_type', col_unique=model_names,
+                                   doubleup=doubleup)
+        try:
+            pal = pal.tolist()
+        except AttributeError:
+            # then it's already a list
+            pass
+        pal = [(1, 1, 1)] + pal
         fill_vals = dict(zip(range(len(model_names)), range(1, len(model_names)+1)))
     else:
         if palette_type.startswith('simple'):
@@ -1254,20 +1273,39 @@ def model_types(context='paper', palette_type='model', annotate=False, order=Non
         else:
             pal = sns.color_palette(palette_type, 2)
         fill_vals = dict(zip(range(len(model_names)), len(model_names) * [True]))
-    model_variants[0, [0, 2]] = fill_vals[0]
-    model_variants[1, [0, 1]] = fill_vals[1]
-    model_variants[2, [0, 1, 2]] = fill_vals[2]
-    model_variants[3, [0, 1, 2, 3, 4]] = fill_vals[3]
-    model_variants[4, [0, 1, 2, 5, 6]] = fill_vals[4]
-    model_variants[5, [0, 1, 2, 3, 4, 5, 6]] = fill_vals[5]
-    model_variants[6, [0, 1, 2, 7, 8]] = fill_vals[6]
-    model_variants[7, [0, 1, 2, 9, 10]] = fill_vals[7]
-    model_variants[8, [0, 1, 2, 7, 8, 9, 10]] = fill_vals[8]
-    model_variants[9, [0, 1, 2, 3, 4, 7, 8]] = fill_vals[9]
-    model_variants[10, [0, 1, 2, 5, 6, 9, 10]] = fill_vals[10]
-    model_variants[11, [0, 1, 2, 3, 4, 5, 6, 7, 8]] = fill_vals[11]
-    model_variants[12, [0, 1, 2, 3, 4, 5, 6, 9, 10]] = fill_vals[12]
-    model_variants[13, :] = fill_vals[13]
+    if not doubleup:
+        model_variants[0, [0, 2]] = fill_vals[0]
+        model_variants[1, [0, 1]] = fill_vals[1]
+        model_variants[2, [0, 1, 2]] = fill_vals[2]
+        model_variants[3, [0, 1, 2, 3, 4]] = fill_vals[3]
+        model_variants[4, [0, 1, 2, 5, 6]] = fill_vals[4]
+        model_variants[5, [0, 1, 2, 3, 4, 5, 6]] = fill_vals[5]
+        model_variants[6, [0, 1, 2, 7, 8]] = fill_vals[6]
+        model_variants[7, [0, 1, 2, 9, 10]] = fill_vals[7]
+        model_variants[8, [0, 1, 2, 7, 8, 9, 10]] = fill_vals[8]
+        model_variants[9, [0, 1, 2, 3, 4, 7, 8]] = fill_vals[9]
+        model_variants[10, [0, 1, 2, 5, 6, 9, 10]] = fill_vals[10]
+        model_variants[11, [0, 1, 2, 3, 4, 5, 6, 7, 8]] = fill_vals[11]
+        model_variants[12, [0, 1, 2, 3, 4, 5, 6, 9, 10]] = fill_vals[12]
+        model_variants[13, :] = fill_vals[13]
+    else:
+        model_variants[0, [0, 2]] = fill_vals[0]
+        model_variants[1, [0, 1]] = fill_vals[1]
+        model_variants[2, [0, 1, 2]] = fill_vals[2]
+        model_variants[3, [0, 1, 2, 3, 4]] = fill_vals[3]
+        model_variants[4, [0, 1, 2, 5, 6]] = fill_vals[4]
+        model_variants[5, [0, 1, 2, 3, 4, 5, 6]] = fill_vals[5]
+        model_variants[6, [0, 1, 2, 7, 8]] = fill_vals[6]
+        model_variants[2, [9, 10]] = fill_vals[7]
+        model_variants[6, [9, 10]] = fill_vals[8]
+        model_variants[9, [0, 1, 2, 3, 4, 7, 8]] = fill_vals[9]
+        model_variants[4, [9, 10]] = fill_vals[10]
+        model_variants[11, [0, 1, 2, 3, 4, 5, 6, 7, 8]] = fill_vals[11]
+        model_variants[5, [9, 10]] = fill_vals[12]
+        model_variants[11, [9, 10]] = fill_vals[13]
+        # drop the rows that are all 0s
+        model_names = np.array(model_names)[~(model_variants==0).all(1)]
+        model_variants = model_variants[~(model_variants==0).all(1)]
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
     if order is not None:
         model_variants = model_variants.reindex(order)

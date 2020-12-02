@@ -43,7 +43,12 @@ MODEL_ORDER = ['constant_donut_period-iso_amps-iso', 'scaling_donut_period-iso_a
 # these are the 'prettier names' for plotting
 MODEL_PLOT_ORDER_FULL = (['constant iso', 'scaling iso', 'full iso'] +
                          [i.replace('_donut', '').replace('_', ' ') for i in MODEL_ORDER[3:]])
+# using the numbers instead of names, since names aren't that helpful
 MODEL_PLOT_ORDER = list(range(1, len(MODEL_ORDER)+1))
+# "doubles-up" the model types, so that numbers are unique for parameters
+# excluding A3/A4 (so if two models have the same number, they're identical
+# except for those two parameters)
+MODEL_PLOT_ORDER_DOUBLEUP = MODEL_PLOT_ORDER[:7] + [3, 7, 10, 5, 12, 6, 12]
 
 
 def get_order(col, reference_frame=None, col_unique=None):
@@ -67,16 +72,29 @@ def get_order(col, reference_frame=None, col_unique=None):
         return sorted(col_unique)
 
 
-def get_palette(col, reference_frame=None, col_unique=None, as_dict=False):
+def get_palette(col, reference_frame=None, col_unique=None, as_dict=False,
+                doubleup=False):
     """get palette for column
 
-    col must be one of: {'stimulus_type', 'subject', 'fit_model_type',
-    'model_parameter'}
-
-    if as_dict is True, then we also find the order for this column
-    (using get_order), and return a dictionary matching between the
-    elements of this col and the colors in the palette (this can still
-    be passed as the palette argument to most seaborn plots).
+    Parameters
+    ----------
+    col : {'stimulus_type', 'subject', 'fit_model_type', 'model_parameter'}
+        The column to return the palette for
+    reference_frame : {'absolute', 'relative', None}, optional
+        The reference frame (ignored if col!='stimulus_type')
+    col_unique : list or None, optional
+        The list of unique values in col, in order to determine how many
+        elements in the palette. If None, we use seaborn's default
+    as_dict : bool, optional
+        Whether to return the palette as a dictionary or not. if True, then we
+        also find the order for this column (using get_order), and return a
+        dictionary matching between the elements of this col and the colors in
+        the palette (this can still be passed as the palette argument to most
+        seaborn plots).
+    doubleup: bool, optional
+        Whether to return the doubleup palette for fit_model_type (8 unique
+        colors and then 6 versions with lower alpha). Ignored if
+        col!='fit_model_type'
 
     """
     if col == 'stimulus_type':
@@ -87,7 +105,18 @@ def get_palette(col, reference_frame=None, col_unique=None, as_dict=False):
     elif col == 'subject':
         pal = sns.color_palette('Dark2', len(col_unique))
     elif col == 'fit_model_type':
-        pal = sns.color_palette('deep', len(col_unique))
+        if not doubleup:
+            pal = sns.color_palette('deep', len(col_unique))
+        else:
+            if len(col_unique) != len(MODEL_PLOT_ORDER):
+                raise Exception("Can only return doubleup model type palette "
+                                "if plotting all models!")
+            # can't set the alpha channel of palettes for seaborn functions, so
+            # we use this workaround. fortunately, we only need 5 pairs of
+            # colors, because that's all that Paired contains!
+            pal = np.concatenate([sns.color_palette('Paired', 10),
+                                  sns.color_palette('deep')[-5:-1]])
+            pal = pal[[-1, -2, 1, -3, 3, 5, 7, 0, 6, -4, 2, 9, 4, 8]]
     elif col == 'model_parameter':
         pal = sns.color_palette('viridis', len(col_unique))
     else:

@@ -138,6 +138,7 @@ wildcard_constraints:
     df_filter="filter|no-filter",
     orient="h|v",
     sort="sort_|",
+    doubleup="doubleup_|",
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
@@ -2087,11 +2088,11 @@ rule figure_crossvalidation:
                      '{groupaverage}_{task}_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv'),
         get_noise_ceiling_df,
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}s-{seed}_{task}.{ext}")
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}{doubleup}s-{seed}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}s-{seed}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}{doubleup}s-{seed}_{task}_{ext}.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}s-{seed}_{task}_{ext}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_cv_{cv_type}_{orient}_{sort}{doubleup}s-{seed}_{task}_{ext}_benchmark.txt")
     run:
         import pandas as pd
         import seaborn as sns
@@ -2115,6 +2116,14 @@ rule figure_crossvalidation:
                 raise Exception("Can only sort model_point plot!")
         else:
             sort = False
+        if wildcards.doubleup == 'doubleup_':
+            doubleup = True
+            if not wildcards.cv_type.startswith('model_point'):
+                raise Exception("Can only doubleup model_point plot!")
+            if sort:
+                raise Exception("Can only doubleup cv loss plot if we're not sorting it!")
+        else:
+            doubleup = False
         if wildcards.cv_type.startswith('demeaned'):
             g = sfp.figures.cross_validation_demeaned(df, int(wildcards.seed), remeaned,
                                                       context=wildcards.context,
@@ -2126,7 +2135,8 @@ rule figure_crossvalidation:
         elif wildcards.cv_type.startswith('model_point'):
             g = sfp.figures.cross_validation_model(df, int(wildcards.seed), 'point', remeaned,
                                                    noise_ceiling, context=wildcards.context,
-                                                   orient=wildcards.orient, sort=sort)
+                                                   orient=wildcards.orient, sort=sort,
+                                                   doubleup=doubleup)
         elif wildcards.cv_type.startswith('model'):
             g = sfp.figures.cross_validation_model(df, int(wildcards.seed), remeaned=remeaned,
                                                    orient=wildcards.orient,
@@ -2500,7 +2510,14 @@ rule figure_schematic:
                 order = gb['remeaned_cv_loss'].median().sort_values(ascending=False).index
             else:
                 order = None
-            fig = sfp.figures.model_types(wildcards.context, annotate=annotate, order=order)
+            if 'doubleup' in wildcards.schematic_type:
+                doubleup = True
+                if order is not None:
+                    raise Exception("Can only doubleup the schematic if we're not sorting it!")
+            else:
+                doubleup = False
+            fig = sfp.figures.model_types(wildcards.context, annotate=annotate, order=order,
+                                          doubleup=doubleup)
         fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2563,6 +2580,9 @@ def get_compose_input(wildcards):
         if 'sort' in wildcards.figure_name:
             fig_names[0] += '-sort'
             fig_names[1] = fig_names[1].replace('_h_s', '_h_sort_s')
+        if 'doubleup' in wildcards.figure_name:
+            fig_names[0] += '-doubleup'
+            fig_names[1] = fig_names[1].replace('_h_s', '_h_doubleup_s')
         paths = [path_template % n for n in fig_names]
     elif "with_legend" in wildcards.figure_name:
         paths = [path_template % wildcards.figure_name.replace('_with_legend', '')]
