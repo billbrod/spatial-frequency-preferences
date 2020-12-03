@@ -3,6 +3,7 @@
 """
 import seaborn as sns
 import math
+import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -1304,13 +1305,16 @@ def model_types(context='paper', palette_type='model', annotate=False,
         model_variants[5, [9, 10]] = fill_vals[12]
         model_variants[11, [9, 10]] = fill_vals[13]
         # drop the rows that are all 0s
-        model_names = np.array(model_names)[~(model_variants==0).all(1)]
         model_variants = model_variants[~(model_variants==0).all(1)]
+        warnings.warn("when doubling-up, we just use sequential numbers for models "
+                      "(the numbers therefore have a different meaning than for "
+                      "non-doubled-up version)")
+        model_names = np.arange(1, model_variants.shape[0]+1)
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
     if order is not None:
         model_variants = model_variants.reindex(order)
     fig = plt.figure(figsize=figsize)
-    ax = sns.heatmap(model_variants, cmap=pal, cbar=False)
+    ax = sns.heatmap(model_variants, cmap=pal, cbar=False, square=True)
     ax.set_yticklabels(model_variants.index, rotation=0)
     ax.set_ylabel("Model type")
     # we want the labels on the top here, not the bottom
