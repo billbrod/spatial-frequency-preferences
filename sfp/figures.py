@@ -2002,6 +2002,7 @@ def mtf(mtf_func, context='paper'):
     ticks = [512, 128, 32, 8, 2]
     ax.set(xticks=[1/i for i in ticks], xticklabels=ticks, xlabel='Pixels per period',
            ylabel='Michelson contrast', yticks=[.5, .75, 1])
+    fig.tight_layout()
     return fig
 
 
