@@ -2537,6 +2537,8 @@ rule figure_schematic:
                 doubleup = False
             fig = sfp.figures.model_types(wildcards.context, annotate=annotate, order=order,
                                           doubleup=doubleup)
+        elif wildcards.schematic_type == 'background':
+            fig = sfp.figures.theory_background_figure(wildcards.context)
         fig.savefig(output[0], bbox_inches='tight')
 
 

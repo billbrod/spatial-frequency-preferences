@@ -3,6 +3,8 @@
 """
 import seaborn as sns
 import math
+import pyrtools as pt
+import os.path as op
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
@@ -2212,3 +2214,84 @@ def compare_cv_models(first_level_df, targets, predictions, model_names, loss_fu
             voxel_comp_figs.append(g.fig)
     fig.tight_layout()
     return [fig] + voxel_comp_figs
+
+
+def theory_background_figure(context):
+    """Create figure with some small info on background theory.
+
+    Parameters
+    ----------
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    """
+    einstein_path = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
+                            'einstein.pgm')
+    einstein = plt.imread(einstein_path)
+    einstein = einstein / einstein.max()
+    params, fig_width = style.plotting_style(context, figsize='half')
+    params['axes.titlesize'] = '8'
+    params['axes.labelsize'] = '8'
+    params['legend.fontsize'] = '8'
+    warnings.warn("We adjust the font size for axes titles, labels, and legends down to "
+                  "8pts (so this will probably look wrong if context is not paper)!")
+    plt.style.use(params)
+    fig, axes = plt.subplots(2, 3, figsize=(fig_width, 3*fig_width/4), gridspec_kw={'hspace': .6, 'wspace': .52})
+
+    for ax in axes[:, 0]:
+        ax.axis('off')
+
+    pt.imshow((einstein+.5)/1.5, ax=axes[0, 0], zoom=.25, title=None, vrange=(0, 1))
+    pt.imshow((einstein+.5)/1.5, ax=axes[1, 0], zoom=.25, title=None, vrange=(0, 1))
+
+    axes[0, 0].set_title('SF preferences\n'+r'$\bf{constant}$ across'+'\nvisual field')
+    axes[1, 0].set_title('SF preferences\n'+r'$\bf{scale}$ with'+'\neccentricity')
+
+    ecc = np.linspace(.01, 20, 50)
+    V1_pRF_size = 0.063485 * ecc
+    constant_hyp = 2*np.ones(len(ecc))
+    pal = sns.color_palette('Dark2', n_colors=2)
+    for i, ax in enumerate(axes[:, 1].flatten()):
+        if i == 0:
+            ax.semilogy(ecc, 1./V1_pRF_size, '-', label='scaling',
+                        linewidth=2, basey=2, c=pal[0])
+            ax.set_ylim((.25, 10))
+            ax.plot(ecc, constant_hyp, c=pal[1], linewidth=2, label='constant')
+            ax.set(xticks=[], yticks=[], ylabel='Preferred\nSF (cpd)')
+        elif i == 1:
+            ax.plot(ecc, V1_pRF_size, linewidth=2, label='scaling', c=pal[0])
+            ax.plot(ecc, 1./constant_hyp, c=pal[1], linewidth=2, label='constant')
+            ax.set(xlabel='Eccentricity', xticks=[], yticks=[],
+                   ylabel='Preferred\nperiod (deg)')
+    axes[0, 1].legend(frameon=False, bbox_to_anchor=(-.2, .9), loc='lower left')
+    axes[1, 1].annotate('', xy=(.5, 1), xytext=(0.5, 1.5), xycoords='axes fraction',
+                        arrowprops={'arrowstyle': '<->', 'color': 'k'})
+    axes[1, 1].text(.6, 1.25, r'$\frac{1}{f(x)}$', ha='left', va='center', transform=axes[1,1].transAxes)
+
+    # from Eero, this is about what it should be
+    V1_RF_size = .2 * ecc
+    V1_pRF_size_slope = 0.063485
+    V1_pRF_size_offset = 0
+    V1_pRF_size_error = 0.052780
+
+    for i, ax in enumerate(axes[:, 2].flatten()):
+        ax.fill_between(ecc, (V1_pRF_size_slope - V1_pRF_size_error/2.)*ecc + V1_pRF_size_offset,
+                        (V1_pRF_size_slope + V1_pRF_size_error/2.)*ecc + V1_pRF_size_offset,
+                        alpha=.1, color=pal[0])
+        ax.plot(ecc, V1_pRF_size_slope*ecc+V1_pRF_size_offset, linewidth=2, label='scaling', c=pal[0])
+        if i == 0:
+            for e in [1,5,10,15,20]:
+                ax.plot([0, 20], [V1_pRF_size_slope*e+V1_pRF_size_offset,
+                                  V1_pRF_size_slope*e+V1_pRF_size_offset], '--', c='k',
+                        linewidth=1)
+            ax.set(title="Conventional\nstimuli", xticks=[], yticks=[])
+        if i == 1:
+            for j in [-1, -.5, 0, .5, 1]:
+                ax.plot(ecc, (V1_pRF_size_slope + j*V1_pRF_size_error/2.)*ecc + V1_pRF_size_offset,
+                        linestyle='--', c='k', linewidth=1)
+            ax.set(xlabel='Eccentricity', xticks=[], yticks=[], title='Scaled\nstimuli')
+        ax.set_ylabel("Preferred\nperiod (deg)")
+
+    return fig
