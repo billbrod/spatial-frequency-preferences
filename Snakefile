@@ -2583,6 +2583,8 @@ def get_compose_input(wildcards):
         if 'doubleup' in wildcards.figure_name:
             fig_names[0] += '-doubleup'
             fig_names[1] = fig_names[1].replace('_h_s', '_h_doubleup_s')
+        if '-nc' in wildcards.figure_name:
+            fig_names[1] = fig_names[1].replace('point-remeaned', 'point-remeaned-nc')
         paths = [path_template % n for n in fig_names]
     elif "with_legend" in wildcards.figure_name:
         paths = [path_template % wildcards.figure_name.replace('_with_legend', '')]

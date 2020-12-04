@@ -1153,7 +1153,10 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
     np.random.seed(seed)
     params, fig_width = style.plotting_style(context, figsize='half')
     plt.style.use(params)
-    height = fig_width
+    if doubleup:
+        height = fig_width * .855
+    else:
+        height = fig_width
     aspect = 1
     if noise_ceiling_df is not None:
         merge_cols = ['subject', 'mat_type', 'atlas_type', 'session', 'task', 'vareas', 'eccen']
@@ -1181,14 +1184,20 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
         df['fit_model_doubleup'] = df.fit_model_type.map(dict(zip(plotting.MODEL_PLOT_ORDER,
                                                                   plotting.MODEL_PLOT_ORDER_DOUBLEUP)))
         x = 'fit_model_doubleup'
+        if noise_ceiling_df is not None:
+            nc_map = {k: k for k in range(1, 8)}
+            nc_map.update({10: 8, 12: 9})
+            df['fit_model_nc'] = df.fit_model_doubleup.map(nc_map)
     else:
         x = 'fit_model_type'
+        if noise_ceiling_df is not None:
+            df['fit_model_nc'] = df.fit_model_type
     g = _catplot(df, x=x, y=f'{name}_cv_loss', hue=hue,
                  col='loss_func', plot_kind=plot_kind, height=height,
                  aspect=aspect, orient=orient, legend=legend, **kwargs)
     title = f"{name.capitalize()} cross-validated loss across model types"
     if noise_ceiling_df is not None:
-        g.map_dataframe(plotting.plot_noise_ceiling, 'fit_model_type', f'{name}_loss', ci=0,
+        g.map_dataframe(plotting.plot_noise_ceiling, 'fit_model_nc', f'{name}_loss', ci=0,
                         orient=orient)
         title += "\n Median noise ceiling shown as blue line"
     if orient == 'v':
@@ -1209,6 +1218,13 @@ def cross_validation_model(df, seed, plot_kind='strip', remeaned=False, noise_ce
             for ax in g.axes.flatten():
                 ax.yaxis.set_visible(False)
                 ax.spines['left'].set_visible(False)
+                if plot_kind == 'point':
+                    # this way, the ylims line up whether or not we plotted the
+                    # noise ceiling line
+                    if doubleup:
+                        ax.set_ylim((8.5, -0.5))
+                    else:
+                        ax.set_ylim((13.5, -0.5))
     return g
 
 
@@ -1289,6 +1305,9 @@ def model_types(context='paper', palette_type='model', annotate=False,
         model_variants[11, [0, 1, 2, 3, 4, 5, 6, 7, 8]] = fill_vals[11]
         model_variants[12, [0, 1, 2, 3, 4, 5, 6, 9, 10]] = fill_vals[12]
         model_variants[13, :] = fill_vals[13]
+        # while in theory, we want square to be True here too, we messed with
+        # all the size in such a way that it works with it set to False
+        square = False
     else:
         model_variants[0, [0, 2]] = fill_vals[0]
         model_variants[1, [0, 1]] = fill_vals[1]
@@ -1310,11 +1329,12 @@ def model_types(context='paper', palette_type='model', annotate=False,
                       "(the numbers therefore have a different meaning than for "
                       "non-doubled-up version)")
         model_names = np.arange(1, model_variants.shape[0]+1)
+        square = True
     model_variants = pd.DataFrame(model_variants, model_names, parameters)
     if order is not None:
         model_variants = model_variants.reindex(order)
     fig = plt.figure(figsize=figsize)
-    ax = sns.heatmap(model_variants, cmap=pal, cbar=False, square=True)
+    ax = sns.heatmap(model_variants, cmap=pal, cbar=False, square=square)
     ax.set_yticklabels(model_variants.index, rotation=0)
     ax.set_ylabel("Model type")
     # we want the labels on the top here, not the bottom

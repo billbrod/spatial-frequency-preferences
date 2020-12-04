@@ -94,9 +94,17 @@ def crossvalidation(annotated_model_schematic, horizontal_cv_loss, save_path,
     """
     text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
-    figure_height = figure_width * .63
+    if 'doubleup' in horizontal_cv_loss:
+        height_frac = .55
+        vert_shift = 57
+        horiz_shift = 270
+    else:
+        height_frac = .63
+        vert_shift = 67
+        horiz_shift = 290
+    figure_height = figure_width * height_frac
     compose.Figure(figure_width, figure_height,
-                   SVG(horizontal_cv_loss).move(290, 67),
+                   SVG(horizontal_cv_loss).move(horiz_shift, vert_shift),
                    SVG(annotated_model_schematic),
                    compose.Text("B", (290+25), 40, **text_params),
                    compose.Text("A", 25, 40, **text_params),
