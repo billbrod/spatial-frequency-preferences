@@ -157,7 +157,7 @@ if __name__ == '__main__':
     class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter):
         pass
     parser = argparse.ArgumentParser(
-        descriptio
+        description=("Simulate first level data to be fit with 2d tuning model. Note that when "
                      "calling the function, you can set every parameter individually, but, "
                      "depending on the values of the model_orientation_type, model_eccentricity_"
                      "type, and model_vary_amplitude, some of them have specific values (often 0),"
