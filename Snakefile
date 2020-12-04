@@ -1889,7 +1889,16 @@ rule noise_ceiling_monte_carlo:
         import pandas as pd
         save_stem = output[0].replace('_loss.csv', '')
         df = pd.read_csv(input[0])
-        df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed))
+        if 'simulated' in wildcards.subject:
+            # don't filter the simulated subject, because the filtering is just
+            # to get rid of voxels whose responses we don't trust, and there
+            # are none of those in a simulation
+            df_filter_str = None
+            is_simulated = True
+        else:
+            df_filter_str = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+            is_simulated = False
+        df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed), df_filter_str, is_simulated)
         sfp.noise_ceiling.monte_carlo(df, save_stem, df_mode='full', **wildcards)
 
 

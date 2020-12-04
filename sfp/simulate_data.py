@@ -34,15 +34,18 @@ def calculate_error_distribution(first_level_df):
 
 
 def simulate_voxel(true_model, freqs, noise_level=0, ecc_range=(1, 12),
-                   angle_range=(0, 2*np.pi), pix_diam=1080, deg_diam=24):
+                   angle_range=(0, 2*np.pi), pix_diam=1080, deg_diam=24,
+                   vox_ecc=None, vox_angle=None):
     """simulate a single voxel
 
     noise_level should be a float. to add noise, we normalize our predictions (to have an L2 of 1),
     add noise from a normal distribution with a mean of 0 and a standard deviation of
     `noise_level`, and un-normalize our predictions (by multiplying by its original L2 norm).
     """
-    vox_ecc = np.random.uniform(*ecc_range)
-    vox_angle = np.random.uniform(*angle_range)
+    if vox_ecc is None:
+        vox_ecc = np.random.uniform(*ecc_range)
+    if vox_angle is None:
+        vox_angle = np.random.uniform(*angle_range)
     mags, direcs = [], []
     for w_r, w_a in freqs:
         _, _, m, d = sfp_stimuli.sf_cpd(pix_diam, deg_diam, vox_ecc, vox_angle, w_r=w_r, w_a=w_a)
@@ -94,8 +97,11 @@ def simulate_data(true_model, num_voxels=100, noise_level=0, num_bootstraps=10,
         noise_distribution = [noise_level]
     df = []
     for i in range(num_voxels):
+        vox_ecc = np.random.uniform(1, 12)
+        vox_angle = np.random.uniform(0, 2*np.pi)
         for j in range(num_bootstraps):
-            tmp = simulate_voxel(true_model, freqs, noise_level=np.random.choice(noise_distribution))
+            tmp = simulate_voxel(true_model, freqs, noise_level=np.random.choice(noise_distribution),
+                                 vox_ecc=vox_ecc, vox_angle=vox_angle)
             tmp['bootstrap_num'] = j
             tmp['voxel'] = i
             df.append(tmp)

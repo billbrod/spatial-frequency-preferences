@@ -14,7 +14,8 @@ from . import model as sfp_model
 
 
 def sample_df(df, seed=0,
-              df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
+              df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border',
+              is_simulated=False):
     """Sample df to get info for necessary computing Monte Carlo noise ceiling
 
     This is the df we use to compute the monte carlo noise ceiling,
@@ -41,6 +42,9 @@ def sample_df(df, seed=0,
         sfp.model.construct_df_filter for more details. If None, we
         won't filter. Should probably use the default, which is what all
         models are trained using.
+    is_simulated : bool, optional
+        Whether this is simulated data or actual data (changes which columns we
+        merge on).
 
     Returns
     -------
@@ -60,12 +64,20 @@ def sample_df(df, seed=0,
     np.random.seed(seed)
     bootstraps = np.random.choice(100, 2, False)
     tmp = [df.query("bootstrap_num == @b") for b in bootstraps]
+    return tmp
     # then combine_dfs
-    cols = ['varea', 'voxel', 'stimulus_superclass', 'w_r', 'w_a', 'eccen', 'angle',
-            'stimulus_class', 'hemi', 'sigma', 'prf_vexpl', 'phi', 'res', 'stimulus_index',
-            'freq_space_angle', 'freq_space_distance', 'rounded_freq_space_distance', 'local_w_x',
-            'local_w_y', 'local_w_r', 'local_w_a', 'local_sf_magnitude', 'local_sf_xy_direction',
-            'local_sf_ra_direction', 'precision', 'baseline', 'GLM_R2']
+    if not simulated:
+        cols = ['varea', 'voxel', 'stimulus_superclass', 'w_r', 'w_a', 'eccen', 'angle',
+                'stimulus_class', 'hemi', 'sigma', 'prf_vexpl', 'phi', 'res', 'stimulus_index',
+                'freq_space_angle', 'freq_space_distance', 'rounded_freq_space_distance', 'local_w_x',
+                'local_w_y', 'local_w_r', 'local_w_a', 'local_sf_magnitude', 'local_sf_xy_direction',
+                'local_sf_ra_direction', 'precision', 'baseline', 'GLM_R2']
+    else:
+        cols = ['varea', 'voxel', 'eccen', 'angle', 'stimulus_class',
+                'local_sf_magnitude', 'local_sf_xy_direction', 'noise_level',
+                'noise_source_df', 'period_orientation_type', 'eccentricity_type',
+                'amplitude_orientation_type']
+        cols += [c for c in df.columns if c.startswith('true_m')]
     df = pd.merge(*tmp, on=cols, suffixes=['_1', '_2'], validate='1:1')
     df['noise_ceiling_seed'] = seed
     return df
