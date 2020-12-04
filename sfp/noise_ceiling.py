@@ -65,7 +65,7 @@ def sample_df(df, seed=0,
     bootstraps = np.random.choice(100, 2, False)
     tmp = [df.query("bootstrap_num == @b") for b in bootstraps]
     # then combine_dfs
-    if not simulated:
+    if not is_simulated:
         cols = ['varea', 'voxel', 'stimulus_superclass', 'w_r', 'w_a', 'eccen', 'angle',
                 'stimulus_class', 'hemi', 'sigma', 'prf_vexpl', 'phi', 'res', 'stimulus_index',
                 'freq_space_angle', 'freq_space_distance', 'rounded_freq_space_distance', 'local_w_x',
