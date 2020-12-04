@@ -52,6 +52,8 @@ def simulate_voxel(true_model, freqs, noise_level=0, ecc_range=(1, 12),
     resps = resps.detach().numpy()
     resps_norm = np.linalg.norm(resps, 2)
     normed_resps = resps / resps_norm
+    # this means that the noise_level argument controls the size of the error
+    # in the normed responses (not the un-normed ones)
     normed_resps += np.random.normal(scale=noise_level, size=len(resps))
     # since the noise_level becomes the standard deviation of a normal distribution, the precision
     # is the reciprocal of its square
@@ -65,16 +67,17 @@ def simulate_voxel(true_model, freqs, noise_level=0, ecc_range=(1, 12),
     return pd.DataFrame({'eccen': vox_ecc, 'angle': vox_angle, 'local_sf_magnitude': mags,
                          'local_sf_xy_direction': direcs,
                          'amplitude_estimate_median': normed_resps * resps_norm,
-                         'amplitude_estimate_std_error': noise_level,
+                         'amplitude_estimate_std_error': noise_level * resps_norm,
                          'true_amplitude_estimate_median': resps,
                          'amplitude_estimate_median_normed': normed_resps,
-                         'amplitude_estimate_std_error_normed': noise_level * resps_norm,
+                         'amplitude_estimate_std_error_normed': noise_level,
                          'amplitude_estimate_norm': resps_norm,
                          'precision': precision,
                          'stimulus_class': range(len(freqs))})
 
 
-def simulate_data(true_model, num_voxels=100, noise_level=0, noise_source_path=None):
+def simulate_data(true_model, num_voxels=100, noise_level=0, num_bootstraps=10,
+                  noise_source_path=None):
     """simulate a bunch of voxels
 
     if noise_source_path is None, then all voxels have the same noise, which is drawn from a
@@ -91,9 +94,11 @@ def simulate_data(true_model, num_voxels=100, noise_level=0, noise_source_path=N
         noise_distribution = [noise_level]
     df = []
     for i in range(num_voxels):
-        tmp = simulate_voxel(true_model, freqs, noise_level=np.random.choice(noise_distribution))
-        tmp['voxel'] = i
-        df.append(tmp)
+        for j in range(num_bootstraps):
+            tmp = simulate_voxel(true_model, freqs, noise_level=np.random.choice(noise_distribution))
+            tmp['bootstrap_num'] = j
+            tmp['voxel'] = i
+            df.append(tmp)
     df = pd.concat(df)
     df['varea'] = 1
     # we want the generating model and its parameters stored here
@@ -110,7 +115,7 @@ def main(model_period_orientation_type='iso', model_eccentricity_type='full',
          abs_mode_cardinals=0, abs_mode_obliques=0, rel_mode_cardinals=0, rel_mode_obliques=0,
          abs_amplitude_cardinals=0, abs_amplitude_obliques=0, rel_amplitude_cardinals=0,
          rel_amplitude_obliques=0, num_voxels=100, noise_level=0, save_path=None,
-         noise_source_path=None):
+         noise_source_path=None, num_bootstraps=100):
     """Simulate first level data to be fit with 2d tuning model.
 
     Note that when calling the function, you can set every parameter
@@ -120,6 +125,11 @@ def main(model_period_orientation_type='iso', model_eccentricity_type='full',
     (often 0), they will be set to. If this happens, a warning will be
     raised.
 
+    if save_path is not None, should be a list with one or two strs, first
+    giving the path to save the summary dataframe (median across bootstraps),
+    second the path to save the full dataframe (all bootstraps). If only one
+    str, we only save the summary version.
+
     """
     model = sfp_model.LogGaussianDonut(model_period_orientation_type, model_eccentricity_type,
                                        model_amplitude_orientation_type, sigma, sf_ecc_slope,
@@ -128,12 +138,18 @@ def main(model_period_orientation_type='iso', model_eccentricity_type='full',
                                        abs_amplitude_cardinals, abs_amplitude_obliques,
                                        rel_amplitude_cardinals, rel_amplitude_obliques)
     model.eval()
-    df = simulate_data(model, num_voxels, noise_level, noise_source_path)
+    df = simulate_data(model, num_voxels, noise_level, num_bootstraps, noise_source_path)
     df['period_orientation_type'] = model_period_orientation_type
     df['eccentricity_type'] = model_eccentricity_type
     df['amplitude_orientation_type'] = model_amplitude_orientation_type
-    if df is not None:
-        df.to_csv(save_path, index=False)
+    if save_path is not None:
+        # summary dataframe
+        df.groupby(['voxel', 'stimulus_class']).median().to_csv(save_path[0],
+                                                                index=False)
+        # full dataframe
+        col_renamer = {c: c.replace('_median', '') for c in df.columns
+                       if 'median' in c}
+        df.rename(columns=col_renamer).to_csv(save_path[1], index=False)
     return df
 
 
@@ -141,14 +157,16 @@ if __name__ == '__main__':
     class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter):
         pass
     parser = argparse.ArgumentParser(
-        description=("Simulate first level data to be fit with 2d tuning model. Note that when "
+        descriptio
                      "calling the function, you can set every parameter individually, but, "
                      "depending on the values of the model_orientation_type, model_eccentricity_"
                      "type, and model_vary_amplitude, some of them have specific values (often 0),"
                      "they will be set to. If this happens, a warning will be raised."),
         formatter_class=CustomFormatter)
-    parser.add_argument("save_path",
-                        help=("Path (should end in .csv) where we'll save the simulated data"))
+    parser.add_argument("save_path", nargs='+',
+                        help=("Path (should end in .csv) where we'll save the simulated data. If "
+                              "one str, we only save the summary version, if two we save both "
+                              "summary and full."))
     parser.add_argument("--model_period_orientation_type", '-p', default='iso',
                         help=("{iso, absolute, relative, full}\nEffect of orientation on "
                               "preferred period\n- iso: model is isotropic, "
@@ -180,6 +198,8 @@ if __name__ == '__main__':
                               " to 'away from the fovea'\n- full: model can fit differences in "
                               "both absolute and relative orientations"))
     parser.add_argument("--num_voxels", '-n', default=100, help="Number of voxels to simulate",
+                        type=int)
+    parser.add_argument("--num_bootstraps", default=100, help="Number of bootstraps per voxel",
                         type=int)
     parser.add_argument("--sigma", '-s', default=.4, type=float, help="Sigma of log-Normal donut")
     parser.add_argument("--sf_ecc_slope", '-a', default=1, type=float,

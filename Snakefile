@@ -102,7 +102,7 @@ SUB_SEEDS = {'sub-wlsubj001': 1, 'sub-wlsubj042': 2, 'sub-wlsubj045': 3, 'sub-wl
 SES_SEEDS = {'ses-pilot00': 10, 'ses-pilot01': 20, 'ses-01': 30, 'ses-02': 40, 'ses-03': 50,
              'ses-04': 60}
 wildcard_constraints:
-    subject="sub-[a-z0-9]+|sub-groupaverage_i-[a-z]+",
+    subject="sub-[a-z0-9-]+|sub-groupaverage_i-[a-z]+",
     fs_subject="[a-z0-9]+",
     subjects="(sub-[a-z0-9]+,?)+",
     session="ses-[a-z0-9]+|ses-[0-9]+_v[0-9]+_s[0-9]+",
@@ -1586,7 +1586,8 @@ rule simulate_data_voxel_noise:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary.csv')
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}', 'n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_simulated_full.csv')
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'simulated_data', 'noise-{mat_type}_{atlas_type}_{subject}_{session}_{task}_v{vareas}_e{eccen}_n{num_voxels}_{period_orientation_type}_{eccentricity_type}_{amplitude_orientation_type}_s{sigma}_a{sf_ecc_slope}_b{sf_ecc_intercept}_rmc{rel_mode_cardinals}_rmo{rel_mode_obliques}_rac{rel_amplitude_cardinals}_rao{rel_amplitude_obliques}_amc{abs_mode_cardinals}_amo{abs_mode_obliques}_aac{abs_amplitude_cardinals}_aao{abs_amplitude_obliques}_l{noise_level}_benchmark.txt')
     log:
@@ -1601,7 +1602,7 @@ rule simulate_data_voxel_noise:
         "{wildcards.rel_amplitude_obliques} -amc {wildcards.abs_mode_cardinals} -amo "
         "{wildcards.abs_mode_obliques} -aac {wildcards.abs_amplitude_cardinals} -aao "
         "{wildcards.abs_amplitude_obliques} -b {wildcards.sf_ecc_intercept} -l {wildcards.noise_level} "
-        "--noise_source_path {input}"
+        "--noise_source_path {input} --num_bootstraps 100"
 
 
 rule model_simulated_data:
@@ -1862,6 +1863,15 @@ rule gather_simulated_model_results:
     run:
         import sfp
         sfp.analyze_model.gather_results(params.base_path, output, params.metadata)
+
+
+rule move_full_simulated_data_noise_ceiling:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_sub-wlsubj062_{session}_{task}_v{vareas}_e{eccen}', 'n1000_full_full_full_s2.2_a.15_b.3_rmc-.05_rmo-.05_rac0_rao0_amc.1_amo-.1_aac.05_aao-.05_l1_simulated_full.csv')
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', 'sub-wlsubj062-simulated', '{session}', 'sub-wlsubj062-simulated_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
+    shell:
+        "mv {input} {output}"
 
 
 rule noise_ceiling_monte_carlo:
