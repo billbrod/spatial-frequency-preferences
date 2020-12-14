@@ -99,8 +99,9 @@ def simulate_data(true_model, num_voxels=100, noise_level=0, num_bootstraps=10,
     for i in range(num_voxels):
         vox_ecc = np.random.uniform(1, 12)
         vox_angle = np.random.uniform(0, 2*np.pi)
+        noise_level = np.random.choice(noise_distribution)
         for j in range(num_bootstraps):
-            tmp = simulate_voxel(true_model, freqs, noise_level=np.random.choice(noise_distribution),
+            tmp = simulate_voxel(true_model, freqs, noise_level=noise_level,
                                  vox_ecc=vox_ecc, vox_angle=vox_angle)
             tmp['bootstrap_num'] = j
             tmp['voxel'] = i
