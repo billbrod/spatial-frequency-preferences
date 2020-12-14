@@ -75,7 +75,7 @@ def sample_df(df, seed=0,
         cols = ['varea', 'voxel', 'eccen', 'angle', 'stimulus_class',
                 'local_sf_magnitude', 'local_sf_xy_direction', 'noise_level',
                 'noise_source_df', 'period_orientation_type', 'eccentricity_type',
-                'amplitude_orientation_type']
+                'amplitude_orientation_type', 'precision']
         cols += [c for c in df.columns if c.startswith('true_m')]
     df = pd.merge(*tmp, on=cols, suffixes=['_1', '_2'], validate='1:1')
     df['noise_ceiling_seed'] = seed
