@@ -1970,6 +1970,76 @@ rule noise_ceiling_split_half:
                                      int(wildcards.gpus))
 
 
+def get_voxel_exclusion_inputs(wildcards):
+    first_level_template = os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', 'bayesian_posterior', '{{subject}}',
+                                        '{{session}}', '{{subject}}_{{session}}_{task}_v{vareas}_e{eccen}_summary.csv').format(**wildcards)
+    varea_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', '{subject}', 'bayesian_posterior', '{hemi}.inferred_varea.mgz')
+    subjects = set([sub for sub in SUBJECTS for ses in SESSIONS[sub] if TASKS[(sub, ses)] == wildcards.task])
+    return {'first_level': [first_level_template.format(subject=sub, session=ses) for sub in
+                            subjects for ses in SESSIONS[sub] if TASKS[(sub, ses)] == wildcards.task],
+            'vareas_left': [varea_template.format(subject=sub, hemi='lh') for sub in subjects],
+            'vareas_right': [varea_template.format(subject=sub, hemi='rh') for sub in subjects]}
+
+
+rule voxel_exclusion_df:
+    input:
+        unpack(get_voxel_exclusion_inputs),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{task}_v{vareas}_e{eccen}_voxel_exclusion.csv'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'voxel_exclusion', '{mat_type}_{atlas_type}_{task}_v{vareas}_e{eccen}.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'voxel_exclusion', '{mat_type}_{atlas_type}_{task}_v{vareas}_e{eccen}_benchmark.txt'),
+    run:
+        import re
+        import pandas as pd
+        import sfp
+        df = []
+        df_filter_str = ['drop_voxels_with_negative_amplitudes', 'drop_voxels_near_border']
+        df_filter_str += [','.join(df_filter_str)]
+        df_filter = [sfp.model.construct_df_filter(f) for f in df_filter_str]
+        vareas = [int(i) for i in wildcards.vareas.split('-')]
+        if len(vareas) > 1:
+            raise Exception("Wrote this assuming there was only one varea!")
+        ecc_str = f'ecc in {wildcards.eccen}'
+        # for each subject, find out how many voxels we remove with each filter
+        for i, (first_level_path, hemis) in enumerate(zip(input.first_level,
+                                                          zip(input.vareas_left,
+                                                              input.vareas_right))):
+            subject_name = re.findall('(sub-[a-z0-9]+)_', first_level_path)[0]
+            session_name = re.findall('(ses-[0-9]+)_', first_level_path)[0]
+            first_level_df = pd.read_csv(first_level_path)
+            mgzs = [sfp.first_level_analysis._load_mgz(p) for p in hemis]
+            tmp = {'subject': subject_name, 'session': session_name}
+            tmp['total_voxels'] = np.array([(m==vareas[0]).sum() for m in mgzs]).sum()
+            tmp[ecc_str] = first_level_df.voxel.nunique()
+            for name, filt in zip(df_filter_str, df_filter):
+                tmp[ecc_str+','+name] = filt(first_level_df).voxel.nunique()
+            df.append(pd.DataFrame(tmp, index=[i]))
+        df = pd.concat(df)
+        # add extra metadata
+        for k, v in dict(wildcards).items():
+            df[k] = v
+        df.to_csv(output[0], index=False)
+
+
+rule voxel_exclusion_figure:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', 'stim_class', 'bayesian_posterior', '{task}_v1_e1-12_voxel_exclusion.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'voxel_exclusion_{task}.{ext}'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'voxel_exclusion_{task}_{ext}.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'voxel_exclusion_{task}_{ext}_benchmark.txt'),
+    run:
+        import sfp
+        import pandas as pd
+        df = pd.read_csv(input[0])
+        g = sfp.figures.voxel_exclusion(df, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+
+
 rule prepare_image_computable:
     input:
         stim = os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stimuli.npy'),

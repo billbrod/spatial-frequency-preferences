@@ -2295,3 +2295,58 @@ def theory_background_figure(context):
         ax.set_ylabel("Preferred\nperiod (deg)")
 
     return fig
+
+
+def voxel_exclusion(df, context='paper'):
+    """Create plot showing how many voxels were excluded from model fitting.
+
+    WARNING: Currently this is not context-compliant -- the figure ends up much
+    wider than allowed. If we want to use this in paper, will change that.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing the voxel exclusion info, as created by the
+        snakemake rule voxel_exclusion_df
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the plot
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    neg = df['ecc in 1-12'] - df['ecc in 1-12,drop_voxels_with_negative_amplitudes']
+    border = df['ecc in 1-12'] - df['ecc in 1-12,drop_voxels_near_border']
+    df['ecc in 1-12,drop_voxels_with_negative_amplitudes,drop_voxels_near_border - independent'] = df['ecc in 1-12'] - (neg + border)
+    neg_prop = dict(zip(df.subject, neg / df['ecc in 1-12']))
+    neg = dict(zip(df.subject, neg))
+
+    df = pd.melt(df, ['subject', 'session', 'mat_type', 'atlas_type', 'task', 'vareas', 'eccen'], value_name='number_of_voxels')
+    map_dict = {'total_voxels': 0,
+                'ecc in 1-12': 1,
+                'ecc in 1-12,drop_voxels_with_negative_amplitudes': 2,
+                'ecc in 1-12,drop_voxels_near_border': 3,
+                'ecc in 1-12,drop_voxels_with_negative_amplitudes,drop_voxels_near_border': 4,
+                'ecc in 1-12,drop_voxels_with_negative_amplitudes,drop_voxels_near_border - independent': 5}
+    df['exclusion_criteria'] = df.variable.map(map_dict)
+    col_order = sorted(df.subject.unique())
+
+    g = sns.catplot(x='exclusion_criteria', y='number_of_voxels', data=df,
+                    col='subject', kind='point', col_wrap=6, aspect=.5,
+                    height=(1/.5)*(2*fig_width/6), col_order=col_order)
+    for ijk, data in g.facet_data():
+        ax = g.axes[ijk[1]]
+        ax.scatter(4, data.query('exclusion_criteria==4').number_of_voxels, c='r', zorder=100)
+    txt = '\n'.join([f'{v}: {k}' for k,v in map_dict.items()])
+    g.fig.text(1, .75, txt, va='center')
+    txt = '\n'.join([f'{s}: {neg[s]} ({neg_prop[s]:.3f})' for s in col_order])
+    txt = "Number of voxels dropped because of negative amplitude (proportion on stimuli)\n\n" + txt
+    g.fig.text(1, .25, txt, va='center')
+
+    return g
