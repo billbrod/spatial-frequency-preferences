@@ -1867,11 +1867,15 @@ rule gather_simulated_model_results:
 
 rule move_full_simulated_data_noise_ceiling:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_sub-wlsubj062_{session}_{task}_v{vareas}_e{eccen}', 'n1000_full_full_full_s2.2_a.15_b.3_rmc-.05_rmo-.05_rac0_rao0_amc.1_amo-.1_aac.05_aao-.05_l1_simulated_full.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_sub-wlsubj062_{session}_{task}_v{vareas}_e{eccen}', 'n1000_full_full_full_s2.2_a.15_b.3_rmc-.05_rmo-.05_rac0_rao0_amc.1_amo-.1_aac.05_aao-.05_l1_simulated_full.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_sub-wlsubj062_{session}_{task}_v{vareas}_e{eccen}', 'n1000_full_full_full_s2.2_a.15_b.3_rmc-.05_rmo-.05_rac0_rao0_amc.1_amo-.1_aac.05_aao-.05_l.2_simulated_full.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'simulated_data', 'noise-{mat_type}_{atlas_type}_sub-wlsubj062_{session}_{task}_v{vareas}_e{eccen}', 'n1000_full_full_full_s2.2_a.15_b.3_rmc-.05_rmo-.05_rac0_rao0_amc.1_amo-.1_aac.05_aao-.05_l0_simulated_full.csv'),
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', 'sub-wlsubj062-simulated', '{session}', 'sub-wlsubj062-simulated_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', 'sub-wlsubj062-simulated-lownoise', '{session}', 'sub-wlsubj062-simulated-lownoise_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', 'sub-wlsubj062-simulated-noiseless', '{session}', 'sub-wlsubj062-simulated-noiseless_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
     shell:
-        "mv {input} {output}"
+        "mv {input[0]} {output[0]}; mv {input[1]} {output[1]}; mv {input[2]} {output[2]}"
 
 
 rule noise_ceiling_monte_carlo:
