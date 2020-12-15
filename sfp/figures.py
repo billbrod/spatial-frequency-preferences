@@ -2416,17 +2416,28 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
                       'eccen', 'freq_space_angle'],
                  value_vars=['voxel_response', 'model_predictions'],
                  var_name='model', value_name='Response (a.u.)')
-    g = sns.relplot(x='local_sf_magnitude', y='Response (a.u.)', hue='model', data=df,
-                    col='voxel', col_wrap=3, kind='line', col_order=eccen_order,
-                    height=ax_height, legend=False)
+    g = sns.FacetGrid(hue='model', data=df, col='voxel', col_wrap=3,
+                      col_order=eccen_order, height=ax_height,)
+
+    def custom_mapper(*args, label='', **kwargs):
+        if label == 'voxel_response':
+            # there are 22 unique frequencies (freq_space_distance in the
+            # dataframe), but only 10 "real" ones, the others are just off by a
+            # little bit (because w_a/w_r needed to be whole numbers)
+            return sns.regplot(*args, x_bins=20, fit_reg=False, label=label,
+                               scatter_kws={'s': 10}, **kwargs)
+        else:
+            return sns.lineplot(*args, label=label, **kwargs)
+    g.map_dataframe(custom_mapper, x='local_sf_magnitude', y='Response (a.u.)')
     g.set(xscale='log', yticklabels=[])
     for i, ax in enumerate(g.axes.flatten()):
         vox_id = int(re.findall('voxel = (\d+)', ax.get_title())[0])
         ax.set_title(f"eccentricity = {df.query('voxel==@vox_id').eccen.unique()[0]:.02f}")
+        if i == 0:
+            ax.set(ylabel='Response (a.u.)')
         if i != 1:
             ax.set(xlabel='')
-        elif ax.get_xlabel():
+        # elif ax.get_xlabel():
+        else:
             ax.set(xlabel='Local spatial frequency (cpd)')
-        if ax.get_ylabel():
-            ax.set_ylabel(ax.get_ylabel(), labelpad=0)
     return g
