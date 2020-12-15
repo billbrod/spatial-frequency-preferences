@@ -2623,7 +2623,7 @@ rule example_voxel_figure:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
                      'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
-                     'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_full.csv'),
+                     'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_summary.csv'),
         # we use this version because the versions that make different
         # predictions as a function of orientation end up looking 'jagged' when
         # combining across orientations for plotting, which is confusing
@@ -2640,18 +2640,7 @@ rule example_voxel_figure:
     run:
         import pandas as pd
         import sfp
-        from io import StringIO
-        # these voxels picked to give 3 different eccentricities, reaosnably
-        # well fit by our model
-        vox_id = [str(i) for i in [2310, 2957, 1651]]
-        # this bit filters the input, so we only consider the voxels we want.
-        # it will save a bunch of time, because the full.csv is huge. that last
-        # condition is to make sure we include the header. the actual
-        # example_voxels() function filters on the voxel column, so if this
-        # grabs too many rows, that's okay.
-        with open(input[0]) as f:
-            text = '\n'.join([line for line in f if any([','+i+',' in line for i in vox_id]+['voxel' in line])])
-        df = pd.read_csv(StringIO(text))
+        df = pd.read_csv(input[0])
         model = sfp.analyze_model.load_LogGaussianDonut(input[1].replace('_model.pt', ''))
         g = sfp.figures.example_voxels(df, model, context=wildcards.context)
         g.fig.savefig(output[0], bbox_inches='tight')

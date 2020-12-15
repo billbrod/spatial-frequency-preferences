@@ -2365,8 +2365,8 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
     ----------
     df : pd.DataFrame
         first level DataFrame containing the amplitude responses for a single
-        subject and session. Can be the summary (only hsa median across
-        bootstraps) or full (has all bootstraps) version.
+        subject and session. Must be the summary version (only has median across
+        bootstraps).
     model : sfp.model.LogGaussianDonut
         Trained model whose responses we want to show.
     voxel_idx : list, optional
@@ -2406,16 +2406,12 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
         d['model_predictions'] = predictions / predictions.norm(2, -1, True)
         d['voxel'] = v
         d['stimulus_class'] = np.arange(48)
-        d['bootstrap_num'] = 0
         data.append(pd.DataFrame(d))
     data = pd.concat(data)
     df = df.merge(data, 'left', on=['voxel', 'stimulus_class'],
-                  validate='m:1', )
-    if 'amplitude_estimate_median' in df.columns:
-        col_name = 'amplitude_estimate_median_normed'
-    else:
-        col_name = 'amplitude_estimate_normed'
-    df = df.rename(columns={col_name: 'voxel_response'})
+                  validate='1:1', )
+    df = df.rename(columns={'amplitude_estimate_median_normed':
+                            'voxel_response'})
     df = pd.melt(df, ['voxel', 'local_sf_magnitude', 'stimulus_class',
                       'eccen', 'freq_space_angle'],
                  value_vars=['voxel_response', 'model_predictions'],
