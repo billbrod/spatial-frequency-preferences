@@ -1882,12 +1882,12 @@ rule noise_ceiling_monte_carlo:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_loss.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_predictions.png')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_{df_filter}_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_{df_filter}_predictions.png')
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_{df_filter}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_{df_filter}-%j.log")
     run:
         import sfp
         import pandas as pd
@@ -1900,7 +1900,10 @@ rule noise_ceiling_monte_carlo:
             df_filter_str = None
             is_simulated = True
         else:
-            df_filter_str = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+            if df_filter == 'filter':
+                df_filter_str = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+            elif df_filter == 'no-filter':
+                df_filter_str = None
             is_simulated = False
         df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed), df_filter_str, is_simulated)
         sfp.noise_ceiling.monte_carlo(df, save_stem, df_mode='full', **wildcards)
@@ -2614,6 +2617,44 @@ rule figure_schematic:
         elif wildcards.schematic_type == 'background':
             fig = sfp.figures.theory_background_figure(wildcards.context)
         fig.savefig(output[0], bbox_inches='tight')
+
+
+rule example_voxel_figure:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                     'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
+                     'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_full.csv'),
+        # we use this version because the versions that make different
+        # predictions as a function of orientation end up looking 'jagged' when
+        # combining across orientations for plotting, which is confusing
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                     'bayesian_posterior', 'initial', 'sub-wlsubj001', 'ses-04',
+                     'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
+                     'g0_cNone_nNone_iso_full_iso_model.pt')
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_voxels.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{ext}.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{ext}_benchmark.txt')
+    run:
+        import pandas as pd
+        import sfp
+        from io import StringIO
+        # these voxels picked to give 3 different eccentricities, reaosnably
+        # well fit by our model
+        vox_id = [str(i) for i in [2310, 2957, 1651]]
+        # this bit filters the input, so we only consider the voxels we want.
+        # it will save a bunch of time, because the full.csv is huge. that last
+        # condition is to make sure we include the header. the actual
+        # example_voxels() function filters on the voxel column, so if this
+        # grabs too many rows, that's okay.
+        with open(input[0]) as f:
+            text = '\n'.join([line for line in f if any([','+i+',' in line for i in vox_id]+['voxel' in line])])
+        df = pd.read_csv(StringIO(text))
+        model = sfp.analyze_model.load_LogGaussianDonut(input[1].replace('_model.pt', ''))
+        g = sfp.figures.example_voxels(df, model, context=wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_background:

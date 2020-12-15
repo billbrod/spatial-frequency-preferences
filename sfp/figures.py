@@ -6,6 +6,7 @@ import math
 import pyrtools as pt
 import os.path as op
 import warnings
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -2349,4 +2350,87 @@ def voxel_exclusion(df, context='paper'):
     txt = "Number of voxels dropped because of negative amplitude (proportion on stimuli)\n\n" + txt
     g.fig.text(1, .25, txt, va='center')
 
+    return g
+
+
+def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
+    """Plot some example voxel data and their model fit.
+
+    For some voxels and a trained model, plot some comparisons between the
+    measured voxel responses and the model's predictions. Each voxel gets its
+    own column. Nothing is done here to choose the voxels, so that must be done
+    externally.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        first level DataFrame containing the amplitude responses for a single
+        subject and session. Can be the summary (only hsa median across
+        bootstraps) or full (has all bootstraps) version.
+    model : sfp.model.LogGaussianDonut
+        Trained model whose responses we want to show.
+    voxel_idx : list, optional
+        List of voxel ids (i.e., values from the 'voxel' column of df) to show.
+        Should be selected somehow in order to make sure they're reasonably
+        nice. The default values are for sub-wlsubj001, ses-04, and are roughly
+        foveal, parafoveal, and peripheral, all reasonably well fit by the full
+        model. Regardless of how many are here, we'll have 3 columns per row.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the plot
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    ax_height = fig_width / 3
+    df = df.query("voxel in @voxel_idx")
+    data = []
+    voxel = df.drop_duplicates('voxel')
+    eccen_order = voxel.sort_values('eccen').voxel.values
+    for i, v in enumerate(voxel_idx):
+        # need to do this here because there's different local spatial
+        # frequency for each voxel (based on its location)
+        sfs = df.query('voxel==@v').drop_duplicates('stimulus_class')[['local_sf_magnitude',
+                                                                       'local_sf_xy_direction']]
+        sfs = torch.tensor(sfs.values)
+        d = {}
+        prf_loc = torch.tensor(voxel.query('voxel==@v')[['eccen', 'angle']].values)
+        predictions = model.evaluate(sfs[:, 0], sfs[:, 1], prf_loc[:, 0], prf_loc[:, 1])
+        predictions = predictions.detach().squeeze()
+        d['model_predictions'] = predictions / predictions.norm(2, -1, True)
+        d['voxel'] = v
+        d['stimulus_class'] = np.arange(48)
+        d['bootstrap_num'] = 0
+        data.append(pd.DataFrame(d))
+    data = pd.concat(data)
+    df = df.merge(data, 'left', on=['voxel', 'stimulus_class'],
+                  validate='m:1', )
+    if 'amplitude_estimate_median' in df.columns:
+        col_name = 'amplitude_estimate_median_normed'
+    else:
+        col_name = 'amplitude_estimate_normed'
+    df = df.rename(columns={col_name: 'voxel_response'})
+    df = pd.melt(df, ['voxel', 'local_sf_magnitude', 'stimulus_class',
+                      'eccen', 'freq_space_angle'],
+                 value_vars=['voxel_response', 'model_predictions'],
+                 var_name='model', value_name='Response (a.u.)')
+    g = sns.relplot(x='local_sf_magnitude', y='Response (a.u.)', hue='model', data=df,
+                    col='voxel', col_wrap=3, kind='line', col_order=eccen_order,
+                    height=ax_height, legend=False)
+    g.set(xscale='log', yticklabels=[])
+    for i, ax in enumerate(g.axes.flatten()):
+        vox_id = int(re.findall('voxel = (\d+)', ax.get_title())[0])
+        ax.set_title(f"eccentricity = {df.query('voxel==@vox_id').eccen.unique()[0]:.02f}")
+        if i != 1:
+            ax.set(xlabel='')
+        elif ax.get_xlabel():
+            ax.set(xlabel='Local spatial frequency (cpd)')
+        if ax.get_ylabel():
+            ax.set_ylabel(ax.get_ylabel(), labelpad=0)
     return g
