@@ -335,6 +335,7 @@ rule all_check_plots:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
                       "v1_e1-12_summary_b10_r0.001_g0_s0_cv_loss_comp_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS
          for ses in SESSIONS[sub] if ses=='ses-04'],
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'voxel_exclusion_task-sfprescaled.svg'),
 
 
 rule GLMdenoise_all_visual:
@@ -2974,4 +2975,6 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     f"individual_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg")
+                     f"individual_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels.svg")
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "schematic_background.svg")
