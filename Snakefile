@@ -1901,9 +1901,9 @@ rule noise_ceiling_monte_carlo:
             df_filter_str = None
             is_simulated = True
         else:
-            if df_filter == 'filter':
+            if wildcards.df_filter == 'filter':
                 df_filter_str = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
-            elif df_filter == 'no-filter':
+            elif wildcards.df_filter == 'no-filter':
                 df_filter_str = None
             is_simulated = False
         df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed), df_filter_str, is_simulated,
