@@ -2976,5 +2976,5 @@ rule figures_paper:
                      "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      f"individual_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels.svg")
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "schematic_background.svg")
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "schematic_background.svg"),
