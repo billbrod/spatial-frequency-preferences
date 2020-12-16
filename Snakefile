@@ -2175,7 +2175,7 @@ def get_noise_ceiling_df(wildcards):
                             'stim_class', 'bayesian_posterior', 'monte_carlo_ses-04_{task}_v1_e1-12_filter_{mode}.csv')
     if wildcards.cv_type.endswith('-nc'):
         return template.format(task=wildcards.task, mode='individual')
-    elif wildcards.cv_type.endswith('-nc-all')
+    elif wildcards.cv_type.endswith('-nc-all'):
         return template.format(task=wildcards.task, mode='all')
     else:
         return []
