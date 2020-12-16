@@ -2408,11 +2408,24 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
         d['stimulus_class'] = np.arange(48)
         data.append(pd.DataFrame(d))
     data = pd.concat(data)
+    # for each voxel, our stimuli have several orientations. ideally, these
+    # orientations would all have the exact same spatial frequency, but they
+    # don't (thew_r/w_a parameters needed to be integers in order to avoid
+    # obvious artifacts at polar angle 0). for plotting purposes, this is
+    # confusing, so we map those values such that they are identical, and the
+    # binning that gets done later on then makes more sense
+    canonical_freqs = [f for f in df.freq_space_distance.unique() if f == int(f)]
+    canonical_freq_mapper = {f: min(canonical_freqs, key=lambda x: abs(x-f))
+                             for f in df.freq_space_distance.unique()}
+    freq_mapper = df.groupby(['voxel', 'freq_space_distance']).local_sf_magnitude.median().to_dict()
+    df['plotting_sf'] = df.apply(lambda x: freq_mapper[x.voxel,
+                                                       canonical_freq_mapper[x.freq_space_distance]],
+                                 axis=1)
     df = df.merge(data, 'left', on=['voxel', 'stimulus_class'],
                   validate='1:1', )
     df = df.rename(columns={'amplitude_estimate_median_normed':
                             'voxel_response'})
-    df = pd.melt(df, ['voxel', 'local_sf_magnitude', 'stimulus_class',
+    df = pd.melt(df, ['voxel', 'plotting_sf', 'stimulus_class',
                       'eccen', 'freq_space_angle'],
                  value_vars=['voxel_response', 'model_predictions'],
                  var_name='model', value_name='Response (a.u.)')
@@ -2424,11 +2437,12 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
             # there are 22 unique frequencies (freq_space_distance in the
             # dataframe), but only 10 "real" ones, the others are just off by a
             # little bit (because w_a/w_r needed to be whole numbers)
-            return sns.regplot(*args, x_bins=20, fit_reg=False, label=label,
+            return sns.regplot(*args, x_bins=len(canonical_freqs),
+                               fit_reg=False, label=label,
                                scatter_kws={'s': 10}, **kwargs)
         else:
             return sns.lineplot(*args, label=label, **kwargs)
-    g.map_dataframe(custom_mapper, x='local_sf_magnitude', y='Response (a.u.)')
+    g.map_dataframe(custom_mapper, x='plotting_sf', y='Response (a.u.)')
     g.set(xscale='log', yticklabels=[])
     for i, ax in enumerate(g.axes.flatten()):
         vox_id = int(re.findall('voxel = (\d+)', ax.get_title())[0])
