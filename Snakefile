@@ -2172,9 +2172,11 @@ rule figure_loss_check:
 
 def get_noise_ceiling_df(wildcards):
     template = os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo',
-                            'stim_class', 'bayesian_posterior', 'monte_carlo_ses-04_{task}_v1_e1-12_filter_individual.csv')
+                            'stim_class', 'bayesian_posterior', 'monte_carlo_ses-04_{task}_v1_e1-12_filter_{mode}.csv')
     if wildcards.cv_type.endswith('-nc'):
-        return template.format(task=wildcards.task)
+        return template.format(task=wildcards.task, mode='individual')
+    elif wildcards.cv_type.endswith('-nc-all')
+        return template.format(task=wildcards.task, mode='all')
     else:
         return []
 
@@ -2197,7 +2199,7 @@ rule figure_crossvalidation:
         import matplotlib.pyplot as plt
         import sfp
         df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
-        if wildcards.cv_type.endswith('-nc'):
+        if '-nc' in wildcards.cv_type:
             noise_ceiling = sfp.figures.prep_df(pd.read_csv(input[1]), wildcards.task)
         else:
             noise_ceiling = None
