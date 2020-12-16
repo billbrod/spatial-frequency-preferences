@@ -2632,7 +2632,7 @@ rule example_voxel_figure:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                      'bayesian_posterior', 'initial', 'sub-wlsubj001', 'ses-04',
                      'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
-                     'g0_cNone_nNone_iso_full_iso_model.pt')
+                     'g0_cNone_nNone_full_full_absolute_model.pt')
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_voxels.{ext}')
     log:
