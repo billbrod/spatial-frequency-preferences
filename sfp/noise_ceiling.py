@@ -73,7 +73,11 @@ def sample_df(df, seed=0,
     elif mode == 'all':
         bootstraps = np.random.choice(100, (2, 100), True)
         tmp = [df.query("bootstrap_num in @b") for b in bootstraps]
-        tmp = [t.groupby(['varea', 'voxel', 'stimulus_class']).median().reset_index()
+        # stimulus_superclas and hemi are redundant with stimulus_class and
+        # voxel, respectively, but they're string-valued, which gets dropped by
+        # median(). so we include them here to preserve them.
+        tmp = [t.groupby(['varea', 'voxel', 'stimulus_superclass',
+                          'stimulus_class', 'hemi']).median().reset_index()
                for t in tmp]
     # then combine_dfs
     if not is_simulated:
