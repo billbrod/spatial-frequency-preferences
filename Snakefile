@@ -1883,12 +1883,12 @@ rule noise_ceiling_monte_carlo:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full.csv'),
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_{df_filter}_loss.csv'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_{df_filter}_predictions.png')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_{df_filter}_{mode}_loss.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', '{subject}', '{session}', 's{seed}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_full_{df_filter}_{mode}_predictions.png')
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_{df_filter}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_{df_filter}_{mode}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_{df_filter}-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_s{seed}_{subject}_{session}_{task}_{mat_type}_{atlas_type}_v{vareas}_e{eccen}_full_{df_filter}_{mode}-%j.log")
     run:
         import sfp
         import pandas as pd
@@ -1906,7 +1906,8 @@ rule noise_ceiling_monte_carlo:
             elif df_filter == 'no-filter':
                 df_filter_str = None
             is_simulated = False
-        df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed), df_filter_str, is_simulated)
+        df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed), df_filter_str, is_simulated,
+                                         wildcards.mode)
         sfp.noise_ceiling.monte_carlo(df, save_stem, df_mode='full', **wildcards)
 
 
@@ -1917,16 +1918,16 @@ rule noise_ceiling_monte_carlo_overall:
         # but we'd have to merge them ourselves afterwards.
         lambda wildcards: [os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo',
                                         '{{mat_type}}', '{{atlas_type}}', '{subject}', '{{session}}', 's{seed}',
-                                        '{subject}_{{session}}_{{task}}_v{{vareas}}_e{{eccen}}_full_loss.csv').format(
+                                        '{subject}_{{session}}_{{task}}_v{{vareas}}_e{{eccen}}_full_{{df_filter}}_{{mode}}_loss.csv').format(
                                             subject=sub, seed=seed)
                            for seed in range(100) for sub in SUBJECTS if wildcards.session in SESSIONS[sub]
                            if TASKS[(sub, wildcards.session)] == wildcards.task]
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', 'monte_carlo_{session}_{task}_v{vareas}_e{eccen}.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo', '{mat_type}', '{atlas_type}', 'monte_carlo_{session}_{task}_v{vareas}_e{eccen}_{df_filter}_{mode}.csv')
     benchmark:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_{session}_{task}_v{vareas}_e{eccen}_benchmark.txt")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_{session}_{task}_v{vareas}_e{eccen}_{df_filter}_{mode}_benchmark.txt")
     log:
-        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_{session}_{task}_v{vareas}_e{eccen}-%j.log")
+        os.path.join(config["DATA_DIR"], "code", "noise_ceiling", 'monte_carlo', "loss_{mat_type}_{atlas_type}_{session}_{task}_v{vareas}_e{eccen}_{df_filter}_{mode}-%j.log")
     run:
         import pandas as pd
         df = []
@@ -2171,7 +2172,7 @@ rule figure_loss_check:
 
 def get_noise_ceiling_df(wildcards):
     template = os.path.join(config['DATA_DIR'], 'derivatives', 'noise_ceiling', 'monte_carlo',
-                            'stim_class', 'bayesian_posterior', 'monte_carlo_ses-04_{task}_v1_e1-12.csv')
+                            'stim_class', 'bayesian_posterior', 'monte_carlo_ses-04_{task}_v1_e1-12_filter_individual.csv')
     if wildcards.cv_type.endswith('-nc'):
         return template.format(task=wildcards.task)
     else:

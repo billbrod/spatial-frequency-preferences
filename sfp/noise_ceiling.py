@@ -15,7 +15,8 @@ from . import model as sfp_model
 
 def sample_df(df, seed=0,
               df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border',
-              is_simulated=False):
+              is_simulated=False,
+              mode='individual'):
     """Sample df to get info for necessary computing Monte Carlo noise ceiling
 
     This is the df we use to compute the monte carlo noise ceiling,
@@ -45,6 +46,10 @@ def sample_df(df, seed=0,
     is_simulated : bool, optional
         Whether this is simulated data or actual data (changes which columns we
         merge on).
+    mode : {'individual', 'all'}, optional
+        Whether to compare the selection of two individual bootstrap
+        ('individual') or two selections of 100 bootstraps (with replacement,
+        'all')
 
     Returns
     -------
@@ -62,8 +67,14 @@ def sample_df(df, seed=0,
         df_filter = sfp_model.construct_df_filter(df_filter_string)
         df = df_filter(df).reset_index()
     np.random.seed(seed)
-    bootstraps = np.random.choice(100, 2, False)
-    tmp = [df.query("bootstrap_num == @b") for b in bootstraps]
+    if mode == 'individual':
+        bootstraps = np.random.choice(100, 2, False)
+        tmp = [df.query("bootstrap_num == @b") for b in bootstraps]
+    elif mode == 'all':
+        bootstraps = np.random.choice(100, (2, 100), True)
+        tmp = [df.query("bootstrap_num in @b") for b in bootstraps]
+        tmp = [t.groupby(['varea', 'voxel', 'stimulus_class']).median().reset_index()
+               for t in tmp]
     # then combine_dfs
     if not is_simulated:
         cols = ['varea', 'voxel', 'stimulus_superclass', 'w_r', 'w_a', 'eccen', 'angle',
