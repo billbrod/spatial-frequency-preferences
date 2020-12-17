@@ -1311,7 +1311,7 @@ rule model:
         "python -m sfp.model {wildcards.period_orientation_type} {wildcards.eccentricity_type} "
         "{wildcards.amplitude_orientation_type} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
-        "drop_voxels_with_negative_amplitudes,drop_voxels_near_border{params.vis_field} -t 1e-6 -e"
+        "drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border{params.vis_field} -t 1e-6 -e"
         " 1000 -c {params.stimulus_class} -n {params.bootstrap_num} {params.logging} {log}"
 
 
@@ -1902,7 +1902,7 @@ rule noise_ceiling_monte_carlo:
             is_simulated = True
         else:
             if wildcards.df_filter == 'filter':
-                df_filter_str = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+                df_filter_str = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
             elif wildcards.df_filter == 'no-filter':
                 df_filter_str = None
             is_simulated = False
@@ -2004,7 +2004,7 @@ rule voxel_exclusion_df:
         import pandas as pd
         import sfp
         df = []
-        df_filter_str = ['drop_voxels_with_negative_amplitudes', 'drop_voxels_near_border']
+        df_filter_str = ['drop_voxels_with_any_negative_amplitudes', 'drop_voxels_near_border']
         df_filter_str += [','.join(df_filter_str)]
         df_filter = [sfp.model.construct_df_filter(f) for f in df_filter_str]
         vareas = [int(i) for i in wildcards.vareas.split('-')]
@@ -2285,7 +2285,7 @@ rule crossval_comparison_figures:
         import torch
         import pandas as pd
         if wildcards.df_filter == 'filter':
-            df_filter_string = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
         elif wildcards.df_filter == 'no-filter':
             df_filter_string = None
         first_level_df = pd.read_csv(input[0])
@@ -2327,7 +2327,7 @@ rule create_precision_df:
         elif wildcards.summary_func == 'median':
             summary_func = np.median
         if wildcards.df_filter == 'filter':
-            df_filter_string = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
         elif wildcards.df_filter == 'no-filter':
             df_filter_string = None
         df = sfp.figures.create_precision_df(input, summary_func, df_filter_string)
@@ -2348,7 +2348,7 @@ rule precision_check_figure:
         import sfp
         import pandas as pd
         if wildcards.df_filter == 'filter':
-            df_filter_string = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
         elif wildcards.df_filter == 'no-filter':
             df_filter_string = None
         fig = sfp.plotting.voxel_property_plot(pd.read_csv(input[0]), 'precision', df_filter_string=df_filter_string)
@@ -2391,7 +2391,7 @@ rule understand_loss_figure:
         import torch
         import pandas as pd
         if wildcards.df_filter == 'filter':
-            df_filter_string = 'drop_voxels_with_negative_amplitudes,drop_voxels_near_border'
+            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
         elif wildcards.df_filter == 'no-filter':
             df_filter_string = None
         first_level_df = pd.read_csv(input[1])
@@ -2628,9 +2628,6 @@ rule example_voxel_figure:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
                      'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
                      'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_summary.csv'),
-        # we use this version because the versions that make different
-        # predictions as a function of orientation end up looking 'jagged' when
-        # combining across orientations for plotting, which is confusing
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                      'bayesian_posterior', 'initial', 'sub-wlsubj001', 'ses-04',
                      'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
@@ -2977,6 +2974,8 @@ rule figures_paper:
                      'individual_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_absolute.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     "individual_cv_raw-nc_v_s-3_task-sfprescaled"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      f"individual_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels.svg"),

@@ -38,7 +38,7 @@ def randomly_reduce_num_voxels(df, n_voxels=200):
     return df.query('voxel in @voxels')
 
 
-def drop_voxels_with_negative_amplitudes(df):
+def drop_voxels_with_any_negative_amplitudes(df):
     """drop all voxels that have at least one negative amplitude
     """
     groupby_col = ['voxel']
@@ -58,6 +58,32 @@ def drop_voxels_with_negative_amplitudes(df):
         df = df.query('voxel in @voxels')
     except AttributeError:
         df = df.groupby(groupby_col).filter(lambda x: (x.amplitude_estimate_median >= 0).all())
+    return df
+
+
+def drop_voxels_with_mean_negative_amplitudes(df):
+    """drop all voxels that have an average negative amplitude (across stimuli)
+    """
+    groupby_col = ['voxel']
+    if 'indicator' in df.columns:
+        groupby_col += ['indicator']
+    try:
+        # in this case, we have the full dataframe (with each bootstrap
+        # separately), and we want to drop those voxels whose median
+        # amplitude estimate is less than zero, not just a single
+        # bootstrap. so first we compute the median amplitude estimates
+        # for each voxel and stimulus class
+        tmp = df.groupby(groupby_col + ['stimulus_class']).amplitude_estimate.median().reset_index()
+        # then we do a similar thing to get the average across stimulus classes.
+        tmp = tmp.groupby(groupby_col).amplitude_estimate.mean().reset_index()
+        tmp = tmp.groupby(groupby_col).filter(lambda x: (x.amplitude_estimate >= 0).all())
+        voxels = tmp.voxel.unique()
+        df = df.query('voxel in @voxels')
+    except AttributeError:
+        tmp = df.groupby(groupby_col).amplitude_estimate_median.mean().reset_index()
+        tmp = tmp.groupby(groupby_col).filter(lambda x: (x.amplitude_estimate_median >= 0).all())
+        voxels = tmp.voxel.unique()
+        df = df.query('voxel in @voxels')
     return df
 
 
@@ -137,7 +163,7 @@ class FirstLevelDataset(torchdata.Dataset):
 
     df_filter: function or None. If not None, a function that takes a dataframe as input and
     returns one (most likely, a subset of the original) as output. See
-    `drop_voxels_with_negative_amplitudes` for an example.
+    `drop_voxels_with_any_negative_amplitudes` for an example.
 
     stimulus_class: list of ints or None. What subset of the stimulus_class should be used. these
     are numbers between 0 and 47 (inclusive) and then the dataset will only include data from those
@@ -960,7 +986,7 @@ def main(model_period_orientation_type, model_eccentricity_type, model_amplitude
 
     df_filter: function or None. If not None, a function that takes a dataframe as input and
     returns one (most likely, a subset of the original) as output. See
-    `drop_voxels_with_negative_amplitudes` for an example.
+    `drop_voxels_with_any_negative_amplitudes` for an example.
 
     test_set_stimulus_class: list of ints or None. What subset of the stimulus_class should be
     considered the test set. these are numbers between 0 and 47 (inclusive) and then the test
@@ -1032,7 +1058,7 @@ def construct_df_filter(df_filter_string):
     """construct df_filter from string (as used in our command-line parser)
 
     the string should be a single string containing at least one of the following, separated by
-    commas: 'drop_voxels_with_negative_amplitudes', 'drop_voxels_near_border',
+    commas: 'drop_voxels_with_any_negative_amplitudes', 'drop_voxels_near_border',
     'reduce_num_voxels:n' (where n is an integer), 'None'. This will then construct the function
     that will chain them together in the order specified (if None is one of the entries, we will
     simply return None)
@@ -1041,8 +1067,10 @@ def construct_df_filter(df_filter_string):
     df_filters = []
     for f in df_filter_string.split(','):
         # this is a little bit weird, but it does what we want
-        if f == 'drop_voxels_with_negative_amplitudes':
-            df_filters.append(drop_voxels_with_negative_amplitudes)
+        if f == 'drop_voxels_with_any_negative_amplitudes':
+            df_filters.append(drop_voxels_with_any_negative_amplitudes)
+        elif f == 'drop_voxels_with_mean_negative_amplitudes':
+            df_filters.append(drop_voxels_with_mean_negative_amplitudes)
         elif f == 'drop_voxels_near_border':
             df_filters.append(drop_voxels_near_border)
         elif f == 'None' or f == 'none':
@@ -1132,8 +1160,9 @@ if __name__ == '__main__':
     parser.add_argument("--train_thresh", '-t', default=1e-6, type=float,
                         help=("How little the loss can change with successive epochs to be "
                               "considered done training."))
-    parser.add_argument("--df_filter", '-d', default='drop_voxels_with_negative_amplitudes',
-                        help=("{'drop_voxels_near_border', 'drop_voxels_with_negative_amplitudes',"
+    parser.add_argument("--df_filter", '-d', default='drop_voxels_with_any_negative_amplitudes',
+                        help=("{'drop_voxels_near_border', 'drop_voxels_with_any_negative_amplitudes',"
+                              " 'drop_voxels_with_any_negative_amplitudes',"
                               " 'reduce_num_voxels:n', 'randomly_reduce_num_voxels:n', 'restrict_"
                               "to_part_of_visual_field:loc', 'None'}. How to filter the first "
                               "level dataframe. Can be multiple of these, separated by a comma, in"

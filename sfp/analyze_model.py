@@ -691,7 +691,7 @@ def _calc_loss(preds, targets, loss_func, average=True):
 
 
 def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
-                  df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
+                  df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'):
     """Calculate cross-validated loss and save as new dataframe
 
     We use 12-fold cross-validation to determine the mode that best fits

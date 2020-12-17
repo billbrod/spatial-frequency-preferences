@@ -14,7 +14,7 @@ from . import model as sfp_model
 
 
 def sample_df(df, seed=0,
-              df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border',
+              df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border',
               is_simulated=False,
               mode='individual'):
     """Sample df to get info for necessary computing Monte Carlo noise ceiling
@@ -199,7 +199,7 @@ class NoiseCeilingDataset(torchdata.Dataset):
     df_filter : function or None, optional. 
         If not None, a function that takes a dataframe as input and
         returns one (most likely, a subset of the original) as
-        output. See `drop_voxels_with_negative_amplitudes` for an
+        output. See `drop_voxels_with_any_negative_amplitudes` for an
         example.
 
     """

@@ -24,7 +24,7 @@ from . import style
 
 
 def create_precision_df(paths, summary_func=np.mean,
-                        df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border'):
+                        df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'):
     """Create dataframe summarizing subjects' precision
 
     When combining parameter estimates into an 'overall' value, we want
@@ -2073,7 +2073,7 @@ def sigma_interpretation(df):
 
 
 def compare_cv_models(first_level_df, targets, predictions, model_names, loss_func='normed_loss',
-                      df_filter_string='drop_voxels_with_negative_amplitudes,drop_voxels_near_border',
+                      df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border',
                       context='paper', voxel_n_check=9):
     """Create plots to help understand differences in model performance.
 
@@ -2322,19 +2322,19 @@ def voxel_exclusion(df, context='paper'):
     """
     params, fig_width = style.plotting_style(context, figsize='full')
     plt.style.use(params)
-    neg = df['ecc in 1-12'] - df['ecc in 1-12,drop_voxels_with_negative_amplitudes']
+    neg = df['ecc in 1-12'] - df['ecc in 1-12,drop_voxels_with_any_negative_amplitudes']
     border = df['ecc in 1-12'] - df['ecc in 1-12,drop_voxels_near_border']
-    df['ecc in 1-12,drop_voxels_with_negative_amplitudes,drop_voxels_near_border - independent'] = df['ecc in 1-12'] - (neg + border)
+    df['ecc in 1-12,drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border - independent'] = df['ecc in 1-12'] - (neg + border)
     neg_prop = dict(zip(df.subject, neg / df['ecc in 1-12']))
     neg = dict(zip(df.subject, neg))
 
     df = pd.melt(df, ['subject', 'session', 'mat_type', 'atlas_type', 'task', 'vareas', 'eccen'], value_name='number_of_voxels')
     map_dict = {'total_voxels': 0,
                 'ecc in 1-12': 1,
-                'ecc in 1-12,drop_voxels_with_negative_amplitudes': 2,
+                'ecc in 1-12,drop_voxels_with_any_negative_amplitudes': 2,
                 'ecc in 1-12,drop_voxels_near_border': 3,
-                'ecc in 1-12,drop_voxels_with_negative_amplitudes,drop_voxels_near_border': 4,
-                'ecc in 1-12,drop_voxels_with_negative_amplitudes,drop_voxels_near_border - independent': 5}
+                'ecc in 1-12,drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border': 4,
+                'ecc in 1-12,drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border - independent': 5}
     df['exclusion_criteria'] = df.variable.map(map_dict)
     col_order = sorted(df.subject.unique())
 
