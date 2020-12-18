@@ -2998,6 +2998,8 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      "individual_filter-mean_cv_raw-nc_v_s-3_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     "individual_filter-mean_cv_raw-nc-all_v_s-3_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      f"individual_filter-mean_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "schematic_background.svg"),
