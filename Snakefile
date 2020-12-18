@@ -141,6 +141,7 @@ wildcard_constraints:
     orient="h|v",
     sort="sort_|",
     doubleup="doubleup_|",
+    schematic_type="(2d|2d-inputs|background)",
 
 #  there's a bit of (intentional) ambiguity in the output folders of GLMdenoise_fixed_hrf and
 #  GLMdenoise (GLMdenoise_fixed_hrf's output folder is "{mat_type}_fixed_hrf_{input_mat}", while
