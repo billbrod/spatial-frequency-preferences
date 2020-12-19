@@ -466,7 +466,7 @@ rule presented_spatial_frequency:
     output:
         os.path.join(config['DATA_DIR'], 'stimuli', '{task}_presented_frequencies.csv'),
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'stimuli', '{task}_presented_frequencies.log'),
+        os.path.join(config['DATA_DIR'], 'code', 'stimuli', '{task}_presented_frequencies-%j.log'),
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'stimuli', '{task}_presented_frequencies_benchmark.txt'),
     run:
@@ -2003,7 +2003,7 @@ rule voxel_exclusion_df:
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{task}_v{vareas}_e{eccen}_{df_filter}_voxel_exclusion.csv'),
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'voxel_exclusion', '{mat_type}_{atlas_type}_{task}_v{vareas}_e{eccen}_{df_filter}.log'),
+        os.path.join(config['DATA_DIR'], 'code', 'voxel_exclusion', '{mat_type}_{atlas_type}_{task}_v{vareas}_e{eccen}_{df_filter}-%j.log'),
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'voxel_exclusion', '{mat_type}_{atlas_type}_{task}_v{vareas}_e{eccen}_{df_filter}_benchmark.txt'),
     run:
@@ -2048,7 +2048,7 @@ rule voxel_exclusion_figure:
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'voxel_exclusion_{df_filter}_{task}.{ext}'),
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'voxel_exclusion_{df_filter}_{task}_{ext}.log'),
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'voxel_exclusion_{df_filter}_{task}_{ext}-%j.log'),
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'voxel_exclusion_{df_filter}_{task}_{ext}_benchmark.txt'),
     run:
@@ -2082,7 +2082,7 @@ rule figure_summarize_1d:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_1d_{tuning_param}_s-{seed}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', "{groupaverage}_1d_{tuning_param}_s-{seed}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', "{groupaverage}_1d_{tuning_param}_s-{seed}_{task}_{ext}-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}',
                      "{groupaverage}_1d_{tuning_param}_s-{seed}_{task}_{ext}_benchmark.txt")
@@ -2142,7 +2142,7 @@ rule combine_final_loss:
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', '{mat_type}', '{atlas_type}', "{df_filter}", '{modeling_goal}', '{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.csv')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.log')
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss-%j.log')
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss_benchmark.txt')
     run:
@@ -2159,7 +2159,7 @@ rule figure_loss_check:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{df_filter}_{modeling_goal}_training-loss-check_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{modeling_goal}_training-loss-check_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{modeling_goal}_training-loss-check_{task}_{ext}-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{modeling_goal}_training-loss-check_{task}_{ext}_benchmark.txt")
     run:
@@ -2200,7 +2200,7 @@ rule figure_crossvalidation:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{df_filter}_cv_{cv_type}_{orient}_{sort}{doubleup}s-{seed}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_cv_{cv_type}_{orient}_{sort}{doubleup}s-{seed}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_cv_{cv_type}_{orient}_{sort}{doubleup}s-{seed}_{task}_{ext}-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_cv_{cv_type}_{orient}_{sort}{doubleup}s-{seed}_{task}_{ext}_benchmark.txt")
     run:
@@ -2352,7 +2352,7 @@ rule precision_check_figure:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check.png'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_joint.png'),
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check.log'),
+        os.path.join(config['DATA_DIR'], 'code', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check-%j.log'),
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_summary_{df_filter}_precision_check_benchmark.txt'),
     run:
@@ -2476,7 +2476,7 @@ rule figure_params:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_params_visualfield-{vf}_{plot_kind}_s-{seed}_{task}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_params_visualfield-{vf}_{plot_kind}_s-{seed}_{task}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_params_visualfield-{vf}_{plot_kind}_s-{seed}_{task}_{ext}-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_params_visualfield-{vf}_{plot_kind}_s-{seed}_{task}_{ext}_benchmark.txt")
     run:
@@ -2561,7 +2561,7 @@ rule figure_feature_df:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_s-{seed}_{task}_{ref_frame}.{ext}")
     log:
-        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_s-{seed}_{task}_{ref_frame}_{ext}.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_s-{seed}_{task}_{ref_frame}_{ext}-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", 'figures', '{context}', "{groupaverage}_{df_filter}_{model_type}_feature_visualfield-{vf}_{feature_type}_{plot_kind}_angles-{angles}_s-{seed}_{task}_{ref_frame}_{ext}_benchmark.txt")
     run:
@@ -2593,7 +2593,7 @@ rule figure_schematic:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'schematic_{schematic_type}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_{schematic_type}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_{schematic_type}_{ext}-%j.log')
     benchmark:
         os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_{schematic_type}_{ext}_benchmark.txt')
     run:
@@ -2615,7 +2615,7 @@ rule figure_model_schematic:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'schematic_models{extra}_{df_filter}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_models{extra}_{df_filter}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_models{extra}_{df_filter}_{ext}-%j.log')
     benchmark:
         os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_models{extra}_{df_filter}_{ext}_benchmark.txt')
     run:
@@ -2656,7 +2656,7 @@ rule example_voxel_figure:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_voxels_{df_filter}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{ext}-%j.log')
     benchmark:
         os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{ext}_benchmark.txt')
     run:
@@ -2672,7 +2672,7 @@ rule figure_background:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'background_{y_val}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'background_{y_val}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'background_{y_val}_{ext}-%j.log')
     benchmark:
         os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'background_{y_val}_{ext}_benchmark.txt')
     run:
@@ -2694,7 +2694,7 @@ rule figure_background_with_current:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_{df_filter}_{task}_background_{y_val}_{model_type}_s-{seed}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{df_filter}_{task}_background_{y_val}_{model_type}_s-{seed}_{ext}.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{df_filter}_{task}_background_{y_val}_{model_type}_s-{seed}_{ext}-%j.log')
     benchmark:
         os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_{df_filter}_{task}_background_{y_val}_{model_type}_s-{seed}_{ext}_benchmark.txt')
     run:
@@ -2753,7 +2753,7 @@ rule compose_figures:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'compose_figures', '{context}', '{figure_name}.svg')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'compose_figures', '{context}', '{figure_name}_svg.log')
+        os.path.join(config["DATA_DIR"], 'code', 'compose_figures', '{context}', '{figure_name}_svg-%j.log')
     benchmark:
         os.path.join(config["DATA_DIR"], 'code', 'compose_figures', '{context}', '{figure_name}_svg_benchmark.txt')
     run:
@@ -2775,7 +2775,7 @@ rule presented_spatial_frequency_plot:
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', '{task}_presented_frequencies.svg'),
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_presented_frequencies_svg.log'),
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_presented_frequencies_svg-%j.log'),
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_presented_frequencies_svg_benchmark.txt'),
     run:
@@ -2801,7 +2801,7 @@ rule figure_mtf:
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'mtf.{ext}')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'mtf_{ext}.log')
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'mtf_{ext}-%j.log')
     benchmark:
         os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'mtf_{ext}_benchmark.txt')
     run:
@@ -2819,7 +2819,7 @@ rule sigma_interpretation:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}.txt")
     log:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}.log")
+        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}_benchmark.txt")
     run:
