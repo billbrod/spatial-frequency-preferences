@@ -953,6 +953,8 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
         kwargs['sharex'] = False
     else:
         kwargs['sharey'] = False
+    if 'dodge' not in kwargs.keys():
+        kwargs['dodge'] = 0
     # facetgrid seems to ignore the defaults for these, but we want to use them
     # so its consistent with other figures
     gridspec_kws = {k: mpl.rcParams[f'figure.subplot.{k}']
@@ -960,7 +962,7 @@ def _catplot(df, x='subject', y='cv_loss', hue='fit_model_type', height=8, aspec
     g = sns.catplot(x, y, hue, data=df, hue_order=hue_order, legend=legend, height=height,
                     kind=plot_kind, aspect=aspect, order=order, palette=pal, ci=ci,
                     estimator=np.median, orient=orient, facet_kws={'gridspec_kws': gridspec_kws},
-                    dodge=0, **kwargs)
+                    **kwargs)
     for ax in g.axes.flatten():
         if x_rotate:
             if x_rotate is True:
