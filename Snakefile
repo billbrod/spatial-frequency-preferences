@@ -1908,8 +1908,10 @@ rule noise_ceiling_monte_carlo:
             df_filter_str = None
             is_simulated = True
         else:
-            if wildcards.df_filter == 'filter':
+            if wildcards.df_filter == 'filter-any':
                 df_filter_str = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
+            elif wildcards.df_filter == 'filter-mean':
+                df_filter_str = 'drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border'
             elif wildcards.df_filter == 'no-filter':
                 df_filter_str = None
             is_simulated = False
