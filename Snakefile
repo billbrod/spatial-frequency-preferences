@@ -17,7 +17,7 @@ if os.system("module list") == 0:
                  "module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2017a; "
                  "export SUBJECTS_DIR=%s/derivatives/freesurfer; "
                  # necessary to make sure we get the right HDF5 library, apparently.
-                 "export LD_LIBRARY_PATH=~/.conda/envs/sfp/lib:LD_LIBRARY_PATH" % config["DATA_DIR"])
+                 "export LD_LIBRARY_PATH=~/.conda/envs/sfp/lib:LD_LIBRARY_PATH; " % config["DATA_DIR"])
 else:
     ON_CLUSTER = False
     shell.prefix("export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
@@ -1908,8 +1908,10 @@ rule noise_ceiling_monte_carlo:
             df_filter_str = None
             is_simulated = True
         else:
-            if wildcards.df_filter == 'filter':
+            if wildcards.df_filter == 'filter-any':
                 df_filter_str = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
+            elif wildcards.df_filter == 'filter-mean':
+                df_filter_str = 'drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border'
             elif wildcards.df_filter == 'no-filter':
                 df_filter_str = None
             is_simulated = False
