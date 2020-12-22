@@ -1663,7 +1663,7 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
 
 def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative',
                     feature_type='pref-period', visual_field='all', context='paper',
-                    col_wrap=None):
+                    col_wrap=None, scatter_ref_pts=False):
     """plot model predictions based on parameter values
 
     This function is used to create plots showing the preferred period
@@ -1714,6 +1714,12 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
+    col_wrap : int or None, optional
+        col_wrap argument to pass through to seaborn FacetGrid
+    scatter_ref_pts : bool, optional
+        if True, we plot black points every 45 degrees on the polar plots to
+        serve as a reference (only used in paper context). if False, do
+        nothing.
 
     Returns
     -------
@@ -1906,9 +1912,10 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         if split_oris:
             th = np.linspace(0, 2*np.pi, 8, endpoint=False)
             r_val = 1 # df[r].mean()
-            for ax in g.axes.flatten():
-                ax.scatter(th, len(th)*[r_val], c='k',
-                           s=mpl.rcParams['lines.markersize']**2 / 2)
+            if scatter_ref_pts:
+                for ax in g.axes.flatten():
+                    ax.scatter(th, len(th)*[r_val], c='k',
+                               s=mpl.rcParams['lines.markersize']**2 / 2)
             # for some reason, can't call the set_rticks until after all
             # scatters have been called, or they get messed up
             for ax in g.axes.flatten():
