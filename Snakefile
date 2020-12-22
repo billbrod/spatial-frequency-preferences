@@ -2159,7 +2159,8 @@ rule figure_loss_check:
     input:
         lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class', 'bayesian_posterior', "{df_filter}", '{modeling_goal}',
                                        '{groupaverage}_{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full', 'initial': 'summary'}[wildcards.modeling_goal],
-                                                                                                                             modeling_goal=wildcards.modeling_goal, task=wildcards.task, groupaverage=wildcards.groupaverage)
+                                                                                                                             modeling_goal=wildcards.modeling_goal, task=wildcards.task, groupaverage=wildcards.groupaverage,
+                                                                                                                             df_filter=wildcards.df_filter)
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{df_filter}_{modeling_goal}_training-loss-check_{task}.{ext}")
     log:
