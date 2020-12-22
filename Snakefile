@@ -340,7 +340,9 @@ rule all_check_plots:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "filter-mean", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
                       "v1_e1-12_summary_b10_r0.001_g0_s0_cv_loss_comp_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS
          for ses in SESSIONS[sub] if ses=='ses-04'],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'voxel_exclusion_filter-mean_task-sfprescaled.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'voxel_exclusion_filter-mean_task-sfprescaled.svg'),
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'individual_filter-mean_{}_training-loss-check_task-sfprescaled.svg').format(t)
+             for t in ['initial_cv', 'bootstrap']],
 
 
 rule GLMdenoise_all_visual:
@@ -2739,8 +2741,8 @@ def get_compose_input(wildcards):
     elif "with_legend" in wildcards.figure_name:
         paths = [path_template % wildcards.figure_name.replace('_with_legend', '')]
     elif '2d_summary' in wildcards.figure_name:
-        groupaverage, model, seed = re.findall("([a-z-]+)_([a-z_]+)_2d_summary_s-([0-9]+)", wildcards.figure_name)[0]
-        template_name = (f'{groupaverage}_{model}_feature_visualfield-all_{{}}_bootstraps-overall_'
+        groupaverage, df_filter, model, seed = re.findall("([a-z-]+)_([a-z-]+)_([a-z_]+)_2d_summary_s-([0-9]+)", wildcards.figure_name)[0]
+        template_name = (f'{groupaverage}_{df_filter}_{model}_feature_visualfield-all_{{}}_bootstraps-overall_'
                          f'angles-{{}}_s-{seed}_task-sfprescaled_{{}}')
         angles = {'pref-period': 'avg', 'pref-period-contour': 'all', 'max-amp': 'all'}
         paths = [path_template % template_name.format(feature, angles[feature], frame) for
