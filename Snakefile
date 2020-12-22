@@ -2673,6 +2673,25 @@ rule example_voxel_figure:
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
+rule example_ecc_bins_figure:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves',
+                     'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
+                     'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_eccen_bin_summary.csv'),
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_ecc_bins.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_ecc_bins_{ext}-%j.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_ecc_bins_{ext}_benchmark.txt')
+    run:
+        import pandas as pd
+        import sfp
+        df = pd.read_csv(input[0])
+        g = sfp.figures.example_eccentricity_bins(df, context=wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+
+
 rule figure_background:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'background_{y_val}.{ext}')
@@ -2749,6 +2768,11 @@ def get_compose_input(wildcards):
         paths = [path_template % template_name.format(feature, angles[feature], frame) for
                  frame, feature in itertools.product(['relative', 'absolute'],
                                                      ['pref-period', 'pref-period-contour', 'max-amp'])]
+    elif '1d_summary' in wildcards.figure_name:
+        groupaverage, seed = re.findall("([a-z-]+)_1d_summary_s-([0-9]+)", wildcards.figure_name)[0]
+        fig_name = f'{groupaverage}_1d_pref-period-overall_s-{seed}_task-sfprescaled_with_legend'
+        paths = [path_template % "example_ecc_bins",
+                 path_template.replace('figures', 'compose_figures') % fig_name]
     return paths
 
 
@@ -2773,6 +2797,9 @@ rule compose_figures:
         elif '2d_summary' in wildcards.figure_name:
             sfp.compose_figures.feature_df_summary(input[:3], input[3:],
                                                    output[0], wildcards.context)
+        elif '1d_summary' in wildcards.figure_name:
+            sfp.compose_figures.pref_period_1d(input[0], input[1], output[0],
+                                               wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:

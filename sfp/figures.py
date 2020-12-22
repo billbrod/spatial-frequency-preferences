@@ -2477,3 +2477,68 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
         else:
             ax.set(xlabel='Local spatial frequency (cpd)')
     return g
+
+
+def example_eccentricity_bins(df, context='paper'):
+    """Plot some example eccentricity bins and their tuning curves.
+   
+    This plots the amplitude estimates and the tuning curves for a single
+    subject, angular and radial stimuli, eccentricity bins 02-03 and 10-11. It
+    is meant to show that the tuning curves fit the bins reasonably well.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        pandas DataFrame containing the 1d tuning curves for a single subject.
+        Must be the summary version (containing the fits to the median across
+        bootstraps)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the plot
+
+    """
+    params, fig_width = style.plotting_style(figsize='half')
+    plt.style.use(params)
+    if context == 'paper':
+        # this isn't the exact same as what you'd get doing the line below,
+        # because we use a relatively small wspace (space between axes), that
+        # lets us make them a bit bigger
+        height = 2.8
+    else:
+        height = (fig_width / 2) / .7
+
+    df = df.query("frequency_type=='local_sf_magnitude' & "
+                  "stimulus_superclass in ['angular', 'radial'] & "
+                  "eccen in ['02-03', '10-11']")
+    df = df.rename(columns={'eccen': "Eccentricity band"})
+    pal = plotting.get_palette('stimulus_type', 'relative',
+                               df.stimulus_superclass.unique(),
+                               True)
+
+    mode_bounds = (df.mode_bound_lower.unique()[0],
+                   df.mode_bound_upper.unique()[0])
+
+    g = sns.FacetGrid(df, col='Eccentricity band', palette=pal,
+                      hue='stimulus_superclass',
+                      xlim=mode_bounds, aspect=.7, height=height)
+    g.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
+    g.map_dataframe(plotting.plot_tuning_curve)
+    g.set_titles('{col_var}\n{col_name} deg')
+    g.set(xscale='log', yticklabels=[])
+    for i, ax in enumerate(g.axes.flatten()):
+        if i == 0:
+            ax.set(ylabel='Response (a.u.)')
+        ax.set(xticks=[10**i for i in [-1, 1, 3]], xlabel='')
+        xlim = ax.get_xlim()
+        ax.hlines(0, *xlim, 'gray', '--')
+        ax.set_xlim(xlim)
+    g.fig.text(.5, 0, 'Local spatial frequency (cpd)', ha='center',
+               transform=g.fig.transFigure)
+    g.fig.subplots_adjust(wspace=.2)
+    return g
