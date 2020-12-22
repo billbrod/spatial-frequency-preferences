@@ -1893,7 +1893,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
             ylabel = 'Relative amplitude'
-            if context == 'paper':
+            # doesn't look good with multiple rows
+            if context == 'paper' and col_wrap is None:
                 # the location argument here does nothing, since we over-ride
                 # it with the bbox_to_anchor and bbox_transform arguments. the
                 # size and size_vertical values here look weird because they're
