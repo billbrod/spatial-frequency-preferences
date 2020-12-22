@@ -507,10 +507,17 @@ def _summarize_1d(df, reference_frame, y, row, col, height, facetgrid_legend,
     if row is not None:
         row_order = plotting.get_order(row, col_unique=df[row].unique())
     kwargs.setdefault('xlim', (0, 12))
-    g = summary_plots.main(df, row=row, col=col, y=y, eccen_range=(0, 11), hue_order=hue_order,
-                           x_jitter=[None, .2], height=height,
-                           plot_func=[plotting.plot_median_fit, plotting.scatter_ci_dist],
-                           palette=pal, col_order=col_order, row_order=row_order,
+    g = summary_plots.main(df, row=row, col=col, y=y, eccen_range=(0, 11),
+                           hue_order=hue_order, height=height,
+                           plot_func=[plotting.plot_median_fit, plotting.plot_median_fit,
+                                      plotting.scatter_ci_dist],
+                           # these three end up being kwargs passed to the
+                           # functions above, in order
+                           x_jitter=[None, None, .2],
+                           x_vals=[(0, 10.5), None, None],
+                           linestyle=['--', None, None],
+                           palette=pal, col_order=col_order,
+                           row_order=row_order,
                            facetgrid_legend=facetgrid_legend, **kwargs)
     g.set_xlabels('Eccentricity (deg)')
     if facetgrid_legend:

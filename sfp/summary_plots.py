@@ -125,7 +125,7 @@ def main(summary_df, y='tuning_curve_peak', x='eccen', row='frequency_type', col
         tmp_kwargs = joint_plot_func_kwargs.copy()
         tmp_kwargs.update(separate_plot_func_kwargs[i])
         if pf.__name__ == 'plot_median_fit':
-            tmp_kwargs['x_vals'] = summary_df.eccen.unique()
+            tmp_kwargs.setdefault('x_vals', summary_df.eccen.unique())
         if pf.__name__ in ['plot_median', 'plot_ci', 'scatter_ci_col', 'scatter_ci_dist',
                            'plot_median_fit']:
             # these functions require map_dataframe, since they need some extra info
