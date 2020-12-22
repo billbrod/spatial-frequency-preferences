@@ -187,8 +187,16 @@ def _finish_feature_df(df, reference_frame='absolute'):
     df['reference_frame'] = reference_frame
     angle_ref = np.linspace(0, np.pi, 4, endpoint=False)
     angle_labels = ['0', r'$\frac{\pi}{4}$', r'$\frac{\pi}{2}$', r'$\frac{3\pi}{4}$']
-    rel_labels = ['radial', 'forward spiral', 'angular', 'reverse spiral']
-    abs_labels = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal']
+    # this may seem backwards (as defined in first_level_analysis.py, forward
+    # spirals/diagonals are those where w_r/w_x = w_a/w_y, reverse are where
+    # they're negatives of each other), but this is the correct mapping, which
+    # you can see by playing around with sfp.figures.input_schematic (and by
+    # seeing that the predictions for the obliques in one reference frame match
+    # correctly with the cardinals in the other, e.g., the prediction for
+    # forward diagonal should be the same as angular at 45 degrees, in the top
+    # right quadrant)
+    rel_labels = ['radial', 'reverse spiral', 'angular', 'forward spiral']
+    abs_labels = ['vertical', 'reverse diagonal', 'horizontal', 'forward diagonal']
     if np.array_equiv(angle_ref, df["Retinotopic angle (rad)"].unique()):
         df["Retinotopic angle (rad)"] = df["Retinotopic angle (rad)"].map(dict((k, v) for k, v in
                                                                                zip(angle_ref,
