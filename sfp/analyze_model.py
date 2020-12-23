@@ -56,10 +56,12 @@ def load_single_model(save_path_stem, load_results_df=True):
     model_history_df = pd.read_csv(save_path_stem + "_model_history.csv")
     if 'test_subset' not in loss_df.columns or 'test_subset' not in model_history_df.columns:
         # unclear why this happens, it's really strange
-        if not save_path_stem.split('_')[-4].startswith('c'):
-            raise Exception("Can't grab test_subset from path %s!" % save_path_stem)
+        test_subset = re.findall('_(c[\d,]+)_', save_path_stem)[0]
+        if not test_subset.startswith('c'):
+            raise Exception("Can't grab test_subset from path %s, found %s!" %
+                            (save_path_stem, test_subset))
         # this will give it the same spacing as the original version
-        test_subset = ', '.join(save_path_stem.split('_')[-4][1:].split(','))
+        test_subset = ', '.join(test_subset[1:].split(','))
         if "test_subset" not in loss_df.columns:
             loss_df['test_subset'] = test_subset
         if "test_subset" not in model_history_df.columns:
