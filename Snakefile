@@ -2786,6 +2786,10 @@ def get_compose_input(wildcards):
         fig_name = f'{groupaverage}_1d_pref-period-overall_s-{seed}_task-sfprescaled_with_legend'
         paths = [path_template % "example_ecc_bins",
                  path_template.replace('figures', 'compose_figures') % fig_name]
+    elif 'intro' in wildcards.figure_name:
+        task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
+        paths = [path_template % 'schematic_background',
+                 path_template % f'schematic_stimulus_{task}']
     return paths
 
 
@@ -2816,6 +2820,9 @@ rule compose_figures:
         elif '1d_summary' in wildcards.figure_name:
             sfp.compose_figures.pref_period_1d(input[0], input[1], output[0],
                                                wildcards.context)
+        elif 'intro' in wildcards.figure_name:
+            sfp.compose_figures.intro_figure(input[0], input[1], output[0],
+                                             wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:

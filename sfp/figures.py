@@ -2645,6 +2645,12 @@ def stimulus_schematic(stim, stim_df, context='paper'):
 
     """
     params, fig_width = style.plotting_style(context, figsize='half')
+    params['font.size'] = '8'
+    params['axes.titlesize'] = '8'
+    params['axes.labelsize'] = '8'
+    params['legend.fontsize'] = '8'
+    warnings.warn("We adjust the font size for axes titles, labels, and legends down to "
+                  "8pts (so this will probably look wrong if context is not paper)!")
     plt.style.use(params)
     fig, axes = plt.subplots(3, 4, figsize=(fig_width, .75*fig_width))
     # for pt.imshow to work, we need to find an integer that, when the size of
@@ -2671,7 +2677,7 @@ def stimulus_schematic(stim, stim_df, context='paper'):
             ax.yaxis.set_visible(False)
         axes[-1, i].set_visible(False)
         axes[0, i].set_title(stim_type.replace(' ', '\n'), rotation=30, va='bottom')
-    fig.text(.515, 1/4, '...', transform=fig.transFigure, fontsize='xx-large',
+    fig.text(.515, 1/3.5, '...', transform=fig.transFigure, fontsize='xx-large',
              va='center', ha='center')
     axes[0, 0].text(0, .5, 'Low base\nfrequency', transform=axes[0, 0].transAxes,
                     rotation=90, ha='right', va='center', multialignment='center')
@@ -2679,15 +2685,16 @@ def stimulus_schematic(stim, stim_df, context='paper'):
     # still use its transform
     axes[0, 0].text(0, .5, 'High base\nfrequency', transform=axes[2, 0].transAxes,
                     rotation=90, ha='right', va='center')
-    axes[1, 0].annotate('', xy=(-.3, 1), xytext=(-.3, 0), textcoords='axes fraction',
+    axes[1, 0].annotate('', xy=(-.2, 1), xytext=(-.2, 0), textcoords='axes fraction',
                         xycoords='axes fraction',
                         arrowprops={'arrowstyle': '<-', 'color': '0',
                                     'connectionstyle': 'arc3'})
-    axes[0, -1].annotate('', xy=(1.1, 1.035), xytext=(1.1, -.035), textcoords='axes fraction',
+    # axes[1, -1].annotate('', xy=(1.1, 1.035), xytext=(1.1, -.035), textcoords='axes fraction',
+    axes[1, -1].annotate('', xy=(1.035, -.1), xytext=(-.035, -.1), textcoords='axes fraction',
                          xycoords='axes fraction',
                          arrowprops={'arrowstyle': '-', 'color': '0',
                                      'connectionstyle': 'arc3'})
-    axes[0, -1].text(1.2, .5, '24\u00B0', transform=axes[0, -1].transAxes,
-                     va='center')
+    axes[1, -1].text(.5, -.2, '24\u00B0', transform=axes[1, -1].transAxes,
+                     ha='center', va='top')
     fig.subplots_adjust(wspace=.05, hspace=.05)
     return fig
