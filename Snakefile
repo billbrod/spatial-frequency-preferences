@@ -1292,6 +1292,16 @@ def visual_field_part(wildcards):
     return vis_field
 
 
+def get_df_filter_str(wildcards):
+    if wildcards.df_filter == 'filter-any':
+        df_filter_str = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
+    elif wildcards.df_filter == 'filter-mean':
+        df_filter_str = 'drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border'
+    elif wildcards.df_filter == 'no-filter':
+        df_filter_str = None
+    return df_filter_str
+
+
 rule model:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', '{mat_type}', '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}.csv')
@@ -1314,11 +1324,12 @@ rule model:
         bootstrap_num = lambda wildcards: wildcards.bootstrap_num.split(','),
         logging = to_log_or_not,
         vis_field = visual_field_part,
+        df_filter_str = get_df_filter_str,
     shell:
         "python -m sfp.model {wildcards.period_orientation_type} {wildcards.eccentricity_type} "
         "{wildcards.amplitude_orientation_type} {input} {params.save_stem} -b "
         "{wildcards.batch_size} -r {wildcards.learning_rate} -d "
-        "drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border{params.vis_field} -t 1e-6 -e"
+        "{params.df_filter_str}{params.vis_field} -t 1e-6 -e"
         " 1000 -c {params.stimulus_class} -n {params.bootstrap_num} {params.logging} {log}"
 
 
@@ -1351,7 +1362,9 @@ rule calc_cv_error:
         mem = 10
     run:
         import sfp
-        sfp.analyze_model.calc_cv_error(input.loss_files, input.dataset_path, wildcards, output)
+        df_filter_str = get_df_filter_str(wildcards)
+        sfp.analyze_model.calc_cv_error(input.loss_files, input.dataset_path, wildcards, output,
+                                        df_filter_str)
 
 
 rule summarize_model_cv:
@@ -1910,12 +1923,7 @@ rule noise_ceiling_monte_carlo:
             df_filter_str = None
             is_simulated = True
         else:
-            if wildcards.df_filter == 'filter-any':
-                df_filter_str = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
-            elif wildcards.df_filter == 'filter-mean':
-                df_filter_str = 'drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border'
-            elif wildcards.df_filter == 'no-filter':
-                df_filter_str = None
+            df_filter_str = get_df_filter_str(wildcards)
             is_simulated = False
         df = sfp.noise_ceiling.sample_df(df, int(wildcards.seed), df_filter_str, is_simulated,
                                          wildcards.mode)
@@ -2298,18 +2306,14 @@ rule crossval_comparison_figures:
         import sfp
         import torch
         import pandas as pd
-        if wildcards.df_filter == 'filter':
-            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
-        elif wildcards.df_filter == 'no-filter':
-            df_filter_string = None
+        df_filter_string = get_df_filter_str(wildcards)
         first_level_df = pd.read_csv(input[0])
         preds = []
         for i in input[1:]:
             tmp = torch.load(i)
             preds.append(tmp['predictions'])
         figs = sfp.figures.compare_cv_models(first_level_df, tmp['targets'], preds,
-                                             ['constant', 'scaling', 'full', 'full full absolute',
-                                              'full full iso', 'full relative iso'],
+                                             ['constant', 'scaling', 'full'],
                                              wildcards.loss_func, df_filter_string)
         for f, o in zip(figs, output):
             f.savefig(o, bbox_inches='tight')
@@ -2340,12 +2344,7 @@ rule create_precision_df:
             summary_func = np.mean
         elif wildcards.summary_func == 'median':
             summary_func = np.median
-        if wildcards.df_filter == 'filter-any':
-            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
-        if wildcards.df_filter == 'filter-mean':
-            df_filter_string = 'drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border'
-        elif wildcards.df_filter == 'no-filter':
-            df_filter_string = None
+        df_filter_string = get_df_filter_str(wildcards)
         df = sfp.figures.create_precision_df(input, summary_func, df_filter_string)
         df.to_csv(output[0], index=False)
 
@@ -2363,10 +2362,7 @@ rule precision_check_figure:
     run:
         import sfp
         import pandas as pd
-        if wildcards.df_filter == 'filter':
-            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
-        elif wildcards.df_filter == 'no-filter':
-            df_filter_string = None
+        df_filter_string = get_df_filter_str(wildcards)
         fig = sfp.plotting.voxel_property_plot(pd.read_csv(input[0]), 'precision', df_filter_string=df_filter_string)
         fig.savefig(output[0])
         g = sfp.plotting.voxel_property_joint(pd.read_csv(input[0]), 'reg', ['eccen', 'precision'], df_filter_string,
@@ -2406,10 +2402,7 @@ rule understand_loss_figure:
         import sfp
         import torch
         import pandas as pd
-        if wildcards.df_filter == 'filter':
-            df_filter_string = 'drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'
-        elif wildcards.df_filter == 'no-filter':
-            df_filter_string = None
+        df_filter_string = get_df_filter_str(wildcards)
         first_level_df = pd.read_csv(input[1])
         if df_filter_string is not None:
             df_filter = sfp.model.construct_df_filter(df_filter_string)
