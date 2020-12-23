@@ -2794,6 +2794,9 @@ rule compose_figures:
             if '1d_pref-period-overall' in wildcards.figure_name:
                 sfp.compose_figures.add_legend(input[0], 'half', (143, 136), output[0],
                                                1, 'rel', wildcards.context)
+            if 'schematic_2d' in wildcards.figure_name:
+                sfp.compose_figures.add_legend(input[0], 'full', (420, 55), output[0],
+                                               .3, 'rel', wildcards.context)
         elif '2d_summary' in wildcards.figure_name:
             sfp.compose_figures.feature_df_summary(input[:3], input[3:],
                                                    output[0], wildcards.context)

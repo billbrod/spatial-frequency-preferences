@@ -831,6 +831,75 @@ def model_schematic(context='paper'):
     effect of stimulus orientation and retinotopic angle on preferred
     period).
 
+    This creates only the polar plots (showing the preferred period contours),
+    and doesn't have a legend; it's intended that you call
+    compose_figures.add_legend to add the graphical one (and a space has been
+    left for it)
+
+    Parameters
+    ----------
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
+
+    Returns
+    -------
+    fig : plt.Figure
+        Figure containing the schematic
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    figsize = (fig_width, fig_width/3)
+    if context == 'paper':
+        orientation = np.linspace(0, np.pi, 4, endpoint=False)
+    elif context == 'poster':
+        orientation = np.linspace(0, np.pi, 2, endpoint=False)
+    abs_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                       abs_mode_cardinals=.4, abs_mode_obliques=.1)
+    rel_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                       rel_mode_cardinals=.4, rel_mode_obliques=.1)
+    full_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                        abs_mode_cardinals=.4, abs_mode_obliques=.1,
+                                        rel_mode_cardinals=.4, rel_mode_obliques=.1)
+    # we can't use the plotting.feature_df_plot / feature_df_polar_plot
+    # functions because they use FacetGrids, each of which creates a
+    # separate figure and we want all of this to be on one figure.
+    fig, axes = plt.subplots(1, 4, figsize=figsize,
+                             subplot_kw={'projection': 'polar'})
+    labels = [r'$p_1>p_2>0$', r'$p_3>p_4>0$', r'$p_1=p_3>p_2=p_4>0$']
+
+    for i, (m, ax) in enumerate(zip([abs_model, rel_model, full_model], axes)):
+        plotting.model_schematic(m, [ax], [(-.1, 3)], False,
+                                 orientation=orientation)
+        if i != 0:
+            ax.set(ylabel='')
+        if i != 1:
+            ax.set(xlabel='')
+        else:
+            # want to move this closer
+            ax.set_xlabel(ax.get_xlabel(), labelpad=-10)
+        ax.set_title(labels[i])
+        ax.set(xticklabels=[], yticklabels=[])
+
+    axes[-1].set_visible(False)
+    fig.subplots_adjust(wspace=.075)
+
+    return fig
+
+
+def model_schematic_large(context='paper'):
+    """Create larger version of model schematic.
+
+    In order to better explain the model, its predictions, and the
+    effects of its parameters, we create a model schematic that shows
+    the effects of the different p parameters (those that control the
+    effect of stimulus orientation and retinotopic angle on preferred
+    period).
+
+    Note that this includes both linear and polar plots, and will probably be
+    way too large
+
     Parameters
     ----------
     context : {'paper', 'poster'}, optional
