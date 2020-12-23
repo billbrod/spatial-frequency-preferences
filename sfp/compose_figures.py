@@ -249,7 +249,7 @@ def intro_figure(theory_fig, stim_fig, save_path, context='paper'):
     ----------
     theory_fig, stim_fig
         paths to the svg files containing the stimulus schematic and background
-        theory figure
+        theory figures, respectively
     save_path : str
         path to save the composed figure at
     context : {'paper', 'poster'}, optional
@@ -270,4 +270,34 @@ def intro_figure(theory_fig, stim_fig, save_path, context='paper'):
         SVG(stim_fig).move(figure_width/2, -10),
         compose.Text("B", figure_width/2+10, 25, size=font_size,
                      **text_params),
+    ).save(save_path)
+
+
+def frequency_figure(freq_fig, mtf_fig, save_path, context='paper'):
+    """Create the second figure, showing the display MTF and displayed frequencies
+
+    Parameters
+    ----------
+    freq_fig, mtf_fig
+        paths to the svg files containing the displayed frequencies and display
+        MTF figures, respectively
+    save_path : str
+        path to save the composed figure at
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
+
+    """
+    text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width / 3.3
+    font_size = _convert_to_pix(text_params.pop('size'))
+
+    compose.Figure(
+        figure_width, figure_height,
+        SVG(freq_fig).move(20, 0),
+        compose.Text("A", 5, 25, size=font_size, **text_params),
+        SVG(mtf_fig).move(figure_width/2+10, 00),
+        compose.Text("B", figure_width/2, 25, size=font_size, **text_params),
     ).save(save_path)

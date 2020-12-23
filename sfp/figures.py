@@ -2110,7 +2110,7 @@ def mtf(mtf_func, context='paper'):
     sfs = np.linspace(0, .5)
     params, fig_width = style.plotting_style(context, figsize='half')
     plt.style.use(params)
-    fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.6))
+    fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.65))
     ax.semilogx(sfs, mtf_func(sfs), basex=2)
     ticks = [512, 128, 32, 8, 2]
     ax.set(xticks=[1/i for i in ticks], xticklabels=ticks, xlabel='Pixels per period',

@@ -2790,6 +2790,10 @@ def get_compose_input(wildcards):
         task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
         paths = [path_template % 'schematic_background',
                  path_template % f'schematic_stimulus_{task}']
+    elif 'frequencies' in wildcards.figure_name:
+        task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
+        paths = [path_template % f'{task}_presented_frequencies',
+                 path_template % 'mtf']
     return paths
 
 
@@ -2823,6 +2827,9 @@ rule compose_figures:
         elif 'intro' in wildcards.figure_name:
             sfp.compose_figures.intro_figure(input[0], input[1], output[0],
                                              wildcards.context)
+        elif 'frequencies' in wildcards.figure_name:
+            sfp.compose_figures.frequency_figure(input[0], input[1], output[0],
+                                                 wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:
@@ -2841,12 +2848,14 @@ rule presented_spatial_frequency_plot:
         df = pd.read_csv(input[0])
         plot_params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
         plt.style.use(plot_params)
-        fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width))
+        fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.65))
         sns.lineplot(x='eccentricity', y='spatial_frequency',
                      hue='freq_space_distance', data=df)
-        ax.set(yscale='log', ylabel='Presented spatial frequency (cpd)', xlabel='Eccentricity (deg)')
+        ax.set(yscale='log', xlabel='Eccentricity (deg)',
+               ylabel='Presented spatial\nfrequency (cpd)')
         # turn the legend off
         ax.legend_.set_visible(False)
+        fig.tight_layout()
         fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -3055,9 +3064,8 @@ rule figures_paper:
                      "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "task-sfprescaled_presented_frequencies.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'compose_paper', 'frequencies_task-sfprescaled.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels_filter-mean.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "schematic_background.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'compose_paper', "intro_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
