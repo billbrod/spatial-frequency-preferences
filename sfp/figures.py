@@ -2373,12 +2373,12 @@ def theory_background_figure(context):
                 ax.plot([0, 20], [V1_pRF_size_slope*e+V1_pRF_size_offset,
                                   V1_pRF_size_slope*e+V1_pRF_size_offset], '--', c='k',
                         linewidth=1)
-            ax.set(title="Conventional\nstimuli", xticks=[], yticks=[])
+            ax.set(title="Full-field\ngratings", xticks=[], yticks=[])
         if i == 1:
             for j in [-1, -.5, 0, .5, 1]:
                 ax.plot(ecc, (V1_pRF_size_slope + j*V1_pRF_size_error/2.)*ecc + V1_pRF_size_offset,
                         linestyle='--', c='k', linewidth=1)
-            ax.set(xlabel='Eccentricity', xticks=[], yticks=[], title='Scaled\nstimuli')
+            ax.set(xlabel='Eccentricity', xticks=[], yticks=[], title='Scaled\ngratings')
         ax.set_ylabel("Preferred\nperiod (deg)")
 
     return fig
