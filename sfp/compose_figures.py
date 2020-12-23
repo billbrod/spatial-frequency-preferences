@@ -202,3 +202,41 @@ def add_legend(figure, figsize, legend_location, save_path, aspect=1,
                    SVG(figure),
                    SVG(legend).scale(2.5).move(*legend_location),
                    ).save(save_path)
+
+
+def pref_period_1d(bins_fig, pref_period_fig, save_path, context='paper'):
+    """Create the preferred period 1d figure
+
+    This combines the figure showing the example eccentricity bins with the
+    figure showing the overall preferred period results with 1d model fits
+    (with the legend already added -- this is IMPORTANT, because otherwise the
+    size will look wrong).
+
+    Parameters
+    ----------
+    bins_fig, pref_period_fig : str
+        paths to the svg files containing the example eccentricity bins and
+        overall 1d preferred period figure (with legend), respectively
+    save_path : str
+        path to save the composed figure at
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
+
+    """
+    text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width / 2.2
+    font_size = _convert_to_pix(text_params.pop('size'))
+
+    compose.Figure(
+        # we actually have a bit of wiggle room, so we add those extra pixels
+        figure_width+10, figure_height,
+        SVG(bins_fig).move(-5, 0),
+        compose.Text("A", 10, 25, size=font_size, **text_params),
+        # we use the regular SVG here, because this has the legend applied, and
+        # so has been saved out correctly
+        compose.SVG(pref_period_fig).move(figure_width / 2 + 10, 0),
+        compose.Text("B", figure_width/2+15, 25, size=font_size, **text_params),
+    ).save(save_path)

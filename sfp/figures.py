@@ -507,10 +507,17 @@ def _summarize_1d(df, reference_frame, y, row, col, height, facetgrid_legend,
     if row is not None:
         row_order = plotting.get_order(row, col_unique=df[row].unique())
     kwargs.setdefault('xlim', (0, 12))
-    g = summary_plots.main(df, row=row, col=col, y=y, eccen_range=(0, 11), hue_order=hue_order,
-                           x_jitter=[None, .2], height=height,
-                           plot_func=[plotting.plot_median_fit, plotting.scatter_ci_dist],
-                           palette=pal, col_order=col_order, row_order=row_order,
+    g = summary_plots.main(df, row=row, col=col, y=y, eccen_range=(0, 11),
+                           hue_order=hue_order, height=height,
+                           plot_func=[plotting.plot_median_fit, plotting.plot_median_fit,
+                                      plotting.scatter_ci_dist],
+                           # these three end up being kwargs passed to the
+                           # functions above, in order
+                           x_jitter=[None, None, .2],
+                           x_vals=[(0, 10.5), None, None],
+                           linestyle=['--', None, None],
+                           palette=pal, col_order=col_order,
+                           row_order=row_order,
                            facetgrid_legend=facetgrid_legend, **kwargs)
     g.set_xlabels('Eccentricity (deg)')
     if facetgrid_legend:
@@ -823,6 +830,75 @@ def model_schematic(context='paper'):
     the effects of the different p parameters (those that control the
     effect of stimulus orientation and retinotopic angle on preferred
     period).
+
+    This creates only the polar plots (showing the preferred period contours),
+    and doesn't have a legend; it's intended that you call
+    compose_figures.add_legend to add the graphical one (and a space has been
+    left for it)
+
+    Parameters
+    ----------
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up
+
+    Returns
+    -------
+    fig : plt.Figure
+        Figure containing the schematic
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    figsize = (fig_width, fig_width/3)
+    if context == 'paper':
+        orientation = np.linspace(0, np.pi, 4, endpoint=False)
+    elif context == 'poster':
+        orientation = np.linspace(0, np.pi, 2, endpoint=False)
+    abs_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                       abs_mode_cardinals=.4, abs_mode_obliques=.1)
+    rel_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                       rel_mode_cardinals=.4, rel_mode_obliques=.1)
+    full_model = model.LogGaussianDonut('full', sf_ecc_slope=.2, sf_ecc_intercept=.2,
+                                        abs_mode_cardinals=.4, abs_mode_obliques=.1,
+                                        rel_mode_cardinals=.4, rel_mode_obliques=.1)
+    # we can't use the plotting.feature_df_plot / feature_df_polar_plot
+    # functions because they use FacetGrids, each of which creates a
+    # separate figure and we want all of this to be on one figure.
+    fig, axes = plt.subplots(1, 4, figsize=figsize,
+                             subplot_kw={'projection': 'polar'})
+    labels = [r'$p_1>p_2>0$', r'$p_3>p_4>0$', r'$p_1=p_3>p_2=p_4>0$']
+
+    for i, (m, ax) in enumerate(zip([abs_model, rel_model, full_model], axes)):
+        plotting.model_schematic(m, [ax], [(-.1, 3)], False,
+                                 orientation=orientation)
+        if i != 0:
+            ax.set(ylabel='')
+        if i != 1:
+            ax.set(xlabel='')
+        else:
+            # want to move this closer
+            ax.set_xlabel(ax.get_xlabel(), labelpad=-10)
+        ax.set_title(labels[i])
+        ax.set(xticklabels=[], yticklabels=[])
+
+    axes[-1].set_visible(False)
+    fig.subplots_adjust(wspace=.075)
+
+    return fig
+
+
+def model_schematic_large(context='paper'):
+    """Create larger version of model schematic.
+
+    In order to better explain the model, its predictions, and the
+    effects of its parameters, we create a model schematic that shows
+    the effects of the different p parameters (those that control the
+    effect of stimulus orientation and retinotopic angle on preferred
+    period).
+
+    Note that this includes both linear and polar plots, and will probably be
+    way too large
 
     Parameters
     ----------
@@ -1663,7 +1739,7 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
 
 def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative',
                     feature_type='pref-period', visual_field='all', context='paper',
-                    col_wrap=None):
+                    col_wrap=None, scatter_ref_pts=False):
     """plot model predictions based on parameter values
 
     This function is used to create plots showing the preferred period
@@ -1714,6 +1790,12 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
+    col_wrap : int or None, optional
+        col_wrap argument to pass through to seaborn FacetGrid
+    scatter_ref_pts : bool, optional
+        if True, we plot black points every 45 degrees on the polar plots to
+        serve as a reference (only used in paper context). if False, do
+        nothing.
 
     Returns
     -------
@@ -1887,7 +1969,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
             ylabel = 'Relative amplitude'
-            if context == 'paper':
+            # doesn't look good with multiple rows
+            if context == 'paper' and col_wrap is None:
                 # the location argument here does nothing, since we over-ride
                 # it with the bbox_to_anchor and bbox_transform arguments. the
                 # size and size_vertical values here look weird because they're
@@ -1906,9 +1989,10 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         if split_oris:
             th = np.linspace(0, 2*np.pi, 8, endpoint=False)
             r_val = 1 # df[r].mean()
-            for ax in g.axes.flatten():
-                ax.scatter(th, len(th)*[r_val], c='k',
-                           s=mpl.rcParams['lines.markersize']**2 / 2)
+            if scatter_ref_pts:
+                for ax in g.axes.flatten():
+                    ax.scatter(th, len(th)*[r_val], c='k',
+                               s=mpl.rcParams['lines.markersize']**2 / 2)
             # for some reason, can't call the set_rticks until after all
             # scatters have been called, or they get messed up
             for ax in g.axes.flatten():
@@ -2461,4 +2545,69 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
         # elif ax.get_xlabel():
         else:
             ax.set(xlabel='Local spatial frequency (cpd)')
+    return g
+
+
+def example_eccentricity_bins(df, context='paper'):
+    """Plot some example eccentricity bins and their tuning curves.
+   
+    This plots the amplitude estimates and the tuning curves for a single
+    subject, angular and radial stimuli, eccentricity bins 02-03 and 10-11. It
+    is meant to show that the tuning curves fit the bins reasonably well.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        pandas DataFrame containing the 1d tuning curves for a single subject.
+        Must be the summary version (containing the fits to the median across
+        bootstraps)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the plot
+
+    """
+    params, fig_width = style.plotting_style(figsize='half')
+    plt.style.use(params)
+    if context == 'paper':
+        # this isn't the exact same as what you'd get doing the line below,
+        # because we use a relatively small wspace (space between axes), that
+        # lets us make them a bit bigger
+        height = 2.8
+    else:
+        height = (fig_width / 2) / .7
+
+    df = df.query("frequency_type=='local_sf_magnitude' & "
+                  "stimulus_superclass in ['angular', 'radial'] & "
+                  "eccen in ['02-03', '10-11']")
+    df = df.rename(columns={'eccen': "Eccentricity band"})
+    pal = plotting.get_palette('stimulus_type', 'relative',
+                               df.stimulus_superclass.unique(),
+                               True)
+
+    mode_bounds = (df.mode_bound_lower.unique()[0],
+                   df.mode_bound_upper.unique()[0])
+
+    g = sns.FacetGrid(df, col='Eccentricity band', palette=pal,
+                      hue='stimulus_superclass',
+                      xlim=mode_bounds, aspect=.7, height=height)
+    g.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
+    g.map_dataframe(plotting.plot_tuning_curve)
+    g.set_titles('{col_var}\n{col_name} deg')
+    g.set(xscale='log', yticklabels=[])
+    for i, ax in enumerate(g.axes.flatten()):
+        if i == 0:
+            ax.set(ylabel='Response (a.u.)')
+        ax.set(xticks=[10**i for i in [-1, 1, 3]], xlabel='')
+        xlim = ax.get_xlim()
+        ax.hlines(0, *xlim, 'gray', '--')
+        ax.set_xlim(xlim)
+    g.fig.text(.5, 0, 'Local spatial frequency (cpd)', ha='center',
+               transform=g.fig.transFigure)
+    g.fig.subplots_adjust(wspace=.2)
     return g

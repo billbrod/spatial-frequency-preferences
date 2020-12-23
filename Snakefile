@@ -340,7 +340,9 @@ rule all_check_plots:
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "filter-mean", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
                       "v1_e1-12_summary_b10_r0.001_g0_s0_cv_loss_comp_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS
          for ses in SESSIONS[sub] if ses=='ses-04'],
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'voxel_exclusion_filter-mean_task-sfprescaled.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'voxel_exclusion_filter-mean_task-sfprescaled.svg'),
+        [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'individual_filter-mean_{}_training-loss-check_task-sfprescaled.svg').format(t)
+             for t in ['initial_cv', 'bootstrap']],
 
 
 rule GLMdenoise_all_visual:
@@ -2671,6 +2673,25 @@ rule example_voxel_figure:
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
+rule example_ecc_bins_figure:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves',
+                     'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
+                     'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_eccen_bin_summary.csv'),
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_ecc_bins.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_ecc_bins_{ext}-%j.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_ecc_bins_{ext}_benchmark.txt')
+    run:
+        import pandas as pd
+        import sfp
+        df = pd.read_csv(input[0])
+        g = sfp.figures.example_eccentricity_bins(df, context=wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+
+
 rule figure_background:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'background_{y_val}.{ext}')
@@ -2740,13 +2761,18 @@ def get_compose_input(wildcards):
     elif "with_legend" in wildcards.figure_name:
         paths = [path_template % wildcards.figure_name.replace('_with_legend', '')]
     elif '2d_summary' in wildcards.figure_name:
-        groupaverage, model, seed = re.findall("([a-z-]+)_([a-z_]+)_2d_summary_s-([0-9]+)", wildcards.figure_name)[0]
-        template_name = (f'{groupaverage}_{model}_feature_visualfield-all_{{}}_bootstraps-overall_'
+        groupaverage, df_filter, model, seed = re.findall("([a-z-]+)_([a-z-]+)_([a-z_]+)_2d_summary_s-([0-9]+)", wildcards.figure_name)[0]
+        template_name = (f'{groupaverage}_{df_filter}_{model}_feature_visualfield-all_{{}}_bootstraps-overall_'
                          f'angles-{{}}_s-{seed}_task-sfprescaled_{{}}')
         angles = {'pref-period': 'avg', 'pref-period-contour': 'all', 'max-amp': 'all'}
         paths = [path_template % template_name.format(feature, angles[feature], frame) for
                  frame, feature in itertools.product(['relative', 'absolute'],
                                                      ['pref-period', 'pref-period-contour', 'max-amp'])]
+    elif '1d_summary' in wildcards.figure_name:
+        groupaverage, seed = re.findall("([a-z-]+)_1d_summary_s-([0-9]+)", wildcards.figure_name)[0]
+        fig_name = f'{groupaverage}_1d_pref-period-overall_s-{seed}_task-sfprescaled_with_legend'
+        paths = [path_template % "example_ecc_bins",
+                 path_template.replace('figures', 'compose_figures') % fig_name]
     return paths
 
 
@@ -2768,9 +2794,15 @@ rule compose_figures:
             if '1d_pref-period-overall' in wildcards.figure_name:
                 sfp.compose_figures.add_legend(input[0], 'half', (143, 136), output[0],
                                                1, 'rel', wildcards.context)
+            if 'schematic_2d' in wildcards.figure_name:
+                sfp.compose_figures.add_legend(input[0], 'full', (420, 55), output[0],
+                                               .3, 'rel', wildcards.context)
         elif '2d_summary' in wildcards.figure_name:
             sfp.compose_figures.feature_df_summary(input[:3], input[3:],
                                                    output[0], wildcards.context)
+        elif '1d_summary' in wildcards.figure_name:
+            sfp.compose_figures.pref_period_1d(input[0], input[1], output[0],
+                                               wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:
@@ -2972,38 +3004,40 @@ rule figures_poster:
 rule figures_paper:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
-                     'crossvalidation_s-3_filter-mean_doubleup.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
-                     'individual_full_full_absolute_2d_summary_s-5.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_filter-mean_full_full_absolute_params_visualfield-all_dist-overall_s-5_task-sfprescaled.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
                      'individual_1d_pref-period-overall_s-8_task-sfprescaled_with_legend.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures',
-                     "individual_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
-                     "individual_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period-contour_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_relative.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_full_full_absolute_feature_visualfield-all_pref-period-contour_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_absolute.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
+                     'crossvalidation_s-3_filter-mean_doubleup.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      "individual_filter-mean_cv_raw-nc_v_s-3_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      "individual_filter-mean_cv_raw-nc-all_v_s-3_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_2d_summary_s-5.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_params_visualfield-all_dist-overall_s-5_task-sfprescaled.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_relative.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_absolute.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period-contour_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period-contour_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      f"individual_filter-mean_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels.svg"),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
+                     "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "task-sfprescaled_presented_frequencies.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels_filter-mean.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "schematic_background.svg"),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures',
+                     "individual_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),

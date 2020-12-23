@@ -1210,8 +1210,18 @@ def model_schematic(model, axes=None, ylims=None, title=True,
                                                            orientation=orientation)
     titles = [f'Preferred period at retinotopic angle {single_ret_angle}',
               f'Preferred period at eccentricity {single_ecc}']
-    for i, (df, ax, proj, t) in enumerate(zip([pref_period, rel_contour], axes,
-                                              ['rectilinear', 'polar'], titles)):
+    dfs = [pref_period, rel_contour]
+    projs = ['rectilinear', 'polar']
+    if len(axes) == 1:
+        if axes[0].name == 'rectilinear':
+            dfs = [dfs[0]]
+            projs = [projs[0]]
+            titles = [titles[0]]
+        elif axes[0].name == 'polar':
+            dfs = [dfs[1]]
+            projs = [projs[1]]
+            titles = [titles[1]]
+    for i, (df, ax, proj, t) in enumerate(zip(dfs, axes, projs, titles)):
         if ax.name != proj:
             raise Exception(f"Axes must have projection {proj}, not {ax.name}!")
         if proj == 'rectilinear':
@@ -1239,7 +1249,9 @@ def model_schematic(model, axes=None, ylims=None, title=True,
             ax.axvline(color='gray', linestyle='--')
         else:
             ax.set(yticklabels=[0, '', 1, '', 2, '', 3], yticks=[0, .5, 1, 1.5, 2, 2.5, 3])
-        ax.vlines(single_x, restricted.min()-.5, restricted.max()+.5, 'r', '--')
+        if len(axes) > 1:
+            # only want this if we're plotting both the linear and polar plots
+            ax.vlines(single_x, restricted.min()-.5, restricted.max()+.5, 'r', '--')
     return axes
 
 
