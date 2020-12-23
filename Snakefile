@@ -2612,6 +2612,26 @@ rule figure_schematic:
         fig.savefig(output[0], bbox_inches='tight')
 
 
+rule figure_stimulus_schematic:
+    input:
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stimuli.npy'),
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stim_description.csv'),
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'schematic_stimulus_{task}.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_stimulus_{task}_{ext}-%j.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_stimulus_{task}_{ext}_benchmark.txt')
+    run:
+        import sfp
+        import numpy as np
+        import pandas as pd
+        stim = np.load(input[0])
+        stim_df = pd.read_csv(input[1])
+        fig = sfp.figures.stimulus_schematic(stim, stim_df, wildcards.context)
+        fig.savefig(output[0], bbox_inches='tight')
+
+
 rule figure_model_schematic:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',

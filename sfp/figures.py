@@ -2313,6 +2313,11 @@ def theory_background_figure(context):
         set_context function). if poster, will scale things up (but only paper
         has been tested)
 
+    Returns
+    -------
+    fig : plt.figure
+        Figure containing this plot
+
     """
     einstein_path = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
                             'einstein.pgm')
@@ -2611,3 +2616,78 @@ def example_eccentricity_bins(df, context='paper'):
                transform=g.fig.transFigure)
     g.fig.subplots_adjust(wspace=.2)
     return g
+
+
+def stimulus_schematic(stim, stim_df, context='paper'):
+    """Create schematic with some example stimuli.
+
+    Shows the two lowest frequencies from each of the four main stimulus types,
+    with some annotations.
+
+    This works with any of the stimuli created by this project: log-scaled or
+    constant, rescaled or not.
+
+    Parameters
+    ----------
+    stim : np.ndarray
+        array containing the stimuli
+    stim_df : pd.DataFrame
+        dataframe containing the description of the stimuli.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    --------
+    fig : plt.figure
+        Figure containing this plot
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='half')
+    plt.style.use(params)
+    fig, axes = plt.subplots(3, 4, figsize=(fig_width, .75*fig_width))
+    # for pt.imshow to work, we need to find an integer that, when the size of
+    # the image is divided by it, we get another integer (so that we
+    # down-sample correctly)
+    zoom = int(stim.shape[-1] / axes[0, 0].bbox.height)
+    # this while will be false when zoom is a divisor of stim.shape[-1]
+    while math.gcd(stim.shape[-1], zoom) != zoom:
+        zoom += 1
+    stim_df = first_level_analysis._add_freq_metainfo(stim_df.drop_duplicates('class_idx'))
+    # drop baseline and the off-diagonal stimuli
+    stim_df = stim_df.query("stimulus_superclass not in ['baseline', 'mixtures', 'off-diagonal']")
+    if 'angular' in stim_df.stimulus_superclass.unique():
+        col_order = ['radial', 'angular', 'forward spiral', 'reverse spiral']
+    elif 'vertical' in stim_df.stimulus_superclass.unique():
+        col_order = ['vertical', 'horizontal', 'forward diagonal', 'reverse diagonal']
+    for i, stim_type in enumerate(col_order):
+        # get the lowest two frequencies from each stimulus type
+        g = stim_df.query("stimulus_superclass==@stim_type").head(2)
+        for ax, g_j in zip(axes[:, i], g.iterrows()):
+            pt.imshow(stim[g_j[1]['index']], ax=ax, zoom=1/zoom, title=None)
+            ax.set_frame_on(False)
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+        axes[-1, i].set_visible(False)
+        axes[0, i].set_title(stim_type.replace(' ', '\n'), rotation=30, va='bottom')
+    fig.text(.515, 1/4, '...', transform=fig.transFigure, fontsize='xx-large',
+             va='center', ha='center')
+    axes[0, 0].text(0, .5, 'Low base\nfrequency', transform=axes[0, 0].transAxes,
+                    rotation=90, ha='right', va='center', multialignment='center')
+    # we do this using axes[0, 0] because axes[2, 0] is invisible, but we can
+    # still use its transform
+    axes[0, 0].text(0, .5, 'High base\nfrequency', transform=axes[2, 0].transAxes,
+                    rotation=90, ha='right', va='center')
+    axes[1, 0].annotate('', xy=(-.3, 1), xytext=(-.3, 0), textcoords='axes fraction',
+                        xycoords='axes fraction',
+                        arrowprops={'arrowstyle': '<-', 'color': '0',
+                                    'connectionstyle': 'arc3'})
+    axes[0, -1].annotate('', xy=(1.1, 1.035), xytext=(1.1, -.035), textcoords='axes fraction',
+                         xycoords='axes fraction',
+                         arrowprops={'arrowstyle': '-', 'color': '0',
+                                     'connectionstyle': 'arc3'})
+    axes[0, -1].text(1.2, .5, '24\u00B0', transform=axes[0, -1].transAxes,
+                     va='center')
+    fig.subplots_adjust(wspace=.05, hspace=.05)
+    return fig
