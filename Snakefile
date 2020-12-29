@@ -2662,7 +2662,7 @@ rule figure_model_schematic:
         fig.savefig(output[0], bbox_inches='tight')
 
 
-rule example_voxel_figure:
+rule figure_example_voxel:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
                      'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
@@ -2686,7 +2686,7 @@ rule example_voxel_figure:
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
-rule example_ecc_bins_figure:
+rule figure_example_ecc_bins:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves',
                      'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
@@ -2702,6 +2702,43 @@ rule example_ecc_bins_figure:
         import sfp
         df = pd.read_csv(input[0])
         g = sfp.figures.example_eccentricity_bins(df, context=wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+
+
+rule figure_peakiness_check:
+    input:
+        first_levels = [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                                     'stim_class', 'bayesian_posterior', '{subject}', 'ses-04',
+                                     '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary.csv').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                               'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
+                               '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
+                               'g0_cNone_nNone_full_full_absolute_model.pt').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'peakiness_{df_filter}_{col}.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{col}_{ext}-%j.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{col}_{ext}_benchmark.txt')
+    run:
+        import pandas as pd
+        import sfp
+        models = [sfp.analyze_model.load_LogGaussianDonut(p.replace('_model.pt', '')) for p in input.models]
+        dfs = []
+        for p in input.first_levels:
+            dfs.append(pd.read_csv(p))
+            subj = re.findall('(sub-wlsubj[0-9]+)_', p)[0]
+            dfs[-1]['subject'] = subj
+        if wildcards.col == 'all':
+            col = None
+        elif wildcards.col == 'individual':
+            col = 'subject'
+        df_filter_str = get_df_filter_str(wildcards)
+        g = sfp.figures.peakiness_check(dfs, models, col=col,
+                                        df_filter_string=df_filter_str,
+                                        context=wildcards.context)
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
