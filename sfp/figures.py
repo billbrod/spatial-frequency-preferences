@@ -24,7 +24,7 @@ from . import style
 
 
 def create_precision_df(paths, summary_func=np.mean,
-                        df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'):
+                        df_filter_string='drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border'):
     """Create dataframe summarizing subjects' precision
 
     When combining parameter estimates into an 'overall' value, we want
@@ -2159,7 +2159,7 @@ def sigma_interpretation(df):
 
 
 def compare_cv_models(first_level_df, targets, predictions, model_names, loss_func='normed_loss',
-                      df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border',
+                      df_filter_string='drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border',
                       context='paper', voxel_n_check=9):
     """Create plots to help understand differences in model performance.
 
