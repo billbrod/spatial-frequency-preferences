@@ -2942,6 +2942,6 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
           xscale='log')
     if col is not None:
         g.set_titles('{col_name}')
-    g.set_xlabel('Proportion of peak spatial frequency')
-    g.set_ylabel('Response (a.u.)')
+    g.set_xlabels('Proportion of peak spatial frequency')
+    g.set_ylabels('Response (a.u.)')
     return g
