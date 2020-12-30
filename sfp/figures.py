@@ -2945,3 +2945,116 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
     g.set_xlabels('Proportion of peak spatial frequency')
     g.set_ylabels('Response (a.u.)')
     return g
+
+
+def compare_sigma_and_pref_period(dfs, trained_models,
+                                  df_filter_string='drop_voxels_with_mean_negative_amplitudes,',
+                                  context='paper'):
+    """Create two figures comparing sigma to preferred period.
+
+    We create two figures:
+
+    1. Plot a 2d histogram showing sigma as a function of eccentricity, with a
+       red dotted line on top showing the linear fit between the two, one
+       sub-plot per subject.
+
+    2. Plot the slope and intercept of that line and those of the relationship
+       between preferred period and eccentricity as a scatter plot (hollow and
+       filled for the two parameters, different subjects in different colors).
+
+    Parameters
+    ----------
+    dfs : pd.DataFrame or list
+        first level DataFrame containing the amplitude responses for a single
+        subject and session. Must be the summary version (only has median across
+        bootstraps). If a list, a list of those (one per subject). Should
+        contain a subject column
+    trained_models : sfp.model.LogGaussianDonut or list
+        Trained model whose responses we want to show. If a list, a list of
+        those (one per subject).
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Will raise an exception if it drops voxels near the
+        border (since that will bias the best-fit line)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the first plot
+    fig : plt.Figure
+        Figure containing the second plot
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    ax_height = (fig_width / 3)
+    if not isinstance(dfs, list):
+        dfs = [dfs]
+    if not isinstance(trained_models, list):
+        trained_models = [trained_models]
+    df_overall = []
+    voxel_overall = []
+    if df_filter_string is not None:
+        if 'border' in df_filter_string:
+            raise Exception("Don't want to drop voxels near border when computing relationship "
+                            "between pRF size and eccentricity!")
+        df_filter = model.construct_df_filter(df_filter_string)
+    for i, (df, trained_model) in enumerate(zip(dfs, trained_models)):
+        if 'subject' not in df.columns:
+            # this way it will run even if there's no subject specified
+            df['subject'] = 'none'
+        if df_filter_string is not None:
+            df = df_filter(df).reset_index()
+        voxel = df.drop_duplicates('voxel')
+        a, b = np.polyfit(df.eccen.values, df.sigma.values, 1)
+        data = {'subject': df.subject.unique()[0],
+                'sigma_slope': a, 'sigma_intercept': b,
+                'period_slope': trained_model.sf_ecc_slope.item(),
+                'period_intercept': trained_model.sf_ecc_intercept.item()}
+        voxel['sigma_slope'] = a
+        voxel['sigma_intercept'] = b
+        df_overall.append(pd.DataFrame(data, index=[i]))
+        voxel_overall.append(voxel)
+    df_overall = pd.concat(df_overall)
+    voxel_overall = pd.concat(voxel_overall)
+    g = sns.FacetGrid(data=voxel_overall, col='subject', col_wrap=3,
+                      height=ax_height,
+                      col_order=sorted(voxel_overall.subject.unique()))
+
+    def hist_and_reg(*args, **kwargs):
+        to_return = sns.histplot(*args, **kwargs)
+        data = kwargs.pop('data')
+        x = np.linspace(data.eccen.min(), data.eccen.max())
+        ax = plt.gca()
+        ax.plot(x, data.sigma_slope.unique()[0]*x+data.sigma_intercept.unique()[0],
+                'r--')
+        return to_return
+
+    g.map_dataframe(hist_and_reg, x='eccen', y='sigma')
+
+    df_overall = pd.melt(df_overall, ['subject'])
+    df_overall['parameter'] = df_overall.variable.map(lambda x: x.split('_')[-1])
+    df_overall['phenomenon'] = df_overall.variable.map(lambda x: x.split('_')[0])
+    df_overall = pd.pivot_table(df_overall, 'value', ['subject', 'parameter'],
+                                'phenomenon').reset_index()
+    params, fig_width = style.plotting_style(context, figsize='half')
+    fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width))
+    for i, (n, h) in enumerate(df_overall.groupby('subject')):
+        c = f'C{str(i)[-1]}'
+        ax.scatter('period', 'sigma', data=h, label=n, facecolors=[c, 'none'],
+                   edgecolors=c)
+        ax.plot('period', 'sigma', data=h, label='', c=c)
+    # this is the subject legend -- maybe don't need?
+    # put it outside the axis
+    ax.add_artist(plt.legend(bbox_to_anchor=(1, 1), bbox_transform=ax.transAxes))
+    sc2 = ax.scatter([], [], edgecolors='k', facecolors='none')
+    sc = ax.scatter([], [], edgecolors='k', facecolors='k')
+    plt.legend([sc, sc2], ['intercept', 'slope'])
+    ax.set(xlabel='Preferred period parameter', ylabel='pRF sigma parameter')
+    return g, fig

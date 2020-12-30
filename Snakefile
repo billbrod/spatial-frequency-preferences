@@ -2742,6 +2742,39 @@ rule figure_peakiness_check:
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
+rule figure_compare_sigma:
+    input:
+        first_levels = [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                                     'stim_class', 'bayesian_posterior', '{subject}', 'ses-04',
+                                     '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary.csv').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                               'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
+                               '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
+                               'g0_cNone_nNone_full_full_absolute_model.pt').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_ecc_{df_filter}.{ext}'),
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_period_{df_filter}.{ext}'),
+    log:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}.log'),
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}_benchmark.txt'),
+    run:
+        import pandas as pd
+        import sfp
+        models = [sfp.analyze_model.load_LogGaussianDonut(p.replace('_model.pt', '')) for p in input.models]
+        dfs = []
+        for p in input.first_levels:
+            dfs.append(pd.read_csv(p))
+            subj = re.findall('(sub-wlsubj[0-9]+)_', p)[0]
+            dfs[-1]['subject'] = subj
+        df_filter_str = get_df_filter_str(wildcards).replace(',drop_voxels_near_border', '')
+        g, fig = sfp.figures.compare_sigma_and_pref_period(dfs, models, df_filter_str, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+        fig.savefig(output[1], bbox_inches='tight')
+
+
 rule figure_background:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'background_{y_val}.{ext}')
