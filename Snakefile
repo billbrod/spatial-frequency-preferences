@@ -2761,9 +2761,9 @@ rule figure_compare_sigma:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_ecc_{df_filter}.{ext}'),
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_period_{df_filter}.{ext}'),
     log:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}.log'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}.log'),
     benchmark:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}_benchmark.txt'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}_benchmark.txt'),
     run:
         import pandas as pd
         import sfp
