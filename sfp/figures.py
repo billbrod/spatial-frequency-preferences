@@ -174,7 +174,7 @@ def existing_studies_df():
     data_dict['Preferred spatial frequency (cpd)'].extend([2.25, 1.9, 1.75])
     data_dict['Eccentricity'].extend([2.5, 5, 10])
 
-    data_dict['Paper'].extend([ "D'Souza (2016)",]*3)
+    data_dict['Paper'].extend(["D'Souza (2016)"]*3)
     data_dict['Preferred spatial frequency (cpd)'].extend([2, .95, .4])
     data_dict['Eccentricity'].extend([1.4, 4.6, 9.8])
 
@@ -182,9 +182,19 @@ def existing_studies_df():
     data_dict['Preferred spatial frequency (cpd)'].extend([3, 1.5,])
     data_dict['Eccentricity'].extend([.5, 3])
 
-    data_dict['Paper'].extend([ 'Olsson (pilot, model fit)']*10)
-    data_dict['Preferred spatial frequency (cpd)'].extend([2.11, 1.76, 1.47, 2.75, 1.24, 1.06, .88, .77, .66, .60])
-    data_dict['Eccentricity'].extend([2, 3, 4, 1, 5, 6, 7, 8, 9, 10])
+    # model fit and never published, so don't include.
+    # data_dict['Paper'].extend(['Olsson (pilot, model fit)']*10)
+    # data_dict['Preferred spatial frequency (cpd)'].extend([2.11, 1.76, 1.47, 2.75, 1.24, 1.06, .88, .77, .66, .60])
+    # data_dict['Eccentricity'].extend([2, 3, 4, 1, 5, 6, 7, 8, 9, 10])
+
+    # these values gotten using web plot digitizer and then rounded to 2
+    # decimal points
+    data_dict["Paper"].extend(['Aghajari (2020)']*9)
+    data_dict['Preferred spatial frequency (cpd)'].extend([2.24, 1.62, 1.26,
+                                                           1.09, 0.88, 0.75,
+                                                           0.78, 0.75, 0.70])
+    data_dict['Eccentricity'].extend([0.68, 1.78, 2.84, 3.90, 5.00, 6.06, 7.16,
+                                      8.22, 9.28])
 
     # Predictions of the scaling hypothesis -- currently unused
     # ecc = np.linspace(.01, 20, 50)
@@ -195,7 +205,7 @@ def existing_studies_df():
     # V1_RF_size = .2 * ecc
 
     df = pd.DataFrame(data_dict)
-    df = df.sort_values(['Paper','Eccentricity',])
+    df = df.sort_values(['Paper', 'Eccentricity'])
     df["Preferred period (deg)"] = 1. / df['Preferred spatial frequency (cpd)']
 
     return df
