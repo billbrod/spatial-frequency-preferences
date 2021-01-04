@@ -773,7 +773,7 @@ rule to_freesurfer:
         " rm {params.tmp_nifti}"
 
 
-def find_prf_mgz(wildcards, prf_prop='varea'):
+def find_prf_mgz(wildcards, prf_prop='varea', subject=None):
     try:
         prf_prop = wildcards.prf_prop
     except AttributeError:
@@ -784,7 +784,11 @@ def find_prf_mgz(wildcards, prf_prop='varea'):
         benson_prefix = 'inferred_'
     elif wildcards.atlas_type == 'data':
         benson_prefix = 'full-'
-    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+prf_prop+'.mgz')
+    try:
+        subject = wildcards.subject
+    except AttributeError:
+        subject = subject
+    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+prf_prop+'.mgz')
     return expand(benson_template, hemi=['lh', 'rh'])
 
 
@@ -2774,6 +2778,35 @@ rule figure_compare_sigma:
         g.fig.savefig(output[0], bbox_inches='tight')
         fig.savefig(output[1], bbox_inches='tight')
 
+
+rule figure_compare_surface_area:
+    input:
+        models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                               'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
+                               '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
+                               'g0_cNone_nNone_full_full_absolute_model.pt').format(subject=subj)
+                  for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        # these each return 2 mgzs, so need that m for m in find_prf_mgz to
+        # flatten this into a list of strings (instead of a list of lists of
+        # strings)
+        vareas = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'varea', subj)
+                                    if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        eccens = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'eccen', subj)
+                                    if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{atlas_type}.{ext}'),
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{atlas_type}_{ext}.log'),
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{atlas_type}_{ext}_benchmark.txt'),
+    run:
+        import sfp
+        subjects = [subj for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled']
+        template = input.vareas[0].replace('sub-wlsubj001', '{subject}').replace('lh', '{hemi}').replace('rh', '{hemi}').replace('varea', '{prop}')
+        models = [sfp.analyze_model.load_LogGaussianDonut(p.replace('_model.pt', '')) for p in input.models]
+        g = sfp.figures.compare_surface_area_and_pref_period(models, subjects, template, context=wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+       
 
 rule figure_background:
     output:

@@ -4,6 +4,7 @@
 import seaborn as sns
 import math
 import pyrtools as pt
+import neuropythy as ny
 import os.path as op
 import warnings
 import torch
@@ -2948,7 +2949,7 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
 
 
 def compare_sigma_and_pref_period(dfs, trained_models,
-                                  df_filter_string='drop_voxels_with_mean_negative_amplitudes,',
+                                  df_filter_string='drop_voxels_with_mean_negative_amplitudes',
                                   context='paper'):
     """Create two figures comparing sigma to preferred period.
 
@@ -3045,8 +3046,9 @@ def compare_sigma_and_pref_period(dfs, trained_models,
                                 'phenomenon').reset_index()
     params, fig_width = style.plotting_style(context, figsize='half')
     fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width))
+    palette = sns.color_palette('husl', df_overall.subject.nunique())
     for i, (n, h) in enumerate(df_overall.groupby('subject')):
-        c = f'C{str(i)[-1]}'
+        c = palette[i]
         ax.scatter('period', 'sigma', data=h, label=n, facecolors=[c, 'none'],
                    edgecolors=c)
         ax.plot('period', 'sigma', data=h, label='', c=c)
@@ -3058,3 +3060,82 @@ def compare_sigma_and_pref_period(dfs, trained_models,
     plt.legend([sc, sc2], ['intercept', 'slope'])
     ax.set(xlabel='Preferred period parameter', ylabel='pRF sigma parameter')
     return g, fig
+
+
+def compare_surface_area_and_pref_period(trained_models, subjects,
+                                         mgz_template, eccen_range=(1, 12),
+                                         context='paper'):
+    """Compare V1 surface area and preferred period
+
+    Compare the surface area of V1 and the preferred period parameters across
+    subjects and hemispheres.
+
+    Parameters
+    ----------
+    trained_models : sfp.model.LogGaussianDonut or list
+        Trained model whose responses we want to show. If a list, a list of
+        those (one per subject).
+    subjects : str or list
+        Strings identifying the subjects to investigate. If al ist, a list of
+        those.
+    mgz_template : str
+        template string with the path to the varea and eccen mgz files. Should
+        contain the format keys: subject, hemi, prop
+    eccen_range : tuple, optional
+        Range of eccentricites to use for creating the 'surface area stimulus'
+        (the surface area of V1 that corresponds to the portion of the visual
+        field the stimulus was presented on)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the first plot
+
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    ax_height = (fig_width / 2)
+    if not isinstance(trained_models, list):
+        trained_models = [trained_models]
+    if not isinstance(subjects, list):
+        subjects = [subjects]
+    df = []
+    for trained_model, sub in zip(trained_models, subjects):
+        if isinstance(sub, str):
+            sub = ny.freesurfer_subject(sub.replace('sub-', ''))
+        data = {'subject': 'sub-' + sub.name}
+        data['period_slope'] = trained_model.sf_ecc_slope.item()
+        data['period_intercept'] = trained_model.sf_ecc_intercept.item()
+        for hemi in ['lh', 'rh']:
+            eccen = ny.load(mgz_template.format(hemi=hemi, subject=data['subject'],
+                                                prop='eccen'))
+            varea = ny.load(mgz_template.format(hemi=hemi, subject=data['subject'],
+                                                prop='varea'))
+            surface_area = sub.hemis[hemi].prop('midgray_surface_area')
+            data['surface_area_full'] = np.sum(surface_area[varea==1])
+            # need to stack logical_and, because they only operate on two
+            # boolean arrays at a time
+            mask = np.logical_and(varea==1,
+                                  np.logical_and(eccen > eccen_range[0],
+                                                 eccen < eccen_range[1]))
+            data['surface_area_stimulus'] = np.sum(surface_area[mask])
+            data['hemi'] = hemi
+            df.append(pd.DataFrame(data, [0]))
+    df = pd.concat(df).reset_index(drop=True)
+    df = pd.melt(pd.melt(df, ['subject', 'hemi', 'period_slope', 'period_intercept'], var_name='surface_area_type', value_name='surface_area_value'),
+            ['subject', 'hemi', 'surface_area_type', 'surface_area_value'], var_name='period_parameter', value_name='period_value')
+
+    g = sns.relplot(x='surface_area_value', y='period_value', style='hemi',
+                    hue='subject', col='period_parameter', aspect=1,
+                    row='surface_area_type', data=df, height=ax_height,
+                    hue_order=sorted(df.subject.unique()),
+                    palette=sns.color_palette('husl',
+                                              df.subject.nunique()))
+    g.set_titles("{row_name}\n{col_name}")
+    g.fig.subplots_adjust(wspace=.1)
+    return g
