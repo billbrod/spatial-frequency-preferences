@@ -2951,10 +2951,15 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
     # this range should highlight the curve
     g.set(ylim=(.05, .225), yticklabels=[], xlim=(.1, 10),
           xscale='log')
+    g.set_ylabels('Response (a.u.)')
     if col is not None:
         g.set_titles('{col_name}')
-    g.set_xlabels('Proportion of peak spatial frequency')
-    g.set_ylabels('Response (a.u.)')
+        g.set_xlabels('Proportion of peak spatial frequency')
+    else:
+        g.set_xlabels('Proportion of peak\nspatial frequency')
+        if context == 'paper':
+            g.set_ylabels('')
+    g.fig.subplots_adjust(left=.1, right=.95)
     return g
 
 
@@ -3086,7 +3091,7 @@ def compare_surface_area_and_pref_period(trained_models, subjects,
         Trained model whose responses we want to show. If a list, a list of
         those (one per subject).
     subjects : str or list
-        Strings identifying the subjects to investigate. If al ist, a list of
+        Strings identifying the subjects to investigate. If a list, a list of
         those.
     mgz_template : str
         template string with the path to the varea and eccen mgz files. Should

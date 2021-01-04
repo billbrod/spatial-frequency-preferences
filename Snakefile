@@ -2674,13 +2674,13 @@ rule figure_example_voxel:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                      'bayesian_posterior', "{df_filter}", 'initial', 'sub-wlsubj001', 'ses-04',
                      'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
-                     'g0_cNone_nNone_full_full_absolute_model.pt')
+                     'g0_cNone_nNone_{model_type}_model.pt')
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_voxels_{df_filter}.{ext}')
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_voxels_{df_filter}_{model_type}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{ext}-%j.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{model_type}_{ext}-%j.log')
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{ext}_benchmark.txt')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{model_type}_{ext}_benchmark.txt')
     run:
         import pandas as pd
         import sfp
@@ -2718,14 +2718,14 @@ rule figure_peakiness_check:
         models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                                'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
                                '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
-                               'g0_cNone_nNone_full_full_absolute_model.pt').format(subject=subj)
+                               'g0_cNone_nNone_{{model_type}}_model.pt').format(subject=subj)
                         for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'peakiness_{df_filter}_{col}.{ext}')
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'peakiness_{df_filter}_{model_type}_{col}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{col}_{ext}-%j.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{model_type}_{col}_{ext}-%j.log')
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{col}_{ext}_benchmark.txt')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{model_type}_{col}_{ext}_benchmark.txt')
     run:
         import pandas as pd
         import sfp
@@ -2755,15 +2755,15 @@ rule figure_compare_sigma:
         models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                                'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
                                '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
-                               'g0_cNone_nNone_full_full_absolute_model.pt').format(subject=subj)
+                               'g0_cNone_nNone_{{model_type}}_model.pt').format(subject=subj)
                         for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_ecc_{df_filter}.{ext}'),
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_period_{df_filter}.{ext}'),
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_ecc_{df_filter}_{model_type}.{ext}'),
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_period_{df_filter}_{model_type}.{ext}'),
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}.log'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{model_type}_{ext}.log'),
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{ext}_benchmark.txt'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{model_type}_{ext}_benchmark.txt'),
     run:
         import pandas as pd
         import sfp
@@ -2784,7 +2784,7 @@ rule figure_compare_surface_area:
         models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                                'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
                                '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
-                               'g0_cNone_nNone_full_full_absolute_model.pt').format(subject=subj)
+                               'g0_cNone_nNone_{{model_type}}_model.pt').format(subject=subj)
                   for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
         # these each return 2 mgzs, so need that m for m in find_prf_mgz to
         # flatten this into a list of strings (instead of a list of lists of
@@ -2794,11 +2794,11 @@ rule figure_compare_surface_area:
         eccens = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'eccen', subj)
                                     if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{atlas_type}.{ext}'),
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{model_type}_{atlas_type}.{ext}'),
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{atlas_type}_{ext}.log'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{model_type}_{atlas_type}_{ext}.log'),
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{atlas_type}_{ext}_benchmark.txt'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{model_type}_{atlas_type}_{ext}_benchmark.txt'),
     run:
         import sfp
         subjects = [subj for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled']
@@ -2897,6 +2897,14 @@ def get_compose_input(wildcards):
         task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
         paths = [path_template % f'{task}_presented_frequencies',
                  path_template % 'mtf']
+    elif 'frequencies' in wildcards.figure_name:
+        task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
+        paths = [path_template % f'{task}_presented_frequencies',
+                 path_template % 'mtf']
+    elif 'example_voxel' in wildcards.figure_name:
+        df_filter, model = re.findall("([a-z-]+)_([a-z_]+)_example_voxels", wildcards.figure_name)[0]
+        paths = [path_template % f"peakiness_{df_filter}_{model}_all",
+                 path_template % f"example_voxels_{df_filter}_{model}"]
     return paths
 
 
@@ -2933,6 +2941,9 @@ rule compose_figures:
         elif 'frequencies' in wildcards.figure_name:
             sfp.compose_figures.frequency_figure(input[0], input[1], output[0],
                                                  wildcards.context)
+        elif 'example_voxel' in wildcards.figure_name:
+            sfp.compose_figures.example_voxels(input[0], input[1], output[0],
+                                               wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:
@@ -3168,7 +3179,7 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'frequencies_task-sfprescaled.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels_filter-mean.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'compose_paper', "filter-mean_full_full_absolute_example_voxels.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "intro_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
