@@ -2743,7 +2743,9 @@ rule figure_peakiness_check:
         g = sfp.figures.peakiness_check(dfs, models, col=col,
                                         df_filter_string=df_filter_str,
                                         context=wildcards.context)
-        g.fig.savefig(output[0], bbox_inches='tight')
+        # we set the dpi here because we rasterize the 2d histogram (in order
+        # to reduce the size) and so we increase the dpi so it looks better
+        g.fig.savefig(output[0], bbox_inches='tight', dpi=400)
 
 
 rule figure_compare_sigma:
@@ -2781,11 +2783,7 @@ rule figure_compare_sigma:
 
 rule figure_compare_surface_area:
     input:
-        models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
-                               'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
-                               '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
-                               'g0_cNone_nNone_{{model_type}}_model.pt').format(subject=subj)
-                  for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        unpack(get_params_csv),
         # these each return 2 mgzs, so need that m for m in find_prf_mgz to
         # flatten this into a list of strings (instead of a list of lists of
         # strings)
@@ -2794,17 +2792,18 @@ rule figure_compare_surface_area:
         eccens = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'eccen', subj)
                                     if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{model_type}_{atlas_type}.{ext}'),
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}.{ext}'),
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{model_type}_{atlas_type}_{ext}.log'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}_{ext}.log'),
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'v1_area_vs_period_{df_filter}_{model_type}_{atlas_type}_{ext}_benchmark.txt'),
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}_{ext}_benchmark.txt'),
     run:
         import sfp
-        subjects = [subj for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled']
+        import pandas as pd
+        subjects = [subj for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == wildcards.task]
         template = input.vareas[0].replace('sub-wlsubj001', '{subject}').replace('lh', '{hemi}').replace('rh', '{hemi}').replace('varea', '{prop}')
-        models = [sfp.analyze_model.load_LogGaussianDonut(p.replace('_model.pt', '')) for p in input.models]
-        g = sfp.figures.compare_surface_area_and_pref_period(models, subjects, template, context=wildcards.context)
+        df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
+        g = sfp.figures.compare_surface_area_and_pref_period(df, subjects, template, context=wildcards.context)
         g.fig.savefig(output[0], bbox_inches='tight')
        
 
@@ -3181,5 +3180,7 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'frequencies_task-sfprescaled.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'compose_paper', "filter-mean_full_full_absolute_example_voxels.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "intro_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures',
+                     "individual_v1_area_vs_period_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior.svg"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),

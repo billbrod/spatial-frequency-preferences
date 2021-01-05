@@ -2625,6 +2625,8 @@ def _voxel_responses_and_predictions(*args, label='', n_bins=10, plot_type='reg'
         elif plot_type == 'hist':
             to_return = sns.histplot(*args, label=label,
                                      log_scale=(True, False),
+                                     # rasterize to decrease size
+                                     rasterized=True,
                                      **kwargs)
             # set xscale back to linear because apparently sns.histplot sets it
             # for all axes, and we want the next facet to have linear xscale
@@ -3077,25 +3079,28 @@ def compare_sigma_and_pref_period(dfs, trained_models,
     return g, fig
 
 
-def compare_surface_area_and_pref_period(trained_models, subjects,
-                                         mgz_template, eccen_range=(1, 12),
+def compare_surface_area_and_pref_period(model_parameter_df, subjects,
+                                         mgz_template, target_ecc=6,
+                                         eccen_range=(1, 12),
                                          context='paper'):
     """Compare V1 surface area and preferred period
 
-    Compare the surface area of V1 and the preferred period parameters across
-    subjects and hemispheres.
+    Compare the surface area of V1 and the preferred period across subjects.
 
     Parameters
     ----------
-    trained_models : sfp.model.LogGaussianDonut or list
-        Trained model whose responses we want to show. If a list, a list of
-        those (one per subject).
+    model_parameter_df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects.
     subjects : str or list
         Strings identifying the subjects to investigate. If a list, a list of
         those.
     mgz_template : str
         template string with the path to the varea and eccen mgz files. Should
         contain the format keys: subject, hemi, prop
+    target_ecc : int, optional
+        The eccentricity at which we compute the preferred period for each
+        subject, for comparison against visual area
     eccen_range : tuple, optional
         Range of eccentricites to use for creating the 'surface area stimulus'
         (the surface area of V1 that corresponds to the portion of the visual
@@ -3110,22 +3115,22 @@ def compare_surface_area_and_pref_period(trained_models, subjects,
     g : sns.FacetGrid
         FacetGrid containing the first plot
 
-
     """
     params, fig_width = style.plotting_style(context, figsize='full')
     plt.style.use(params)
     ax_height = (fig_width / 2)
-    if not isinstance(trained_models, list):
-        trained_models = [trained_models]
+    feature_df = analyze_model.create_feature_df(model_parameter_df,
+                                                 eccentricity=[target_ecc])
+    # average preferred period over orientations and retinotopic angles
+    feature_df = feature_df.groupby('subject').mean()
     if not isinstance(subjects, list):
         subjects = [subjects]
     df = []
-    for trained_model, sub in zip(trained_models, subjects):
+    for sub in subjects:
         if isinstance(sub, str):
             sub = ny.freesurfer_subject(sub.replace('sub-', ''))
         data = {'subject': 'sub-' + sub.name}
-        data['period_slope'] = trained_model.sf_ecc_slope.item()
-        data['period_intercept'] = trained_model.sf_ecc_intercept.item()
+        data[f'preferred_period_at_{target_ecc}_deg'] = feature_df.loc[data['subject']]['Preferred period (deg)']
         for hemi in ['lh', 'rh']:
             eccen = ny.load(mgz_template.format(hemi=hemi, subject=data['subject'],
                                                 prop='eccen'))
@@ -3142,15 +3147,25 @@ def compare_surface_area_and_pref_period(trained_models, subjects,
             data['hemi'] = hemi
             df.append(pd.DataFrame(data, [0]))
     df = pd.concat(df).reset_index(drop=True)
-    df = pd.melt(pd.melt(df, ['subject', 'hemi', 'period_slope', 'period_intercept'], var_name='surface_area_type', value_name='surface_area_value'),
-            ['subject', 'hemi', 'surface_area_type', 'surface_area_value'], var_name='period_parameter', value_name='period_value')
+    df = df.groupby('subject').agg({'surface_area_full': np.sum,
+                                    'surface_area_stimulus': np.sum,
+                                    f'preferred_period_at_{target_ecc}_deg': np.mean
+                                    }).reset_index()
+    # we're only going to use the full V1 surface area -- results look similar
+    # either way
+    df = df.drop(columns='surface_area_stimulus')
+    df = pd.melt(df, ['subject', f'preferred_period_at_{target_ecc}_deg'],
+                 var_name='surface_area_type', value_name='surface_area_value')
 
-    g = sns.relplot(x='surface_area_value', y='period_value', style='hemi',
-                    hue='subject', col='period_parameter', aspect=1,
-                    row='surface_area_type', data=df, height=ax_height,
-                    hue_order=sorted(df.subject.unique()),
-                    palette=sns.color_palette('husl',
-                                              df.subject.nunique()))
-    g.set_titles("{row_name}\n{col_name}")
+    g = sns.relplot(x='surface_area_value', y=f'preferred_period_at_{target_ecc}_deg',
+                    hue='subject', aspect=1, col='surface_area_type', data=df,
+                    height=ax_height, hue_order=sorted(df.subject.unique()),
+                    palette=sns.color_palette('husl', df.subject.nunique()))
+    if context != 'paper':
+        g.set_titles("{col_name}")
+    else:
+        g.set_titles('')
+    g.set(xlabel='V1 surface area ($\mathrm{mm}^2$)',
+          ylabel=f'Preferred period at {target_ecc} degrees (deg)')
     g.fig.subplots_adjust(wspace=.1)
     return g
