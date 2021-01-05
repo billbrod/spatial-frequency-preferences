@@ -2817,8 +2817,9 @@ def stimulus_schematic(stim, stim_df, context='paper'):
     elif 'vertical' in stim_df.stimulus_superclass.unique():
         col_order = ['vertical', 'horizontal', 'forward diagonal', 'reverse diagonal']
     for i, stim_type in enumerate(col_order):
-        # get the lowest two frequencies from each stimulus type
-        g = stim_df.query("stimulus_superclass==@stim_type").head(2)
+        # get the lowest and second frequencies from each stimulus type (any
+        # higher and it starts to alias at this resolution)
+        g = stim_df.query("stimulus_superclass==@stim_type").iloc[[0, 2]]
         for ax, g_j in zip(axes[:, i], g.iterrows()):
             pt.imshow(stim[g_j[1]['index']], ax=ax, zoom=1/zoom, title=None)
             ax.set_frame_on(False)
