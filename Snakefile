@@ -2891,15 +2891,8 @@ def get_compose_input(wildcards):
     elif 'intro' in wildcards.figure_name:
         task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
         paths = [path_template % 'schematic_background',
-                 path_template % f'schematic_stimulus_{task}']
-    elif 'frequencies' in wildcards.figure_name:
-        task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
-        paths = [path_template % f'{task}_presented_frequencies',
-                 path_template % 'mtf']
-    elif 'frequencies' in wildcards.figure_name:
-        task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
-        paths = [path_template % f'{task}_presented_frequencies',
-                 path_template % 'mtf']
+                 path_template % f'schematic_stimulus_{task}',
+                 path_template % f'{task}_presented_frequencies']
     elif 'example_voxel' in wildcards.figure_name:
         df_filter, model = re.findall("([a-z-]+)_([a-z_]+)_example_voxels", wildcards.figure_name)[0]
         paths = [path_template % f"peakiness_{df_filter}_{model}_all",
@@ -2935,11 +2928,8 @@ rule compose_figures:
             sfp.compose_figures.pref_period_1d(input[0], input[1], output[0],
                                                wildcards.context)
         elif 'intro' in wildcards.figure_name:
-            sfp.compose_figures.intro_figure(input[0], input[1], output[0],
+            sfp.compose_figures.intro_figure(input[0], input[1], input[2], output[0],
                                              wildcards.context)
-        elif 'frequencies' in wildcards.figure_name:
-            sfp.compose_figures.frequency_figure(input[0], input[1], output[0],
-                                                 wildcards.context)
         elif 'example_voxel' in wildcards.figure_name:
             sfp.compose_figures.example_voxels(input[0], input[1], output[0],
                                                wildcards.context)
@@ -2960,6 +2950,10 @@ rule presented_spatial_frequency_plot:
         import sfp
         df = pd.read_csv(input[0])
         plot_params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
+        plot_params['font.size'] = '8'
+        plot_params['axes.titlesize'] = '8'
+        plot_params['axes.labelsize'] = '8'
+        plot_params['legend.fontsize'] = '8'
         plt.style.use(plot_params)
         fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.65))
         sns.lineplot(x='eccentricity', y='spatial_frequency',
@@ -3177,7 +3171,7 @@ rule figures_paper:
                      "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'frequencies_task-sfprescaled.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'compose_paper', "filter-mean_full_full_absolute_example_voxels.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "intro_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
