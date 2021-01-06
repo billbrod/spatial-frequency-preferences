@@ -2817,14 +2817,11 @@ rule figure_background:
     run:
         import sfp
         import seaborn as sns
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
-        sns.set_context(wildcards.context, font_scale=font_scale)
-        with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
-            df = sfp.figures.existing_studies_df()
-            y = {'period': 'Preferred period (deg)',
-                 'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
-            g = sfp.figures.existing_studies_figure(df, y, wildcards.context)
-            g.fig.savefig(output[0], bbox_inches='tight')
+        df = sfp.figures.existing_studies_df()
+        y = {'period': 'Preferred period (deg)',
+             'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
+        g = sfp.figures.existing_studies_figure(df, y, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_background_with_current:
@@ -2840,20 +2837,17 @@ rule figure_background_with_current:
         import sfp
         import seaborn as sns
         import pandas as pd
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
-        sns.set_context(wildcards.context, font_scale=font_scale)
         df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
         try:
             precision = pd.read_csv(input.precision[0])
         except AttributeError:
             # then there was no precision in input
             precision = None
-        with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
-            y = {'period': 'Preferred period (deg)',
-                 'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
-            g = sfp.figures.existing_studies_with_current_figure(df, int(wildcards.seed), precision,
-                                                                 y, wildcards.context)
-            g.fig.savefig(output[0], bbox_inches='tight')
+        y = {'period': 'Preferred period (deg)',
+             'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
+        g = sfp.figures.existing_studies_with_current_figure(df, int(wildcards.seed), precision,
+                                                             y, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 def get_compose_input(wildcards):

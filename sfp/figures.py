@@ -696,6 +696,8 @@ def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
         frequency on the y-axis. If preferred period, the y-axis is
         linear; if preferred SF, the y-axis is log-scaled (base 2). The
         ylims will also differ between these two
+    legend : bool, optional
+        Whether to add a legend or not
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -725,10 +727,11 @@ def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
     if context == 'poster':
         g.ax.set(xticks=[0, 5, 10, 15, 20])
         g.ax.set_title("Summary of human V1 fMRI results")
-    g.add_legend()
-    # facetgrid doesn't let us set the title fontsize directly, so need to do
-    # this hacky work-around
-    g.fig.legends[0].get_title().set_size(mpl.rcParams['legend.title_fontsize'])
+    if legend:
+        g.add_legend()
+        # facetgrid doesn't let us set the title fontsize directly, so need to do
+        # this hacky work-around
+        g.fig.legends[0].get_title().set_size(mpl.rcParams['legend.title_fontsize'])
     g.ax.set_xlabel('Eccentricity of receptive field center (deg)')
     return g
 
@@ -2086,13 +2089,21 @@ def existing_studies_with_current_figure(df, seed=None, precision_df=None, y="Pr
                                           'precision')
     gb_cols = [c for c in ['subject', 'bootstrap_num'] if c in df.columns]
     df = analyze_model.create_feature_df(df, reference_frame='relative', gb_cols=gb_cols)
-    df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)']).agg('mean').reset_index()
-    df['Paper'] = 'Current study'
-    df = df.rename(columns={'Eccentricity (deg)': 'Eccentricity'})
+    df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)', 'bootstrap_num']).agg('mean').reset_index()
     df['Preferred spatial frequency (cpd)'] = 1 / df['Preferred period (deg)']
-    df = df[['Paper', 'Preferred spatial frequency (cpd)', 'Preferred period (deg)', 'Eccentricity']]
-    df = existing_studies_df().append(df, True, sort=False)
-    return existing_studies_figure(df, y, context)
+    g = existing_studies_figure(existing_studies_df(), y, False, context)
+    _, line, _ = plotting.scatter_ci_dist('Eccentricity (deg)', y, data=df,
+                                          color='k', join=True, ax=g.ax,
+                                          linewidth=1.5*plt.rcParams['lines.linewidth'],
+                                          ci=68, estimator=np.median,
+                                          draw_ctr_pts=False, ci_mode='fill');
+    data = g._legend_data.copy()
+    data['Current study'] = line[0]
+    g.add_legend(data, label_order=g.hue_names + ['Current study'])
+    # facetgrid doesn't let us set the title fontsize directly, so need to do
+    # this hacky work-around
+    g.fig.legends[0].get_title().set_size(mpl.rcParams['legend.title_fontsize'])
+    return g
 
 
 def mtf(mtf_func, context='paper'):
