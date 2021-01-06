@@ -335,10 +335,10 @@ rule all_check_plots:
                       '_{df_filter}_precision_check.png').format(subject=sub, session=ses, task=TASKS[(sub, ses)], df_filter=filt) for sub in SUBJECTS for ses in SESSIONS[sub]
          for filt in ['filter-mean', 'no-filter'] if ses=='ses-04'],
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "filter-mean", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
-                      "v1_e1-12_summary_b10_r0.001_g0_s0_{model_type}_cv_loss_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)], model_type=m) for sub in SUBJECTS
+                      "v1_e1-12_summary_b10_r0.001_g0_s0_{model_type}_cv_loss_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)], model_type=m) for sub in SUBJECTS
          for ses in SESSIONS[sub] for m in ['iso_constant_iso', 'iso_scaling_iso', 'iso_full_iso'] if ses=='ses-04'],
         [os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "stim_class", "bayesian_posterior", "filter-mean", "initial_cv", "{subject}", "{session}", "{subject}_{session}_{task}_"
-                      "v1_e1-12_summary_b10_r0.001_g0_s0_cv_loss_comp_filter_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS
+                      "v1_e1-12_summary_b10_r0.001_g0_s0_cv_loss_comp_normed_loss.png").format(subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS
          for ses in SESSIONS[sub] if ses=='ses-04'],
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'voxel_exclusion_filter-mean_task-sfprescaled.svg'),
         [os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'individual_filter-mean_{}_training-loss-check_task-sfprescaled.svg').format(t)
@@ -2139,7 +2139,7 @@ def get_loss_files(wildcards):
                              if TASKS[(sub, ses)] == wildcards.task]).flatten()
         elif wildcards.modeling_goal == 'bootstrap':
             return np.array([get_model_subj_outputs(m, sub, ses, bootstrap_num=n, **format_kwargs)
-                             for n in range(100) for m in ['full_full_full', 'full_full_absolute']
+                             for n in range(100) for m in ['full_full_absolute']
                              for sub in SUBJECTS for ses in SESSIONS[sub]
                              if TASKS[(sub, ses)] == wildcards.task]).flatten()
     elif groupaverage == 'sub-groupaverage':
@@ -2383,21 +2383,21 @@ rule understand_loss_figure:
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                      "{atlas_type}", "{df_filter}", "{modeling_goal}", "{subject}", "{session}",
                      "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
-                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss_{df_filter}_{loss_func}.png"),
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss_{loss_func}.png"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_2d_model", "{mat_type}",
                      "{atlas_type}", "{df_filter}", "{modeling_goal}", "{subject}", "{session}",
                      "{subject}_{session}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_"
-                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss_{df_filter}_{loss_func}_joint.png"),
+                     "r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_cv_loss_{loss_func}_joint.png"),
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
                      "{task}_{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
                      "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_loss_"
-                     "{df_filter}_{loss_func}_plot-%j.log")
+                     "{loss_func}_plot-%j.log")
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_2d_model_cv_loss", "{subject}_{session}_"
                      "{task}_{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_v{vareas}_e{eccen}_{df_mode}_"
                      "b{batch_size}_r{learning_rate}_g{gpus}_s{crossval_seed}_{model_type}_loss_"
-                     "{df_filter}_{loss_func}_plot-%j_benchmark.txt")
+                     "{loss_func}_plot-%j_benchmark.txt")
     run:
         import sfp
         import torch
@@ -3039,9 +3039,10 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
                      'crossvalidation_s-3_filter-mean_doubleup.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     "individual_filter-mean_cv_raw-nc_v_s-3_task-sfprescaled.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     "individual_filter-mean_cv_raw-nc-all_v_s-3_task-sfprescaled.svg"),
+                     "individual_filter-mean_cv_raw_v_s-3_task-sfprescaled.svg"),
+                     # "individual_filter-mean_cv_raw-nc_v_s-3_task-sfprescaled.svg"),
+        # os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+        #              "individual_filter-mean_cv_raw-nc-all_v_s-3_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
                      'individual_filter-mean_full_full_absolute_2d_summary_s-5.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
