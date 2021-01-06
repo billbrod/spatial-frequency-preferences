@@ -773,7 +773,7 @@ rule to_freesurfer:
         " rm {params.tmp_nifti}"
 
 
-def find_prf_mgz(wildcards, prf_prop='varea'):
+def find_prf_mgz(wildcards, prf_prop='varea', subject=None):
     try:
         prf_prop = wildcards.prf_prop
     except AttributeError:
@@ -784,7 +784,11 @@ def find_prf_mgz(wildcards, prf_prop='varea'):
         benson_prefix = 'inferred_'
     elif wildcards.atlas_type == 'data':
         benson_prefix = 'full-'
-    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', wildcards.subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+prf_prop+'.mgz')
+    try:
+        subject = wildcards.subject
+    except AttributeError:
+        subject = subject
+    benson_template = os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', subject, wildcards.atlas_type, '{hemi}.'+benson_prefix+prf_prop+'.mgz')
     return expand(benson_template, hemi=['lh', 'rh'])
 
 
@@ -2662,7 +2666,7 @@ rule figure_model_schematic:
         fig.savefig(output[0], bbox_inches='tight')
 
 
-rule example_voxel_figure:
+rule figure_example_voxel:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
                      'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
@@ -2670,13 +2674,13 @@ rule example_voxel_figure:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
                      'bayesian_posterior', "{df_filter}", 'initial', 'sub-wlsubj001', 'ses-04',
                      'sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
-                     'g0_cNone_nNone_full_full_absolute_model.pt')
+                     'g0_cNone_nNone_{model_type}_model.pt')
     output:
-        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_voxels_{df_filter}.{ext}')
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'example_voxels_{df_filter}_{model_type}.{ext}')
     log:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{ext}-%j.log')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{model_type}_{ext}-%j.log')
     benchmark:
-        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{ext}_benchmark.txt')
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'example_voxels_{df_filter}_{model_type}_{ext}_benchmark.txt')
     run:
         import pandas as pd
         import sfp
@@ -2686,7 +2690,7 @@ rule example_voxel_figure:
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
-rule example_ecc_bins_figure:
+rule figure_example_ecc_bins:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves',
                      'stim_class', 'bayesian_posterior', 'sub-wlsubj001', 'ses-04',
@@ -2705,6 +2709,104 @@ rule example_ecc_bins_figure:
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
+rule figure_peakiness_check:
+    input:
+        first_levels = [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                                     'stim_class', 'bayesian_posterior', '{subject}', 'ses-04',
+                                     '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary.csv').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                               'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
+                               '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
+                               'g0_cNone_nNone_{{model_type}}_model.pt').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'peakiness_{df_filter}_{model_type}_{col}.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{model_type}_{col}_{ext}-%j.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'peakiness_{df_filter}_{model_type}_{col}_{ext}_benchmark.txt')
+    run:
+        import pandas as pd
+        import sfp
+        models = [sfp.analyze_model.load_LogGaussianDonut(p.replace('_model.pt', '')) for p in input.models]
+        dfs = []
+        for p in input.first_levels:
+            dfs.append(pd.read_csv(p))
+            subj = re.findall('(sub-wlsubj[0-9]+)_', p)[0]
+            dfs[-1]['subject'] = subj
+        if wildcards.col == 'all':
+            col = None
+        elif wildcards.col == 'individual':
+            col = 'subject'
+        df_filter_str = get_df_filter_str(wildcards)
+        g = sfp.figures.peakiness_check(dfs, models, col=col,
+                                        df_filter_string=df_filter_str,
+                                        context=wildcards.context)
+        # we set the dpi here because we rasterize the 2d histogram (in order
+        # to reduce the size) and so we increase the dpi so it looks better
+        g.fig.savefig(output[0], bbox_inches='tight', dpi=400)
+
+
+rule figure_compare_sigma:
+    input:
+        first_levels = [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                                     'stim_class', 'bayesian_posterior', '{subject}', 'ses-04',
+                                     '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary.csv').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class',
+                               'bayesian_posterior', "{{df_filter}}", 'initial', '{subject}', 'ses-04',
+                               '{subject}_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_'
+                               'g0_cNone_nNone_{{model_type}}_model.pt').format(subject=subj)
+                        for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_ecc_{df_filter}_{model_type}.{ext}'),
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'sigma_vs_period_{df_filter}_{model_type}.{ext}'),
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{model_type}_{ext}.log'),
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'sigma_compare_{df_filter}_{model_type}_{ext}_benchmark.txt'),
+    run:
+        import pandas as pd
+        import sfp
+        models = [sfp.analyze_model.load_LogGaussianDonut(p.replace('_model.pt', '')) for p in input.models]
+        dfs = []
+        for p in input.first_levels:
+            dfs.append(pd.read_csv(p))
+            subj = re.findall('(sub-wlsubj[0-9]+)_', p)[0]
+            dfs[-1]['subject'] = subj
+        df_filter_str = get_df_filter_str(wildcards).replace(',drop_voxels_near_border', '')
+        g, fig = sfp.figures.compare_sigma_and_pref_period(dfs, models, df_filter_str, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+        fig.savefig(output[1], bbox_inches='tight')
+
+
+rule figure_compare_surface_area:
+    input:
+        unpack(get_params_csv),
+        # these each return 2 mgzs, so need that m for m in find_prf_mgz to
+        # flatten this into a list of strings (instead of a list of lists of
+        # strings)
+        vareas = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'varea', subj)
+                                    if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+        eccens = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'eccen', subj)
+                                    if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}.{ext}'),
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}_{ext}.log'),
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}_{ext}_benchmark.txt'),
+    run:
+        import sfp
+        import pandas as pd
+        subjects = [subj for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == wildcards.task]
+        template = input.vareas[0].replace('sub-wlsubj001', '{subject}').replace('lh', '{hemi}').replace('rh', '{hemi}').replace('varea', '{prop}')
+        df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
+        g = sfp.figures.compare_surface_area_and_pref_period(df, subjects, template, context=wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
+       
+
 rule figure_background:
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'background_{y_val}.{ext}')
@@ -2715,14 +2817,11 @@ rule figure_background:
     run:
         import sfp
         import seaborn as sns
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
-        sns.set_context(wildcards.context, font_scale=font_scale)
-        with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
-            df = sfp.figures.existing_studies_df()
-            y = {'period': 'Preferred period (deg)',
-                 'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
-            g = sfp.figures.existing_studies_figure(df, y, wildcards.context)
-            g.fig.savefig(output[0], bbox_inches='tight')
+        df = sfp.figures.existing_studies_df()
+        y = {'period': 'Preferred period (deg)',
+             'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
+        g = sfp.figures.existing_studies_figure(df, y, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_background_with_current:
@@ -2738,20 +2837,17 @@ rule figure_background_with_current:
         import sfp
         import seaborn as sns
         import pandas as pd
-        font_scale = {'poster': 1.2}.get(wildcards.context, 1)
-        sns.set_context(wildcards.context, font_scale=font_scale)
         df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
         try:
             precision = pd.read_csv(input.precision[0])
         except AttributeError:
             # then there was no precision in input
             precision = None
-        with (sns.axes_style('white', {'axes.spines.right': False, 'axes.spines.top': False})):
-            y = {'period': 'Preferred period (deg)',
-                 'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
-            g = sfp.figures.existing_studies_with_current_figure(df, int(wildcards.seed), precision,
-                                                                 y, wildcards.context)
-            g.fig.savefig(output[0], bbox_inches='tight')
+        y = {'period': 'Preferred period (deg)',
+             'frequency': 'Preferred spatial frequency (cpd)'}[wildcards.y_val]
+        g = sfp.figures.existing_studies_with_current_figure(df, int(wildcards.seed), precision,
+                                                             y, wildcards.context)
+        g.fig.savefig(output[0], bbox_inches='tight')
 
 
 def get_compose_input(wildcards):
@@ -2789,11 +2885,12 @@ def get_compose_input(wildcards):
     elif 'intro' in wildcards.figure_name:
         task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
         paths = [path_template % 'schematic_background',
-                 path_template % f'schematic_stimulus_{task}']
-    elif 'frequencies' in wildcards.figure_name:
-        task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
-        paths = [path_template % f'{task}_presented_frequencies',
-                 path_template % 'mtf']
+                 path_template % f'schematic_stimulus_{task}',
+                 path_template % f'{task}_presented_frequencies']
+    elif 'example_voxel' in wildcards.figure_name:
+        df_filter, model = re.findall("([a-z-]+)_([a-z_]+)_example_voxels", wildcards.figure_name)[0]
+        paths = [path_template % f"peakiness_{df_filter}_{model}_all",
+                 path_template % f"example_voxels_{df_filter}_{model}"]
     return paths
 
 
@@ -2825,11 +2922,11 @@ rule compose_figures:
             sfp.compose_figures.pref_period_1d(input[0], input[1], output[0],
                                                wildcards.context)
         elif 'intro' in wildcards.figure_name:
-            sfp.compose_figures.intro_figure(input[0], input[1], output[0],
+            sfp.compose_figures.intro_figure(input[0], input[1], input[2], output[0],
                                              wildcards.context)
-        elif 'frequencies' in wildcards.figure_name:
-            sfp.compose_figures.frequency_figure(input[0], input[1], output[0],
-                                                 wildcards.context)
+        elif 'example_voxel' in wildcards.figure_name:
+            sfp.compose_figures.example_voxels(input[0], input[1], output[0],
+                                               wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:
@@ -2847,6 +2944,10 @@ rule presented_spatial_frequency_plot:
         import sfp
         df = pd.read_csv(input[0])
         plot_params, fig_width = sfp.style.plotting_style(wildcards.context, figsize='half')
+        plot_params['font.size'] = '8'
+        plot_params['axes.titlesize'] = '8'
+        plot_params['axes.labelsize'] = '8'
+        plot_params['legend.fontsize'] = '8'
         plt.style.use(plot_params)
         fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.65))
         sns.lineplot(x='eccentricity', y='spatial_frequency',
@@ -3065,8 +3166,10 @@ rule figures_paper:
                      "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'frequencies_task-sfprescaled.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "example_voxels_filter-mean.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'compose_paper', "filter-mean_full_full_absolute_example_voxels.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "intro_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures',
+                     "individual_v1_area_vs_period_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior.svg"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),

@@ -232,17 +232,17 @@ def pref_period_1d(bins_fig, pref_period_fig, save_path, context='paper'):
 
     compose.Figure(
         # we actually have a bit of wiggle room, so we add those extra pixels
-        figure_width+10, figure_height,
-        SVG(bins_fig).move(-5, 0),
+        figure_width+33, figure_height,
+        SVG(bins_fig).move(-9, 0),
         compose.Text("A", 10, 25, size=font_size, **text_params),
         # we use the regular SVG here, because this has the legend applied, and
         # so has been saved out correctly
-        compose.SVG(pref_period_fig).move(figure_width / 2 + 10, 0),
-        compose.Text("B", figure_width/2+15, 25, size=font_size, **text_params),
+        compose.SVG(pref_period_fig).move(figure_width / 2 + 33, -2),
+        compose.Text("B", figure_width/2+38, 25, size=font_size, **text_params),
     ).save(save_path)
 
 
-def intro_figure(theory_fig, stim_fig, save_path, context='paper'):
+def intro_figure(theory_fig, stim_fig, freq_fig, save_path, context='paper'):
     """Create the first figure in the paper.
 
     Parameters
@@ -260,27 +260,33 @@ def intro_figure(theory_fig, stim_fig, save_path, context='paper'):
     """
     text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
-    figure_height = figure_width / 2.4
+    figure_height = figure_width * .72
     font_size = _convert_to_pix(text_params.pop('size'))
 
     compose.Figure(
         figure_width, figure_height,
-        SVG(theory_fig).move(-3, 0),
-        compose.Text("A", 5, 25, size=font_size, **text_params),
+        SVG(theory_fig).move(-3, figure_height/5),
+        compose.Text("A", 5, figure_height/5+25, size=font_size, **text_params),
+        SVG(freq_fig).move(figure_width/2, figure_height/2+25),
+        compose.Text("C", figure_width/2+10, figure_height/2+50, size=font_size,
+                     **text_params),
         SVG(stim_fig).move(figure_width/2, -10),
         compose.Text("B", figure_width/2+10, 25, size=font_size,
                      **text_params),
     ).save(save_path)
 
 
-def frequency_figure(freq_fig, mtf_fig, save_path, context='paper'):
-    """Create the second figure, showing the display MTF and displayed frequencies
+def example_voxels(peakiness_fig, example_voxel_fig, save_path, context='paper'):
+    """Create the example voxels figure.
+
+    Which combines the panel with 3 example voxels and the peakiness check one,
+    which plots all voxels on top of each other
 
     Parameters
     ----------
-    freq_fig, mtf_fig
-        paths to the svg files containing the displayed frequencies and display
-        MTF figures, respectively
+    peakiness_fig, example_voxel_fig
+        paths to the svg files containing the peakiness check and 3 example
+        voxel figures, respectively
     save_path : str
         path to save the composed figure at
     context : {'paper', 'poster'}, optional
@@ -291,13 +297,13 @@ def frequency_figure(freq_fig, mtf_fig, save_path, context='paper'):
     """
     text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
-    figure_height = figure_width / 3.3
+    figure_height = figure_width / 2.8
     font_size = _convert_to_pix(text_params.pop('size'))
 
     compose.Figure(
         figure_width, figure_height,
-        SVG(freq_fig).move(20, 0),
-        compose.Text("A", 5, 25, size=font_size, **text_params),
-        SVG(mtf_fig).move(figure_width/2+10, 00),
-        compose.Text("B", figure_width/2, 25, size=font_size, **text_params),
+        SVG(peakiness_fig).move(figure_width*3/4-10, -2),
+        SVG(example_voxel_fig).move(-5, 0),
+        compose.Text("A", 0, 25, size=font_size, **text_params),
+        compose.Text("B", figure_width*3/4-15, 25, size=font_size, **text_params),
     ).save(save_path)

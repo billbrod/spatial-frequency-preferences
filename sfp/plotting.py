@@ -898,13 +898,17 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
         fig.savefig(save_path)
 
 
-def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
+def plot_tuning_curve(ci_vals=[16, 84], norm=False, xlim=None, **kwargs):
     data = kwargs.pop('data')
     color = kwargs.pop('color')
+    if xlim is not None:
+        if xlim == 'data':
+            xlim = (data.frequency_value.min(), data.frequency_value.max())
+        xlim = np.logspace(np.log10(xlim[0]), np.log10(xlim[1]))
     if 'bootstrap_num' in data.columns and data.bootstrap_num.nunique() > 1:
         xs, ys = [], []
         for n, g in data.groupby('bootstrap_num'):
-            x, y = tuning_curves.get_tuning_curve_xy_from_df(g, norm=norm)
+            x, y = tuning_curves.get_tuning_curve_xy_from_df(g, norm=norm, x=xlim)
             xs.append(x)
             ys.append(y)
         xs = np.array(xs)
@@ -917,7 +921,7 @@ def plot_tuning_curve(ci_vals=[16, 84], norm=False, **kwargs):
         plt.fill_between(xs[0], y_cis[0], y_cis[1], alpha=.2, facecolor=color)
         plt.semilogx(xs[0], y_median, basex=2, color=color, **kwargs)
     else:
-        x, y = tuning_curves.get_tuning_curve_xy_from_df(data, norm=norm)
+        x, y = tuning_curves.get_tuning_curve_xy_from_df(data, norm=norm, x=xlim)
         plt.semilogx(x, y, basex=2, color=color, **kwargs)
 
 

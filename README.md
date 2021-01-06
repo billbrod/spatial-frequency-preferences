@@ -1,8 +1,6 @@
 Spatial frequency preferences
 ==============================
 
-[![Build Status](https://travis-ci.com/billbrod/spatial-frequency-preferences.svg?branch=master)](https://travis-ci.com/billbrod/spatial-frequency-preferences)
-
 An fMRI experiment to determine the relationship between spatial
 frequency and eccentricity in the human early visual cortex.
 

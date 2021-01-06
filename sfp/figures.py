@@ -4,6 +4,7 @@
 import seaborn as sns
 import math
 import pyrtools as pt
+import neuropythy as ny
 import os.path as op
 import warnings
 import torch
@@ -24,7 +25,7 @@ from . import style
 
 
 def create_precision_df(paths, summary_func=np.mean,
-                        df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border'):
+                        df_filter_string='drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border'):
     """Create dataframe summarizing subjects' precision
 
     When combining parameter estimates into an 'overall' value, we want
@@ -173,7 +174,7 @@ def existing_studies_df():
     data_dict['Preferred spatial frequency (cpd)'].extend([2.25, 1.9, 1.75])
     data_dict['Eccentricity'].extend([2.5, 5, 10])
 
-    data_dict['Paper'].extend([ "D'Souza (2016)",]*3)
+    data_dict['Paper'].extend(["D'Souza (2016)"]*3)
     data_dict['Preferred spatial frequency (cpd)'].extend([2, .95, .4])
     data_dict['Eccentricity'].extend([1.4, 4.6, 9.8])
 
@@ -181,9 +182,19 @@ def existing_studies_df():
     data_dict['Preferred spatial frequency (cpd)'].extend([3, 1.5,])
     data_dict['Eccentricity'].extend([.5, 3])
 
-    data_dict['Paper'].extend([ 'Olsson (pilot, model fit)']*10)
-    data_dict['Preferred spatial frequency (cpd)'].extend([2.11, 1.76, 1.47, 2.75, 1.24, 1.06, .88, .77, .66, .60])
-    data_dict['Eccentricity'].extend([2, 3, 4, 1, 5, 6, 7, 8, 9, 10])
+    # model fit and never published, so don't include.
+    # data_dict['Paper'].extend(['Olsson (pilot, model fit)']*10)
+    # data_dict['Preferred spatial frequency (cpd)'].extend([2.11, 1.76, 1.47, 2.75, 1.24, 1.06, .88, .77, .66, .60])
+    # data_dict['Eccentricity'].extend([2, 3, 4, 1, 5, 6, 7, 8, 9, 10])
+
+    # these values gotten using web plot digitizer and then rounded to 2
+    # decimal points
+    data_dict["Paper"].extend(['Aghajari (2020)']*9)
+    data_dict['Preferred spatial frequency (cpd)'].extend([2.24, 1.62, 1.26,
+                                                           1.09, 0.88, 0.75,
+                                                           0.78, 0.75, 0.70])
+    data_dict['Eccentricity'].extend([0.68, 1.78, 2.84, 3.90, 5.00, 6.06, 7.16,
+                                      8.22, 9.28])
 
     # Predictions of the scaling hypothesis -- currently unused
     # ecc = np.linspace(.01, 20, 50)
@@ -194,7 +205,7 @@ def existing_studies_df():
     # V1_RF_size = .2 * ecc
 
     df = pd.DataFrame(data_dict)
-    df = df.sort_values(['Paper','Eccentricity',])
+    df = df.sort_values(['Paper', 'Eccentricity'])
     df["Preferred period (deg)"] = 1. / df['Preferred spatial frequency (cpd)']
 
     return df
@@ -685,6 +696,8 @@ def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
         frequency on the y-axis. If preferred period, the y-axis is
         linear; if preferred SF, the y-axis is log-scaled (base 2). The
         ylims will also differ between these two
+    legend : bool, optional
+        Whether to add a legend or not
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -714,10 +727,11 @@ def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
     if context == 'poster':
         g.ax.set(xticks=[0, 5, 10, 15, 20])
         g.ax.set_title("Summary of human V1 fMRI results")
-    g.add_legend()
-    # facetgrid doesn't let us set the title fontsize directly, so need to do
-    # this hacky work-around
-    g.fig.legends[0].get_title().set_size(mpl.rcParams['legend.title_fontsize'])
+    if legend:
+        g.add_legend()
+        # facetgrid doesn't let us set the title fontsize directly, so need to do
+        # this hacky work-around
+        g.fig.legends[0].get_title().set_size(mpl.rcParams['legend.title_fontsize'])
     g.ax.set_xlabel('Eccentricity of receptive field center (deg)')
     return g
 
@@ -2075,13 +2089,21 @@ def existing_studies_with_current_figure(df, seed=None, precision_df=None, y="Pr
                                           'precision')
     gb_cols = [c for c in ['subject', 'bootstrap_num'] if c in df.columns]
     df = analyze_model.create_feature_df(df, reference_frame='relative', gb_cols=gb_cols)
-    df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)']).agg('mean').reset_index()
-    df['Paper'] = 'Current study'
-    df = df.rename(columns={'Eccentricity (deg)': 'Eccentricity'})
+    df = df.groupby(['subject', 'reference_frame', 'Eccentricity (deg)', 'bootstrap_num']).agg('mean').reset_index()
     df['Preferred spatial frequency (cpd)'] = 1 / df['Preferred period (deg)']
-    df = df[['Paper', 'Preferred spatial frequency (cpd)', 'Preferred period (deg)', 'Eccentricity']]
-    df = existing_studies_df().append(df, True, sort=False)
-    return existing_studies_figure(df, y, context)
+    g = existing_studies_figure(existing_studies_df(), y, False, context)
+    _, line, _ = plotting.scatter_ci_dist('Eccentricity (deg)', y, data=df,
+                                          color='k', join=True, ax=g.ax,
+                                          linewidth=1.5*plt.rcParams['lines.linewidth'],
+                                          ci=68, estimator=np.median,
+                                          draw_ctr_pts=False, ci_mode='fill');
+    data = g._legend_data.copy()
+    data['Current study'] = line[0]
+    g.add_legend(data, label_order=g.hue_names + ['Current study'])
+    # facetgrid doesn't let us set the title fontsize directly, so need to do
+    # this hacky work-around
+    g.fig.legends[0].get_title().set_size(mpl.rcParams['legend.title_fontsize'])
+    return g
 
 
 def mtf(mtf_func, context='paper'):
@@ -2159,7 +2181,7 @@ def sigma_interpretation(df):
 
 
 def compare_cv_models(first_level_df, targets, predictions, model_names, loss_func='normed_loss',
-                      df_filter_string='drop_voxels_with_any_negative_amplitudes,drop_voxels_near_border',
+                      df_filter_string='drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border',
                       context='paper', voxel_n_check=9):
     """Create plots to help understand differences in model performance.
 
@@ -2449,7 +2471,184 @@ def voxel_exclusion(df, context='paper'):
     return g
 
 
-def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
+def _create_model_prediction_df(df, trained_model, voxel_label,
+                                for_relative_plot=False):
+    """Create df containing model predictions for a single voxel
+
+    Will contain 48 rows, with the following columns: model_predictions (normed
+    predictions of trained_model to the spatial frequency seen by this voxel),
+    voxel (voxel_label), stimulus_class (0 to 47, giving the stimulus label),
+    peak_sf (if add_peak_sf is True, this gives the preferred spatial frequency
+    of this voxel, at each observed orientation).
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing the responses of a single voxel to stimuli. Should
+        only have one response per stimulus (thus, the summary df), and must
+        have columns eccen, angle, local_sf_magnitude, and local_sf_xy_direction.
+    trained_model : sfp.model.LogGaussianDonut
+        Trained model whose responses we want to get.
+    voxel_label : str
+        The label for this voxel.
+    for_relative_plot : bool, optional
+        If True, will add a column giving the peak spatial frequency for this
+        voxel at each observed orientation and evaluate the model at 12
+        frequencies log-spaced from one decade below to one decade above the
+        peak (rather than the presented frequencies), at the four main
+        orientations.
+
+    Returns
+    -------
+    data : pd.DataFrame
+        DataFrame containing the above info
+
+    """
+    data = {}
+    sfs = df.drop_duplicates('stimulus_class')[['local_sf_magnitude',
+                                                'local_sf_xy_direction']]
+    sfs = torch.tensor(sfs.values)
+    prf_loc = torch.tensor(df[['eccen', 'angle']].values)
+    predictions = trained_model.evaluate(sfs[:, 0], sfs[:, 1], prf_loc[:, 0], prf_loc[:, 1])
+    predictions_norm = predictions.norm(2, -1, True)
+    if for_relative_plot:
+        # get the 4 main orientations
+        angles = np.linspace(0, 2*np.pi, 8, endpoint=False)
+        angles = df.query('freq_space_angle in @angles').drop_duplicates('freq_space_angle')
+        angles = angles.local_sf_xy_direction.values
+        peak_sf = []
+        freqs = []
+        for a in angles:
+            peak_sf.append(trained_model.preferred_sf(a, prf_loc[0, 0], prf_loc[0, 1]).item())
+            freqs.extend(np.logspace(np.log10(peak_sf[-1]/10), np.log10(peak_sf[-1]*10), 12))
+        sfs = torch.tensor([freqs, np.concatenate([12*[a] for a in angles])]).transpose(0, 1)
+        peak_sf = np.concatenate([12*[p] for p in peak_sf])
+        data['peak_sf'] = peak_sf
+        data['local_sf_magnitude'] = sfs[:, 0].detach().numpy()
+        if len(sfs) != 48:
+            raise Exception("Must have 48 spatial frequencies to evaluate at in "
+                            "order to make everything line up!")
+        # we use the same norm as before, in order to make sure things line up correctly
+        predictions = trained_model.evaluate(sfs[:, 0], sfs[:, 1],
+                                             prf_loc[:, 0], prf_loc[:, 1])
+    else:
+        data['stimulus_class'] = np.arange(48)
+    data['model_predictions'] = (predictions / predictions_norm).detach().squeeze()
+    data['voxel'] = voxel_label
+    return pd.DataFrame(data)
+
+
+def _remap_frequencies(df, freq_mag_col='local_sf_magnitude'):
+    """Create plotting_sf column in df
+
+    for each voxel, our stimuli have several orientations. ideally, these
+    orientations would all have the exact same spatial frequency, but they
+    don't (the w_r/w_a parameters needed to be integers in order to avoid
+    obvious artifacts at polar angle 0). for plotting purposes, this is
+    confusing, so we map those values such that they are identical, and the
+    binning that gets done later on then makes more sense.
+
+    This adds a column, plotting_sf, which contains this info.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        first level DataFrame containing the amplitude responses for a single
+        subject and session. Must be the summary version (only has median across
+        bootstraps).
+    freq_mag_col : str, optional
+        Name of the column with the spatial frequencies to remap.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        the dataframe with plotting_sf column added.
+
+    """
+    canonical_freqs = [f for f in df.freq_space_distance.unique() if f == int(f)]
+    canonical_freq_mapper = {f: min(canonical_freqs, key=lambda x: abs(x-f))
+                             for f in df.freq_space_distance.unique()}
+    freq_mapper = df.groupby(['voxel', 'freq_space_distance'])[freq_mag_col].median().to_dict()
+    df['plotting_sf'] = df.apply(lambda x: freq_mapper[x.voxel,
+                                                       canonical_freq_mapper[x.freq_space_distance]],
+                                 axis=1)
+    return df
+
+
+def _merge_model_response_df(df, model_predictions):
+    """Merge dfs with model predictions and voxel responses.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        first level DataFrame containing the amplitude responses for a single
+        subject and session. Must be the summary version (only has median across
+        bootstraps).
+    model_predictions : pd.DataFrame
+        DataFrame containing the model predictions for each voxel in df.
+
+    Returns
+    -------
+    df : pd.Dataframe
+        The merged dataframe
+
+    """
+    try:
+        df = df.merge(model_predictions, 'left', on=['voxel', 'stimulus_class'],
+                      validate='1:1', )
+        df = df.rename(columns={'amplitude_estimate_median_normed':
+                                'voxel_response'})
+        df = pd.melt(df, ['voxel', 'stimulus_class', 'eccen', 'freq_space_angle',
+                          'local_sf_magnitude', 'plotting_sf'],
+                     value_vars=['voxel_response', 'model_predictions'],
+                     var_name='model', value_name='Response (a.u.)')
+    except KeyError:
+        # in this case, we're combining the relative ones, so model_predictions
+        # doesn't have a stimulus_class column (and they're evaluated at
+        # different frequencies)
+        df = df[['voxel', 'local_sf_magnitude', 'amplitude_estimate_median_normed',
+                 'peak_sf', 'subject']]
+        df['model'] = 'voxel_response'
+        df = df.rename(columns={'amplitude_estimate_median_normed': 'Response (a.u.)'})
+        model_predictions = model_predictions.rename(columns={'model_predictions':
+                                                              'Response (a.u.)'})
+        model_predictions['model'] = 'model_predictions'
+        df = pd.concat([df, model_predictions], sort=False)
+    return df
+
+
+def _voxel_responses_and_predictions(*args, label='', n_bins=10, plot_type='reg', **kwargs):
+    """Plot voxel responses and model predictions.
+
+    If label=voxel_response, we use sns.regplot (if plot_type=='reg', with
+    n_bins bins on the x axis) or sns.histplot (if plot_type='hist', logscaling
+    the x-axis). Else, we use sns.lineplot
+
+    """
+    if label == 'voxel_response':
+        if plot_type == 'reg':
+            # there are 22 unique frequencies (freq_space_distance in the
+            # dataframe), but only 10 "real" ones, the others are just off by a
+            # little bit (because w_a/w_r needed to be whole numbers)
+            return sns.regplot(*args, x_bins=n_bins,
+                               fit_reg=False, label=label,
+                               scatter_kws={'s': 10}, **kwargs)
+        elif plot_type == 'hist':
+            to_return = sns.histplot(*args, label=label,
+                                     log_scale=(True, False),
+                                     # rasterize to decrease size
+                                     rasterized=True,
+                                     **kwargs)
+            # set xscale back to linear because apparently sns.histplot sets it
+            # for all axes, and we want the next facet to have linear xscale
+            # for when sns.lineplot is called
+            plt.xscale('linear')
+            return to_return
+    else:
+        return sns.lineplot(*args, label=label, **kwargs, zorder=10)
+
+
+def example_voxels(df, trained_model, voxel_idx=[2310, 2957, 1651], context='paper'):
     """Plot some example voxel data and their model fit.
 
     For some voxels and a trained model, plot some comparisons between the
@@ -2463,7 +2662,7 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
         first level DataFrame containing the amplitude responses for a single
         subject and session. Must be the summary version (only has median across
         bootstraps).
-    model : sfp.model.LogGaussianDonut
+    trained_model : sfp.model.LogGaussianDonut
         Trained model whose responses we want to show.
     voxel_idx : list, optional
         List of voxel ids (i.e., values from the 'voxel' column of df) to show.
@@ -2484,62 +2683,24 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
     """
     params, fig_width = style.plotting_style(context, figsize='full')
     plt.style.use(params)
-    ax_height = fig_width / 3
+    ax_height = (fig_width / 4) / .75
     df = df.query("voxel in @voxel_idx")
     data = []
     voxel = df.drop_duplicates('voxel')
     eccen_order = voxel.sort_values('eccen').voxel.values
     for i, v in enumerate(voxel_idx):
-        # need to do this here because there's different local spatial
-        # frequency for each voxel (based on its location)
-        sfs = df.query('voxel==@v').drop_duplicates('stimulus_class')[['local_sf_magnitude',
-                                                                       'local_sf_xy_direction']]
-        sfs = torch.tensor(sfs.values)
-        d = {}
-        prf_loc = torch.tensor(voxel.query('voxel==@v')[['eccen', 'angle']].values)
-        predictions = model.evaluate(sfs[:, 0], sfs[:, 1], prf_loc[:, 0], prf_loc[:, 1])
-        predictions = predictions.detach().squeeze()
-        d['model_predictions'] = predictions / predictions.norm(2, -1, True)
-        d['voxel'] = v
-        d['stimulus_class'] = np.arange(48)
-        data.append(pd.DataFrame(d))
+        data.append(_create_model_prediction_df(df.query('voxel==@v'),
+                                                trained_model, v))
     data = pd.concat(data)
-    # for each voxel, our stimuli have several orientations. ideally, these
-    # orientations would all have the exact same spatial frequency, but they
-    # don't (thew_r/w_a parameters needed to be integers in order to avoid
-    # obvious artifacts at polar angle 0). for plotting purposes, this is
-    # confusing, so we map those values such that they are identical, and the
-    # binning that gets done later on then makes more sense
     canonical_freqs = [f for f in df.freq_space_distance.unique() if f == int(f)]
-    canonical_freq_mapper = {f: min(canonical_freqs, key=lambda x: abs(x-f))
-                             for f in df.freq_space_distance.unique()}
-    freq_mapper = df.groupby(['voxel', 'freq_space_distance']).local_sf_magnitude.median().to_dict()
-    df['plotting_sf'] = df.apply(lambda x: freq_mapper[x.voxel,
-                                                       canonical_freq_mapper[x.freq_space_distance]],
-                                 axis=1)
-    df = df.merge(data, 'left', on=['voxel', 'stimulus_class'],
-                  validate='1:1', )
-    df = df.rename(columns={'amplitude_estimate_median_normed':
-                            'voxel_response'})
-    df = pd.melt(df, ['voxel', 'plotting_sf', 'stimulus_class',
-                      'eccen', 'freq_space_angle'],
-                 value_vars=['voxel_response', 'model_predictions'],
-                 var_name='model', value_name='Response (a.u.)')
+    df = _remap_frequencies(df)
+    df = _merge_model_response_df(df, data)
     g = sns.FacetGrid(hue='model', data=df, col='voxel', col_wrap=3,
-                      col_order=eccen_order, height=ax_height,)
-
-    def custom_mapper(*args, label='', **kwargs):
-        if label == 'voxel_response':
-            # there are 22 unique frequencies (freq_space_distance in the
-            # dataframe), but only 10 "real" ones, the others are just off by a
-            # little bit (because w_a/w_r needed to be whole numbers)
-            return sns.regplot(*args, x_bins=len(canonical_freqs),
-                               fit_reg=False, label=label,
-                               scatter_kws={'s': 10}, **kwargs)
-        else:
-            return sns.lineplot(*args, label=label, **kwargs)
-    g.map_dataframe(custom_mapper, x='plotting_sf', y='Response (a.u.)')
-    g.set(xscale='log', yticklabels=[])
+                      col_order=eccen_order, height=ax_height, aspect=.75)
+    g.map_dataframe(_voxel_responses_and_predictions, x='plotting_sf',
+                    y='Response (a.u.)', n_bins=len(canonical_freqs),
+                    plot_type='reg')
+    g.set(xscale='log', ylim=(.05, .225), yticklabels=[], xlim=(.1, 10))
     for i, ax in enumerate(g.axes.flatten()):
         vox_id = int(re.findall('voxel = (\d+)', ax.get_title())[0])
         ax.set_title(f"eccentricity = {df.query('voxel==@vox_id').eccen.unique()[0]:.02f}")
@@ -2547,7 +2708,6 @@ def example_voxels(df, model, voxel_idx=[2310, 2957, 1651], context='paper'):
             ax.set(ylabel='Response (a.u.)')
         if i != 1:
             ax.set(xlabel='')
-        # elif ax.get_xlabel():
         else:
             ax.set(xlabel='Local spatial frequency (cpd)')
     return g
@@ -2590,31 +2750,29 @@ def example_eccentricity_bins(df, context='paper'):
     df = df.query("frequency_type=='local_sf_magnitude' & "
                   "stimulus_superclass in ['angular', 'radial'] & "
                   "eccen in ['02-03', '10-11']")
+    df.eccen = df.eccen.map(lambda x: {'02-03': '2-3'}.get(x, x))
     df = df.rename(columns={'eccen': "Eccentricity band"})
     pal = plotting.get_palette('stimulus_type', 'relative',
                                df.stimulus_superclass.unique(),
                                True)
 
-    mode_bounds = (df.mode_bound_lower.unique()[0],
-                   df.mode_bound_upper.unique()[0])
-
     g = sns.FacetGrid(df, col='Eccentricity band', palette=pal,
-                      hue='stimulus_superclass',
-                      xlim=mode_bounds, aspect=.7, height=height)
+                      hue='stimulus_superclass', sharey=False,
+                      xlim=(10**-1.2, 10**1.2), aspect=.7, height=height)
     g.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
-    g.map_dataframe(plotting.plot_tuning_curve)
+    g.map_dataframe(plotting.plot_tuning_curve, xlim='data')
     g.set_titles('{col_var}\n{col_name} deg')
-    g.set(xscale='log', yticklabels=[])
+    g.set(xscale='log')
     for i, ax in enumerate(g.axes.flatten()):
         if i == 0:
-            ax.set(ylabel='Response (a.u.)')
-        ax.set(xticks=[10**i for i in [-1, 1, 3]], xlabel='')
-        xlim = ax.get_xlim()
-        ax.hlines(0, *xlim, 'gray', '--')
-        ax.set_xlim(xlim)
+            ax.set(ylabel='Response\n(% BOLD signal change)',
+                   ylim=(1.5, 3.5), yticks=np.arange(1.5, 4.5, .5))
+        else:
+            ax.set(ylim=(.5, 2.5), yticks=np.arange(.5, 3.5, .5))
+        ax.set(xticks=[10**i for i in [-1, 0, 1]], xlabel='')
     g.fig.text(.5, 0, 'Local spatial frequency (cpd)', ha='center',
                transform=g.fig.transFigure)
-    g.fig.subplots_adjust(wspace=.2)
+    g.fig.subplots_adjust(wspace=.3)
     return g
 
 
@@ -2668,8 +2826,9 @@ def stimulus_schematic(stim, stim_df, context='paper'):
     elif 'vertical' in stim_df.stimulus_superclass.unique():
         col_order = ['vertical', 'horizontal', 'forward diagonal', 'reverse diagonal']
     for i, stim_type in enumerate(col_order):
-        # get the lowest two frequencies from each stimulus type
-        g = stim_df.query("stimulus_superclass==@stim_type").head(2)
+        # get the lowest and second frequencies from each stimulus type (any
+        # higher and it starts to alias at this resolution)
+        g = stim_df.query("stimulus_superclass==@stim_type").iloc[[0, 2]]
         for ax, g_j in zip(axes[:, i], g.iterrows()):
             pt.imshow(stim[g_j[1]['index']], ax=ax, zoom=1/zoom, title=None)
             ax.set_frame_on(False)
@@ -2698,3 +2857,325 @@ def stimulus_schematic(stim, stim_df, context='paper'):
                      ha='center', va='top')
     fig.subplots_adjust(wspace=.05, hspace=.05)
     return fig
+
+
+def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
+                    df_filter_string='drop_voxels_with_mean_negative_amplitudes,drop_voxels_near_border',
+                    context='paper'):
+    """Plot all voxels responses to check peakiness.
+
+    The x value here is spatial frequency relative to peak (based on the
+    model). This allows us to see whether the responses are "peakier" than the
+    model, which would tell us that, instead of the exp(-x^2) in a Gaussian, we
+    should be using a smaller exponent, e.g., exp(-x^(1.5))
+
+    Parameters
+    ----------
+    dfs : pd.DataFrame or list
+        first level DataFrame containing the amplitude responses for a single
+        subject and session. Must be the summary version (only has median across
+        bootstraps). If a list, a list of those (one per subject). Should
+        contain a subject column
+    trained_models : sfp.model.LogGaussianDonut or list
+        Trained model whose responses we want to show. If a list, a list of
+        those (one per subject).
+    col : str or None, optional
+        The column of the dataframe to facet columns on
+    voxel_subset : bool or int, optional
+        if True, we only do this for 10 voxels, to test it out (since this
+        will take a while). If an int, we do it for that many voxels.
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Should probably use the default, which is what all
+        models are trained using.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the plot
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    ax_height = (fig_width / 4) / .75
+    if not isinstance(dfs, list):
+        dfs = [dfs]
+    if not isinstance(trained_models, list):
+        trained_models = [trained_models]
+    df_overall = []
+    for df, trained_model in zip(dfs, trained_models):
+        if 'subject' not in df.columns:
+            # this way it will run even if there's no subject specified
+            df['subject'] = 'none'
+        if df_filter_string is not None:
+            df_filter = model.construct_df_filter(df_filter_string)
+            df = df_filter(df).reset_index()
+        if voxel_subset is not False:
+            if voxel_subset is True:
+                voxel_subset = df.voxel.unique()[:10]
+            elif isinstance(voxel_subset, int):
+                voxel_subset = df.voxel.unique()[:voxel_subset]
+            df = df.query("voxel in @voxel_subset")
+        data = []
+        peak_sfs = []
+        for n, g in df.groupby('voxel'):
+            data.append(_create_model_prediction_df(g, trained_model, n,
+                                                    True))
+            g = g[['local_sf_xy_direction', 'eccen', 'angle']].values
+            peak_sf = trained_model.preferred_sf(*torch.tensor(g.T))
+            peak_sf = pd.DataFrame({'voxel': n, 'stimulus_class': np.arange(48),
+                                    'peak_sf': peak_sf.detach().numpy()})
+            peak_sfs.append(peak_sf)
+        data = pd.concat(data)
+        data['subject'] = df.subject.unique()[0]
+        peak_sfs = pd.concat(peak_sfs)
+        df = pd.merge(df, peak_sfs, on=['voxel', 'stimulus_class'])
+        df = _merge_model_response_df(df, data)
+        # since we want to shift the tuning curves on a log axis, we divide by the
+        # peak (to set it to 1 for everyone) rather than subtract it off (which
+        # would shift it on a linear axis)
+        df['Proportion of peak spatial frequency'] = df.local_sf_magnitude / df.peak_sf
+        # want the values across orientation to be equal and they're off by a tiny
+        # amount
+        df['Proportion of peak spatial frequency'] = df['Proportion of peak spatial frequency'].round(8)
+        df_overall.append(df)
+    df_overall = pd.concat(df_overall)
+    # we plot do it this way so that the model_predictions gets called first,
+    # since it calls sns.lineplot and that gets messed up if the axis is
+    # already logscale
+    if col is not None:
+        col_wrap = 4
+    else:
+        col_wrap = None
+    g = sns.FacetGrid(hue='model', data=df_overall, palette=['C1', 'C0'],
+                      hue_order=['model_predictions', 'voxel_response'],
+                      height=ax_height, col=col, col_wrap=col_wrap,
+                      aspect=.75)
+    g.map_dataframe(_voxel_responses_and_predictions,
+                    x='Proportion of peak spatial frequency',
+                    y='Response (a.u.)', plot_type='hist')
+    # this range should highlight the curve
+    g.set(ylim=(.05, .225), yticklabels=[], xlim=(.1, 10),
+          xscale='log')
+    g.set_ylabels('Response (a.u.)')
+    if col is not None:
+        g.set_titles('{col_name}')
+        g.set_xlabels('Proportion of peak spatial frequency')
+    else:
+        g.set_xlabels('Proportion of peak\nspatial frequency')
+        if context == 'paper':
+            g.set_ylabels('')
+    g.fig.subplots_adjust(left=.1, right=.95)
+    return g
+
+
+def compare_sigma_and_pref_period(dfs, trained_models,
+                                  df_filter_string='drop_voxels_with_mean_negative_amplitudes',
+                                  context='paper'):
+    """Create two figures comparing sigma to preferred period.
+
+    We create two figures:
+
+    1. Plot a 2d histogram showing sigma as a function of eccentricity, with a
+       red dotted line on top showing the linear fit between the two, one
+       sub-plot per subject.
+
+    2. Plot the slope and intercept of that line and those of the relationship
+       between preferred period and eccentricity as a scatter plot (hollow and
+       filled for the two parameters, different subjects in different colors).
+
+    Parameters
+    ----------
+    dfs : pd.DataFrame or list
+        first level DataFrame containing the amplitude responses for a single
+        subject and session. Must be the summary version (only has median across
+        bootstraps). If a list, a list of those (one per subject). Should
+        contain a subject column
+    trained_models : sfp.model.LogGaussianDonut or list
+        Trained model whose responses we want to show. If a list, a list of
+        those (one per subject).
+    df_filter_string : str or None, optional
+        a str specifying how to filter the voxels in the dataset. see
+        the docstrings for sfp.model.FirstLevelDataset and
+        sfp.model.construct_df_filter for more details. If None, we
+        won't filter. Will raise an exception if it drops voxels near the
+        border (since that will bias the best-fit line)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the first plot
+    fig : plt.Figure
+        Figure containing the second plot
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    ax_height = (fig_width / 3)
+    if not isinstance(dfs, list):
+        dfs = [dfs]
+    if not isinstance(trained_models, list):
+        trained_models = [trained_models]
+    df_overall = []
+    voxel_overall = []
+    if df_filter_string is not None:
+        if 'border' in df_filter_string:
+            raise Exception("Don't want to drop voxels near border when computing relationship "
+                            "between pRF size and eccentricity!")
+        df_filter = model.construct_df_filter(df_filter_string)
+    for i, (df, trained_model) in enumerate(zip(dfs, trained_models)):
+        if 'subject' not in df.columns:
+            # this way it will run even if there's no subject specified
+            df['subject'] = 'none'
+        if df_filter_string is not None:
+            df = df_filter(df).reset_index()
+        voxel = df.drop_duplicates('voxel')
+        a, b = np.polyfit(df.eccen.values, df.sigma.values, 1)
+        data = {'subject': df.subject.unique()[0],
+                'sigma_slope': a, 'sigma_intercept': b,
+                'period_slope': trained_model.sf_ecc_slope.item(),
+                'period_intercept': trained_model.sf_ecc_intercept.item()}
+        voxel['sigma_slope'] = a
+        voxel['sigma_intercept'] = b
+        df_overall.append(pd.DataFrame(data, index=[i]))
+        voxel_overall.append(voxel)
+    df_overall = pd.concat(df_overall)
+    voxel_overall = pd.concat(voxel_overall)
+    g = sns.FacetGrid(data=voxel_overall, col='subject', col_wrap=3,
+                      height=ax_height,
+                      col_order=sorted(voxel_overall.subject.unique()))
+
+    def hist_and_reg(*args, **kwargs):
+        to_return = sns.histplot(*args, **kwargs)
+        data = kwargs.pop('data')
+        x = np.linspace(data.eccen.min(), data.eccen.max())
+        ax = plt.gca()
+        ax.plot(x, data.sigma_slope.unique()[0]*x+data.sigma_intercept.unique()[0],
+                'r--')
+        return to_return
+
+    g.map_dataframe(hist_and_reg, x='eccen', y='sigma')
+
+    df_overall = pd.melt(df_overall, ['subject'])
+    df_overall['parameter'] = df_overall.variable.map(lambda x: x.split('_')[-1])
+    df_overall['phenomenon'] = df_overall.variable.map(lambda x: x.split('_')[0])
+    df_overall = pd.pivot_table(df_overall, 'value', ['subject', 'parameter'],
+                                'phenomenon').reset_index()
+    params, fig_width = style.plotting_style(context, figsize='half')
+    fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width))
+    palette = sns.color_palette('husl', df_overall.subject.nunique())
+    for i, (n, h) in enumerate(df_overall.groupby('subject')):
+        c = palette[i]
+        ax.scatter('period', 'sigma', data=h, label=n, facecolors=[c, 'none'],
+                   edgecolors=c)
+        ax.plot('period', 'sigma', data=h, label='', c=c)
+    # this is the subject legend -- maybe don't need?
+    # put it outside the axis
+    ax.add_artist(plt.legend(bbox_to_anchor=(1, 1), bbox_transform=ax.transAxes))
+    sc2 = ax.scatter([], [], edgecolors='k', facecolors='none')
+    sc = ax.scatter([], [], edgecolors='k', facecolors='k')
+    plt.legend([sc, sc2], ['intercept', 'slope'])
+    ax.set(xlabel='Preferred period parameter', ylabel='pRF sigma parameter')
+    return g, fig
+
+
+def compare_surface_area_and_pref_period(model_parameter_df, subjects,
+                                         mgz_template, target_ecc=6,
+                                         eccen_range=(1, 12),
+                                         context='paper'):
+    """Compare V1 surface area and preferred period
+
+    Compare the surface area of V1 and the preferred period across subjects.
+
+    Parameters
+    ----------
+    model_parameter_df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects.
+    subjects : str or list
+        Strings identifying the subjects to investigate. If a list, a list of
+        those.
+    mgz_template : str
+        template string with the path to the varea and eccen mgz files. Should
+        contain the format keys: subject, hemi, prop
+    target_ecc : int, optional
+        The eccentricity at which we compute the preferred period for each
+        subject, for comparison against visual area
+    eccen_range : tuple, optional
+        Range of eccentricites to use for creating the 'surface area stimulus'
+        (the surface area of V1 that corresponds to the portion of the visual
+        field the stimulus was presented on)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the first plot
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    plt.style.use(params)
+    ax_height = (fig_width / 2)
+    feature_df = analyze_model.create_feature_df(model_parameter_df,
+                                                 eccentricity=[target_ecc])
+    # average preferred period over orientations and retinotopic angles
+    feature_df = feature_df.groupby('subject').mean()
+    if not isinstance(subjects, list):
+        subjects = [subjects]
+    df = []
+    for sub in subjects:
+        if isinstance(sub, str):
+            sub = ny.freesurfer_subject(sub.replace('sub-', ''))
+        data = {'subject': 'sub-' + sub.name}
+        data[f'preferred_period_at_{target_ecc}_deg'] = feature_df.loc[data['subject']]['Preferred period (deg)']
+        for hemi in ['lh', 'rh']:
+            eccen = ny.load(mgz_template.format(hemi=hemi, subject=data['subject'],
+                                                prop='eccen'))
+            varea = ny.load(mgz_template.format(hemi=hemi, subject=data['subject'],
+                                                prop='varea'))
+            surface_area = sub.hemis[hemi].prop('midgray_surface_area')
+            data['surface_area_full'] = np.sum(surface_area[varea==1])
+            # need to stack logical_and, because they only operate on two
+            # boolean arrays at a time
+            mask = np.logical_and(varea==1,
+                                  np.logical_and(eccen > eccen_range[0],
+                                                 eccen < eccen_range[1]))
+            data['surface_area_stimulus'] = np.sum(surface_area[mask])
+            data['hemi'] = hemi
+            df.append(pd.DataFrame(data, [0]))
+    df = pd.concat(df).reset_index(drop=True)
+    df = df.groupby('subject').agg({'surface_area_full': np.sum,
+                                    'surface_area_stimulus': np.sum,
+                                    f'preferred_period_at_{target_ecc}_deg': np.mean
+                                    }).reset_index()
+    # we're only going to use the full V1 surface area -- results look similar
+    # either way
+    df = df.drop(columns='surface_area_stimulus')
+    df = pd.melt(df, ['subject', f'preferred_period_at_{target_ecc}_deg'],
+                 var_name='surface_area_type', value_name='surface_area_value')
+
+    g = sns.relplot(x='surface_area_value', y=f'preferred_period_at_{target_ecc}_deg',
+                    hue='subject', aspect=1, col='surface_area_type', data=df,
+                    height=ax_height, hue_order=sorted(df.subject.unique()),
+                    palette=sns.color_palette('husl', df.subject.nunique()))
+    if context != 'paper':
+        g.set_titles("{col_name}")
+    else:
+        g.set_titles('')
+    g.set(xlabel='V1 surface area ($\mathrm{mm}^2$)',
+          ylabel=f'Preferred period at {target_ecc} degrees (deg)')
+    g.fig.subplots_adjust(wspace=.1)
+    return g
