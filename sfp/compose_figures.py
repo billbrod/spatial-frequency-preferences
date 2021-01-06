@@ -232,13 +232,13 @@ def pref_period_1d(bins_fig, pref_period_fig, save_path, context='paper'):
 
     compose.Figure(
         # we actually have a bit of wiggle room, so we add those extra pixels
-        figure_width+10, figure_height,
-        SVG(bins_fig).move(-5, 0),
+        figure_width+33, figure_height,
+        SVG(bins_fig).move(-9, 0),
         compose.Text("A", 10, 25, size=font_size, **text_params),
         # we use the regular SVG here, because this has the legend applied, and
         # so has been saved out correctly
-        compose.SVG(pref_period_fig).move(figure_width / 2 + 10, 0),
-        compose.Text("B", figure_width/2+15, 25, size=font_size, **text_params),
+        compose.SVG(pref_period_fig).move(figure_width / 2 + 33, -2),
+        compose.Text("B", figure_width/2+38, 25, size=font_size, **text_params),
     ).save(save_path)
 
 
