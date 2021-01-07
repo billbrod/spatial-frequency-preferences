@@ -680,7 +680,7 @@ def bandwidth_1d(df, context='paper', reference_frame='relative',
     return g
 
 
-def existing_studies_figure(df, y="Preferred period (deg)", context='paper'):
+def existing_studies_figure(df, y="Preferred period (deg)", legend=True, context='paper'):
     """Plot the results from existing studies
 
     See the docstring for figures.existing_studies_df() for more
