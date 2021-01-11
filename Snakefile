@@ -2491,7 +2491,7 @@ rule figure_params:
             if wildcards.plot_kind.endswith('overall'):
                 # get the median parameter value per subject and model type
                 tmp = tmp.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
-                precision = pd.read_csv(input.precision[0])
+                precision = sfp.figures.prep_df(pd.read_csv(input.precision[0]), wildcards.task)
                 tmp = tmp.merge(precision, on=['subject'])
                 tmp = sfp.figures.precision_weighted_bootstrap(tmp, int(wildcards.seed), 100, 'fit_value',
                                                                ['model_parameter',
@@ -2546,6 +2546,9 @@ rule figure_params:
                                                           label=l, **m))
                 fig.axes[-1].legend(handles=dummy_markers, loc=(1.01, .5), frameon=False)
         else:
+            if wildcards.model_type == 'full_full_absolute':
+                # since this doesn't fit those
+                df[0] = df[0].query("model_parameter not in ['$A_3$', '$A_4$']")
             # don't add a legend if the plot_kind is point or dist-overall
             add_legend = {'point': False, 'dist-overall': False}.get(wildcards.plot_kind, True)
             # or if we're plotting the sub-groupaverage
@@ -2574,7 +2577,7 @@ rule figure_feature_df:
         if wildcards.plot_kind.endswith('overall'):
             # get the median parameter value per subject and model type
             df = df.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
-            precision = pd.read_csv(input.precision[0])
+            precision = sfp.figures.prep_df(pd.read_csv(input.precision[0]), wildcards.task)
             df = df.merge(precision, on=['subject'])
             df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), 100, 'fit_value',
                                                           ['model_parameter', 'fit_model_type'],
@@ -2793,6 +2796,8 @@ rule figure_compare_surface_area:
                                     if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
     output:
         os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}.{ext}'),
+        # unfortunately, need the {ext} and {context} in the path, because Snakemake wants every output in a rule have the same wildcards
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_linreg_{task}_{df_filter}_{model_type}_{atlas_type}_{ext}.txt'),
     log:
         os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', '{groupaverage}_v1_area_vs_period_{task}_{df_filter}_{model_type}_{atlas_type}_{ext}.log'),
     benchmark:
@@ -2803,8 +2808,17 @@ rule figure_compare_surface_area:
         subjects = [subj for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == wildcards.task]
         template = input.vareas[0].replace('sub-wlsubj001', '{subject}').replace('lh', '{hemi}').replace('rh', '{hemi}').replace('varea', '{prop}')
         df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
-        g = sfp.figures.compare_surface_area_and_pref_period(df, subjects, template, context=wildcards.context)
+        target_ecc = 6
+        g, linreg = sfp.figures.compare_surface_area_and_pref_period(df, subjects, template, target_ecc=target_ecc,
+                                                                     context=wildcards.context)
         g.fig.savefig(output[0], bbox_inches='tight')
+        result = f"Linear regression predicting preferred period at {target_ecc} degrees using full V1 surface area, bootstrapped 1000x across subjects:\n"
+        cis = linreg.apply(np.percentile, q=[16, 50, 84])
+        for col in ['coeff', 'intercept', 'R^2']:
+            result += f'{col}: {cis[f"{col}"][1]:.02e}, [{cis[f"{col}"][0]:.02e}, {cis[f"{col}"][2]:.02e}]\n'
+        result += 'All values are medians with 68% CI'
+        with open(output[1], 'w') as f:
+            f.writelines(result)
        
 
 rule figure_background:
@@ -2839,7 +2853,7 @@ rule figure_background_with_current:
         import pandas as pd
         df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
         try:
-            precision = pd.read_csv(input.precision[0])
+            precision = sfp.figures.prep_df(pd.read_csv(input.precision[0]), wildcards.task)
         except AttributeError:
             # then there was no precision in input
             precision = None
@@ -2891,6 +2905,10 @@ def get_compose_input(wildcards):
         df_filter, model = re.findall("([a-z-]+)_([a-z_]+)_example_voxels", wildcards.figure_name)[0]
         paths = [path_template % f"peakiness_{df_filter}_{model}_all",
                  path_template % f"example_voxels_{df_filter}_{model}"]
+    elif 'parameters' in wildcards.figure_name:
+        groupaverage, df_filter, model, seed = re.findall("([a-z-]+)_([a-z-]+)_([a-z_]+)_parameters_s-([0-9]+)", wildcards.figure_name)[0]
+        paths = [path_template % f"{groupaverage}_{df_filter}_{model}_params_visualfield-all_dist_s-None_task-sfprescaled",
+                 path_template % f"{groupaverage}_{df_filter}_{model}_params_visualfield-all_dist-overall_s-{seed}_task-sfprescaled"]
     return paths
 
 
@@ -2927,6 +2945,9 @@ rule compose_figures:
         elif 'example_voxel' in wildcards.figure_name:
             sfp.compose_figures.example_voxels(input[0], input[1], output[0],
                                                wildcards.context)
+        elif 'parameters' in wildcards.figure_name:
+            sfp.compose_figures.parameters(input[0], input[1], output[0],
+                                           wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:
@@ -2993,7 +3014,7 @@ rule sigma_interpretation:
         df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
         # get the median parameter value per subject and model type
         df = df.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
-        precision = pd.read_csv(input.precision[0])
+        precision = sfp.figures.prep_df(pd.read_csv(input.precision[0]), wildcards.task)
         df = df.merge(precision, on=['subject'])
         df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), 100, 'fit_value',
                                                        ['model_parameter',
@@ -3147,8 +3168,6 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
                      'individual_filter-mean_full_full_absolute_2d_summary_s-5.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     'individual_filter-mean_full_full_absolute_params_visualfield-all_dist-overall_s-5_task-sfprescaled.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_relative.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_absolute.svg'),
@@ -3160,8 +3179,8 @@ rule figures_paper:
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     f"individual_filter-mean_full_full_absolute_params_visualfield-all_dist_s-None_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_parameters_s-5.svg'),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d.svg'),

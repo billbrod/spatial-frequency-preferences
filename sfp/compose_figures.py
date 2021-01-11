@@ -307,3 +307,35 @@ def example_voxels(peakiness_fig, example_voxel_fig, save_path, context='paper')
         compose.Text("A", 0, 25, size=font_size, **text_params),
         compose.Text("B", figure_width*3/4-15, 25, size=font_size, **text_params),
     ).save(save_path)
+
+
+def parameters(individual_fig, overall_fig, save_path, context='paper'):
+    """Create the parameters figure.
+
+    Which combines the figures showing the overall and individual parameters.
+
+    Parameters
+    ----------
+    individual_fig, overall_fig
+        paths to the svg files containing the individual and overall parameter
+        values, respectively
+    save_path : str
+        path to save the composed figure at
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
+
+    """
+    text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width * 1.2
+    font_size = _convert_to_pix(text_params.pop('size'))
+
+    compose.Figure(
+        figure_width, figure_height,
+        SVG(overall_fig).move(0, 0),
+        SVG(individual_fig).move(0, figure_height/2.25),
+        compose.Text("A", 0, 25, size=font_size, **text_params),
+        compose.Text("B", 0, figure_height/2.25+25, size=font_size, **text_params),
+    ).save(save_path)

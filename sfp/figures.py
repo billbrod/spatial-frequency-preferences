@@ -15,6 +15,7 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import pandas as pd
 import re
 import itertools
+from sklearn import linear_model
 from . import summary_plots
 from . import analyze_model
 from . import plotting
@@ -318,6 +319,9 @@ def prep_df(df, task, groupaverage=False):
     if 'fit_model_type' in df.columns:
         df.fit_model_type = df.fit_model_type.map(dict(zip(plotting.MODEL_ORDER,
                                                            plotting.MODEL_PLOT_ORDER)))
+    if 'subject' in df.columns:
+        df.subject = df.subject.map(dict(zip(plotting.SUBJECT_ORDER,
+                                             plotting.SUBJECT_PLOT_ORDER)))
     return df
 
 
@@ -1516,7 +1520,8 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
     plt.style.use(params)
     # in order to make the distance between the hues appear roughly
     # equivalent, need to set the ax_xlims in a particular way
-    ax_xlims = [[-.5, .5], [-.5, 1.5], [-.5, 7.5]]
+    n_ori_params = df.query("param_category=='orientation'").model_parameter.nunique()
+    ax_xlims = [[-.5, .5], [-.5, 1.5], [-.5, n_ori_params - .5]]
     yticks = [[0, .5, 1, 1.5, 2, 2.5], [0, .1, .2, .3, .4], [-.03, 0, .03, .06, .09]]
     axhline = [2]
     if fig is None:
@@ -1551,7 +1556,7 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
             yticks = [[0, .5, 1, 1.5, 2, 2.5, 3.0],
                       [-.1, 0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1],
                       [-.2, -.1, 0, .1, .2, .3]]
-            ax_xlims = [[-1, 1], [-1, 2], [-.75, 7.5]]
+            ax_xlims = [[-1, 1], [-1, 2], [-.75, n_ori_params-.5]]
             axhline += [1]
         # else we've combined across all subjects
         else:
@@ -1588,8 +1593,9 @@ def model_parameters(df, plot_kind='point', visual_field='all', fig=None, add_le
         if i == 2:
             if add_legend:
                 if plot_kind == 'dist':
-                    legend = ax.legend(handles, labels, loc=(-.9, -.5), ncol=3,
-                                       borderaxespad=0, frameon=False)
+                    legend = ax.legend(handles, labels, loc='lower center', ncol=3,
+                                       borderaxespad=0, frameon=False,
+                                       bbox_to_anchor=(.49, -.3), bbox_transform=fig.transFigure)
                 else:
                     legend = ax.legend(loc=(1.01, .3), borderaxespad=0, frameon=False)
                 # explicitly adding the legend artist allows us to add a
@@ -2170,9 +2176,16 @@ def sigma_interpretation(df):
     sigma = median_params['$\sigma$']
     n_degrees = (b * (2**sigma - 1)) / a
     pref_period_there = b + n_degrees * a
+    # as described on the wiki page for FWHM:
+    # https://en.wikipedia.org/wiki/Full_width_at_half_maximum. That's for a
+    # regular Gaussian, but the same calculation works here, just in octave
+    # units (as equivalent to $\log_2(SF_{.5H} / SF_{.5L})$, where those SFs
+    # are the spatial frequency where the curve reaches half-max above and
+    # below the peak, respectively)
+    fwhm = 2*np.sqrt(2*np.log(2)) * sigma
     result = (
         f"Preferred period at 0 degrees is {b:.03f}, with slope {a:.03f}.\n"
-        f"Standard deviation of the log-Gaussian is {sigma:.03f} octaves.\n"
+        f"Standard deviation of the log-Gaussian is {sigma:.03f} octaves (equivalent to FWHM of {fwhm:.03f} octaves).\n"
         f"Therefore, you'd need to move to {n_degrees:.03f} degrees eccentricity to move by a std dev.\n"
         f"At that eccentricity, preferred period is {pref_period_there:.03f}.\n"
         "All this is calculated using the median across bootstraps, average across polar angle and orientations."
@@ -2454,7 +2467,7 @@ def voxel_exclusion(df, context='paper'):
     id_vars = [c for c in df.columns if c not in map_dict.keys()]
     df = pd.melt(df, id_vars, value_name='number_of_voxels')
     df['exclusion_criteria'] = df.variable.map(map_dict)
-    col_order = sorted(df.subject.unique())
+    col_order = plotting.get_order('subject', col_unique=df.subject.unique())
 
     g = sns.catplot(x='exclusion_criteria', y='number_of_voxels', data=df,
                     col='subject', kind='point', col_wrap=6, aspect=.5,
@@ -3053,7 +3066,7 @@ def compare_sigma_and_pref_period(dfs, trained_models,
     voxel_overall = pd.concat(voxel_overall)
     g = sns.FacetGrid(data=voxel_overall, col='subject', col_wrap=3,
                       height=ax_height,
-                      col_order=sorted(voxel_overall.subject.unique()))
+                      col_order=plotting.get_order('subject', col_unique=voxel_overall.subject.unique()))
 
     def hist_and_reg(*args, **kwargs):
         to_return = sns.histplot(*args, **kwargs)
@@ -3073,7 +3086,7 @@ def compare_sigma_and_pref_period(dfs, trained_models,
                                 'phenomenon').reset_index()
     params, fig_width = style.plotting_style(context, figsize='half')
     fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width))
-    palette = sns.color_palette('husl', df_overall.subject.nunique())
+    palette = plotting.get_palette('subject', col_unique=df_overall.subject.unique())
     for i, (n, h) in enumerate(df_overall.groupby('subject')):
         c = palette[i]
         ax.scatter('period', 'sigma', data=h, label=n, facecolors=[c, 'none'],
@@ -3124,6 +3137,10 @@ def compare_surface_area_and_pref_period(model_parameter_df, subjects,
     -------
     g : sns.FacetGrid
         FacetGrid containing the first plot
+    linreg : pd.DataFrame
+        DataFrame giving the coefficient, intercept, and R^2 of a linear
+        regression model between the surface area and preferred period at
+        target eccentricity, bootstrapped 1000 times across subjects
 
     """
     params, fig_width = style.plotting_style(context, figsize='full')
@@ -3136,11 +3153,15 @@ def compare_surface_area_and_pref_period(model_parameter_df, subjects,
     if not isinstance(subjects, list):
         subjects = [subjects]
     df = []
+    # feature_df doesn't have actual subject names, it has the plot ones,
+    # so in order to grab the data, we need to map to that.
+    map_sub = dict(zip(plotting.SUBJECT_ORDER, plotting.SUBJECT_PLOT_ORDER))
     for sub in subjects:
         if isinstance(sub, str):
             sub = ny.freesurfer_subject(sub.replace('sub-', ''))
         data = {'subject': 'sub-' + sub.name}
-        data[f'preferred_period_at_{target_ecc}_deg'] = feature_df.loc[data['subject']]['Preferred period (deg)']
+        plot_sub = map_sub[data['subject']]
+        data[f'preferred_period_at_{target_ecc}_deg'] = feature_df.loc[plot_sub]['Preferred period (deg)']
         for hemi in ['lh', 'rh']:
             eccen = ny.load(mgz_template.format(hemi=hemi, subject=data['subject'],
                                                 prop='eccen'))
@@ -3167,15 +3188,43 @@ def compare_surface_area_and_pref_period(model_parameter_df, subjects,
     df = pd.melt(df, ['subject', f'preferred_period_at_{target_ecc}_deg'],
                  var_name='surface_area_type', value_name='surface_area_value')
 
+    hue_order = plotting.get_order('subject', col_unique=df.subject.unique())
+    palette = plotting.get_palette('subject', col_unique=df.subject.unique())
     g = sns.relplot(x='surface_area_value', y=f'preferred_period_at_{target_ecc}_deg',
                     hue='subject', aspect=1, col='surface_area_type', data=df,
-                    height=ax_height, hue_order=sorted(df.subject.unique()),
-                    palette=sns.color_palette('husl', df.subject.nunique()))
+                    height=ax_height, hue_order=hue_order, palette=palette,
+                    legend=False, zorder=100)
+    xlim = g.axes[0, 0].get_xlim()
+    ylim = g.axes[0, 0].get_ylim()
+    # this way, we use seaborn to plot the linear regression across subjects,
+    # while the above plots the points. we have to do this separately because
+    # lmplot (the regression equivalent of relplot) won't let us plot
+    # regression line aross values of the hue variable
+    sns.regplot(x='surface_area_value', y=f'preferred_period_at_{target_ecc}_deg',
+                data=df, scatter=False, ax=g.ax, ci=68)
     if context != 'paper':
         g.set_titles("{col_name}")
     else:
         g.set_titles('')
     g.set(xlabel='V1 surface area ($\mathrm{mm}^2$)',
-          ylabel=f'Preferred period at {target_ecc} degrees (deg)')
+          ylabel=f'Preferred period at {target_ecc} degrees (deg)',
+          xlim=xlim, ylim=ylim)
     g.fig.subplots_adjust(wspace=.1)
-    return g
+
+    if len(df) != df.subject.nunique():
+        raise Exception("The bootstrapping of models assumes that we have one"
+                        "point per subject!")
+    linreg = []
+    true_x = df.surface_area_value.values.reshape(-1, 1)
+    true_y = df[f'preferred_period_at_{target_ecc}_deg'].values
+    for n in range(1000):
+        model = linear_model.LinearRegression()
+        # this resamples the subjects
+        tmp = df.sample(len(df), replace=True)
+        model.fit(tmp.surface_area_value.values.reshape(-1, 1),
+                  tmp[f'preferred_period_at_{target_ecc}_deg'].values)
+        data = {'coeff': model.coef_, 'intercept': model.intercept_,
+                'bootstrap_num': n, 'R^2': model.score(true_x, true_y)}
+        linreg.append(pd.DataFrame(data, index=[n]))
+    linreg = pd.concat(linreg)
+    return g, linreg

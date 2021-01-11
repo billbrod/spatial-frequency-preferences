@@ -49,6 +49,12 @@ MODEL_PLOT_ORDER = list(range(1, len(MODEL_ORDER)+1))
 # excluding A3/A4 (so if two models have the same number, they're identical
 # except for those two parameters)
 MODEL_PLOT_ORDER_DOUBLEUP = MODEL_PLOT_ORDER[:7] + [3, 7, 10, 5, 12, 6, 12]
+# the subjects that end up in our final analysis
+SUBJECT_ORDER = ['sub-wlsubj001', 'sub-wlsubj006', 'sub-wlsubj007', 'sub-wlsubj045',
+                 'sub-wlsubj046', 'sub-wlsubj062', 'sub-wlsubj064', 'sub-wlsubj081',
+                 'sub-wlsubj095', 'sub-wlsubj114', 'sub-wlsubj115', 'sub-wlsubj121']
+# use numbers since names aren't helpful for plots
+SUBJECT_PLOT_ORDER = [f'sub-{i:02d}' for i in range(1, len(SUBJECT_ORDER)+1)]
 
 
 def get_order(col, reference_frame=None, col_unique=None):
@@ -68,6 +74,13 @@ def get_order(col, reference_frame=None, col_unique=None):
             return ORIG_PARAM_ORDER
         else:
             return PLOT_PARAM_ORDER
+    elif col == 'subject':
+        if col_unique is None:
+            return SUBJECT_PLOT_ORDER
+        elif any([sub in col_unique for sub in SUBJECT_PLOT_ORDER]):
+            return [sub for sub in SUBJECT_PLOT_ORDER if sub in col_unique]
+        elif any([sub in col_unique for sub in SUBJECT_ORDER]):
+            return [sub for sub in SUBJECT_ORDER if sub in col_unique]
     else:
         return sorted(col_unique)
 
@@ -103,7 +116,16 @@ def get_palette(col, reference_frame=None, col_unique=None, as_dict=False,
         if not as_dict:
             raise Exception("palette is always a dictionary if col is stimulus_type!")
     elif col == 'subject':
-        pal = sns.color_palette('Dark2', len(col_unique))
+        # it's hard to find a qualitative color palette with 12 colors that all
+        # look fairly distinct. ColorBrewer Set3 has 12 values, but some of
+        # them are really light and so hard to see. here I'm using the colors
+        # from https://tsitsul.in/blog/coloropt/, but reordered slightly
+        pal = [(235, 172, 35), (0, 187, 173), (184, 0, 88), (0, 140, 249),
+               (0, 110, 0), (209, 99, 230), (178, 69, 2), (135, 133, 0),
+               (89, 84, 214), (255, 146, 135), (0, 198, 248), (0, 167, 108),
+               (189, 189, 189)]
+        # expects RGB triplets to lie between 0 and 1, not 0 and 255
+        pal = sns.color_palette(np.array(pal) / 255, len(col_unique))
     elif col == 'fit_model_type':
         if not doubleup:
             pal = sns.color_palette('deep', len(col_unique))
@@ -118,7 +140,9 @@ def get_palette(col, reference_frame=None, col_unique=None, as_dict=False,
                                   sns.color_palette('deep')[-5:-1]])
             pal = pal[[-1, -2, 1, -3, 3, 5, 7, 0, 6, -4, 2, 9, 4, 8]]
     elif col == 'model_parameter':
-        pal = sns.color_palette('viridis', len(col_unique))
+        # I don't think we actually need distinct colors for model parameter,
+        # so we plot them all black
+        pal = ['k'] * len(col_unique)
     else:
         pal = sns.color_palette('Blues', len(col_unique))
     # if col=='stimulus_type', this is already a dict
