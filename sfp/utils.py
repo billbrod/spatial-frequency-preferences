@@ -159,6 +159,40 @@ def create_ecc_mask(ecc_range, size, max_visual_angle):
     return np.logical_and(max_mask.astype(bool), ~min_mask.astype(bool))
 
 
+def create_prf_loc_map(size=1080, max_visual_angle=24, origin=None):
+    """Create map of pRF locations
+
+    Default parameters are for the set up used in this experiment
+
+    Parameters
+    ----------
+    size : int, optional
+        Size of the arrays, in pixels. Returned arrays will be 2d, with this
+        number of pixels on each dimension.
+    max_visual_angle : float, optional
+        Diameter of the array, in degrees. Used to convert from pixels to
+        degrees.
+    origin : tuple or None, optional
+        The location of the origin of the image. If None, will place in the
+        center.
+
+    Returns
+    -------
+    eccen, angle : np.ndarray
+        The eccentricity and polar angle, at each pixel.
+
+    """
+    assert not hasattr(size, '__iter__'), "Only square images permitted, size must be a scalar!"
+    size = int(size)
+    if origin is None:
+        origin = ((size+1) / 2., (size+1) / 2.)
+    x, y = np.meshgrid(np.arange(1, size+1) - origin[0],
+                       np.arange(1, size+1) - origin[1])
+    eccen = np.sqrt(x**2 + y**2)
+    angle = np.mod(np.arctan2(y, x), 2*np.pi)
+    return eccen, angle
+
+
 def mask_array_like_grating(masked, array_to_mask, mid_val=128, val_to_set=0):
     """mask array_to_mask the way that masked has been masked
 

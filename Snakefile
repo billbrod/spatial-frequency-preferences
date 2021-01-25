@@ -3025,6 +3025,105 @@ rule sigma_interpretation:
             f.writelines(result)
 
 
+rule predicted_bold:
+    input:
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stim_description.csv'),
+    output:
+        # NOTE: This doesn't get placed in the DATA_DIR, because it's currently
+        # a temporary thing that doesn't end up in the paper.
+        os.path.join('data', 'tuning_2d_model', '{task}_params-{param_set}_predicted-bold.pkl'),
+    log:
+        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{task}_params-{param_set}_bold.log")
+    benchmark:
+        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{task}_params-{param_set}_bold_benchmark.txt")
+    run:
+        import sfp
+        import pickle
+        import numpy as np
+        import pandas as pd
+        stim_df = pd.read_csv(input[0]).drop_duplicates('class_idx')
+        stim_shape = stim_df.res.unique()[0]
+        stims = []
+        mags = []
+        oris = []
+        eccen, angle = sfp.utils.create_prf_loc_map(stim_shape, 24)
+        bolds = []
+        param_remap = dict(zip(sfp.plotting.ORIG_PARAM_ORDER, sfp.plotting.PLOT_PARAM_ORDER))
+        if wildcards.param_set == 'paper':
+            model_params = {'sigma': 2,
+                            'sf_ecc_slope': .1,
+                            'sf_ecc_intercept': .35,
+                            'abs_mode_cardinals': .06,
+                            'abs_mode_obliques': -.03,
+                            'rel_mode_cardinals': .06,
+                            'rel_mode_obliques': 0,
+                            'abs_amplitude_cardinals': .04,
+                            'abs_amplitude_obliques': -.01,
+                            'rel_amplitude_cardinals': 0,
+                            'rel_amplitude_obliques': 0}
+        elif wildcards.param_set == 'simple':
+            model_params = {'sigma': 2,
+                            'sf_ecc_slope': .1,
+                            'sf_ecc_intercept': .35,
+                            'abs_mode_cardinals': 0,
+                            'abs_mode_obliques': 0,
+                            'rel_mode_cardinals': 0,
+                            'rel_mode_obliques': 0,
+                            'abs_amplitude_cardinals': 0,
+                            'abs_amplitude_obliques': 0,
+                            'rel_amplitude_cardinals': 0,
+                            'rel_amplitude_obliques': 0}
+        elif wildcards.param_set == 'flat':
+            model_params = {'sigma': 2,
+                            'sf_ecc_slope': 0,
+                            'sf_ecc_intercept': .5,
+                            'abs_mode_cardinals': 0,
+                            'abs_mode_obliques': 0,
+                            'rel_mode_cardinals': 0,
+                            'rel_mode_obliques': 0,
+                            'abs_amplitude_cardinals': 0,
+                            'abs_amplitude_obliques': 0,
+                            'rel_amplitude_cardinals': 0,
+                            'rel_amplitude_obliques': 0}
+        elif wildcards.param_set == 'scaling':
+            model_params = {'sigma': 2,
+                            'sf_ecc_slope': .15,
+                            'sf_ecc_intercept': 0,
+                            'abs_mode_cardinals': 0,
+                            'abs_mode_obliques': 0,
+                            'rel_mode_cardinals': 0,
+                            'rel_mode_obliques': 0,
+                            'abs_amplitude_cardinals': 0,
+                            'abs_amplitude_obliques': 0,
+                            'rel_amplitude_cardinals': 0,
+                            'rel_amplitude_obliques': 0}
+        model = sfp.model.LogGaussianDonut('full', 'full', 'full', **model_params)
+        # this gets every other frequency for the radial and tangential stimuli
+        for i, d in stim_df[:20:2].iterrows():
+            _, _, mag, ori = sfp.stimuli.create_sf_maps_cpd(stim_shape, 24, w_r=d.w_r, w_a=d.w_a)
+            # we create it here instead of loading in our stimuli since these
+            # don't have the mask at the center or edge
+            stim = sfp.stimuli.log_polar_grating(stim_shape, d.w_r, d.w_a)
+            stims.append(stim)
+            mags.append(mag)
+            oris.append(ori)
+            bolds.append(model.evaluate(mag, ori, eccen, angle).detach().numpy())
+        # see
+        # https://stackoverflow.com/questions/13906623/using-pickle-dump-typeerror-must-be-str-not-bytes
+        # for why the b is necessary
+        with open(output[0], 'wb') as f:
+            pickle.dump({
+                'eccentricity': eccen,
+                'retinotopic_angle': angle,
+                'stimuli': np.stack(stims),
+                'stimuli_spatial_frequency': np.stack(mags),
+                'stimuli_orientation': np.stack(oris),
+                'predicted_bold': np.stack(bolds),
+                'model_parameters': {param_remap[k].replace('$', '').replace('\\', ''): v
+                                     for k, v in model_params.items()}
+            }, f)
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),
