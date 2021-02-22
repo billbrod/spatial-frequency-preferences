@@ -3048,6 +3048,9 @@ rule predicted_bold:
         oris = []
         eccen, angle = sfp.utils.create_prf_loc_map(stim_shape, 24)
         bolds = []
+        w_r = []
+        w_a = []
+        phase = []
         param_remap = dict(zip(sfp.plotting.ORIG_PARAM_ORDER, sfp.plotting.PLOT_PARAM_ORDER))
         if wildcards.param_set == 'paper':
             model_params = {'sigma': 2,
@@ -3107,6 +3110,9 @@ rule predicted_bold:
             stims.append(stim)
             mags.append(mag)
             oris.append(ori)
+            w_a.append(d.w_a)
+            w_r.append(d.w_r)
+            phase.append(d.phi)
             bolds.append(model.evaluate(mag, ori, eccen, angle).detach().numpy())
         # see
         # https://stackoverflow.com/questions/13906623/using-pickle-dump-typeerror-must-be-str-not-bytes
@@ -3120,7 +3126,10 @@ rule predicted_bold:
                 'stimuli_orientation': np.stack(oris),
                 'predicted_bold': np.stack(bolds),
                 'model_parameters': {param_remap[k].replace('$', '').replace('\\', ''): v
-                                     for k, v in model_params.items()}
+                                     for k, v in model_params.items()},
+                'w_r': np.array(w_r),
+                'w_a': np.array(w_a),
+                'stimuli_phase': np.array(phase),
             }, f)
 
 
