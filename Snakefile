@@ -3133,6 +3133,35 @@ rule predicted_bold:
             }, f)
 
 
+rule combine_params_csv:
+    # bootstraps and combines the params csv for use in later analyses
+    input:
+        parameters = os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model',
+                                  'stim_class', 'bayesian_posterior', "filter-mean", 'bootstrap',
+                                  'individual_{task}_v1_e1-12_full_b10_r0.001_g0_full_full_absolute_all_models.csv'),
+        precision = os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                                 'stim_class', 'bayesian_posterior', '{task}_v1_e1-12_'
+                                 'summary_mean_no-filter_precision.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', '{task}_final_bootstrapped_combined_parameters_s-{seed}.csv'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{task}_final_bootstrapped_combined_parameters_s-{seed}.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{task}_final_bootstrapped_combined_parameters_s-{seed}_benchmark.txt'),
+    run:
+        import sfp
+        import pandas as pd
+        df = sfp.figures.prep_df(pd.read_csv(input.parameters), wildcards.task)
+        df = df.groupby(['subject', 'model_parameter', 'fit_model_type']).median().reset_index()
+        precision = sfp.figures.prep_df(pd.read_csv(input.precision), wildcards.task)
+        df = df.merge(precision, on=['subject'])
+        df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), 100, 'fit_value',
+                                                      ['model_parameter', 'fit_model_type'],
+                                                      'precision')
+        df.to_csv(output[0], index=False)
+
+
+
 rule report:
     input:
         benchmarks = lambda wildcards: glob(os.path.join(config['DATA_DIR'], 'code', wildcards.step, '*_benchmark.txt')),
@@ -3300,3 +3329,4 @@ rule figures_paper:
                      "individual_v1_area_vs_period_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior.svg"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv'),
