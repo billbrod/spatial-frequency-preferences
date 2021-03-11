@@ -120,9 +120,9 @@ def restrict_to_part_of_visual_field(df, restriction):
         restriction_str = 'eccen<@eccen_lim'
     elif restriction == 'outer':
         restriction_str = 'eccen>=@eccen_lim'
-    elif restriction == 'horizontal':
+    elif restriction == 'horizontal-meridia':
         restriction_str = "angle<=@pi/4 | (angle > 3*@pi/4 & angle <= 5*@pi/4) | (angle > 7*@pi/4)"
-    elif restriction == 'vertical':
+    elif restriction == 'vertical-meridia':
         restriction_str = "(angle>@pi/4 & angle<=3*@pi/4) | (angle > 5*@pi/4 & angle <= 7*@pi/4)"
     return df.query(restriction_str)
 
