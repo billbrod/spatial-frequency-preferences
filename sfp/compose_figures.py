@@ -9,6 +9,10 @@ REL_LEGEND_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'f
                           'stimulus-legend-relative.svg')
 ABS_LEGEND_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
                           'stimulus-legend-absolute.svg')
+SCALING_CARTOON_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
+                               'scaling-cartoon.svg')
+CONSTANT_CARTOON_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
+                                'constant-cartoon.svg')
 
 
 def calc_scale():
@@ -247,9 +251,9 @@ def intro_figure(theory_fig, stim_fig, freq_fig, save_path, context='paper'):
 
     Parameters
     ----------
-    theory_fig, stim_fig
-        paths to the svg files containing the stimulus schematic and background
-        theory figures, respectively
+    theory_fig, stim_fig, freq_fig
+        paths to the svg files containing the stimulus schematic, background
+        theory, and presented frequencies figures, respectively
     save_path : str
         path to save the composed figure at
     context : {'paper', 'poster'}, optional
@@ -266,6 +270,8 @@ def intro_figure(theory_fig, stim_fig, freq_fig, save_path, context='paper'):
     compose.Figure(
         figure_width, figure_height,
         SVG(theory_fig).move(-3, figure_height/5),
+        SVG(CONSTANT_CARTOON_PATH).scale(3).move(40, 127),
+        SVG(SCALING_CARTOON_PATH).scale(3).move(40, 243),
         compose.Text("A", 5, figure_height/5+25, size=font_size, **text_params),
         SVG(freq_fig).move(figure_width/2, figure_height/2+25),
         compose.Text("C", figure_width/2+10, figure_height/2+50, size=font_size,
