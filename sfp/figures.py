@@ -600,8 +600,8 @@ def pref_period_1d(df, context='paper', reference_frame='relative',
     plt.style.use(params)
     if context == 'paper':
         facetgrid_legend = False
-        kwargs['xlim'] = (-.55, 11.55)
-        kwargs['ylim'] = (-.1, 2.1)
+        kwargs.setdefault('xlim', (0, 11.55))
+        kwargs.setdefault('ylim', (0, 2.1))
     else:
         kwargs.setdefault('ylim', (0, 4))
         facetgrid_legend = True
@@ -1759,7 +1759,7 @@ def training_loss_check(df, hue='test_subset', thresh=.2):
 
 def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relative',
                     feature_type='pref-period', visual_field='all', context='paper',
-                    col_wrap=None, scatter_ref_pts=False):
+                    col_wrap=None, scatter_ref_pts=False, **kwargs):
     """plot model predictions based on parameter values
 
     This function is used to create plots showing the preferred period
@@ -1816,6 +1816,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         if True, we plot black points every 45 degrees on the polar plots to
         serve as a reference (only used in paper context). if False, do
         nothing.
+    kwargs :
+        Passed to plotting.feature_df_plot
 
     Returns
     -------
@@ -1826,7 +1828,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
     aspect = 1
     params, fig_width = style.plotting_style(context, figsize='full')
     plt.style.use(params)
-    kwargs = {'top': .9}
+    kwargs.setdefault('top', .9)
     axes_titles = True
     title_kwargs = {}
     adjust_kwargs = {}
@@ -1850,6 +1852,11 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         col = None
         pre_boot_gb_cols = ['reference_frame', 'Stimulus type', 'groupaverage_seed',
                             'Eccentricity (deg)']
+    # if we're faceting over something, need to separate it out when creating
+    # the feature df
+    if 'hue' in kwargs.keys():
+        gb_cols += [kwargs['hue']]
+        pre_boot_gb_cols += [kwargs['hue']]
     if col is None or df.subject.nunique() == 1:
         facetgrid_legend = False
         suptitle = False
@@ -1886,8 +1893,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         if context == 'poster':
             aspect = 1.3
         else:
-            kwargs['ylim'] = (-.1, 2.1)
-            kwargs['xlim'] = (-.55, 11.55)
+            kwargs.setdefault('ylim', (0, 2.1))
+            kwargs.setdefault('xlim', (0, 11.55))
         if avg_across_retinal_angle:
             pre_boot_gb_func = 'mean'
             row = None
@@ -3228,3 +3235,87 @@ def compare_surface_area_and_pref_period(model_parameter_df, subjects,
         linreg.append(pd.DataFrame(data, index=[n]))
     linreg = pd.concat(linreg)
     return g, linreg
+
+
+def feature_difference_plot(df, precision_df, diff_col='Visual field',
+                            feature_type='preferred_period', seed=0,
+                            n_bootstraps=100, feature_kwargs={},
+                            feature_gb_cols=['subject', 'Visual field'],
+                            context='paper', **plot_kwargs):
+    """Plot difference between two features along some dimension.
+
+    Intended use is to plot the difference between the preferred period of
+    models fit to different portions of the visual field.
+
+    We take the difference within subjects, and then bootstrap the
+    precision-weighted average of that across subjects
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe containing all the model parameter values, across
+        subjects.
+    precision_df : pd.dataFrame
+        dataframe containing the precision for each scanning session in
+        df.
+    diff_col : str, optional
+        The column with the dimension to take difference across. Must only have
+        two values.
+    feature_type : str, optional
+        what type of feature to create the plot for. See
+        analyze_model.create_feature_df for possible values and explanations;
+        only preferred_period has been tested.
+    seed : int, optional
+        seed for numpy's RNG.
+    n_bootstraps : int, optional
+        the number of independent bootstraps to draw
+    feature_kwargs : dict, optional
+        Additional arguments to pass to analyze_mode.create_feature_df
+    feature_gb_cols : list, optional
+        List of columns to groupby when creating feature_df. when we groupby
+        these columns, each subset should give a single model.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+    plot_kwargs :
+        passed to plotting.feature_df_plot
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        FacetGrid containing the plot.
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='full')
+    ax_height = fig_width / 2
+    plt.style.use(params)
+    if context == 'paper':
+        plot_kwargs.setdefault('xlim', (0, 11.55))
+        plot_kwargs.setdefault('title', '')
+    feature = analyze_model.create_feature_df(df, feature_type,
+                                              gb_cols=feature_gb_cols,
+                                              **feature_kwargs)
+    if feature_type.startswith('preferred_period'):
+        feature_type = 'Preferred period (deg)'
+    elif feature_type == 'max_amplitude':
+        feature_type = 'Max amplitude'
+    idx_cols = [c for c in feature.columns if c not in [diff_col, feature_type]]
+    diff_vals = sorted(feature[diff_col].unique())
+    assert len(diff_vals) == 2, 'For now, diff_col must have two values!'
+    feature = feature.pivot_table(feature_type, idx_cols, diff_col).reset_index()
+    diff_name = f'Difference in {feature_type}'
+    feature[diff_name] = feature[diff_vals[0]] - feature[diff_vals[1]]
+
+    feature = feature.merge(precision_df, on=['subject'])
+    idx_cols.remove('subject')
+    feature = precision_weighted_bootstrap(feature, seed, n_bootstraps,
+                                           diff_name, idx_cols,
+                                           precision_col='precision')
+    g = plotting.feature_df_plot(feature, y=diff_name, hue=None, yticks=None,
+                                 col=None, height=ax_height, aspect=1,
+                                 color='k', top=.9,
+                                 plot_func=plotting.scatter_ci_dist, join=True,
+                                 ci_mode='fill', draw_ctr_pts=False,
+                                 **plot_kwargs)
+    return g

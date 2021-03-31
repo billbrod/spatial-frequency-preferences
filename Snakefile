@@ -2819,7 +2819,60 @@ rule figure_compare_surface_area:
         result += 'All values are medians with 68% CI'
         with open(output[1], 'w') as f:
             f.writelines(result)
-       
+
+
+rule figure_compare_visual_field:
+    input:
+        models = [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model',
+                               'stim_class', 'bayesian_posterior', '{{df_filter}}',
+                               '{vf}', 'individual_{{task}}_v1_e1-12_summary_b10_r0.001_g0_{{model_type}}_all_models.csv').format(vf=vf)
+                  for vf in ['initial', 'visual_field_vertical-meridia', 'visual_field_horizontal-meridia']],
+        precision = os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis',
+                                 'stim_class', 'bayesian_posterior', '{task}_v1_e1-12_'
+                                 'summary_mean_no-filter_precision.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'visual-field-diff_subjects_{task}_{df_filter}_{model_type}_s-{seed}.{ext}'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'visual-field-diff_diff_{task}_{df_filter}_{model_type}_s-{seed}.{ext}'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'visual-field-diff_comparison_{task}_{df_filter}_{model_type}_s-{seed}.{ext}'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'visual-field-diff_{task}_{df_filter}_{model_type}_s-{seed}_{ext}-%j.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', 'visual-field-diff_{task}_{df_filter}_{model_type}_s-{seed}_{ext}-%j_benchmark.txt'),
+    run:
+        import pandas as pd
+        import sfp
+        precision  = sfp.figures.prep_df(pd.read_csv(input.precision), wildcards.task)
+        df = []
+        for p in input.models:
+            tmp = sfp.figures.prep_df(pd.read_csv(p), wildcards.task)
+            if 'vertical' in p:
+                tmp['Visual field'] = 'Vertical meridians'
+            elif 'horizontal' in p:
+                tmp['Visual field'] = 'Horizontal meridians'
+            else:
+                tmp['Visual field'] = 'Full visual field'
+            df.append(tmp)
+        df = pd.concat(df)
+        pal = {'Vertical meridians': 'C0', 'Horizontal meridians': 'C1',
+               'Full visual field': 'k'}
+        g = sfp.figures.feature_df_plot(df, True, col_wrap=3,
+                                        hue='Visual field', pal=pal,
+                                        hue_kws={'linestyle': ['--', '-', '-']})
+        g.add_legend()
+        g.fig.savefig(output[0], bbox_inches='tight')
+        df = df[df['Visual field'] != "Full visual field"]
+        g = sfp.figures.feature_difference_plot(df, precision,
+                                                feature_kwargs={'orientation': [0],
+                                                                'retinotopic_angle': [0]})
+        g.fig.savefig(output[1], bbox_inches='tight')
+        df = df.groupby(['subject', 'model_parameter', 'fit_model_type', 'Visual field']).median().reset_index()
+        df = df.merge(precision, on=['subject'])
+        df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), 100, 'fit_value',
+                                                      ['model_parameter', 'fit_model_type', 'Visual field'], 'precision')
+        g = sfp.figures.feature_df_plot(df, True, hue='Visual field', pal=pal)
+        g.ax.legend(loc='lower right', title='Visual field')
+        g.fig.savefig(output[2], bbox_inches='tight')
+
 
 rule figure_background:
     output:

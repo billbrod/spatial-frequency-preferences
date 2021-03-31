@@ -1290,7 +1290,7 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
                     ylim=None, xlim=None, ci=68, col_wrap=None, pre_boot_gb_func=None,
                     pre_boot_gb_cols=['subject', 'reference_frame', 'Stimulus type',
                                       'bootstrap_num', 'Eccentricity (deg)'],
-                    facetgrid_legend=True, **kwargs):
+                    facetgrid_legend=True, hue_kws={}, **kwargs):
     """Create plot from feature_df
 
     This function takes the feature_df created by
@@ -1398,6 +1398,10 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
         whether to use the `FacetGrid.add_legend` method to add a
         legend. if False, will not add a legend (and so you must do it
         yourself)
+    hue_kws : dict, optional
+        Other keyword arguments to insert into the plotting call to let other
+        plot attributes vary across levels of the hue variable (e.g. the
+        markers in a scatterplot).
     kwargs :
         passed to plot_func
 
@@ -1421,7 +1425,7 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
                     for k in ['top', 'bottom', 'left', 'right']}
     g = sns.FacetGrid(feature_df, hue=hue, col=col, row=row, height=height, aspect=aspect,
                       palette=pal, xlim=xlim, ylim=ylim, col_wrap=col_wrap, col_order=col_order,
-                      row_order=row_order, gridspec_kws=gridspec_kws)
+                      row_order=row_order, gridspec_kws=gridspec_kws, hue_kws=hue_kws)
     g.map_dataframe(plot_func, x, y, ci=ci, estimator=np.median, **kwargs)
     if col_wrap is not None:
         g_axes = g.axes
@@ -1435,8 +1439,10 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     if facetgrid_legend:
         g.add_legend()
     for ax in g.axes.flatten():
-        ax.axhline(color='gray', linestyle='--')
-        ax.axvline(color='gray', linestyle='--')
+        if ax.get_ylim()[0] < 0:
+            ax.axhline(color='gray', linestyle='--')
+        if ax.get_xlim()[0] < 0:
+            ax.axvline(color='gray', linestyle='--')
         if yticks is not None:
             ax.set_yticks(yticks)
         if xticks is not None:
@@ -1444,7 +1450,7 @@ def feature_df_plot(feature_df, hue="Stimulus type", col='Retinotopic angle (rad
     if title is not None:
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=top)
-    if feature_df[col].nunique() == 1 and col == 'subject':
+    if col == 'subject' and feature_df[col].nunique() == 1:
         g.set(title='')
     return g
 
