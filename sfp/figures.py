@@ -1867,11 +1867,11 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                    enumerate(np.linspace(0, np.pi, 4, endpoint=False))}
         pre_boot_gb_cols += [col]
         if feature_type == 'pref-period':
-            height = (fig_width/2) / aspect
+            kwargs.setdefault('height', (fig_width/2) / aspect)
         else:
             # the polar plots have two subplots, so they're half the height of the
             # pref-period one in order to get the same width
-            height = (fig_width/4) / aspect
+            kwargs.setdefault('height', (fig_width/4) / aspect)
     else:
         if context != 'paper':
             facetgrid_legend = True
@@ -1881,14 +1881,15 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             suptitle = False
         split_oris = False
         if col_wrap is not None:
-            height = (fig_width / col_wrap) / aspect
             # there is, as of seaborn 0.11.0, a bug that interacts with our
             # xtick label size and height (see
             # https://github.com/mwaskom/seaborn/issues/2293), which causes an
             # issue if col_wrap == 3. this manual setting is about the same
             # size and fixes it
             if col_wrap == 3:
-                height = 2.23
+                kwargs.setdefault('height', 2.23)
+            else:
+                kwargs.setdefault('height', (fig_width / col_wrap) / aspect)
     if feature_type == 'pref-period':
         if context == 'poster':
             aspect = 1.3
@@ -1910,7 +1911,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         if split_oris:
             df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
         g = plotting.feature_df_plot(df, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
-                                     plot_func=plot_func, height=height, aspect=aspect,
+                                     plot_func=plot_func, aspect=aspect,
                                      pre_boot_gb_cols=pre_boot_gb_cols, col_wrap=col_wrap,
                                      facetgrid_legend=facetgrid_legend, **kwargs)
     else:
@@ -1948,7 +1949,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             r = 'Preferred period (deg)'
             g = plotting.feature_df_polar_plot(df, col=col, row=row,
                                                r=r, plot_func=plot_func, col_wrap=col_wrap,
-                                               height=height, aspect=aspect,
+                                               aspect=aspect,
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                facetgrid_legend=facetgrid_legend, **kwargs)
             if context == 'paper':
@@ -1968,7 +1969,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             if df[row].nunique() == 1:
                 row = None
             g = plotting.feature_df_polar_plot(df, col=col, r=r, row=row,
-                                               plot_func=plot_func, height=height, aspect=aspect,
+                                               plot_func=plot_func, aspect=aspect,
                                                title='ISO-preferred period contours',
                                                pre_boot_gb_cols=pre_boot_gb_cols,
                                                col_wrap=col_wrap,
@@ -1990,7 +1991,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                 df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
                 kwargs['ylim'] = (0, 1.15)
             r = 'Max amplitude'
-            g = plotting.feature_df_polar_plot(df, col=col, r=r, height=height,
+            g = plotting.feature_df_polar_plot(df, col=col, r=r, 
                                                aspect=aspect, plot_func=plot_func,
                                                title='Relative amplitude', col_wrap=col_wrap,
                                                pre_boot_gb_cols=pre_boot_gb_cols,
