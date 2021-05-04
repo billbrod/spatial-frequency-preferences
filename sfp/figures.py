@@ -2764,37 +2764,52 @@ def example_eccentricity_bins(df, context='paper'):
         # this isn't the exact same as what you'd get doing the line below,
         # because we use a relatively small wspace (space between axes), that
         # lets us make them a bit bigger
-        height = 2.8
+        height = 2.7
     else:
         height = (fig_width / 2) / .7
 
     df = df.query("frequency_type=='local_sf_magnitude' & "
                   "stimulus_superclass in ['angular', 'radial'] & "
-                  "eccen in ['02-03', '10-11']")
-    df.eccen = df.eccen.map(lambda x: {'02-03': '2-3'}.get(x, x))
+                  "eccen in ['02-03', '09-10']")
+    df.eccen = df.eccen.map(lambda x: {'02-03': '2-3',
+                                       '09-10': '9-10'}.get(x, x))
     df = df.rename(columns={'eccen': "Eccentricity band"})
     pal = plotting.get_palette('stimulus_type', 'relative',
                                df.stimulus_superclass.unique(),
                                True)
 
-    g = sns.FacetGrid(df, col='Eccentricity band', palette=pal,
-                      hue='stimulus_superclass', sharey=False,
-                      xlim=(10**-1.2, 10**1.2), aspect=.7, height=height)
-    g.map(plt.scatter, 'frequency_value', 'amplitude_estimate')
-    g.map_dataframe(plotting.plot_tuning_curve, xlim='data')
-    g.set_titles('{col_var}\n{col_name} deg')
-    g.set(xscale='log')
-    for i, ax in enumerate(g.axes.flatten()):
+    fig, axes = plt.subplots(nrows=1, ncols=2, squeeze=True, sharey=True,
+                             figsize=(.6*2*height, height), 
+                             gridspec_kw={'wspace': .1})
+    artists = [axes[0].scatter([], [], s=0)]
+    labels = ['Eccentricity\nband']
+    for i, (col, data) in enumerate(df.groupby('stimulus_superclass')):
+        ax = axes[i]
+        for s, d in data.groupby('Eccentricity band'):
+            hue = pal[col]
+            ax.scatter(d.frequency_value, d.amplitude_estimate,
+                       facecolor={'2-3': 'w'}.get(s, hue), edgecolor=hue)
+            plotting.plot_tuning_curve(data=d, ax=ax, xlim='data',
+                                       style='Eccentricity band', color=hue,
+                                       dashes_dict={'2-3': (2, 2)})
+            if i == 1:
+                artists.append(ax.plot([], [], color='k',
+                                       mfc={'2-3': 'w'}.get(s, 'k'),
+                                       mec='k', marker='o',
+                                       dashes={'2-3': (2, 2)}.get(s, ''))[0])
+                labels.append(s+' deg')
+        ax.set_xscale('log', basex=10)
+        ax.set(xticks=[10**i for i in [-1, 0, 1]], ylim=(1, 3.5),)
         if i == 0:
             ax.set(ylabel='Response\n(% BOLD signal change)',
-                   ylim=(1.5, 3.5), yticks=np.arange(1.5, 4.5, .5))
-        else:
-            ax.set(ylim=(.5, 2.5), yticks=np.arange(.5, 3.5, .5))
-        ax.set(xticks=[10**i for i in [-1, 0, 1]], xlabel='')
-    g.fig.text(.5, 0, 'Local spatial frequency (cpd)', ha='center',
-               transform=g.fig.transFigure)
-    g.fig.subplots_adjust(wspace=.3)
-    return g
+                   yticks=np.arange(1, 4.5, .5))
+            ax.set_xlabel('Local spatial frequency (cpd)', ha='center',
+                          x=1)
+        
+    fig.legend(artists, labels, frameon=False, bbox_to_anchor=(1, .5),
+               bbox_transform=fig.transFigure, loc='center left',
+               borderaxespad=0)
+    return fig
 
 
 def stimulus_schematic(stim, stim_df, context='paper'):
@@ -3289,7 +3304,7 @@ def feature_difference_plot(df, precision_df, diff_col='Visual field',
 
     """
     params, fig_width = style.plotting_style(context, figsize='full')
-    ax_height = fig_width / 2
+    plot_kwargs.setdefault('height', fig_width / 2)
     plt.style.use(params)
     if context == 'paper':
         plot_kwargs.setdefault('xlim', (0, 11.55))
@@ -3314,8 +3329,7 @@ def feature_difference_plot(df, precision_df, diff_col='Visual field',
                                            diff_name, idx_cols,
                                            precision_col='precision')
     g = plotting.feature_df_plot(feature, y=diff_name, hue=None, yticks=None,
-                                 col=None, height=ax_height, aspect=1,
-                                 color='k', top=.9,
+                                 col=None, aspect=1, color='k', top=.9,
                                  plot_func=plotting.scatter_ci_dist, join=True,
                                  ci_mode='fill', draw_ctr_pts=False,
                                  **plot_kwargs)

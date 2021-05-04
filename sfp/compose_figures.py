@@ -345,3 +345,37 @@ def parameters(individual_fig, overall_fig, save_path, context='paper'):
         compose.Text("A", 0, 25, size=font_size, **text_params),
         compose.Text("B", 0, figure_height/2.25+25, size=font_size, **text_params),
     ).save(save_path)
+
+
+def visual_field_differences(comparison_fig, diff_fig, save_path,
+                             context='paper'):
+    """Create the visual field differences figure.
+
+    Which combines the figures showing the preferred period of the two, and the
+    differences between them
+
+    Parameters
+    ----------
+    comparison_fig, diff_fig
+        paths to the svg files containing the comparison and diff figures,
+        respectively
+    save_path : str
+        path to save the composed figure at
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
+
+    """
+    text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width * .5
+    font_size = _convert_to_pix(text_params.pop('size'))
+
+    compose.Figure(
+        figure_width, figure_height,
+        SVG(diff_fig).move(figure_width/2-10, 0),
+        SVG(comparison_fig).move(-5, 0),
+        compose.Text("A", 0, 17, size=font_size, **text_params),
+        compose.Text("B", figure_width/2-10, 17, size=font_size, **text_params),
+    ).save(save_path)
