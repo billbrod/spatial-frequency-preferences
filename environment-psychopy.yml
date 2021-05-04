@@ -26,7 +26,6 @@ dependencies:
   - pyserial==3.4
   - python-bidi==0.4.2
   - moviepy==0.2.3.5
-  - pyosf==1.0.5
   - greenlet==0.4.15
   - h5py==2.9.0
   - pip:

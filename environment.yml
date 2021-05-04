@@ -19,8 +19,6 @@ dependencies:
   - pyyaml
   - nipype>=1.1.1
   - pillow
-  - pyosf
-  - osfclient
   - h5py
   - nibabel
   - scikit-learn
