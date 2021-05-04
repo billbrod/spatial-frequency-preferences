@@ -2708,8 +2708,8 @@ rule figure_example_ecc_bins:
         import pandas as pd
         import sfp
         df = pd.read_csv(input[0])
-        g = sfp.figures.example_eccentricity_bins(df, context=wildcards.context)
-        g.fig.savefig(output[0], bbox_inches='tight')
+        fig = sfp.figures.example_eccentricity_bins(df, context=wildcards.context)
+        fig.savefig(output[0], bbox_inches='tight')
 
 
 rule figure_peakiness_check:
@@ -2861,7 +2861,7 @@ rule figure_compare_visual_field:
         g.add_legend()
         g.fig.savefig(output[0], bbox_inches='tight')
         df = df[df['Visual field'] != "Full visual field"]
-        g = sfp.figures.feature_difference_plot(df, precision,
+        g = sfp.figures.feature_difference_plot(df, precision, height=3,
                                                 feature_kwargs={'orientation': [0],
                                                                 'retinotopic_angle': [0]})
         g.fig.savefig(output[1], bbox_inches='tight')
@@ -2869,7 +2869,7 @@ rule figure_compare_visual_field:
         df = df.merge(precision, on=['subject'])
         df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), 100, 'fit_value',
                                                       ['model_parameter', 'fit_model_type', 'Visual field'], 'precision')
-        g = sfp.figures.feature_df_plot(df, True, hue='Visual field', pal=pal)
+        g = sfp.figures.feature_df_plot(df, True, hue='Visual field', pal=pal, height=3)
         g.ax.legend(loc='lower right', title='Visual field')
         g.fig.savefig(output[2], bbox_inches='tight')
 
@@ -2962,6 +2962,10 @@ def get_compose_input(wildcards):
         groupaverage, df_filter, model, seed = re.findall("([a-z-]+)_([a-z-]+)_([a-z_]+)_parameters_s-([0-9]+)", wildcards.figure_name)[0]
         paths = [path_template % f"{groupaverage}_{df_filter}_{model}_params_visualfield-all_dist_s-None_task-sfprescaled",
                  path_template % f"{groupaverage}_{df_filter}_{model}_params_visualfield-all_dist-overall_s-{seed}_task-sfprescaled"]
+    elif 'visual-field-diff' in wildcards.figure_name:
+        df_filter, model, seed = re.findall("visual-field-diff_([a-z-]+)_([a-z_]+)_s-([0-9]+)", wildcards.figure_name)[0]
+        paths = [path_template % f"visual-field-diff_comparison_task-sfprescaled_{df_filter}_{model}_s-{seed}",
+                 path_template % f"visual-field-diff_diff_task-sfprescaled_{df_filter}_{model}_s-{seed}"]
     return paths
 
 
@@ -3001,6 +3005,9 @@ rule compose_figures:
         elif 'parameters' in wildcards.figure_name:
             sfp.compose_figures.parameters(input[0], input[1], output[0],
                                            wildcards.context)
+        elif 'visual-field-diff' in wildcards.figure_name:
+            sfp.compose_figures.visual_field_differences(input[0], input[1],
+                                                         output[0], wildcards.context)
 
 rule presented_spatial_frequency_plot:
     input:
@@ -3383,3 +3390,4 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'visual-field-diff_filter-mean_iso_full_iso_s-5.svg'),
