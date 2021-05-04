@@ -922,31 +922,39 @@ def stimuli(stim, stim_df, save_path=None, **kwargs):
         fig.savefig(save_path)
 
 
-def plot_tuning_curve(ci_vals=[16, 84], norm=False, xlim=None, **kwargs):
+def plot_tuning_curve(ci_vals=[16, 84], norm=False, xlim=None, style=None,
+                      dashes_dict={}, **kwargs):
     data = kwargs.pop('data')
     color = kwargs.pop('color')
+    ax = kwargs.pop('ax', plt.gca())
     if xlim is not None:
         if xlim == 'data':
             xlim = (data.frequency_value.min(), data.frequency_value.max())
         xlim = np.logspace(np.log10(xlim[0]), np.log10(xlim[1]))
-    if 'bootstrap_num' in data.columns and data.bootstrap_num.nunique() > 1:
-        xs, ys = [], []
-        for n, g in data.groupby('bootstrap_num'):
-            x, y = tuning_curves.get_tuning_curve_xy_from_df(g, norm=norm, x=xlim)
-            xs.append(x)
-            ys.append(y)
-        xs = np.array(xs)
-        if (xs != xs[0]).any():
-            raise Exception("Somehow we got different xs for the tuning curves of some "
-                            "bootstraps!")
-        ys = np.array(ys)
-        y_median = np.median(ys, 0)
-        y_cis = np.percentile(ys, ci_vals, 0)
-        plt.fill_between(xs[0], y_cis[0], y_cis[1], alpha=.2, facecolor=color)
-        plt.semilogx(xs[0], y_median, basex=2, color=color, **kwargs)
+    if style is not None:
+        data = data.groupby(style)
     else:
-        x, y = tuning_curves.get_tuning_curve_xy_from_df(data, norm=norm, x=xlim)
-        plt.semilogx(x, y, basex=2, color=color, **kwargs)
+        data = [(None, data)]
+    for m, d in data:
+        dashes = dashes_dict.get(m, '')
+        if 'bootstrap_num' in d.columns and d.bootstrap_num.nunique() > 1:
+            xs, ys = [], []
+            for n, g in d.groupby('bootstrap_num'):
+                x, y = tuning_curves.get_tuning_curve_xy_from_df(g, norm=norm, x=xlim)
+                xs.append(x)
+                ys.append(y)
+            xs = np.array(xs)
+            if (xs != xs[0]).any():
+                raise Exception("Somehow we got different xs for the tuning curves of some "
+                                "bootstraps!")
+            ys = np.array(ys)
+            y_median = np.median(ys, 0)
+            y_cis = np.percentile(ys, ci_vals, 0)
+            ax.fill_between(xs[0], y_cis[0], y_cis[1], alpha=.2, facecolor=color)
+            ax.semilogx(xs[0], y_median, basex=2, color=color, dashes=dashes, **kwargs)
+        else:
+            x, y = tuning_curves.get_tuning_curve_xy_from_df(d, norm=norm, x=xlim)
+            ax.semilogx(x, y, basex=2, color=color, dashes=dashes, **kwargs)
 
 
 def _restrict_df(df, **kwargs):
