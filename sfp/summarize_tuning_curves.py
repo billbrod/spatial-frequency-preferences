@@ -93,5 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--groupaverage', '-g', action='store_true',
                         help=("Whether to grab the regular subjects (if not passed) or "
                               "groupaverage subject (if passed)"))
+    parser.add_argument('--session', '-s',
+                        help=("If set, we only include this session, skipping the rest."))
     args = vars(parser.parse_args())
     main(**args)
