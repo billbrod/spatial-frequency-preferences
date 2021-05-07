@@ -314,7 +314,7 @@ rule groupaverage_all:
                      "bayesian_posterior", "filter-mean", "initial",
                      "sub-groupaverage_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_full_full_absolute_all_models.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "sub-groupaverage_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
+                     "bayesian_posterior", "sub-groupaverage_ses-04_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
         
 
 
@@ -1208,8 +1208,8 @@ def get_tuning_curves(wildcards):
             sessions = {'sub-wlsubj001': ['ses-pilot01'], 'sub-wlsubj042': ['ses-pilot01'],
                         'sub-wlsubj045': ['ses-pilot01']}
         else:
-            subjects = SUBJECTS
-            sessions = SESSIONS
+            sessions = {k: [wildcards.session] for k, v in SESSIONS.items() if wildcards.session in v}
+            subjects = [s for s in SUBJECTS if s in sessions.keys()]
         vareas = wildcards.vareas.split('-')
         return [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}',
                              '{atlas_type}', '{subject}', '{session}', '{subject}_{session}_{task}_'
@@ -1230,24 +1230,24 @@ rule tuning_curves_summary:
     input:
         get_tuning_curves
     output:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{groupaverage}_v{vareas}_e{eccen}_{binning}_tuning_curves_{df_mode}.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "{groupaverage}_{session}_v{vareas}_e{eccen}_{binning}_tuning_curves_{df_mode}.csv")
     params:
         input_dir = os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}"),
         groupaverage = lambda wildcards: {'sub-groupaverage': '-g', 'individual': ''}[wildcards.groupaverage]
     benchmark:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_{session}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_{session}+v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
         "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode} {params.groupaverage}"
 
 
 rule tuning_curves_summary_plot:
     input:
-        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "individual_v{vareas}_e{eccen}_{binning}_tuning_curves_summary.csv")
+        os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "{mat_type}", "{atlas_type}", "individual_{session}_v{vareas}_e{eccen}_{binning}_tuning_curves_summary.csv")
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_curves', '{mat_type}', '{atlas_type}',
-                     "v{vareas}_e{eccen}_{binning}_tuning_curves_summary_plot_{subjects}_{sessions}_"
+                     "v{vareas}_e{eccen}_{binning}_tuning_curves_summary_plot_{subjects}_{session}_"
                      "{tasks}_v{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}"
                      "_{y}.svg")
     params:
@@ -1259,20 +1259,19 @@ rule tuning_curves_summary_plot:
         eccen_range = lambda wildcards: wildcards.eccen_range.split('-'),
         subjects = lambda wildcards: wildcards.subjects.split(','),
         tasks = lambda wildcards: wildcards.tasks.split(','),
-        sessions = lambda wildcards: wildcards.sessions.split(','),
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
-                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{sessions}_{tasks}_v"
+                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{session}_{tasks}_v"
                      "{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}_{y}_"
                      "benchmark.txt")
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary_plots", "{mat_type}_"
-                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{sessions}_{tasks}_v"
+                     "{atlas_type}_v{vareas}_e{eccen}_{binning}_{subjects}_{session}_{tasks}_v"
                      "{plot_varea}_e{eccen_range}_row={row}_col={col}_hue={hue}_{plot_func}_{y}-%j.log")
     shell:
         "python -m sfp.summary_plots {input} --col {params.col} --row {params.row} --hue"
         " {params.hue} --y {params.y} --varea {params.plot_varea} --eccen_range {params.eccen_range}"
-        " --subject {params.subjects} --task {params.tasks} --session {params.sessions}"
+        " --subject {params.subjects} --task {params.tasks} --session {wildcards.session}"
 
 
 def to_log_or_not(wildcards):
@@ -2089,7 +2088,7 @@ rule prepare_image_computable:
 rule figure_summarize_1d:
     input:
         lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                                       "bayesian_posterior", "{{groupaverage}}_v1_e1-12_eccen_bin_tuning_curves_{}.csv").format(
+                                       "bayesian_posterior", "{{groupaverage}}_ses-04_v1_e1-12_eccen_bin_tuning_curves_{}.csv").format(
                                            {'sub-groupaverage': 'summary', 'individual': 'full'}[wildcards.groupaverage]
                                        )
     output:
@@ -3266,9 +3265,9 @@ rule all:
         rules.model_all_subj_cv.input,
         rules.all_check_plots.input,
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "individual_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
+                     "bayesian_posterior", "individual_ses-04_v1_e1-12_eccen_bin_tuning_curves_summary.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
-                     "bayesian_posterior", "individual_v1_e1-12_eccen_bin_tuning_curves_full.csv"),
+                     "bayesian_posterior", "individual_ses-04_v1_e1-12_eccen_bin_tuning_curves_full.csv"),
         os.path.join(config['DATA_DIR'], "derivatives", "noise_ceiling", "monte_carlo",
                      "stim_class", "bayesian_posterior", 'filter-mean', "monte_carlo_ses-04_task-sfprescaled_v1_e1-12_individual.csv"),
         rules.groupaverage_all.input,
