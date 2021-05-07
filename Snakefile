@@ -13,11 +13,8 @@ if not os.path.isdir(config["DATA_DIR"]):
 if os.system("module list") == 0:
     # then we're on the cluster
     ON_CLUSTER = True
-    shell.prefix(". /share/apps/anaconda3/5.3.1/etc/profile.d/conda.sh; conda activate sfp; "
-                 "module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2017a; "
-                 "export SUBJECTS_DIR=%s/derivatives/freesurfer; "
-                 # necessary to make sure we get the right HDF5 library, apparently.
-                 "export LD_LIBRARY_PATH=~/.conda/envs/sfp/lib:LD_LIBRARY_PATH; " % config["DATA_DIR"])
+    shell.prefix("module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2020a; "
+                 "export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 else:
     ON_CLUSTER = False
     shell.prefix("export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
