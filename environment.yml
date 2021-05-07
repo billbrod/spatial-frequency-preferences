@@ -25,7 +25,7 @@ dependencies:
   - snakemake>=5.4
   - tqdm
   - pip:
-      - pybids >= 0.7.0
+      - pybids == 0.8.0
       - neuropythy >= 0.9.0
       # this is just forked from the original repo, from mariogeiger,
       # but since that didn't have any release tags, I forked to make
