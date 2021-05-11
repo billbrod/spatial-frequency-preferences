@@ -10,7 +10,7 @@ dependencies:
   - jupyter
   - jupyterlab
   - ipykernel
-  - numpy
+  - numpy==1.16
   - matplotlib==3.0.3
   - scipy
   - seaborn>=0.11
@@ -26,7 +26,7 @@ dependencies:
   - tqdm
   - pip:
       - pybids == 0.8.0
-      - neuropythy >= 0.9.0
+      - neuropythy == 0.9.3
       # this is just forked from the original repo, from mariogeiger,
       # but since that didn't have any release tags, I forked to make
       # sure the version I use stays constant
