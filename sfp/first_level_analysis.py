@@ -616,7 +616,7 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
             plot_data = mgzs['R2-%s' % hemi]
             num_nans = sum(np.isnan(plot_data))
             plot_data = plot_data[~np.isnan(plot_data)]
-            sns.distplot(plot_data, ax=ax)
+            sns.histplot(x=plot_data, ax=ax, kde=False)
             ax.set_title("R2 for %s, data originally contained %s NaNs" % (hemi, num_nans))
         fig.savefig(save_path.replace('.csv', '_R2.svg'))
 
