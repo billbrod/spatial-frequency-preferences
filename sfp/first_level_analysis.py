@@ -644,7 +644,13 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
     # drop any voxel that has at least one NaN value. these should only
     # show up from interpolation (so only with sub-groupaverage) and
     # should be very few
-    df = df.groupby('voxel').filter(lambda x: ~np.isnan(x.amplitude_estimate_median).all())
+    try:
+        df = df.groupby('voxel').filter(lambda x: ~np.isnan(x.amplitude_estimate_median).all())
+    except AttributeError:
+        # in this case, we don't have an amplitude_estimate_median, because
+        # this is the full dataframe and so we skip (we don't use full for
+        # sub-groupaverage)
+        pass
 
     if save_path is not None:
         df.to_csv(save_path, index=False)
