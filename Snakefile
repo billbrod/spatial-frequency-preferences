@@ -14,6 +14,7 @@ if os.system("module list") == 0:
     # then we're on the cluster
     ON_CLUSTER = True
     shell.prefix("module load fsl/5.0.10; module load freesurfer/6.0.0; module load matlab/2020a; "
+                 "export FSLOUTPUTTYPE=NIFTI_GZ; "
                  "export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
 else:
     ON_CLUSTER = False
