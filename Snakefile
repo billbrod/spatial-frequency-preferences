@@ -1240,7 +1240,7 @@ rule tuning_curves_summary:
     log:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_{session}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
-        "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode} {params.groupaverage}"
+        "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode} {params.groupaverage} -s {wildcards.session}"
 
 
 rule tuning_curves_summary_plot:
