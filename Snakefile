@@ -1237,7 +1237,7 @@ rule tuning_curves_summary:
     benchmark:
         os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_{session}_v{vareas}_e{eccen}_{binning}_{df_mode}_benchmark.txt")
     log:
-        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_{session}+v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
+        os.path.join(config['DATA_DIR'], "code", "tuning_curves_summary", "{mat_type}_{atlas_type}_{groupaverage}_{session}_v{vareas}_e{eccen}_{binning}_{df_mode}-%j.log")
     shell:
         "python sfp/summarize_tuning_curves.py {params.input_dir} {output} {wildcards.df_mode} {params.groupaverage}"
 
