@@ -39,7 +39,9 @@ def main(root_dir, save_path=None, groupaverage=False, **kwargs):
         skip_condition = lambda x: 'sub-groupaverage' in x
     limit_kwargs = {}
     for k, v in kwargs.items():
-        if isinstance(v, str) or not hasattr(v, '__iter__'):
+        if v is None:
+            continue
+        elif isinstance(v, str) or not hasattr(v, '__iter__'):
             limit_kwargs[k] = [v]
         else:
             limit_kwargs[k] = v
