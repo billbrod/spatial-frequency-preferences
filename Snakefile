@@ -322,13 +322,13 @@ rule groupaverage_all:
 rule all_check_plots:
     input:
         [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", 'varea_plot.png').format(subject=s, atlas_type=a)
-         for s in SUBJECTS for a in ['bayesian_posterior', 'atlas']],
+         for s in SUBJECTS for a in ['bayesian_posterior', 'atlas'] if 'ses-04' in SESSIONS[s]],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'prf_solutions', "{subject}", "{atlas_type}", '{prf_prop}_plot.png').format(subject=s, atlas_type=a, prf_prop=p)
-         for s in SUBJECTS for a in ['bayesian_posterior', 'atlas', 'data'] for p in ['angle', 'eccen']],
+         for s in SUBJECTS for a in ['bayesian_posterior', 'atlas', 'data'] for p in ['angle', 'eccen'] if 'ses-04' in SESSIONS[s]],
         [os.path.join(config["DATA_DIR"], "derivatives", "GLMdenoise", "stim_class", "bayesian_posterior", "{subject}", "{session}", "figures_{task}", "FinalModel_maps.png").format(
-            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
+            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub] if ses=='ses-04'],
         [os.path.join(config["DATA_DIR"], "derivatives", "first_level_binned", "stim_class", "bayesian_posterior", "{subject}", "{session}", "{subject}_{session}_{task}_v1_e1-12_eccen_bin_full_data.svg").format(
-            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub]],
+            subject=sub, session=ses, task=TASKS[(sub, ses)]) for sub in SUBJECTS for ses in SESSIONS[sub] if ses=='ses-04'],
         [os.path.join(config['DATA_DIR'], 'derivatives', 'first_level_analysis', 'stim_class', 'bayesian_posterior', '{subject}', '{session}', '{subject}_{session}_{task}_v1_e1-12_summary'
                       '_{df_filter}_precision_check.png').format(subject=sub, session=ses, task=TASKS[(sub, ses)], df_filter=filt) for sub in SUBJECTS for ses in SESSIONS[sub]
          for filt in ['filter-mean', 'no-filter'] if ses=='ses-04'],
@@ -2132,16 +2132,17 @@ def get_loss_files(wildcards):
     # pop() call below
     format_kwargs = dict(wildcards)
     groupaverage = format_kwargs.pop('groupaverage')
+    sub = format_kwargs.pop('subject')
     # this will return a list of lists of strings, so we need to flatten it
     if groupaverage == 'individual':
         if wildcards.modeling_goal == 'initial_cv':
             return np.array([get_model_subj_outputs(m, sub, ses, crossval_seed=0, **format_kwargs)
-                             for m in MODEL_TYPES for sub in SUBJECTS for ses in SESSIONS[sub]
+                             for m in MODEL_TYPES for ses in SESSIONS[sub]
                              if TASKS[(sub, ses)] == wildcards.task]).flatten()
         elif wildcards.modeling_goal == 'bootstrap':
             return np.array([get_model_subj_outputs(m, sub, ses, bootstrap_num=n, **format_kwargs)
                              for n in range(100) for m in ['full_full_absolute']
-                             for sub in SUBJECTS for ses in SESSIONS[sub]
+                             for ses in SESSIONS[sub]
                              if TASKS[(sub, ses)] == wildcards.task]).flatten()
     elif groupaverage == 'sub-groupaverage':
         if wildcards.modeling_goal == 'initial':
@@ -2153,11 +2154,11 @@ rule combine_final_loss:
     input:
         get_loss_files,
     output:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', '{mat_type}', '{atlas_type}', "{df_filter}", '{modeling_goal}', '{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.csv')
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', '{mat_type}', '{atlas_type}', "{df_filter}", '{modeling_goal}', '{subject}', '{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss.csv')
     log:
-        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss-%j.log')
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_{subject}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss-%j.log')
     benchmark:
-        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss_benchmark.txt')
+        os.path.join(config['DATA_DIR'], 'code', 'tuning_2d_model', '{mat_type}_{atlas_type}_{df_filter}_{modeling_goal}_{subject}_{groupaverage}_{task}_v{vareas}_e{eccen}_{df_mode}_b{batch_size}_r{learning_rate}_g{gpus}_final_epoch_loss_benchmark.txt')
     run:
         import sfp
         df = sfp.analyze_model.collect_final_loss(input)
@@ -2166,10 +2167,12 @@ rule combine_final_loss:
 
 rule figure_loss_check:
     input:
-        lambda wildcards: os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class', 'bayesian_posterior', "{df_filter}", '{modeling_goal}',
+        lambda wildcards: [os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class', 'bayesian_posterior', "{df_filter}", '{modeling_goal}', '{subject}',
                                        '{groupaverage}_{task}_v1_e1-12_{df_mode}_b10_r0.001_g0_final_epoch_loss.csv').format(df_mode={'initial_cv': 'summary', 'bootstrap': 'full', 'initial': 'summary'}[wildcards.modeling_goal],
                                                                                                                              modeling_goal=wildcards.modeling_goal, task=wildcards.task, groupaverage=wildcards.groupaverage,
-                                                                                                                             df_filter=wildcards.df_filter)
+                                                                                                                             df_filter=wildcards.df_filter,
+                                                                                                                             subject=s)
+                           for s in SUBJECTS for ses in SESSIONS[s] if TASKS[(s, ses)]==wildcards.task]
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', '{context}', "{groupaverage}_{df_filter}_{modeling_goal}_training-loss-check_{task}.{ext}")
     log:
@@ -2181,7 +2184,7 @@ rule figure_loss_check:
         import seaborn as sns
         import pandas as pd
         font_scale = {'poster': 1.2}.get(wildcards.context, 1)
-        df = pd.read_csv(input[0])
+        df = pd.concat([pd.read_csv(f) for f in input])
         if wildcards.modeling_goal == 'initial_cv':
             hue = 'test_subset'
         elif wildcards.modeling_goal == 'bootstrap':
@@ -2367,7 +2370,7 @@ rule precision_check_figure:
         fig = sfp.plotting.voxel_property_plot(pd.read_csv(input[0]), 'precision', df_filter_string=df_filter_string)
         fig.savefig(output[0])
         g = sfp.plotting.voxel_property_joint(pd.read_csv(input[0]), 'reg', ['eccen', 'precision'], df_filter_string,
-                                              x_bins=20, x_estimator=np.median)
+                                              x_bins=20, x_estimator=np.median, marginal_kws={'kde': False})
         g.fig.savefig(output[1])
 
 
@@ -2416,7 +2419,7 @@ rule understand_loss_figure:
         fig = sfp.plotting.voxel_property_plot(voxels, wildcards.loss_func, df_filter_string=None)
         fig.savefig(output[0])
         g = sfp.plotting.voxel_property_joint(voxels, 'reg', ['eccen', wildcards.loss_func], None, x_bins=20,
-                                              x_estimator=np.median)
+                                              x_estimator=np.median, marginal_kws={'kde': False})
         g.fig.savefig(output[1])
 
 

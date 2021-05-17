@@ -385,6 +385,10 @@ def find_stim_for_first_level(filename, stim_dir):
             stim_type = 'constant'
             stim = np.load(os.path.join(stim_dir, 'task-sfpconstant_stimuli.npy'))
             stim_df = pd.read_csv(os.path.join(stim_dir, 'task-sfpconstant_stim_description.csv'))
+        elif 'task-sfprescaled' in filename:
+            stim_type = 'logpolar-rescaled'
+            stim = np.load(os.path.join(stim_dir, 'task-sfprescaled_stimuli.npy'))
+            stim_df = pd.read_csv(os.path.join(stim_dir, 'task-sfprescaled_stim_description.csv'))
         else:
             stim_type = 'logpolar'
             stim = np.load(os.path.join(stim_dir, 'task-sfp_stimuli.npy'))
