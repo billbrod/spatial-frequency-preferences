@@ -17,7 +17,7 @@ Matlab:
  
 Python: 
 
- - Python 3.6
+ - Python 3.6 or 3.7
  - use the included conda environment files:
    - in order to run the experiment, you'll need to create a psychopy
      environment: `conda env create -f environment-psychopy.yml`. By
@@ -38,14 +38,13 @@ Python:
      need to set up a psychopy environment, just run: `conda env
      create -f environment.yml`. Then, type `conda activate sfp` to
      activate the environment.
- - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools)
-   (which requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/)),
-   commit
+ - [WinawerLab's MRI_tools](https://github.com/WinawerLab/MRI_tools) (which
+   requires [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/) 5.0.10), commit
    [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e)
 
 Other: 
 
- - [FreeSurfer](http://freesurfer.net/)
+ - [FreeSurfer](http://freesurfer.net/) 6.0.0
 
 # Overview
 
