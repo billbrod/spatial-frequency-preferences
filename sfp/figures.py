@@ -2120,7 +2120,7 @@ def existing_studies_with_current_figure(df, seed=None, precision_df=None, y="Pr
     return g
 
 
-def mtf(mtf_func, context='paper'):
+def mtf(mtf_func, df=None, context='paper'):
     """Plot the MTF as a function of spatial frequencies
 
     This plots the function we use to invert the display MTF when constructing
@@ -2133,6 +2133,9 @@ def mtf(mtf_func, context='paper'):
     mtf_func : function
         python function that takes array of spatial frequencies as its only
         argument and returns the MTF at those spatial frequencies.
+    df : pd.DataFrame or None, optional
+        If not None, the data used to fit this function, which we'll plot as
+        points on the figure.
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -2148,6 +2151,8 @@ def mtf(mtf_func, context='paper'):
     plt.style.use(params)
     fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.65))
     ax.semilogx(sfs, mtf_func(sfs), basex=2)
+    if df is not None:
+        ax.semilogx(df.display_freq, df.corrected_contrast, 'o', basex=2)
     ticks = [512, 128, 32, 8, 2]
     ax.set(xticks=[1/i for i in ticks], xticklabels=ticks, xlabel='Pixels per period',
            ylabel='Michelson contrast', yticks=[.5, .75, 1])

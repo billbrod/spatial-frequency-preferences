@@ -3043,7 +3043,8 @@ rule presented_spatial_frequency_plot:
 
 rule figure_mtf:
     input:
-        os.path.join(config['DATA_DIR'], 'stimuli', 'mtf_func.pkl')
+        os.path.join(config['DATA_DIR'], 'stimuli', 'mtf_func.pkl'),
+        os.path.join(config['DATA_DIR'], 'stimuli', 'mtf_func_data.csv'),
     output:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', 'mtf.{ext}')
     log:
@@ -3053,9 +3054,11 @@ rule figure_mtf:
     run:
         import sfp
         import pickle
+        import pandas as pd
         with open(input[0], 'rb') as f:
             mtf_func = pickle.load(f)
-        fig = sfp.figures.mtf(mtf_func, wildcards.context)
+        df = pd.read_csv(input[1])
+        fig = sfp.figures.mtf(mtf_func, df, wildcards.context)
         fig.savefig(output[0], bbox_inches='tight')
 
 
