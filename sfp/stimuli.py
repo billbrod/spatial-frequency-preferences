@@ -124,6 +124,8 @@ def log_polar_grating(size, w_r=0, w_a=0, phi=0, ampl=1, origin=None, scale_fact
     lrad = np.log2(rad**2)
     theta = mkAngle(size, origin=origin)
 
+    # in the paper, we simplify this to np.cos(w_r * log(r) + w_a * theta +
+    # phi), where log is the natural logarithm. They're equivalent
     return ampl * np.cos(((w_r * np.log(2))/2) * lrad + w_a * theta + phi)
 
 
