@@ -50,7 +50,7 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
                   'axes.edgecolor': '.15', 'grid.color': '.8',
                   'axes.spines.left': True, 'axes.spines.bottom': True,
                   'axes.spines.right': False, 'axes.spines.top': False,
-                  'xtick.bottom': False, 'ytick.left': False,
+                  'xtick.bottom': True, 'ytick.left': True,
                   'figure.dpi': 90,
                   'text.usetex': False,
                   'figure.subplot.left': .075,
