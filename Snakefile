@@ -2949,11 +2949,13 @@ def get_compose_input(wildcards):
         fig_name = f'{groupaverage}_1d_pref-period-overall_s-{seed}_task-sfprescaled_with_legend'
         paths = [path_template % "example_ecc_bins",
                  path_template.replace('figures', 'compose_figures') % fig_name]
-    elif 'intro' in wildcards.figure_name:
+    elif 'stimulus' in wildcards.figure_name:
         task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
-        paths = [path_template % 'schematic_background',
+        paths = [path_template % f'{task}_base_frequencies',
                  path_template % f'schematic_stimulus_{task}',
                  path_template % f'{task}_presented_frequencies']
+    elif 'background' in wildcards.figure_name:
+        paths = [path_template % 'schematic_background']
     elif 'example_voxel' in wildcards.figure_name:
         df_filter, model = re.findall("([a-z-]+)_([a-z_]+)_example_voxels", wildcards.figure_name)[0]
         paths = [path_template % f"peakiness_{df_filter}_{model}_all",
@@ -2996,9 +2998,12 @@ rule compose_figures:
         elif '1d_summary' in wildcards.figure_name:
             sfp.compose_figures.pref_period_1d(input[0], input[1], output[0],
                                                wildcards.context)
-        elif 'intro' in wildcards.figure_name:
-            sfp.compose_figures.intro_figure(input[0], input[1], input[2], output[0],
-                                             wildcards.context)
+        elif 'stimulus' in wildcards.figure_name:
+            sfp.compose_figures.stimulus_figure(input[0], input[1], input[2],
+                                                output[0], wildcards.context)
+        elif 'background' in wildcards.figure_name:
+            sfp.compose_figures.background_figure(input[0], output[0],
+                                                  wildcards.context)
         elif 'example_voxel' in wildcards.figure_name:
             sfp.compose_figures.example_voxels(input[0], input[1], output[0],
                                                wildcards.context)
@@ -3039,6 +3044,23 @@ rule presented_spatial_frequency_plot:
         ax.legend_.set_visible(False)
         fig.tight_layout()
         fig.savefig(output[0], bbox_inches='tight')
+
+
+rule stimulus_base_frequency_plot:
+    input:
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stim_description.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', '{task}_base_frequencies.svg'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_base_frequencies_svg-%j.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_base_frequencies_svg_benchmark.txt'),
+    run:
+        import pandas as pd
+        import sfp
+        df = pd.read_csv(input[0])
+        g = sfp.figures.stimulus_frequency(df, wildcards.context)
+        g.savefig(output[0])
 
 
 rule figure_mtf:
@@ -3384,7 +3406,8 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "filter-mean_full_full_absolute_example_voxels.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "intro_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "stimulus_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "background.svg"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_v1_area_vs_period_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'visual-field-diff_filter-mean_iso_full_iso_s-5.svg'),

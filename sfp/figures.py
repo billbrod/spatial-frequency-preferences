@@ -2371,44 +2371,56 @@ def theory_background_figure(context):
                             'einstein.pgm')
     einstein = plt.imread(einstein_path)
     einstein = einstein / einstein.max()
-    params, fig_width = style.plotting_style(context, figsize='half')
+    params, fig_width = style.plotting_style(context, figsize='full')
     params['axes.titlesize'] = '8'
     params['axes.labelsize'] = '8'
     params['legend.fontsize'] = '8'
     warnings.warn("We adjust the font size for axes titles, labels, and legends down to "
                   "8pts (so this will probably look wrong if context is not paper)!")
     plt.style.use(params)
-    fig, axes = plt.subplots(2, 3, figsize=(fig_width, 3*fig_width/4), gridspec_kw={'hspace': .6, 'wspace': .52})
+    fig = plt.figure(figsize=(fig_width, fig_width/2))
+    gs = fig.add_gridspec(4, 4, hspace=.65)
+    fig.add_subplot(gs[:2, 0])
+    fig.add_subplot(gs[2:, 0])
+    fig.add_subplot(gs[1:3, 1])
+    fig.add_subplot(gs[1:3, -2])
+    fig.add_subplot(gs[:2, -1])
+    fig.add_subplot(gs[2:, -1])
+    axes = np.array(fig.axes).flatten()
 
-    for ax in axes[:, 0]:
+    for ax in axes[:2]:
         ax.axis('off')
+    pt.imshow((einstein+.5)/1.5, ax=axes[0], zoom=110/256, title=None,
+              vrange=(0, 1))
+    pt.imshow((einstein+.5)/1.5, ax=axes[1], zoom=110/256, title=None,
+              vrange=(0, 1))
 
-    pt.imshow((einstein+.5)/1.5, ax=axes[0, 0], zoom=.25, title=None, vrange=(0, 1))
-    pt.imshow((einstein+.5)/1.5, ax=axes[1, 0], zoom=.25, title=None, vrange=(0, 1))
-
-    axes[0, 0].set_title('SF preferences\n'+r'$\bf{constant}$ across'+'\nvisual field')
-    axes[1, 0].set_title('SF preferences\n'+r'$\bf{scale}$ with'+'\neccentricity')
+    axes[0].set_title(r'SF preferences $\bf{constant}$'+'\nacross visual field')
+    axes[1].set_title(r'SF preferences $\bf{scale}$'+'\nwith eccentricity')
 
     ecc = np.linspace(.01, 20, 50)
     V1_pRF_size = 0.063485 * ecc
     constant_hyp = 2*np.ones(len(ecc))
     pal = sns.color_palette('Dark2', n_colors=2)
-    for i, ax in enumerate(axes[:, 1].flatten()):
+    for i, ax in enumerate(axes[2:4].flatten()):
         if i == 0:
             ax.semilogy(ecc, 1./V1_pRF_size, '-', label='scaling',
                         linewidth=2, basey=2, c=pal[0])
             ax.set_ylim((.25, 10))
             ax.plot(ecc, constant_hyp, c=pal[1], linewidth=2, label='constant')
-            ax.set(xticks=[], yticks=[], ylabel='Preferred\nSF (cpd)')
+            ax.set(xticks=[], yticks=[], ylabel='Preferred SF (cpd)',
+                   xlabel='Eccentricity')
         elif i == 1:
             ax.plot(ecc, V1_pRF_size, linewidth=2, label='scaling', c=pal[0])
             ax.plot(ecc, 1./constant_hyp, c=pal[1], linewidth=2, label='constant')
             ax.set(xlabel='Eccentricity', xticks=[], yticks=[],
-                   ylabel='Preferred\nperiod (deg)')
-    axes[0, 1].legend(frameon=False, bbox_to_anchor=(-.2, .9), loc='lower left')
-    axes[1, 1].annotate('', xy=(.5, 1), xytext=(0.5, 1.5), xycoords='axes fraction',
-                        arrowprops={'arrowstyle': '<->', 'color': 'k'})
-    axes[1, 1].text(.6, 1.25, r'$\frac{1}{f(x)}$', ha='left', va='center', transform=axes[1,1].transAxes)
+                   ylabel='Preferred period (deg)')
+    axes[3].legend(frameon=False, bbox_to_anchor=(-.1, -.1), loc='upper center')
+    axes[3].annotate('', xy=(.5, 1), xytext=(-.65, 1), xycoords='axes fraction',
+                        arrowprops={'arrowstyle': '<->', 'color': 'k',
+                                    'connectionstyle': 'arc3,rad=-.3'})
+    axes[3].text(-.075, 1.2, r'$\frac{1}{f(x)}$', ha='center', va='bottom',
+                 transform=axes[3].transAxes)
 
     # from Eero, this is about what it should be
     V1_RF_size = .2 * ecc
@@ -2416,7 +2428,7 @@ def theory_background_figure(context):
     V1_pRF_size_offset = 0
     V1_pRF_size_error = 0.052780
 
-    for i, ax in enumerate(axes[:, 2].flatten()):
+    for i, ax in enumerate(axes[4:].flatten()):
         ax.fill_between(ecc, (V1_pRF_size_slope - V1_pRF_size_error/2.)*ecc + V1_pRF_size_offset,
                         (V1_pRF_size_slope + V1_pRF_size_error/2.)*ecc + V1_pRF_size_offset,
                         alpha=.1, color=pal[0])
@@ -2426,13 +2438,13 @@ def theory_background_figure(context):
                 ax.plot([0, 20], [V1_pRF_size_slope*e+V1_pRF_size_offset,
                                   V1_pRF_size_slope*e+V1_pRF_size_offset], '--', c='k',
                         linewidth=1)
-            ax.set(title="Full-field\ngratings", xticks=[], yticks=[])
+            ax.set(title="Full-field gratings", xticks=[], yticks=[])
         if i == 1:
             for j in [-1, -.5, 0, .5, 1]:
                 ax.plot(ecc, (V1_pRF_size_slope + j*V1_pRF_size_error/2.)*ecc + V1_pRF_size_offset,
                         linestyle='--', c='k', linewidth=1)
-            ax.set(xlabel='Eccentricity', xticks=[], yticks=[], title='Scaled\ngratings')
-        ax.set_ylabel("Preferred\nperiod (deg)")
+            ax.set(xlabel='Eccentricity', xticks=[], yticks=[], title='Scaled gratings')
+        ax.set_ylabel("Preferred period (deg)")
 
     return fig
 
@@ -2864,8 +2876,11 @@ def stimulus_schematic(stim, stim_df, context='paper'):
     stim_df = stim_df.query("stimulus_superclass not in ['baseline', 'mixtures', 'off-diagonal']")
     if 'angular' in stim_df.stimulus_superclass.unique():
         col_order = ['radial', 'angular', 'forward spiral', 'reverse spiral']
+        stim_type = 'relative'
     elif 'vertical' in stim_df.stimulus_superclass.unique():
         col_order = ['vertical', 'horizontal', 'forward diagonal', 'reverse diagonal']
+        stim_type = 'absolute'
+    pal = plotting.get_palette('stimulus_type', stim_type, col_order, True)
     for i, stim_type in enumerate(col_order):
         # get the lowest and second frequencies from each stimulus type (any
         # higher and it starts to alias at this resolution)
@@ -2876,7 +2891,8 @@ def stimulus_schematic(stim, stim_df, context='paper'):
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
         axes[-1, i].set_visible(False)
-        axes[0, i].set_title(stim_type.replace(' ', '\n'), rotation=30, va='bottom')
+        axes[0, i].set_title(stim_type.replace(' ', '\n'), rotation=0, va='bottom',
+                             bbox={'fc': 'none', 'ec': pal[stim_type], 'pad': 2})
     fig.text(.515, 1/3.5, '...', transform=fig.transFigure, fontsize='xx-large',
              va='center', ha='center')
     axes[0, 0].text(0, .5, 'Low base\nfrequency', transform=axes[0, 0].transAxes,
@@ -2889,7 +2905,6 @@ def stimulus_schematic(stim, stim_df, context='paper'):
                         xycoords='axes fraction',
                         arrowprops={'arrowstyle': '<-', 'color': '0',
                                     'connectionstyle': 'arc3'})
-    # axes[1, -1].annotate('', xy=(1.1, 1.035), xytext=(1.1, -.035), textcoords='axes fraction',
     axes[1, -1].annotate('', xy=(1.035, -.1), xytext=(-.035, -.1), textcoords='axes fraction',
                          xycoords='axes fraction',
                          arrowprops={'arrowstyle': '-', 'color': '0',
@@ -3338,4 +3353,69 @@ def feature_difference_plot(df, precision_df, diff_col='Visual field',
                                  plot_func=plotting.scatter_ci_dist, join=True,
                                  ci_mode='fill', draw_ctr_pts=False,
                                  **plot_kwargs)
+    return g
+
+
+def stimulus_frequency(df, context='paper', **kwargs):
+    """Show chosen w_r and w_a values.
+
+    This takes the first sub-plot from plotting.stimuli_properties() and
+    figure-ifies it, making it appropriate to insert in the paper.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Stimulus information dataframe.
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    g : sns.FacetGrid
+        Facetgrid containing this plot
+
+
+    """
+    params, fig_width = style.plotting_style(context, figsize='half')
+    params['axes.titlesize'] = '8'
+    params['axes.labelsize'] = '8'
+    params['legend.fontsize'] = '8'
+    warnings.warn("We adjust the font size for axes titles, labels, and legends down to "
+                  "8pts (so this will probably look wrong if context is not paper)!")
+    plt.style.use(params)
+    df = df.dropna()
+    df.class_idx = df.class_idx.astype(int)
+    df = df.drop_duplicates('class_idx').set_index('class_idx')
+    df = df.rename(columns={'index': 'stimulus_index'})
+    df = first_level_analysis._add_freq_metainfo(df)
+    pal = plotting.get_palette('stimulus_type', 'relative',
+                               df.stimulus_superclass.unique(),
+                               True)
+
+    g = sns.relplot(data=df, x='w_r', y='w_a', aspect=1,
+                    hue='stimulus_superclass', zorder=2,
+                    height=fig_width, palette=pal,
+                    hue_order=['radial', 'angular',
+                               'forward spiral',
+                               'reverse spiral',
+                               'mixtures'])
+    g.ax.set_aspect('equal')
+    # we create and then remove the legend so that matplotlib can find the
+    # legend info (we don't use seaborn's legend functionality so we can set
+    # the location more specifically)
+    g.legend.remove()
+    plt.legend(title='', loc=(.85, .55))
+
+    pal = sns.cubehelix_palette(10)
+    for r, c in zip(df.freq_space_distance[:10], pal):
+        w = mpl.patches.Wedge((0, 0), r, -90, 90, fc=c, ec=c, width=1,
+                              zorder=1)
+        g.ax.add_patch(w)
+    g.ax.axhline(linestyle='--', color='gray', zorder=0)
+    g.ax.axvline(linestyle='--', color='gray', zorder=0)
+    # because these are Latex, they appear a bit smaller
+    g.ax.set_xlabel(r'$\omega_r$', fontsize=1.25*float(params['axes.labelsize']))
+    g.ax.set_ylabel(r'$\omega_a$', fontsize=1.25*float(params['axes.labelsize']))
     return g

@@ -246,14 +246,15 @@ def pref_period_1d(bins_fig, pref_period_fig, save_path, context='paper'):
     ).save(save_path)
 
 
-def intro_figure(theory_fig, stim_fig, freq_fig, save_path, context='paper'):
-    """Create the first figure in the paper.
+def stimulus_figure(base_freq_fig, stim_fig, presented_freq_fig, save_path,
+                    context='paper'):
+    """Create the stimulus description figure.
 
     Parameters
     ----------
-    theory_fig, stim_fig, freq_fig
-        paths to the svg files containing the stimulus schematic, background
-        theory, and presented frequencies figures, respectively
+    base_freq_fig, stim_fig, presented_freq_fig
+        paths to the svg files containing the base frequency, stimulus
+        schematic, and presented frequencies figures, respectively
     save_path : str
         path to save the composed figure at
     context : {'paper', 'poster'}, optional
@@ -269,18 +270,51 @@ def intro_figure(theory_fig, stim_fig, freq_fig, save_path, context='paper'):
 
     compose.Figure(
         figure_width, figure_height,
-        SVG(theory_fig).move(-3, figure_height/5),
-        SVG(CONSTANT_CARTOON_PATH).scale(3).move(40, 127),
-        SVG(SCALING_CARTOON_PATH).scale(3).move(40, 243),
+        SVG(base_freq_fig).move(-3, figure_height/5),
+        # SVG(CONSTANT_CARTOON_PATH).scale(3).move(40, 127),
+        # SVG(SCALING_CARTOON_PATH).scale(3).move(40, 243),
         compose.Text("A", 5, figure_height/5+25, size=font_size, **text_params),
-        SVG(freq_fig).move(figure_width/2, figure_height/2+25),
+        SVG(presented_freq_fig).move(figure_width/2, figure_height/2+25),
         compose.Text("C", figure_width/2+10, figure_height/2+50, size=font_size,
                      **text_params),
-        SVG(stim_fig).move(figure_width/2, -10),
+        SVG(stim_fig).move(figure_width/2, -0),
         compose.Text("B", figure_width/2+10, 25, size=font_size,
                      **text_params),
     ).save(save_path)
 
+
+def background_figure(theory_fig, save_path, context='paper'):
+    """Create background theory figure.
+
+    Parameters
+    ----------
+    theory_fig :
+        path to the svg file containing the background theory figure.
+    save_path : str
+        path to save the composed figure at
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
+
+    """
+    text_params, figure_width = style.plotting_style(context, 'svgutils',
+                                                     'full')
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width * .5
+    font_size = _convert_to_pix(text_params.pop('size'))
+
+    compose.Figure(
+        figure_width, figure_height,
+        SVG(theory_fig).move(6, -7),
+        SVG(CONSTANT_CARTOON_PATH).scale(5).move(54, 22),
+        SVG(SCALING_CARTOON_PATH).scale(5).move(54, 22+140),
+        compose.Text("A", 14, -7+25, size=font_size, **text_params),
+        compose.Text("B", figure_width/4+19, figure_height/3-15, size=font_size,
+                     **text_params),
+        compose.Text("C", 3*figure_width/4-16, -7+25, size=font_size,
+                     **text_params),
+    ).save(save_path)
 
 def example_voxels(peakiness_fig, example_voxel_fig, save_path, context='paper'):
     """Create the example voxels figure.
