@@ -812,8 +812,8 @@ def input_schematic(context='paper', prf_loc=(250, 250), prf_radius=100,
     plotting.draw_arrow(ax, (500, 500), abs_prf_loc, arrowprops={'connectionstyle': 'arc3',
                                                                  'arrowstyle': '<-',
                                                                  'color': pal[1]})
-    ax.text(*e_loc, r'$e_v$')
-    ax.text(600, 500 + 100*np.sin(prf_angle/2), r'$\phi_v$')
+    ax.text(*e_loc, r'$r_v$')
+    ax.text(600, 500 + 100*np.sin(prf_angle/2), r'$\theta_v$')
     angle = mpl.patches.Arc((500, 500), 200, 200, 0, 0, np.rad2deg(prf_angle),
                             fc='none', ec=pal[1], linestyle='-')
     ax.add_artist(angle)
