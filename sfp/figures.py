@@ -1363,6 +1363,9 @@ def model_types(context='paper', palette_type='model', annotate=False,
 
     """
     params, fig_width = style.plotting_style(context, figsize='half')
+    # these ticks don't add anything and are confusing
+    params['xtick.bottom'] = False
+    params['ytick.left'] = False
     plt.style.use(params)
     figsize = (fig_width, fig_width)
     extra_space = 0
