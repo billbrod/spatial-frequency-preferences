@@ -2891,7 +2891,9 @@ def stimulus_schematic(stim, stim_df, context='paper'):
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
         axes[-1, i].set_visible(False)
-        axes[0, i].set_title(stim_type.replace(' ', '\n'), rotation=0, va='bottom',
+        # use the less-ambiguous label
+        plot_label = plotting.SUPERCLASS_PLOT_LABELS.get(stim_type, stim_type)
+        axes[0, i].set_title(plot_label.replace(' ', '\n'), rotation=0, va='bottom',
                              bbox={'fc': 'none', 'ec': pal[stim_type], 'pad': 2})
     fig.text(.515, 1/3.5, '...', transform=fig.transFigure, fontsize='xx-large',
              va='center', ha='center')
@@ -3392,6 +3394,9 @@ def stimulus_frequency(df, context='paper', **kwargs):
     pal = plotting.get_palette('stimulus_type', 'relative',
                                df.stimulus_superclass.unique(),
                                True)
+    # use the less-ambiguous labels for plotting
+    df.stimulus_superclass = df.stimulus_superclass.apply(lambda x: plotting.SUPERCLASS_PLOT_LABELS.get(x, x))
+    pal = {plotting.SUPERCLASS_PLOT_LABELS.get(k, k): v for k, v in pal.items()}
 
     def _focus(x):
         if x.name in [0, 10, 20, 30]:
@@ -3406,7 +3411,7 @@ def stimulus_frequency(df, context='paper', **kwargs):
     g = sns.relplot(data=df[df.focus == 'others'], x='w_r', y='w_a', aspect=1,
                     hue='stimulus_superclass', zorder=2,
                     height=fig_width, palette=pal,
-                    hue_order=['radial', 'angular',
+                    hue_order=['annulus', 'pinwheel',
                                'forward spiral',
                                'reverse spiral',
                                'mixtures'],)
@@ -3418,7 +3423,7 @@ def stimulus_frequency(df, context='paper', **kwargs):
                                       ['k', 'w', 'k'], [2, 1, 2])):
         g.map(sns.scatterplot, data=df[df.focus == lvl], x='w_r', y='w_a',
               hue='stimulus_superclass', zorder=3+i, palette=pal,
-              hue_order=['radial', 'angular',
+              hue_order=['annulus', 'pinwheel',
                          'forward spiral',
                          'reverse spiral',
                          'mixtures'],

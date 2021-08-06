@@ -27,6 +27,10 @@ from sklearn import linear_model
 LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'angular', 'reverse spiral', 'mixtures']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal',
                              'off-diagonal']
+# radial and angular are ambiguous labels -- do they refer to the direction of
+# the oscillation or the stripes? annulus and pinwheel are less ambiguous in
+# this regard, so we use them in the paper.
+SUPERCLASS_PLOT_LABELS = {'radial': 'annulus', 'angular': 'pinwheel'}
 ORIG_PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
                     ['%s_%s_%s' % (i, j, k) for j, i, k in
                      itertools.product(['mode', 'amplitude'], ['abs', 'rel'],
