@@ -3039,7 +3039,7 @@ rule presented_spatial_frequency_plot:
         pal = sfp.plotting.get_palette('freq_space_distance', None,
                                        df.freq_space_distance.unique())
         sns.lineplot(x='eccentricity', y='spatial_frequency',
-                     hue='freq_space_distance', data=df)
+                     hue='freq_space_distance', data=df, palette=pal)
         ax.set(yscale='log', xlabel='Eccentricity (deg)',
                ylabel='Presented spatial\nfrequency (cpd)')
         # turn the legend off
