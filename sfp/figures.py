@@ -3393,21 +3393,50 @@ def stimulus_frequency(df, context='paper', **kwargs):
                                df.stimulus_superclass.unique(),
                                True)
 
-    g = sns.relplot(data=df, x='w_r', y='w_a', aspect=1,
+    def _focus(x):
+        if x.name in [0, 10, 20, 30]:
+            return 'first'
+        elif x.name in [1, 11, 21, 31]:
+            return 'second'
+        elif x.name in [2, 12, 22, 32]:
+            return 'third'
+        else:
+            return 'others'
+    df['focus'] = df.apply(_focus, 1)
+    g = sns.relplot(data=df[df.focus == 'others'], x='w_r', y='w_a', aspect=1,
                     hue='stimulus_superclass', zorder=2,
                     height=fig_width, palette=pal,
                     hue_order=['radial', 'angular',
                                'forward spiral',
                                'reverse spiral',
-                               'mixtures'])
+                               'mixtures'],)
+    # This is the default edgewidth that seaborn's scatterplot uses
+    default_ew = .08*plt.rcParams['lines.markersize']
+    # this for loop allows us to tightly control the zorder, edgewidth, and
+    # edgecolor of these points (which are the ones closest to the origin)
+    for i, (lvl, ec, ew) in enumerate(zip(['third', 'second', 'first'],
+                                      ['k', 'w', 'k'], [2, 1, 2])):
+        g.map(sns.scatterplot, data=df[df.focus == lvl], x='w_r', y='w_a',
+              hue='stimulus_superclass', zorder=3+i, palette=pal,
+              hue_order=['radial', 'angular',
+                         'forward spiral',
+                         'reverse spiral',
+                         'mixtures'],
+              edgecolor=ec, linewidth=ew*default_ew)
     g.ax.set_aspect('equal')
     # we create and then remove the legend so that matplotlib can find the
     # legend info (we don't use seaborn's legend functionality so we can set
     # the location more specifically)
     g.legend.remove()
-    plt.legend(title='', loc=(.85, .55))
+    # we grab these handles specifically because we've plotted each
+    # stimulus_superclass multiple times -- we just want to grab one instance
+    # of each.
+    handles = [c for c in g.ax.collections[-5:]]
+    plt.legend(handles, [c.get_label() for c in handles],
+               title='', loc=(.85, .55))
 
-    pal = sns.cubehelix_palette(10)
+    pal = plotting.get_palette('freq_space_distance', None,
+                               df.freq_space_distance[:10])
     for r, c in zip(df.freq_space_distance[:10], pal):
         w = mpl.patches.Wedge((0, 0), r, -90, 90, fc=c, ec=c, width=1,
                               zorder=1)

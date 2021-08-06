@@ -3036,6 +3036,8 @@ rule presented_spatial_frequency_plot:
         plot_params['legend.fontsize'] = '8'
         plt.style.use(plot_params)
         fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.65))
+        pal = sfp.plotting.get_palette('freq_space_distance', None,
+                                       df.freq_space_distance.unique())
         sns.lineplot(x='eccentricity', y='spatial_frequency',
                      hue='freq_space_distance', data=df)
         ax.set(yscale='log', xlabel='Eccentricity (deg)',

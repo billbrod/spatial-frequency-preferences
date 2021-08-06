@@ -143,6 +143,8 @@ def get_palette(col, reference_frame=None, col_unique=None, as_dict=False,
         # I don't think we actually need distinct colors for model parameter,
         # so we plot them all black
         pal = ['k'] * len(col_unique)
+    elif col == 'freq_space_distance':
+        pal = sns.color_palette('gray', len(col_unique))
     else:
         pal = sns.color_palette('Blues', len(col_unique))
     # if col=='stimulus_type', this is already a dict
