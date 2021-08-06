@@ -2738,7 +2738,7 @@ def example_voxels(df, trained_model, voxel_idx=[2310, 2957, 1651], context='pap
     g.map_dataframe(_voxel_responses_and_predictions, x='plotting_sf',
                     y='Response (a.u.)', n_bins=len(canonical_freqs),
                     plot_type='reg')
-    g.set(xscale='log', ylim=(.05, .225), yticklabels=[], xlim=(.1, 10))
+    g.set(xscale='log', ylim=(.05, .225), yticks=[], xlim=(.1, 10))
     for i, ax in enumerate(g.axes.flatten()):
         vox_id = int(re.findall('voxel = (\d+)', ax.get_title())[0])
         ax.set_title(f"eccentricity = {df.query('voxel==@vox_id').eccen.unique()[0]:.02f}")
@@ -3017,8 +3017,7 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
                     x='Proportion of peak spatial frequency',
                     y='Response (a.u.)', plot_type='hist')
     # this range should highlight the curve
-    g.set(ylim=(.05, .225), yticklabels=[], xlim=(.1, 10),
-          xscale='log')
+    g.set(ylim=(.05, .225), yticks=[], xlim=(.1, 10), xscale='log')
     g.set_ylabels('Response (a.u.)')
     if col is not None:
         g.set_titles('{col_name}')
