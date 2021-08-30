@@ -514,6 +514,7 @@ def _summarize_1d(df, reference_frame, y, row, col, height, facetgrid_legend,
         seaborn FacetGrid object containing the plot
 
     """
+    print(height)
     pal = plotting.stimulus_type_palette(reference_frame)
     hue_order = plotting.get_order('stimulus_type', reference_frame)
     col_order, row_order = None, None
@@ -627,7 +628,7 @@ def pref_period_1d(df, context='paper', reference_frame='relative',
 
 
 def bandwidth_1d(df, context='paper', reference_frame='relative',
-                 row='session', col='subject', **kwargs):
+                 row='session', col='subject', units='octaves', **kwargs):
     """plot the bandwidth of the 1d model fits
 
     Note that we do not restrict the input dataframe in any way, so we
@@ -645,6 +646,10 @@ def bandwidth_1d(df, context='paper', reference_frame='relative',
         created by the summarize_tuning_curves.py script. If you want
         confidence intervals, this should be the "full" version of that
         df (i.e., including the fits to each bootstrap).
+    units : {'octaves', 'degrees}, optional
+        Whether to plot this data in octaves (in which case we expect it to be
+        flat with eccentricity) or degrees (in which case we expect it to scale
+        with eccentricity)
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in
         seaborn's set_context function). if poster, will scale things up
@@ -669,11 +674,19 @@ def bandwidth_1d(df, context='paper', reference_frame='relative',
     plt.style.use(params)
     if context == 'paper':
         facetgrid_legend = False
+        kwargs.setdefault('xlim', (0, 11.55))
     else:
         facetgrid_legend = True
-    g = _summarize_1d(df, reference_frame, 'tuning_curve_bandwidth', row, col,
+    if units == 'degrees':
+        if 'tuning_curve_bandwidth_degrees' not in df.columns:
+            df['tuning_curve_bandwidth_degrees'] = df.apply(utils._octave_to_degrees, 1)
+        y = 'tuning_curve_bandwidth_degrees'
+    elif units == 'octaves':
+        y = 'tuning_curve_bandwidth'
+        kwargs.setdefault('ylim', (0, 8))
+    g = _summarize_1d(df, reference_frame, y, row, col,
                       fig_width, facetgrid_legend, **kwargs)
-    g.set_ylabels('Tuning curve FWHM (octaves)')
+    g.set_ylabels(f'Tuning curve FWHM ({units})')
     if context != 'paper':
         g.fig.suptitle("Full-Width Half-Max of 1d tuning curves in each eccentricity band")
         g.fig.subplots_adjust(top=.85)
@@ -2802,7 +2815,7 @@ def example_eccentricity_bins(df, context='paper'):
                              figsize=(.6*2*height, height), 
                              gridspec_kw={'wspace': .1})
     artists = [axes[0].scatter([], [], s=0)]
-    labels = ['Eccentricity\nband']
+    labels = ['Eccentricity band']
     for i, (col, data) in enumerate(df.groupby('stimulus_superclass')):
         ax = axes[i]
         for s, d in data.groupby('Eccentricity band'):

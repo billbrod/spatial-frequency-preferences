@@ -497,3 +497,10 @@ def load_data(subject, session=None, task=None, df_mode='full',
         raise Exception("Cannot find unique first level results csv that satisfies all "
                         "specifications! Matching files: %s" % files)
     return create_data_dict(files[0], stim_dir)
+
+
+def _octave_to_degrees(x):
+    """Convert octaves to degrees, meant for mapping along 1d tuning curve results."""
+    lower = x.tuning_curve_peak * 2**(-x.tuning_curve_bandwidth/2)
+    upper = x.tuning_curve_peak * 2**(x.tuning_curve_bandwidth/2)
+    return upper - lower

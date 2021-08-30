@@ -2109,20 +2109,27 @@ rule figure_summarize_1d:
             if wildcards.groupaverage == 'sub-groupaverage':
                 raise Exception(f"Can't use sub-groupaverage with {wildcards.tuning_param}! Drop "
                                 "the '-overall'")
+            if 'degrees' in wildcards.tuning_param:
+                df['tuning_curve_bandwidth_degrees'] = df.apply(sfp.utils._octave_to_degrees, 1)
             col = {'pref-period-overall': 'preferred_period',
-                   'bandwidth-overall': 'tuning_curve_bandwidth'}[wildcards.tuning_param]
+                   'bandwidth-overall': 'tuning_curve_bandwidth',
+                   'bandwidth-degrees-overall': 'tuning_curve_bandwidth_degrees'}[wildcards.tuning_param]
             df = sfp.figures.append_precision_col(df, col)
             df = sfp.figures.precision_weighted_bootstrap(df, int(wildcards.seed), col=col,
                                                           precision_col=f"{col}_precision")
             col_wrap = None
         else:
             col_wrap = 3
+        kwargs = {}
         if wildcards.tuning_param.startswith('pref-period'):
             function = sfp.figures.pref_period_1d
         elif wildcards.tuning_param.startswith('bandwidth'):
             function = sfp.figures.bandwidth_1d
+            if 'degrees' in wildcards.tuning_param:
+                kwargs['units'] = 'degrees'
+                kwargs['ylim'] = (0, 20)
         g = function(df, wildcards.context, ref_frame[wildcards.task], row=None,
-                     col_wrap=col_wrap)
+                     col_wrap=col_wrap, **kwargs)
         g.fig.savefig(output[0], bbox_inches='tight')
 
 
@@ -2946,9 +2953,10 @@ def get_compose_input(wildcards):
                                                      ['pref-period', 'pref-period-contour', 'max-amp'])]
     elif '1d_summary' in wildcards.figure_name:
         groupaverage, seed = re.findall("([a-z-]+)_1d_summary_s-([0-9]+)", wildcards.figure_name)[0]
-        fig_name = f'{groupaverage}_1d_pref-period-overall_s-{seed}_task-sfprescaled_with_legend'
-        paths = [path_template % "example_ecc_bins",
-                 path_template.replace('figures', 'compose_figures') % fig_name]
+        period_name = f'{groupaverage}_1d_pref-period-overall_s-{seed}_task-sfprescaled_with_legend'
+        bw_name = f'{groupaverage}_1d_bandwidth-overall_s-{seed}_task-sfprescaled'
+        paths = [path_template.replace('figures', 'compose_figures') % period_name,
+                 path_template % bw_name]
     elif 'stimulus' in wildcards.figure_name:
         task = re.findall("_(task-[a-z]+)", wildcards.figure_name)[0]
         paths = [path_template % f'{task}_base_frequencies',
@@ -2968,6 +2976,8 @@ def get_compose_input(wildcards):
         df_filter, model, seed = re.findall("visual-field-diff_([a-z-]+)_([a-z_]+)_s-([0-9]+)", wildcards.figure_name)[0]
         paths = [path_template % f"visual-field-diff_comparison_task-sfprescaled_{df_filter}_{model}_s-{seed}",
                  path_template % f"visual-field-diff_diff_task-sfprescaled_{df_filter}_{model}_s-{seed}"]
+    elif 'example_ecc_bins_with_stim' in wildcards.figure_name:
+        paths = [path_template % 'example_ecc_bins']
     return paths
 
 
@@ -2996,8 +3006,7 @@ rule compose_figures:
             sfp.compose_figures.feature_df_summary(input[:3], input[3:],
                                                    output[0], wildcards.context)
         elif '1d_summary' in wildcards.figure_name:
-            sfp.compose_figures.pref_period_1d(input[0], input[1], output[0],
-                                               wildcards.context)
+            sfp.compose_figures.summary_1d(input[0], input[1], output[0], wildcards.context)
         elif 'stimulus' in wildcards.figure_name:
             sfp.compose_figures.stimulus_figure(input[0], input[1], input[2],
                                                 output[0], wildcards.context)
@@ -3013,6 +3022,9 @@ rule compose_figures:
         elif 'visual-field-diff' in wildcards.figure_name:
             sfp.compose_figures.visual_field_differences(input[0], input[1],
                                                          output[0], wildcards.context)
+        elif 'example_ecc_bins' in wildcards.figure_name:
+            sfp.compose_figures.example_ecc_bins(input[0], output[0], wildcards.context)
+
 
 rule presented_spatial_frequency_plot:
     input:
