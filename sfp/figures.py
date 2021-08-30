@@ -514,7 +514,6 @@ def _summarize_1d(df, reference_frame, y, row, col, height, facetgrid_legend,
         seaborn FacetGrid object containing the plot
 
     """
-    print(height)
     pal = plotting.stimulus_type_palette(reference_frame)
     hue_order = plotting.get_order('stimulus_type', reference_frame)
     col_order, row_order = None, None
