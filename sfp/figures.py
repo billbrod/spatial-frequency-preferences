@@ -2153,9 +2153,9 @@ def mtf(mtf_func, df=None, context='paper'):
     params, fig_width = style.plotting_style(context, figsize='half')
     plt.style.use(params)
     fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width*.65))
-    ax.semilogx(sfs, mtf_func(sfs), basex=2)
+    ax.semilogx(sfs, mtf_func(sfs), 'C0', basex=2)
     if df is not None:
-        ax.semilogx(df.display_freq, df.corrected_contrast, 'o', basex=2)
+        ax.semilogx(df.display_freq, df.corrected_contrast, 'C0o', basex=2)
     ticks = [512, 128, 32, 8, 2]
     ax.set(xticks=[1/i for i in ticks], xticklabels=ticks, xlabel='Pixels per period',
            ylabel='Michelson contrast', yticks=[.5, .75, 1])
