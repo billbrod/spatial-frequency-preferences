@@ -2978,6 +2978,9 @@ def get_compose_input(wildcards):
                  path_template % f"visual-field-diff_diff_task-sfprescaled_{df_filter}_{model}_s-{seed}"]
     elif 'example_ecc_bins_with_stim' in wildcards.figure_name:
         paths = [path_template % 'example_ecc_bins']
+    elif 'schematic_model_2d' in wildcards.figure_name:
+        paths = [path_template % 'schematic_2d-inputs',
+                 path_template.replace('figures', 'compose_figures') % 'schematic_2d_with_legend']
     return paths
 
 
@@ -2997,11 +3000,13 @@ rule compose_figures:
             sfp.compose_figures.crossvalidation(*input, output[0], wildcards.context)
         elif 'with_legend' in wildcards.figure_name:
             if '1d_pref-period-overall' in wildcards.figure_name:
-                sfp.compose_figures.add_legend(input[0], 'half', (143, 136), output[0],
-                                               1, 'rel', wildcards.context)
+                sfp.compose_figures.add_legend(input[0], 'half', (143, 136),
+                                               output[0], (0, 0), 1, 'rel',
+                                               wildcards.context)
             if 'schematic_2d' in wildcards.figure_name:
-                sfp.compose_figures.add_legend(input[0], 'full', (420, 55), output[0],
-                                               .3, 'rel', wildcards.context)
+                sfp.compose_figures.add_legend(input[0], 'half', (70, 0),
+                                               output[0], (0, 70), .8, 'rel',
+                                               wildcards.context)
         elif '2d_summary' in wildcards.figure_name:
             sfp.compose_figures.feature_df_summary(input[:3], input[3:],
                                                    output[0], wildcards.context)
@@ -3024,6 +3029,8 @@ rule compose_figures:
                                                          output[0], wildcards.context)
         elif 'example_ecc_bins' in wildcards.figure_name:
             sfp.compose_figures.example_ecc_bins(input[0], output[0], wildcards.context)
+        elif 'schematic_model_2d' in wildcards.figure_name:
+            sfp.compose_figures.schematic_model_2d(*input, output[0], wildcards.context)
 
 
 rule presented_spatial_frequency_plot:
@@ -3391,6 +3398,7 @@ rule figures_poster:
 rule figures_paper:
     input:
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'individual_1d_summary_s-8.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'example_ecc_bins_with_stim.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
@@ -3416,8 +3424,7 @@ rule figures_paper:
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'schematic_2d_with_legend.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'schematic_2d-inputs.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'schematic_model_2d.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "filter-mean_full_full_absolute_example_voxels.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "stimulus_task-sfprescaled.svg"),
@@ -3427,5 +3434,7 @@ rule figures_paper:
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'visual-field-diff_filter-mean_iso_full_iso_s-5.svg'),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
+                     "individual_v1_area_vs_period_linreg_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior_svg.txt"),
         # not sure if this one is necessary, it's for the work Noah's doing to create an equipotent stimuli
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv'),

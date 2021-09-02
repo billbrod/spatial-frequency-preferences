@@ -167,8 +167,9 @@ def feature_df_summary(rel_feature_df_plots, abs_feature_df_plots, save_path,
     ).save(save_path)
 
 
-def add_legend(figure, figsize, legend_location, save_path, aspect=1,
-               legend='rel', context='paper'):
+def add_legend(figure, figsize, legend_location, save_path,
+               figure_location=(0, 0), aspect=1, legend='rel',
+               context='paper'):
     """Add legend to figure.
 
     Note that we scale the legend by 3, but don't change the size of the figure
@@ -184,6 +185,8 @@ def add_legend(figure, figsize, legend_location, save_path, aspect=1,
         tuple specifying the x, y position of the legend
     save_path : str
         path to save the composed figure at
+    figure_location: tuple, optional
+        tuple specifying the x, y position of the figure
     aspect : float, optional
         aspect ratio of the figure to create
     legend : {'rel', 'abs'}
@@ -204,10 +207,11 @@ def add_legend(figure, figsize, legend_location, save_path, aspect=1,
         legend = REL_LEGEND_PATH
     elif legend == 'abs':
         legend = ABS_LEGEND_PATH
-    compose.Figure(figure_width, figure_height,
-                   SVG(figure),
-                   SVG(legend).scale(2.5).move(*legend_location),
-                   ).save(save_path)
+    compose.Figure(
+        figure_width, figure_height,
+        SVG(figure).move(*figure_location),
+        SVG(legend).scale(2.5).move(*legend_location),
+    ).save(save_path)
 
 
 def summary_1d(pref_period_fig, bw_fig, save_path, context='paper'):
@@ -437,11 +441,44 @@ def example_ecc_bins(ecc_bin_fig, save_path, context='paper'):
     text_params, figure_width = style.plotting_style(context, 'svgutils', 'full')
     figure_width = _convert_to_pix(figure_width)
     figure_height = figure_width / 2.2
+
+    compose.Figure(
+        figure_width, figure_height,
+        SVG(ecc_bin_fig).move(45, 0),
+        SVG(PINWHEEL_PATH).scale(5).move(130+45, 170),
+        SVG(ANNULUS_PATH).scale(5).move(270+45, 170),
+    ).save(save_path)
+
+
+def schematic_model_2d(inputs_fig, model_schematic_fig, save_path,
+                       context='paper'):
+    """Combine the schematics showing 2d model input and example preferred period contours.
+
+    Parameters
+    ----------
+    inputs_fig, model_schematic_fig
+        paths to the svg files containing the inputs and 2d model schematics
+        (showing preferred period contours), respectively
+    save_path : str
+        path to save the composed figure at
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in
+        seaborn's set_context function). if poster, will scale things up. Note
+        that, for this figure, only paper has really been checked
+
+    """
+    text_params, figure_width = style.plotting_style(context, 'svgutils',
+                                                     'full')
+    figure_width = _convert_to_pix(figure_width)
+    figure_height = figure_width / 2.2
     font_size = _convert_to_pix(text_params.pop('size'))
 
     compose.Figure(
         figure_width, figure_height,
-        SVG(ecc_bin_fig),
-        SVG(PINWHEEL_PATH).scale(5).move(130, 170),
-        SVG(ANNULUS_PATH).scale(5).move(270, 170),
+        SVG(inputs_fig).move(0, 0),
+        # we use the regular SVG here, because this has the legend applied, and
+        # so has been saved out correctly
+        compose.SVG(model_schematic_fig).move(figure_width/2-20, 10),
+        compose.Text("A", 0, 25, size=font_size, **text_params),
+        compose.Text("B", figure_width/2-10, 25, size=font_size, **text_params),
     ).save(save_path)

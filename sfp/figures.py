@@ -878,7 +878,7 @@ def model_schematic(context='paper'):
         Figure containing the schematic
 
     """
-    params, fig_width = style.plotting_style(context, figsize='full')
+    params, fig_width = style.plotting_style(context, figsize='half')
     plt.style.use(params)
     figsize = (fig_width, fig_width/3)
     if context == 'paper':
@@ -895,9 +895,12 @@ def model_schematic(context='paper'):
     # we can't use the plotting.feature_df_plot / feature_df_polar_plot
     # functions because they use FacetGrids, each of which creates a
     # separate figure and we want all of this to be on one figure.
-    fig, axes = plt.subplots(1, 4, figsize=figsize,
+    fig, axes = plt.subplots(1, 3, figsize=figsize,
                              subplot_kw={'projection': 'polar'})
-    labels = [r'$p_1>p_2>0$', r'$p_3>p_4>0$', r'$p_1=p_3>p_2=p_4>0$']
+    labels = [r'$p_1>p_2>0$', r'$p_3>p_4>0$',
+              # can't have a newline in a raw string, so have to combine them
+              # in the last label here
+              r'$p_1=p_3>$'+'\n'+r'$p_2=p_4>0$']
 
     for i, (m, ax) in enumerate(zip([abs_model, rel_model, full_model], axes)):
         plotting.model_schematic(m, [ax], [(-.1, 3)], False,
@@ -912,7 +915,6 @@ def model_schematic(context='paper'):
         ax.set_title(labels[i])
         ax.set(xticklabels=[], yticklabels=[])
 
-    axes[-1].set_visible(False)
     fig.subplots_adjust(wspace=.075)
 
     return fig
