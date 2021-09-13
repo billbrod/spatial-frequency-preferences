@@ -2560,6 +2560,7 @@ def _create_model_prediction_df(df, trained_model, voxel_label,
 
     """
     data = {}
+    assert df.eccen.nunique() == 1 and df.angle.nunique() == 1, "_create_model_prediction_df must be called on the df with responses to a single voxel!"
     sfs = df.drop_duplicates('stimulus_class')[['local_sf_magnitude',
                                                 'local_sf_xy_direction']]
     sfs = torch.tensor(sfs.values)
@@ -2575,7 +2576,7 @@ def _create_model_prediction_df(df, trained_model, voxel_label,
         freqs = []
         for a in angles:
             peak_sf.append(trained_model.preferred_sf(a, prf_loc[0, 0], prf_loc[0, 1]).item())
-            freqs.extend(np.logspace(np.log10(peak_sf[-1]/10), np.log10(peak_sf[-1]*10), 12))
+            freqs.extend(np.logspace(np.log10(peak_sf[-1]/100), np.log10(peak_sf[-1]*100), 12))
         sfs = torch.tensor([freqs, np.concatenate([12*[a] for a in angles])]).transpose(0, 1)
         peak_sf = np.concatenate([12*[p] for p in peak_sf])
         data['peak_sf'] = peak_sf
@@ -3036,7 +3037,7 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
                     x='Proportion of peak spatial frequency',
                     y='Response (a.u.)', plot_type='hist')
     # this range should highlight the curve
-    g.set(ylim=(.05, .225), yticks=[], xlim=(.1, 10), xscale='log')
+    g.set(ylim=(0, .225), xlim=(.01, 100), xscale='log')
     g.set_ylabels('Response (a.u.)')
     if col is not None:
         g.set_titles('{col_name}')
