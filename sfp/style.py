@@ -40,7 +40,7 @@ def plotting_style(context='paper', for_package='matplotlib', figsize='full'):
         params = {'figure.facecolor': 'white', 'axes.labelcolor': '.15',
                   'xtick.direction': 'out', 'ytick.direction': 'out',
                   'xtick.color': '.15', 'ytick.color': '.15',
-                  'axes.axisbelow': True, 'grid.linestyle': '',
+                  'axes.axisbelow': True, 'grid.linestyle': '-',
                   'text.color': '.15', 'font.family': ['sans-serif'],
                   'font.sans-serif': ['Helvetica'],
                   'lines.solid_capstyle': 'round', 'patch.edgecolor': 'w',

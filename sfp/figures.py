@@ -2976,6 +2976,11 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
 
     """
     params, fig_width = style.plotting_style(context, figsize='full')
+    # for some reason, we also draw the grid in this figure, even when
+    # axes.grid is set to False. so, we manually set the linestyle to nothing
+    # in order to avoid drawing the grid lines. (we don't want to do this in
+    # the style params because we *do* want to draw the grid for polar plots)
+    params['grid.linestyle'] = ''
     plt.style.use(params)
     ax_height = (fig_width / 4) / .75
     if not isinstance(dfs, list):
