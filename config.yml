@@ -1,10 +1,26 @@
-DATA_DIR: "/users/broderick/mnt/winawerlab/Projects/spatial_frequency_preferences/BIDS"
-MRI_TOOLS: "/users/broderick/Documents/MRI_tools"
-FREESURFER_DIR: "/share/apps/freesurfer/6.0.0"
-GLMDENOISE_PATH: "/users/broderick/Documents/MATLAB/toolboxes/GLMdenoise"
+# The root of the BIDS directory.
+DATA_DIR: "/mnt/winawerlab/Projects/spatial_frequency_preferences/to_share"
+
+# Path of the Winawer Lab MRI_Tools repo. Only necessary if you're running the
+# preprocessing step
+MRI_TOOLS: "/home/billbrod/Documents/MRI_tools"
+
+# Working directory for preprocessing. Only necessary if you're running the
+# preprocessing step.
 WORKING_DIR: "/users-local/broderick/preprocess"
-VISTASOFT_PATH: "/users/broderick/Documents/MATLAB/toolboxes/vistasoft"
+
+# Path to the GLMdenoise MATLAB toolbox. Only necessary if you're running the
+# GLMdenoise steps.
+GLMDENOISE_PATH: "/home/billbrod/Documents/MATLAB/toolboxes/GLMdenoise"
+
+# Path to the Vistasoft MATLAB toolbox. Only necessary if you're running the
+# GLMdenoise step
+VISTASOFT_PATH: "/home/billbrod/Documents/MATLAB/toolboxes/vistasoft"
+
+# The following paths were all used in the initial copying of data into the
+# BIDS-compliant format we shared. They will not be necessary for anyone else's
+# analysis.
 TESLA_DIR: "/mnt/Tesla/spatial_frequency_preferences"
 EXTRA_FILES_DIR: "/mnt/winawerlab/Projects/spatial_frequency_preferences/extra_files"
-SUBJECTS_DIR: "/users/broderick/mnt/winawerlab/Freesurfer_subjects"
-RETINOTOPY_DIR: "/users/broderick/mnt/winawerlab/Projects/Retinotopy/BIDS"
+SUBJECTS_DIR: "/mnt/winawerlab/Freesurfer_subjects"
+RETINOTOPY_DIR: "/mnt/winawerlab/Projects/Retinotopy/BIDS"
