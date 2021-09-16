@@ -27,7 +27,10 @@ and recreating the figures, read further on in this README for details:
 3. Install the python environment:
    - Install [miniconda](https://docs.conda.io/en/latest/miniconda.html) on your
      system for python 3.7.
-   - Navigate to this directory and run `conda env create -f environment.yml`.
+   - Install [mamba](https://github.com/mamba-org/mamba): `conda install mamba
+     -n base -c conda-forge`
+   - Navigate to this directory and run `mamba env create -f environment.yml` to
+     install the environment.
    - Run `conda activate sfp` to activate the python environment.
 4. Run `python download_data.py preprocessed` to download the preprocessed data.
 5. Run `python download_data.py fully` to download the fully-processed data
@@ -80,6 +83,16 @@ MRI_tools](https://github.com/WinawerLab/MRI_tools), commit
 [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e).
 The results shouldn't change substantially if pre-processed using fMRIPrep. This
 repo is included in the docker and reprozip options.
+
+##### Troubleshooting
+
+If `conda env create -f environment.yml` seems to be taking forever, it's having
+trouble solving the environment. This is a known issue and someone has put
+together the drop-in replacement `mamba`, which is much faster. Once you've
+installed `miniconda`, you can install `mamba` with `conda install mamba -n base
+-c conda-forge`, and then replace `conda` with `mamba` in the install command:
+`mamba env create -f environment.yml`; in my experience, this runs much more
+quickly. You then activate the environment as normal: `conda activate sfp`.
 
 ### Experimental environment
 
