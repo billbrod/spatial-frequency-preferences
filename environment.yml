@@ -4,21 +4,15 @@ channels:
   - defaults
   - bioconda
 dependencies:
-  - python==3.6.3
-  - anaconda
+  - python>=3.6,<3.8
   - pip
-  - jupyter
-  - jupyterlab
-  - ipykernel
-  - numpy==1.16
+  - numpy=1.16
   - matplotlib==3.0.3
   - scipy
   - seaborn>=0.11
-  - statsmodels
   - pandas>=0.25
   - pyyaml
   - nipype>=1.1.1
-  - pillow
   - h5py
   - nibabel
   - scikit-learn
