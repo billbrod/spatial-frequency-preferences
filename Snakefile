@@ -448,12 +448,22 @@ rule stimuli_idx_old:
         "python -m sfp.stimuli --subject_name {wildcards.subject} -i -s {params.seed}"
 
 
+def get_seed(wildcards):
+    try:
+        seed = SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+    except KeyError:
+        warnings.warn(f"Subject {wildcards.subject} with session {wildcards.session} "
+                      "not in list of included subjects / sessions; setting seed=0")
+        seed = 0
+    return seed
+
+
 # current way of generating stimuli, uses both subject and session name
 rule stimuli_idx:
     output:
         ["data/stimuli/{subject}_{session}_run%02d_idx.npy" % i for i in range(12)]
     params:
-        seed = lambda wildcards: SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+        seed = get_seed,
     shell:
         "python -m sfp.stimuli --subject_name {wildcards.subject}_{wildcards.session}"
         " -i -s {params.seed}"
@@ -3111,9 +3121,9 @@ rule sigma_interpretation:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}.txt")
     log:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}-%j.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}-%j.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}_benchmark.txt")
     run:
         import pandas as pd
         import sfp
@@ -3139,9 +3149,9 @@ rule predicted_bold:
         # a temporary thing that doesn't end up in the paper.
         os.path.join('data', 'tuning_2d_model', '{task}_params-{param_set}_predicted-bold.pkl'),
     log:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{task}_params-{param_set}_bold.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{task}_params-{param_set}_bold.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{task}_params-{param_set}_bold_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{task}_params-{param_set}_bold_benchmark.txt")
     run:
         import sfp
         import pickle
@@ -3397,19 +3407,27 @@ rule figures_poster:
 
 rule figures_paper:
     input:
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'individual_1d_summary_s-8.svg'),
+        # main figures
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "background.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "stimulus_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'schematic_model_2d.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'example_ecc_bins_with_stim.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-                     "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'individual_1d_summary_s-8.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
                      'crossvalidation_s-3_filter-mean_doubleup.svg'),
-        # not sure this is necessary, we're not using noise-ceiling right now
-        # os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-        #              "individual_filter-mean_cv_raw-nc_v_s-3_task-sfprescaled.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
-                     'individual_filter-mean_full_full_absolute_2d_summary_s-5.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "filter-mean_full_full_absolute_example_voxels.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
                      'individual_filter-mean_full_full_absolute_parameters_s-5.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper',
+                     'individual_filter-mean_full_full_absolute_2d_summary_s-5.svg'),
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
+                     "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
+        # appendix figures
+        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
+                     "individual_v1_area_vs_period_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'visual-field-diff_filter-mean_iso_full_iso_s-5.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_relative.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
@@ -3422,19 +3440,22 @@ rule figures_paper:
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_relative.svg'),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_max-amp_bootstraps_angles-all_s-None_task-sfprescaled_absolute.svg'),
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
-                     "individual_filter-mean_task-sfprescaled_background_period_full_full_absolute_s-5.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'schematic_model_2d.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', 'mtf.svg'),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "filter-mean_full_full_absolute_example_voxels.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "stimulus_task-sfprescaled.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "background.svg"),
-        os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
-                     "individual_v1_area_vs_period_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior.svg"),
-        os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'visual-field-diff_filter-mean_iso_full_iso_s-5.svg'),
+        # txt files used to get numbers in the paper
         os.path.join(config['DATA_DIR'], "derivatives", 'figures',
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_v1_area_vs_period_linreg_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior_svg.txt"),
+        # not sure this is necessary, we're not using noise-ceiling right now
+        # os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
+        #              "individual_filter-mean_cv_raw-nc_v_s-3_task-sfprescaled.svg"),
         # not sure if this one is necessary, it's for the work Noah's doing to create an equipotent stimuli
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv'),
+    output:
+        [os.path.join('reports', 'paper_figures', 'fig-{:02d}').format(i) for i in range(1, 12)],
+        [os.path.join('reports', 'paper_figures', 'fig-S{:02d}').format(i) for i in range(1, 10)],
+        os.path.join('reports', 'paper_figures', 'sigma_interpretation.txt'),
+        os.path.join('reports', 'paper_figures', 'v1_size_interpretation.txt'),
+    run:
+        import shutil
+        for input_f, output_f in zip(input, output):
+            shutil.copy(input_f, output_f)

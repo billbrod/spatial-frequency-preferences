@@ -2560,6 +2560,7 @@ def _create_model_prediction_df(df, trained_model, voxel_label,
 
     """
     data = {}
+    assert df.eccen.nunique() == 1 and df.angle.nunique() == 1, "_create_model_prediction_df must be called on the df with responses to a single voxel!"
     sfs = df.drop_duplicates('stimulus_class')[['local_sf_magnitude',
                                                 'local_sf_xy_direction']]
     sfs = torch.tensor(sfs.values)
@@ -2573,19 +2574,17 @@ def _create_model_prediction_df(df, trained_model, voxel_label,
         angles = angles.local_sf_xy_direction.values
         peak_sf = []
         freqs = []
+        n_samps = 36
         for a in angles:
             peak_sf.append(trained_model.preferred_sf(a, prf_loc[0, 0], prf_loc[0, 1]).item())
-            freqs.extend(np.logspace(np.log10(peak_sf[-1]/10), np.log10(peak_sf[-1]*10), 12))
-        sfs = torch.tensor([freqs, np.concatenate([12*[a] for a in angles])]).transpose(0, 1)
-        peak_sf = np.concatenate([12*[p] for p in peak_sf])
+            freqs.extend(np.logspace(np.log10(peak_sf[-1]/100), np.log10(peak_sf[-1]*100), n_samps))
+        sfs = torch.tensor([freqs, np.concatenate([n_samps*[a] for a in angles])]).transpose(0, 1)
+        peak_sf = np.concatenate([n_samps*[p] for p in peak_sf])
         data['peak_sf'] = peak_sf
         data['local_sf_magnitude'] = sfs[:, 0].detach().numpy()
-        if len(sfs) != 48:
-            raise Exception("Must have 48 spatial frequencies to evaluate at in "
-                            "order to make everything line up!")
         # we use the same norm as before, in order to make sure things line up correctly
         predictions = trained_model.evaluate(sfs[:, 0], sfs[:, 1],
-                                             prf_loc[:, 0], prf_loc[:, 1])
+                                             prf_loc[0, 0], prf_loc[0, 1])
     else:
         data['stimulus_class'] = np.arange(48)
     data['model_predictions'] = (predictions / predictions_norm).detach().squeeze()
@@ -2977,6 +2976,11 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
 
     """
     params, fig_width = style.plotting_style(context, figsize='full')
+    # for some reason, we also draw the grid in this figure, even when
+    # axes.grid is set to False. so, we manually set the linestyle to nothing
+    # in order to avoid drawing the grid lines. (we don't want to do this in
+    # the style params because we *do* want to draw the grid for polar plots)
+    params['grid.linestyle'] = ''
     plt.style.use(params)
     ax_height = (fig_width / 4) / .75
     if not isinstance(dfs, list):
@@ -3036,7 +3040,7 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
                     x='Proportion of peak spatial frequency',
                     y='Response (a.u.)', plot_type='hist')
     # this range should highlight the curve
-    g.set(ylim=(.05, .225), yticks=[], xlim=(.1, 10), xscale='log')
+    g.set(ylim=(0, .225), yticks=[], xlim=(.01, 100), xscale='log')
     g.set_ylabels('Response (a.u.)')
     if col is not None:
         g.set_titles('{col_name}')
