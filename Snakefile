@@ -3111,9 +3111,9 @@ rule sigma_interpretation:
     output:
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}.txt")
     log:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}-%j.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}-%j.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{groupaverage}_{df_filter}_{model_type}_sigma-interp_visualfield-{vf}_s-{seed}_{task}_benchmark.txt")
     run:
         import pandas as pd
         import sfp
@@ -3139,9 +3139,9 @@ rule predicted_bold:
         # a temporary thing that doesn't end up in the paper.
         os.path.join('data', 'tuning_2d_model', '{task}_params-{param_set}_predicted-bold.pkl'),
     log:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{task}_params-{param_set}_bold.log")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{task}_params-{param_set}_bold.log")
     benchmark:
-        os.path.join(config['DATA_DIR'], "derivatives", "code", 'figures', "{task}_params-{param_set}_bold_benchmark.txt")
+        os.path.join(config['DATA_DIR'], "code", 'figures', "{task}_params-{param_set}_bold_benchmark.txt")
     run:
         import sfp
         import pickle
