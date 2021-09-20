@@ -145,7 +145,28 @@ use-case:
    BIDS-inspired.
 3. `fully`: Fully-processed data is shared on the [OSF](https://osf.io/djak4/).
    If you just want to re-create our figures, this is what you should use. It is
-   also not fully BIDS-compliant, but BIDS-inspired.
+   also not fully BIDS-compliant, but BIDS-inspired. This contains:
+   - The outputs of the "first-level analysis" step, which contains the median
+     amplitude response of each vertex in V1 to our stimuli (as computed by
+     GLMdenoise), and each vertex's population receptive field locations.
+   - A csv summarizing the outputs of our 1d analysis, containing the parameters
+     for each tuning curve fit to the different stimuli classes and
+     eccentricities for each subject, across all bootstraps.
+   - A csv containing that information for a single subject.
+   - For each subject, the trained model for our best submodel (as determined by
+     crossvalidation), fit to each voxel's median response.
+   - A csv summarizing those models.
+   - A csv summarizing the cross-validation loss for our model comparison
+     analysis.
+   - A csv summarizing the models fit to each subject, bootstrapping across
+     runs, for the best submodel.
+   - A csv containing the parameters for the best submodel, bootstrapped across
+     subjects.
+   - Two csvs, one for the quarters around the vertical meridia, one for the
+     quarters around the horizontal meridia, summarizing a simple model
+     (preferred period is an affine function of eccentricity, no dependency on
+     orientation, no modulation of relative gain) fit to a subset of the visual
+     field.
    
 Note that both the partially-processed and fully-processed data require the
 OpenNeuro dataset (though the fully-processed data does not require the
