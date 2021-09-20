@@ -448,12 +448,22 @@ rule stimuli_idx_old:
         "python -m sfp.stimuli --subject_name {wildcards.subject} -i -s {params.seed}"
 
 
+def get_seed(wildcards):
+    try:
+        seed = SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+    except KeyError:
+        warnings.warn(f"Subject {wildcards.subject} with session {wildcards.session} "
+                      "not in list of included subjects / sessions; setting seed=0")
+        seed = 0
+    return seed
+
+
 # current way of generating stimuli, uses both subject and session name
 rule stimuli_idx:
     output:
         ["data/stimuli/{subject}_{session}_run%02d_idx.npy" % i for i in range(12)]
     params:
-        seed = lambda wildcards: SUB_SEEDS[wildcards.subject] + SES_SEEDS[wildcards.session]
+        seed = get_seed,
     shell:
         "python -m sfp.stimuli --subject_name {wildcards.subject}_{wildcards.session}"
         " -i -s {params.seed}"
