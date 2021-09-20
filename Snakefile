@@ -3445,9 +3445,6 @@ rule figures_paper:
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_v1_area_vs_period_linreg_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior_svg.txt"),
-        # not sure this is necessary, we're not using noise-ceiling right now
-        # os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
-        #              "individual_filter-mean_cv_raw-nc_v_s-3_task-sfprescaled.svg"),
         # not sure if this one is necessary, it's for the work Noah's doing to create an equipotent stimuli
         os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv'),
     output:
