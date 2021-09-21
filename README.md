@@ -45,12 +45,19 @@ and recreating the figures, read further on in this README for details:
    
 ## Notebooks
 
-We also include a jupyter notebook with examples of how to use the 2d tuning
-model described in the paper. If you'd like to use it, you can either view it on
+We also include several jupyter notebooks in the `notebooks/` directory:
+
+- `How-to-use-model`: examples of how to use the 2d tuning model described in
+  the paper.
+- `Stimuli`: some explorationg of how to create the stimuli and visualize linear
+  approximations thereof.
+
+If you'd like to use them, you can either view it on
 [Binder](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/HEAD?filepath=notebooks)
 or [install
 jupyter](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html)
-so you can view it locally.
+so you can view it locally (you can also view a static version of the notebooks
+using [nbviewer](https://nbviewer.jupyter.org/)).
 
 If you would like to install jupyter locally and are unfamiliar with it, there
 are two main ways of getting it working (after setting up your [conda
