@@ -833,6 +833,7 @@ def plot_grating_approximation(grating, dx, dy, num_windows=10, phase=0, w_r=Non
     # in order to make the space between the masks black, that area should have the minimum
     # value, -1. but for the above to all work, that area needs to be 0, so this corrects that.
     masked_approx[~masks.astype(bool)] -= 1
+    masked_grating[~masks.astype(bool)] -= 1
     _plot_grating_approx_and_save(masked_grating, 'grating', save_path, **kwargs)
     _plot_grating_approx_and_save(masked_approx, 'approx', save_path, **kwargs)
     return masked_grating, masked_approx
