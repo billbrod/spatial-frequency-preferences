@@ -112,18 +112,17 @@ Both csvs have five columns: fit_model_type, model_parameter, subject, bootstrap
 - `fit_value` (float): the actual value of the parameter.
 - `model_parameter` (str): the (long) name of the model parameter. The following
   gives the mapping between the two:
-
-- `'sigma'`: <img src="https://latex.codecogs.com/gif.latex?\sigma" />
-- `'sf_ecc_slope'`: <img src="https://latex.codecogs.com/gif.latex?a" />
-- `'sf_ecc_intercept'`: <img src="https://latex.codecogs.com/gif.latex?b" />
-- `'abs_mode_cardinals'`: <img src="https://latex.codecogs.com/gif.latex?p_1" />
-- `'abs_mode_obliques'`: <img src="https://latex.codecogs.com/gif.latex?p_2" />
-- `'rel_mode_cardinals'`: <img src="https://latex.codecogs.com/gif.latex?p_3" />
-- `'rel_mode_obliques'`: <img src="https://latex.codecogs.com/gif.latex?p_4" />
-- `'abs_amplitude_cardinals'`: <IMG SRC="HTTPS://LATEX.CODECOGS.COM/GIF.LATEX?A_1" />
-- `'abs_amplitude_obliques'`: <img src="https://latex.codecogs.com/gif.latex?A_2 " />
-- `'rel_amplitude_cardinals'`: <IMG SRC="HTTPS://LATEX.CODECOGS.COM/GIF.LATEX?A_3" />
-- `'rel_amplitude_obliques'`: <IMG SRC="HTTPS://LATEX.CODECOGS.COM/GIF.LATEX?A_4" />
+  - `'sigma'`: <img src="https://latex.codecogs.com/gif.latex?\sigma" />
+  - `'sf_ecc_slope'`: <img src="https://latex.codecogs.com/gif.latex?a" />
+  - `'sf_ecc_intercept'`: <img src="https://latex.codecogs.com/gif.latex?b" />
+  - `'abs_mode_cardinals'`: <img src="https://latex.codecogs.com/gif.latex?p_1" />
+  - `'abs_mode_obliques'`: <img src="https://latex.codecogs.com/gif.latex?p_2" />
+  - `'rel_mode_cardinals'`: <img src="https://latex.codecogs.com/gif.latex?p_3" />
+  - `'rel_mode_obliques'`: <img src="https://latex.codecogs.com/gif.latex?p_4" />
+  - `'abs_amplitude_cardinals'`: <img src="https://latex.codecogs.com/gif.latex?A_1" />
+  - `'abs_amplitude_obliques'`: <img src="https://latex.codecogs.com/gif.latex?A_2 " />
+  - `'rel_amplitude_cardinals'`: <img src="https://latex.codecogs.com/gif.latex?A_3" />
+  - `'rel_amplitude_obliques'`: <img src="https://latex.codecogs.com/gif.latex?A_4" />
  
 See the [included How-to-use-model notebook](#notebooks) for details about how
 to use these csvs with our model.
