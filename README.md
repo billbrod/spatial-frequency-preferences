@@ -49,7 +49,7 @@ We also include several jupyter notebooks in the `notebooks/` directory:
 
 - `How-to-use-model`: examples of how to use the 2d tuning model described in
   the paper.
-- `Stimuli`: some explorationg of how to create the stimuli and visualize linear
+- `Stimuli`: some exploration of how to create the stimuli and visualize linear
   approximations thereof.
 
 If you'd like to use them, you can either view it on
@@ -348,6 +348,12 @@ If you wish to use the existing stimuli to run the experiment, you can do so for
    stimulus classes and 10 blank trials, each for 4 seconds, with 16 seconds of
    blank screen at the beginning and end of each run).
 
+Note that unless you use one of the subject names used in our project (i.e.,
+`sub-wlsubj045`), the presentation index will be generated with `seed=0` (a
+warning is raised to this effect when you create them). Therefore, all new
+subjects will have the same presentation order, which is not what you want for
+an actual experiment.
+
 # Getting help
 
 Reproducing someone else's research code is hard and, in all likelihood, you'll
@@ -372,15 +378,15 @@ the fit the model, though it does contain the loss function we used,
    
 # Citation
 
-If you use the data or code from this project in an academic publication, please
-cite the paper (**LINK**). Additionally:
+If you use the data or code (including the stimuli) from this project in an
+academic publication, please cite the paper (**LINK**). Additionally:
 1. If you use the code in this or any of the linked repos
    [above](#related-repos) directly (for example, using it to generate the
    log-polar stimuli, modifying that code to create a similar set of stimuli,
    using the model code directly, adapting the code to extend the model, or
    re-running the analysis on a novel dataset), please cite this Github repo's
    Zenodo doi (**LINK**).
-2. If you use re-analyze the data without using the code here, please cite the
+2. If you re-analyze the data without using the code here, please cite the
    dataset's OpenNeuro doi (*LINK*).
 3. If you reproduce our analysis on our data, please cite both the Github repo's
    Zenodo doi and the dataset's OpenNeuro doi.
