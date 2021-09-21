@@ -1327,7 +1327,7 @@ rule model:
     resources:
         # need the same number of cpus and gpus
         cpus_per_task = lambda wildcards: max(int(wildcards.gpus), 1),
-        mem = lambda wildcards: {'full': 40, 'summary': 1}[wildcards.df_mode],
+        mem = lambda wildcards: {'full': 60, 'summary': 2}[wildcards.df_mode],
         gpus = lambda wildcards: int(wildcards.gpus)
     params:
         save_stem = lambda wildcards, output: output[0].replace("_loss.csv", ''),
