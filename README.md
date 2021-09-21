@@ -1,5 +1,6 @@
 Spatial frequency preferences
 ==============================
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/HEAD?filepath=notebooks)
 
 An fMRI experiment to determine the relationship between spatial
 frequency and eccentricity in the human early visual cortex.
@@ -42,12 +43,97 @@ and recreating the figures, read further on in this README for details:
    can be converted to pdfs using [inkscape](https://inkscape.org/) or Adobe
    Illustrator.
    
+## Notebooks
+
+We also include a jupyter notebook with examples of how to use the 2d tuning
+model described in the paper. If you'd like to use it, you can either view it on
+[Binder](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/HEAD?filepath=notebooks)
+or [install
+jupyter](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html)
+so you can view it locally.
+
+If you would like to install jupyter locally and are unfamiliar with it, there
+are two main ways of getting it working (after setting up your [conda
+environment](#conda-environment)):
+
+1. Install jupyter in this `sfp` environment: 
+
+``` sh
+conda activate sfp
+conda install -c conda-forge jupyterlab
+```
+
+   This is easy but, if you have multiple conda environments and want to use
+   Jupyter notebooks in each of them, it will take up a lot of space.
+   
+2. Use [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels):
+
+``` sh
+# activate your 'base' environment, the default one created by miniconda
+conda activate 
+# install jupyter lab and nb_conda_kernels in your base environment
+conda install -c conda-forge jupyterlab
+conda install nb_conda_kernels
+# install ipykernel in the sfp environment
+conda install -n sfp ipykernel
+```
+
+   This is a bit more complicated, but means you only have one installation of
+   jupyter lab on your machine.
+   
+In either case, to open the notebooks, navigate to this directory on your
+terminal and activate the environment you install jupyter into (`sfp`
+for 1, `base` for 2), then run `jupyter` and open up the notebook. If you
+followed the second method, you should be prompted to select your kernel the
+first time you open a notebook: select the one named "sfp".
+
+## Model parameters
+
+`data/tuning_2d_model` contains two csv files containing the parameter values
+presented in the paper:
+
+- `combined_subject_params.csv` contains the parameter values from combining
+  across subjects, as presented in the main body of the paper.
+- `individual_subject_params.csv` contains the parameter values from each
+  subject individually, as shown in Figure 9B and the appendix.
+
+Both csvs have five columns: fit_model_type, model_parameter, subject, bootstrap_num and fit_value:
+
+- `fit_model_type` (str): the (long) name of this submodel. Both csvs only
+  contain a single model, which corresponds to model 9 in our paper, the
+  best-fit one.
+- `subject` (str): the subject whose parameters these are. In
+  combined_subject_params, there's only one subject, 'all'.
+- `bootstrap_num` (int): the bootstrap number. Each combination of
+  model_parameter and subject has 100 bootstraps. For combined_subject_params,
+  these are the bootstraps used to combine across subjects in a
+  precision-weighted average. For individual_subject_params, these are the
+  bootstraps across fMRI runs. See paper for more details.
+- `fit_value` (float): the actual value of the parameter.
+- `model_parameter` (str): the (long) name of the model parameter. The following
+  gives the mapping between the two:
+
+{`'sigma'`: '$\sigma$',
+ `'sf_ecc_slope'`: '$a$',
+ `'sf_ecc_intercept'`: '$b$',
+ `'abs_mode_cardinals'`: '$p_1$',
+ `'abs_mode_obliques'`: '$p_2$',
+ `'rel_mode_cardinals'`: '$p_3$',
+ `'rel_mode_obliques'`: '$p_4$',
+ `'abs_amplitude_cardinals'`: '$A_1$',
+ `'abs_amplitude_obliques'`: '$A_2$',
+ `'rel_amplitude_cardinals'`: '$A_3$',
+ `'rel_amplitude_obliques'`: '$A_4$'}
+ 
+See the [included How-to-use-model notebook](#notebooks) for details about how
+to use these csvs with our model.
+   
 # Setup 
 
 ## Software requirements
 
 If you are starting with the partially- or fully-processed data, as explained
-[above](#data), then you only need the python requirements. If you're re-running
+[below](#data), then you only need the python requirements. If you're re-running
 the analysis from the beginning, you will also need MATLAB, FSL, and Freesurfer.
 In order to use the included download script `download_data.py`, you will also
 need `rsync`, which is probably already on your machine.
@@ -67,8 +153,10 @@ experiment, in order of increasing complexity and future-proof-ness:
 
 1. Install [miniconda](https://docs.conda.io/en/latest/miniconda.html) for your
    system with the appropriate python version.
-2. In this directory, run `conda env create -f environment.yml`.
-3. If everything works, type `conda activate sfp` to activate this environment
+2. Install [mamba](https://github.com/mamba-org/mamba): `conda install mamba
+  -n base -c conda-forge`
+3. In this directory, run `mamba env create -f environment.yml`.
+4. If everything works, type `conda activate sfp` to activate this environment
    and all required packages will be available.
    
 As of this writing, few of the required packages have specific version
@@ -84,15 +172,8 @@ MRI_tools](https://github.com/WinawerLab/MRI_tools), commit
 The results shouldn't change substantially if pre-processed using fMRIPrep. This
 repo is included in the docker and reprozip options.
 
-##### Troubleshooting
-
-If `conda env create -f environment.yml` seems to be taking forever, it's having
-trouble solving the environment. This is a known issue and someone has put
-together the drop-in replacement `mamba`, which is much faster. Once you've
-installed `miniconda`, you can install `mamba` with `conda install mamba -n base
--c conda-forge`, and then replace `conda` with `mamba` in the install command:
-`mamba env create -f environment.yml`; in my experience, this runs much more
-quickly. You then activate the environment as normal: `conda activate sfp`.
+I recommend using `mamba` instead of `conda` to install the environment because
+`conda` tends to hang while attempting to solve the environment.
 
 ### Experimental environment
 
@@ -142,27 +223,37 @@ use-case:
 2. `partially`: Partially-processed data is shared on OSF (**LINK**). If you
    want to re-run our 1d tuning curve analysis and the 2d model fits, this is
    the one you should use. It is not fully BIDS-compliant, but tries to be
-   BIDS-inspired.
+   BIDS-inspired. -- this is currently under development
 3. `fully`: Fully-processed data is shared on the [OSF](https://osf.io/djak4/).
    If you just want to re-create our figures, this is what you should use. It is
    also not fully BIDS-compliant, but BIDS-inspired. This contains:
-   - The outputs of the "first-level analysis" step, which contains the median
-     amplitude response of each vertex in V1 to our stimuli (as computed by
-     GLMdenoise), and each vertex's population receptive field locations.
-   - A csv summarizing the outputs of our 1d analysis, containing the parameters
+   - `derivatives/first_level_analysis/`: The outputs of the "first-level
+     analysis" step, csvs which contains the median amplitude response of each
+     vertex in V1 to our stimuli (as computed by GLMdenoise), and each vertex's
+     population receptive field locations.
+   - `derivatives/tuning_curves/stim_class/bayesian_posterior/individual_ses-04_v1_e1-12_eccen_bin_tuning_curves_full.csv`:
+     A csv summarizing the outputs of our 1d analysis, containing the parameters
      for each tuning curve fit to the different stimuli classes and
      eccentricities for each subject, across all bootstraps.
-   - A csv containing that information for a single subject.
-   - For each subject, the trained model for our best submodel (as determined by
+   - `derivatives/tuning_curves/stim_class/bayesian_posterior/sub-wlsubj001/ses-04/sub-wlsubj001_ses-04_task-sfprescaled_v1_e1-12_eccen_bin_summary.csv`:
+     A csv containing that information for a single subject, fit to their
+     medians across bootstraps.
+   - `derivatives/tuning_2d_model/stim_class/bayesian_posterior/filter-mean/initial/sub-*/ses-04/sub-*_ses-04_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_cNone_nNone_full_full_absolute_model.pt`:
+     For each subject, the trained model for our best submodel (as determined by
      crossvalidation), fit to each voxel's median response.
-   - A csv summarizing those models.
-   - A csv summarizing the cross-validation loss for our model comparison
+   - `derivatives/tuning_2d_model/stim_class/bayesian_posterior/filter-mean/initial/individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_iso_full_iso_all_models.csv`:
+     A csv summarizing those models.
+   - `derivatives/tuning_2d_model/stim_class/bayesian_posterior/filter-mean/initial_cv/individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_s0_all_cv_loss.csv`:
+     A csv summarizing the cross-validation loss for our model comparison
      analysis.
-   - A csv summarizing the models fit to each subject, bootstrapping across
+   - `derivatives/tuning_2d_model/stim_class/bayesian_posterior/filter-mean/bootstrap/individual_task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_absolute_all_models.csv`:
+     A csv summarizing the models fit to each subject, bootstrapping across
      runs, for the best submodel.
-   - A csv containing the parameters for the best submodel, bootstrapped across
+   - `derivatives/tuning_2d_model/task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv`:
+     A csv containing the parameters for the best submodel, bootstrapped across
      subjects.
-   - Two csvs, one for the quarters around the vertical meridia, one for the
+   - `derivatives/tuning_2d_model/stim_class/bayesian_posterior/filter-mean/visual_field_{vertical,horizontal}-meridia/individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_iso_full_iso_all_models.csv`:
+     Two csvs, one for the quarters around the vertical meridia, one for the
      quarters around the horizontal meridia, summarizing a simple model
      (preferred period is an affine function of eccentricity, no dependency on
      orientation, no modulation of relative gain) fit to a subset of the visual
@@ -237,7 +328,8 @@ greene, it takes about one to two days).
 
 ## Running the experiment
 
-If you just wish to see what the runs of our experiment looked like, a video has been uploaded to the [OSF](https://osf.io/cauhd/).
+If you just wish to see what the runs of our experiment looked like, a video has
+been uploaded to the [OSF](https://osf.io/cauhd/).
 
 If you wish to use the existing stimuli to run the experiment, you can do so for a new subject `sub-test` by doing the following:
 1. Activate the `sfp` environment: `conda activate sfp`.
