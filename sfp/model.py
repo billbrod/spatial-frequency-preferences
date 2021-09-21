@@ -326,8 +326,8 @@ def _check_log_gaussian_params(param_vals, train_params, period_orientation_type
 class LogGaussianDonut(torch.nn.Module):
     """simple LogGaussianDonut in pytorch
 
-    orientation_type, eccentricity_type, vary_amplitude: together specify what
-    kind of model to train
+    period_orientation_type, eccentricity_type, amplitude_orientation_type:
+    together specify what kind of model to train
 
     period_orientation_type: {iso, absolute, relative, full}.
         How we handle the effect of orientation on preferred period:
