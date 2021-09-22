@@ -1,5 +1,10 @@
-# The root of the BIDS directory.
-DATA_DIR: "/mnt/winawerlab/Projects/spatial_frequency_preferences/to_share"
+# The root of the BIDS directory. It's recommended you place this in a new
+# directory, such as Desktop/sfp_data. Note that you cannot use the ~ in this
+# path (write out the full path to your home directory, e.g., /home/billbrod or
+# /Users/billbrod) and that the name of your directory cannot have capital
+# letters in it (i.e., it should be sfp_data, not SFP_data; this causes an issue
+# on Macs)
+DATA_DIR: "/mnt/winawerlab/Projects/spatial_frequency_preferences/sfp_data"
 
 # Path of the Winawer Lab MRI_Tools repo. Only necessary if you're running the
 # preprocessing step

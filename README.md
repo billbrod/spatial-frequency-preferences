@@ -33,15 +33,36 @@ and recreating the figures, read further on in this README for details:
    - Navigate to this directory and run `mamba env create -f environment.yml` to
      install the environment.
    - Run `conda activate sfp` to activate the python environment.
-4. Run `python download_data.py preprocessed` to download the preprocessed data.
-5. Run `python download_data.py fully` to download the fully-processed data
-   (note that you need both).
-6. Run `cat reports/figure_rules.txt | xargs snakemake -j N figures_paper
-   --allowed-rules` (where `N` is the number of cores to use in parallel) to
-   recreate the figures, properly numbered, in the `reports/paper_figures/`
-   directory. Note that they are svgs, a vector file format. If your default
-   image viewer cannot open them, your browser can. They can be converted to
-   pdfs using [inkscape](https://inkscape.org/) or Adobe Illustrator.
+4. Run `python download_data.py fully-processed` to download the fully-processed
+   data (note that you need both) (this is about 500MB).
+5. Run `cat reports/figure_rules.txt | xargs snakemake -k -j N
+   reports/paper_figures/fig-XX.svg --allowed-rules` (where `N` is the number of
+   cores to use in parallel) to recreate a given figure from the paper (note the
+   number must be 0-padded, i.e., `fig-01.svg`, *not* `fig-1.svg`). These will
+   end up in the `reports/paper_figures/` directory. Note that they are svgs, a
+   vector file format. If your default image viewer cannot open them, your
+   browser can. They can be converted to pdfs using
+   [inkscape](https://inkscape.org/) or Adobe Illustrator.
+   - **WARNING**: while most figures take only a few minutes to create, one of
+     these, `fig-08.svg`, takes much longer (up to 8 minutes on the cluster, 21
+     minutes on my personal laptop).
+6. If you wish to create all the figures from the main body of the text, run
+   `cat reports/figure_rules.txt | xargs snakemake -k -j N main_figure_paper
+   --allowed-rules`. If one job fails, this will continue to run the others
+   (that's what the `-k` flag means).
+   
+If you wish to create the supplemental figures as well:
+1. Download the additional data required: `python download_data.py supplemental`
+   (this is about 5GB). *NOTE*: this is not required if you have already
+   downloaded the full `preprocessed` data set from
+   [OpenNeuro](https://openneuro.org/datasets/ds003812/).
+2. Run `cat reports/figure_rules.txt | xargs snakemake -k -j N
+   reports/paper_figures/fig-SXX.svg --allowed-rules` (where again the number
+   must be 0-padded) to create a single supplemental figure or `cat
+   reports/figure_rules.txt | xargs snakemake -k -j N supplement_figure_paper
+   --allowed-rules` to create all of them.
+   
+If you have any trouble with the above
    
 ## Notebooks
 
@@ -193,16 +214,6 @@ psypy` to activate it.
 
 See [here](#running-the-experiment) for how to run the experiment.
 
-Troubleshooting note: I use `pyglet` for creating the window and have
-consistently had issues on Ubuntu (on Lenovo laptops), where the following
-strange error gets raised: `AssertionError: XF86VidModeGetGammaRamp failed`. See
-[this issue](https://github.com/psychopy/psychopy/issues/2061) for solutions,
-but what's worked for me is adding the `/etc/X11/xorg.conf.d/20-intel.conf`
-file, updating drivers if necessary, and restarting the machine. I have not had
-these issues on Macs. Another potential fix is to switch to `winType='glfw'` (as
-also suggested in that issue), but that may break other parts of the experiment
-code.
-
 ### Matlab
 
  - Version at or more recent than 2016b (because we need `jsondecode`)
@@ -220,19 +231,23 @@ We provide the script `download_data.py`, which should work with a plain python
 install, in order to automate the downloading and proper arrangement of one of
 the three following subsets of the data. Which one you choose depends on your
 use-case:
-1. `preprocessed`: The minimally pre-processed BIDS-compliant data is shared on
-   OpenNeuro (**LINK**). If you want to re-run our analyses from the beginning,
-   this is the one you should use. In addition to the fMRI data gathered in this
-   experiment, it also includes the (defaced) freesurfer data for each subject
-   and the population receptive field solutions. See that dataset's README for
-   more details.
-2. `partially`: Partially-processed data is shared on OSF (**LINK**). If you
-   want to re-run our 1d tuning curve analysis and the 2d model fits, this is
-   the one you should use. It is not fully BIDS-compliant, but tries to be
-   BIDS-inspired. -- this is currently under development
-3. `fully`: Fully-processed data is shared on the [OSF](https://osf.io/djak4/).
-   If you just want to re-create our figures, this is what you should use. It is
-   also not fully BIDS-compliant, but BIDS-inspired. This contains:
+1. `preprocessed` (40.54GB): The minimally pre-processed BIDS-compliant data is
+   shared on [OpenNeuro](https://dx.doi.org/10.18112/openneuro.ds003812.v1.0.0).
+   If you want to re-run our analyses from the beginning, this is the one you
+   should use. In addition to the fMRI data gathered in this experiment, it also
+   includes the (defaced) freesurfer data for each subject and the population
+   receptive field solutions. See that dataset's README for more details.
+2. `partially-processed`: Partially-processed data is shared on OSF (**LINK**).
+   If you want to re-run our 1d tuning curve analysis and the 2d model fits,
+   this is the one you should use. It is not fully BIDS-compliant, but tries to
+   be BIDS-inspired. -- this is currently under development
+3. `fully-processed` (523MB): Fully-processed data is shared on the
+   [OSF](https://osf.io/djak4/). If you just want to re-create our figures, this
+   is what you should use. It is also not fully BIDS-compliant, but
+   BIDS-inspired. This contains:
+   - `stimuli/`: The stimuli arrays, modulation transfer function of the
+     display, and csvs describing them (these are also contained in the
+     `preprocessed` data)
    - `derivatives/first_level_analysis/`: The outputs of the "first-level
      analysis" step, csvs which contains the median amplitude response of each
      vertex in V1 to our stimuli (as computed by GLMdenoise), and each vertex's
@@ -264,12 +279,18 @@ use-case:
      (preferred period is an affine function of eccentricity, no dependency on
      orientation, no modulation of relative gain) fit to a subset of the visual
      field.
+4. `supplemental` (5GB): Extra data required to create the figures in the
+   appendix, along with data present in `fully-processed`. This data is also
+   present in `preprocessed` and is separate of `fully-processed` because it's
+   much larger.
+   - `derivatives/freesurfer/`: the freesurfer directories of each subject.
+   - `derivatives/prf_solutions/`: the pRF solutions for each subject, including
+     the Benson 2014 anatomical atlases (Benson et al, 2014) and Bayesian
+     retinotopy solutions (Benson and Winawer, 2018).
    
-Note that both the partially-processed and fully-processed data require the
-OpenNeuro dataset (though the fully-processed data does not require the
-partially-processed). Additionally, these two data sets do not contain the
-*entire* outputs of the analysis at that point, just what is required to
-complete the following steps.
+Note that the partially-processed data requires the OpenNeuro dataset.
+Additionally, these two data sets do not contain the *entire* outputs of the
+analysis at that point, just what is required to complete the following steps.
 
 Also note that the subjects in the paper are just numbered from 1 to 12. In the
 data and this code, they use their subject codes; the subject codes map to the
@@ -288,7 +309,8 @@ you're doing anything beyond just creating the figures, however, you probably
 will want to use a compute cluster (GLMdenoise takes ~2 hours per subject, each
 fit of the 2d model takes ~1 hour and we fit ~3000 of them in total). Snakemake
 requires a bit of configuration to do so. View their
-[docs](https://snakemake.readthedocs.io/en/stable/executing/cluster.html?highlight=cluster) for details.
+[docs](https://snakemake.readthedocs.io/en/stable/executing/cluster.html?highlight=cluster)
+for details.
 
 If you're using NYU's greene cluster, things are both easier (because I've
 already gone through this process) and harder (the configuration is more
@@ -296,13 +318,13 @@ difficult because of how they want you to handle conda environments) for you. I
 put together a little [blog
 post](https://wfbroderick.com/2021-May-06.html#2021-May-06) detailing how I got
 snakemake to work with conda environments on greene (note that during step 7,
-where I say "install conda environment like normal", you should run `conda env
+where I say "install conda environment like normal", you should run `mamba env
 create -f environment.yml` to install the necessary packages).
 
-Once you've managed to get snakemake working with the cluster, use the following
-command to run our analyses instead:
+Once you've managed to get snakemake working with the cluster (my blog post
+includes a small test), use the following command to run our analyses instead:
 
-`snakemake --ri -k -j 60 --restart-times 2 --profile slurm --cluster-config cluster.json figures_paper`
+`snakemake --ri -k -j 60 --restart-times 2 --profile slurm --cluster-config cluster.json main_figure_paper`
 
 This tells snakemake to use our `slurm` profile (so if you set up a different
 profile for another cluster, change the name here) and the included
@@ -312,25 +334,6 @@ just fail on submission and then rerun without a problem), to rerun any jobs
 that look incomplete (`--ri`), and to keep running any independent jobs if any
 jobs fail (`-k`). This should hopefully run to completion (in my experience on
 greene, it takes about one to two days).
-
-### Troubleshooting notes
-
-- Previously, I found that `snakemake>=5.4`, as now required, installs its own
-  `mpi4py` on the NYU's prince cluster. If you attempt to run any python command
-  from the environment that includes this `mpi4py` on an interactive job (not on
-  a login node), you'll get a very scary-looking error. If this happens, just
-  run `unset $SLURM_NODELIST`. Since using singularity, as now required on
-  greene, this has not been a problem.
-- the `GLMdenoise_png_process` rule (which converts the outputs of GLMdenoise
-  into a format we can actually look at) does not run on the cluster; I think
-  this is because there is no display available for those machines (it runs fine
-  on my local machine). If that rule fails for you on the cluster, just run it
-  locally. The error appears to be related to [this
-  issue](https://stackoverflow.com/questions/4931376/generating-matplotlib-graphs-without-a-running-x-server#4935945),
-  so you could also make sure to use a different matplotlib backend (`'svg'`
-  will work without an X server). I have included a matplotlibrc file in this
-  folder, which should make svg the default backend, but this warning is just in
-  case it doesn't.
 
 ## Running the experiment
 
@@ -354,12 +357,95 @@ warning is raised to this effect when you create them). Therefore, all new
 subjects will have the same presentation order, which is not what you want for
 an actual experiment.
 
-# Getting help
+# Troubleshooting 
+
+- There appears to be an issue installing torch version 1.1 on Macs (it affected
+  about half the tested machines). If you try to create the figures and get an
+  error message that looks like:
+  
+  ``` sh
+  Rule Exception:
+  ImportError in line 2592 of /Users/jh7685/Documents/Github/spatial-frequency-preferences/Snakefile:
+  dlopen(/Users/jh7685/opt/miniconda/envs/sfp/lib/python3.7/site-packages/torch/_C.cpython-37m-darwin.so, 9): Library not loaded: ...
+    Referenced from: /Users/jh7685/opt/miniconda/envs/sfp/lib/python3.7/site-packages/torch/lib/libshhm.dylib
+    Reason: image not found
+    File "/Users/jh7685/Documents/Github/spatial-frequency-preferences/Snakefile", line 2592, in __rule_figure_feature_df
+    File "/Users/jh7685/Documents/Github/spatial-frequency-preferences/sfp/__init__.py", line 1, in <module>
+    File "/Users/jh7685/Documents/Github/spatial-frequency-preferences/sfp/plotting.py", line 16, in <module>
+    File "/Users/jh7685/Documents/Github/spatial-frequency-preferences/sfp/model.py", line 13, in <module>
+    File "/Users/jh7685/opt/miniconda/envs/sfp/lib/python3.7/site-packages/torch/__init__.py", line 79, in <module>
+    File "/Users/jh7685/opt/miniconda/envs/sfp/lib/python3.7/concurrent/futures/thread", line 57, in run
+  ```
+  then try uninstalling torch and installing a more recent version:
+  
+  ``` sh
+  pip uninstall torch
+  pip install torch
+  ```
+  
+  The results were generated with torch version 1.1, but the code appears to be
+  compliant with version up to at least 1.9.
+  
+- On a Mac, if the name of your `DATA_DIR` is uppercase, this can mess things up
+  (on Macs, paths are case-insensitive, but they're case-sensitive on Linux and
+  with many command-line tools). If you try to create the figures and get a
+  scary-looking error message whose traceback goes through `snakemake/dag.py`
+  and ends with :
+  
+  ```sh
+     File "/Users/rania/anaconda3/envs/sfp/lib/python3.7/site-packages/snakemake/rules.py", line 756, in _apply_wildcards
+       item = self.apply_path_modifier(item, property=property)
+     File "/Users/rania/anaconda3/envs/sfp/lib/python3.7/site-packages/snakemake/rules.py", line 453, in _apply_path_modifier
+       return {k: apply(v) for k, v in item.items()}
+     File "/Users/rania/anaconda3/envs/sfp/lib/python3.7/site-packages/snakemake/rules.py", line 453, in <dictcomp>
+       return {k: apply(v) for k, v in item.items()}
+     File "/Users/rania/anaconda3/envs/sfp/lib/python3.7/site-packages/snakemake/path_modifier.py", line 35, in modify
+       if modified_path == path:
+  ValueError: the truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+  ```
+  
+  then that's probably what's going on. I recommend deleting this repo and your
+  `DATA_DIR` from your local machine, and re-downloading everything, this time
+  making sure that your `DATA_DIR` is lowercase (the whole path doesn't need to
+  be lowercase; `/Users/billbrod/Desktop/sfp_data` should be fine, but
+  `/Users/billbrod/Desktop/SFP_data` probably is not).
+  
+- Previously, I found that `snakemake>=5.4`, as now required, installs its own
+  `mpi4py` on the NYU's prince cluster. If you attempt to run any python command
+  from the environment that includes this `mpi4py` on an interactive job (not on
+  a login node), you'll get a very scary-looking error. If this happens, just
+  run `unset $SLURM_NODELIST`. Since using singularity, as now required on
+  greene, this has not been a problem.
+  
+- the `GLMdenoise_png_process` rule (which converts the outputs of GLMdenoise
+  into a format we can actually look at) does not run on the cluster; I think
+  this is because there is no display available for those machines (it runs fine
+  on my local machine). If that rule fails for you on the cluster, just run it
+  locally. The error appears to be related to [this
+  issue](https://stackoverflow.com/questions/4931376/generating-matplotlib-graphs-without-a-running-x-server#4935945),
+  so you could also make sure to use a different matplotlib backend (`'svg'`
+  will work without an X server). I have included a matplotlibrc file in this
+  folder, which should make svg the default backend, but this warning is just in
+  case it doesn't.
+  
+- For the experiment: I use `pyglet` for creating the window and have
+  consistently had issues on Ubuntu (on Lenovo laptops), where the following
+  strange error gets raised: `AssertionError: XF86VidModeGetGammaRamp failed`.
+  See [this issue](https://github.com/psychopy/psychopy/issues/2061) for
+  solutions, but what's worked for me is adding the
+  `/etc/X11/xorg.conf.d/20-intel.conf` file, updating drivers if necessary, and
+  restarting the machine. I have not had these issues on Macs. Another potential
+  fix is to switch to `winType='glfw'` (as also suggested in that issue), but
+  that may break other parts of the experiment code.
+
+## Getting help
 
 Reproducing someone else's research code is hard and, in all likelihood, you'll
-run into some problem. If that happens, please open an issue on this repo, with
-as much info about your machine and the steps you've taken as possible, and I'll
-try to help you fix the problem.
+run into some problem. If that happens, double-check that your issue isn't
+addressed [above](#troubleshooting), then please [open an
+issue](https://github.com/billbrod/spatial-frequency-preferences/issues) on this
+repo, with as much info about your machine and the steps you've taken as
+possible, and I'll try to help you fix the problem.
 
 # Related repos
 
@@ -387,7 +473,8 @@ academic publication, please cite the paper (**LINK**). Additionally:
    re-running the analysis on a novel dataset), please cite this Github repo's
    Zenodo doi (**LINK**).
 2. If you re-analyze the data without using the code here, please cite the
-   dataset's OpenNeuro doi (*LINK*).
+   dataset's [OpenNeuro
+   doi](https://dx.doi.org/10.18112/openneuro.ds003812.v1.0.0).
 3. If you reproduce our analysis on our data, please cite both the Github repo's
    Zenodo doi and the dataset's OpenNeuro doi.
 

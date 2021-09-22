@@ -2807,6 +2807,9 @@ rule figure_compare_surface_area:
         # these each return 2 mgzs, so need that m for m in find_prf_mgz to
         # flatten this into a list of strings (instead of a list of lists of
         # strings)
+        freesurfer_dir = lambda wildcards: [os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer',
+                                                        '{subject}').format(subject=subj.replace('sub-', ''))
+                                            for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
         vareas = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'varea', subj)
                                     if TASKS.get((subj, 'ses-04'), None) == 'task-sfprescaled'],
         eccens = lambda wildcards: [m for subj in SUBJECTS for m in find_prf_mgz(wildcards, 'eccen', subj)
@@ -3405,8 +3408,9 @@ rule figures_poster:
     input:
         lambda wildcards: get_figures_all('poster'),
 
-rule figures_paper:
-    input:
+
+def figure_paper_input(wildcards):
+    inputs = [
         # main figures
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "background.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', "stimulus_task-sfprescaled.svg"),
@@ -3445,14 +3449,58 @@ rule figures_paper:
                      "individual_filter-mean_full_full_absolute_sigma-interp_visualfield-all_s-5_task-sfprescaled.txt"),
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_v1_area_vs_period_linreg_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior_svg.txt"),
-        # not sure if this one is necessary, it's for the work Noah's doing to create an equipotent stimuli
-        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv'),
+    ]
+    outputs = (['fig-{:02d}.svg'.format(i) for i in range(1, 12)] + ['fig-S{:02d}.svg'.format(i) for i in range(1, 10)] +
+               ['sigma_interpretation.txt', 'v1_size_interpretation.txt'])
+    mapping = dict(zip(outputs, inputs))
+    return mapping[wildcards.fig_name]
+
+
+rule figure_paper:
+    input:
+        figure_paper_input,
     output:
-        [os.path.join('reports', 'paper_figures', 'fig-{:02d}').format(i) for i in range(1, 12)],
-        [os.path.join('reports', 'paper_figures', 'fig-S{:02d}').format(i) for i in range(1, 10)],
-        os.path.join('reports', 'paper_figures', 'sigma_interpretation.txt'),
-        os.path.join('reports', 'paper_figures', 'v1_size_interpretation.txt'),
+        os.path.join('reports', 'paper_figures', '{fig_name}'),
     run:
         import shutil
-        for input_f, output_f in zip(input, output):
-            shutil.copy(input_f, output_f)
+        shutil.copy(input[0], output[0])
+
+
+def output_csv_input(wildcards):
+    inputs = [
+        # csv that gives the parameters (combined across participants) used in
+        # figures throughout the paper, this isn't copied out anywhere, but is
+        # a good output to have
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'task-sfprescaled_final_bootstrapped_combined_parameters_s-5.csv'),
+        # similarly, this csv givers the parameters for each individual subjects'
+        # model fits
+        os.path.join(config['DATA_DIR'], 'derivatives', 'tuning_2d_model', 'stim_class', 'bayesian_posterior', 'filter-mean', 'bootstrap',
+                     'individual_task-sfprescaled_v1_e1-12_full_b10_r0.001_g0_full_full_absolute_all_models.csv')
+    ]
+    mapping = dict(zip(['combined', 'individual'], inputs))
+    return mapping[wildcards.csv_type]
+
+
+# this rule doesn't get considered part of the "main_figure_paper" outputs,
+# because we include these two csvs in the github repo itself (they're small).
+# this is here in case I want to easily generate them again
+rule output_csv:
+    input:
+        output_csv_input,
+    output:
+        os.path.join('data', 'tuning_2d_model', '{csv_type}_subject_params.csv')
+    run:
+        import shutil
+        shutil.copy(input[0], output[0])
+
+
+rule main_figure_paper:
+    input:
+        [os.path.join('reports', 'paper_figures', 'fig-{:02d}.svg').format(i) for i in range(1, 12)],
+        os.path.join('reports', 'paper_figures', 'sigma_interpretation.txt'),
+
+
+rule supplement_figure_paper:
+    input:
+        [os.path.join('reports', 'paper_figures', 'fig-S{:02d}.svg').format(i) for i in range(1, 10)],
+        os.path.join('reports', 'paper_figures', 'v1_size_interpretation.txt'),
