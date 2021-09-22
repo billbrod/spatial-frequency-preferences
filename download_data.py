@@ -18,6 +18,7 @@ def main(target_dataset):
     with open(op.join(op.dirname(op.realpath(__file__)), 'config.yml')) as f:
         config = yaml.safe_load(f)
     deriv_folder = op.join(config['DATA_DIR'], 'derivatives')
+    stim_folder = op.join(config['DATA_DIR'], 'stimuli')
     print(f"Using {config['DATA_DIR']} as data root directory.")
     if target_dataset == 'fully':
         print("Downloading fully-processed data.")
@@ -31,10 +32,9 @@ def main(target_dataset):
         subprocess.call(["curl", "-O", "-J", "-L", "https://osf.io/b3cdj/download"])
         subprocess.call(["tar", "xf", "sfp_extra_data.tar.gz"])
         subprocess.call(["rsync", "-avPLuz", "derivatives/", f"{deriv_folder}/"])
+        subprocess.call(["rsync", "-avPLuz", "stimuli/", f"{stim_folder}/"])
         subprocess.call(["rm", "-r", "derivatives/"])
         subprocess.call(["rm", "sfp_extra_data.tar.gz"])
-
-
 
 
 if __name__ == '__main__':
