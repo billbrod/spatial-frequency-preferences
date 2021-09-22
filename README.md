@@ -36,12 +36,12 @@ and recreating the figures, read further on in this README for details:
 4. Run `python download_data.py preprocessed` to download the preprocessed data.
 5. Run `python download_data.py fully` to download the fully-processed data
    (note that you need both).
-6. Run `snakemake -j N figures_paper` (where `N` is the number of cores to use
-   in parallel) to recreate the figures, properly numbered, in the
-   `reports/paper_figures/` directory. Note that they are svgs, a vector file
-   format. If your default image viewer cannot open them, your browser can. They
-   can be converted to pdfs using [inkscape](https://inkscape.org/) or Adobe
-   Illustrator.
+6. Run `cat reports/figure_rules.txt | xargs snakemake -j N figures_paper
+   --allowed-rules` (where `N` is the number of cores to use in parallel) to
+   recreate the figures, properly numbered, in the `reports/paper_figures/`
+   directory. Note that they are svgs, a vector file format. If your default
+   image viewer cannot open them, your browser can. They can be converted to
+   pdfs using [inkscape](https://inkscape.org/) or Adobe Illustrator.
    
 ## Notebooks
 
