@@ -408,7 +408,9 @@ an actual experiment.
   `DATA_DIR` from your local machine, and re-downloading everything, this time
   making sure that your `DATA_DIR` is lowercase (the whole path doesn't need to
   be lowercase; `/Users/billbrod/Desktop/sfp_data` should be fine, but
-  `/Users/billbrod/Desktop/SFP_data` probably is not).
+  `/Users/billbrod/Desktop/SFP_data` probably is not). This may also be a
+  `snakemake` version issue -- make sure your `snakemake` version is `5.x`
+  (**not** `6.0` or higher).
   
 - Previously, I found that `snakemake>=5.4`, as now required, installs its own
   `mpi4py` on the NYU's prince cluster. If you attempt to run any python command

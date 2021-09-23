@@ -16,7 +16,7 @@ dependencies:
   - h5py
   - nibabel
   - scikit-learn
-  - snakemake>=5.4
+  - snakemake>=5.4,<6.0
   - tqdm
   - pip:
       - pybids == 0.8.0
