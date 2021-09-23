@@ -35,34 +35,33 @@ and recreating the figures, read further on in this README for details:
    - Run `conda activate sfp` to activate the python environment.
 4. Run `python download_data.py fully-processed` to download the fully-processed
    data (note that you need both) (this is about 500MB).
-5. Run `cat reports/figure_rules.txt | xargs snakemake -k -j N
-   reports/paper_figures/fig-XX.svg --allowed-rules` (where `N` is the number of
-   cores to use in parallel) to recreate a given figure from the paper (note the
-   number must be 0-padded, i.e., `fig-01.svg`, *not* `fig-1.svg`). These will
-   end up in the `reports/paper_figures/` directory. Note that they are svgs, a
-   vector file format. If your default image viewer cannot open them, your
-   browser can. They can be converted to pdfs using
-   [inkscape](https://inkscape.org/) or Adobe Illustrator.
+5. Run `snakemake -k -j N reports/paper_figures/fig-XX.svg --allowed-rules`
+   (where `N` is the number of cores to use in parallel) to recreate a given
+   figure from the paper (note the number must be 0-padded, i.e., `fig-01.svg`,
+   *not* `fig-1.svg`). These will end up in the `reports/paper_figures/`
+   directory. Note that they are svgs, a vector file format. If your default
+   image viewer cannot open them, your browser can. They can be converted to
+   pdfs using [inkscape](https://inkscape.org/) or Adobe Illustrator.
    - **WARNING**: while most figures take only a few minutes to create, one of
      these, `fig-08.svg`, takes much longer (up to 8 minutes on the cluster, 21
      minutes on my personal laptop).
 6. If you wish to create all the figures from the main body of the text, run
-   `cat reports/figure_rules.txt | xargs snakemake -k -j N main_figure_paper
-   --allowed-rules`. If one job fails, this will continue to run the others
-   (that's what the `-k` flag means).
+   `snakemake -k -j N main_figure_paper --allowed-rules`. If one job fails, this
+   will continue to run the others (that's what the `-k` flag means).
    
 If you wish to create the supplemental figures as well:
 1. Download the additional data required: `python download_data.py supplemental`
    (this is about 5GB). *NOTE*: this is not required if you have already
    downloaded the full `preprocessed` data set from
    [OpenNeuro](https://openneuro.org/datasets/ds003812/).
-2. Run `cat reports/figure_rules.txt | xargs snakemake -k -j N
-   reports/paper_figures/fig-SXX.svg --allowed-rules` (where again the number
-   must be 0-padded) to create a single supplemental figure or `cat
-   reports/figure_rules.txt | xargs snakemake -k -j N supplement_figure_paper
-   --allowed-rules` to create all of them.
+2. Run `snakemake -k -j N reports/paper_figures/fig-SXX.svg --allowed-rules`
+   (where again the number must be 0-padded) to create a single supplemental
+   figure or `cat reports/figure_rules.txt | xargs snakemake -k -j N
+   supplement_figure_paper --allowed-rules` to create all of them.
    
-If you have any trouble with the above
+If you have any trouble with the above, check the
+[troubleshooting](#troubleshooting) section to see if there's a solution to your
+problem.
    
 ## Notebooks
 
@@ -359,6 +358,7 @@ an actual experiment.
 
 # Troubleshooting 
 
+
 - There appears to be an issue installing torch version 1.1 on Macs (it affected
   about half the tested machines). If you try to create the figures and get an
   error message that looks like:
@@ -417,7 +417,27 @@ an actual experiment.
       apparently fixed in [this
       PR](https://github.com/snakemake/snakemake/issues/1021), which hasn't been
       merged as of September 23, 2021.
+      
+    - If neither of the above solutions work, try the following solution. I
+      think this problem arises because of some ambiguity in how to generate one
+      of the inputs to some of the figures (and a change in how `snakemake`
+      resolves that ambiguity between `5.x` and `6.x`), and so the following
+      removes the ambiguity.
   
+- If you're trying to create the figures after downloading the `fully-processed`
+  and/or the `supplemental` data and `snakemake` complains about
+  `MissingInputException`, try adding `cat reports/figure_rules.txt | xargs`
+  before the snakemake command and `--allowed-rules` at the end (e.g., `cat
+  reports/figure_rules.txt | xargs snakemake reports/paper_figures/fig-01.svg
+  --allowed-rules`). What appears to be happening here is that `snakemake` is
+  getting confused about timestamps or something similar and wants to rerun more
+  of the analysis than necessary (or at least, wants to double-check how it
+  would do that). Since `fully-processed` only contains the files at the end of
+  analysis (and not the original inputs), snakemake is unable to do trace the
+  analysis back to the beginning and so complains. By adding the modifications
+  above, we tell `snakemake` that it should **only** consider using the rules
+  that produce figures, and it no longer has this problem.
+
 - Previously, I found that `snakemake>=5.4`, as now required, installs its own
   `mpi4py` on the NYU's prince cluster. If you attempt to run any python command
   from the environment that includes this `mpi4py` on an interactive job (not on
