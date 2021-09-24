@@ -35,7 +35,7 @@ and recreating the figures, read further on in this README for details:
    - Run `conda activate sfp` to activate the python environment.
 4. Run `python download_data.py fully-processed` to download the fully-processed
    data (note that you need both) (this is about 500MB).
-5. Run `snakemake -k -j N reports/paper_figures/fig-XX.svg --allowed-rules`
+5. Run `snakemake -k -j N reports/paper_figures/fig-XX.svg`
    (where `N` is the number of cores to use in parallel) to recreate a given
    figure from the paper (note the number must be 0-padded, i.e., `fig-01.svg`,
    *not* `fig-1.svg`). These will end up in the `reports/paper_figures/`
@@ -46,7 +46,7 @@ and recreating the figures, read further on in this README for details:
      these, `fig-08.svg`, takes much longer (up to 8 minutes on the cluster, 21
      minutes on my personal laptop).
 6. If you wish to create all the figures from the main body of the text, run
-   `snakemake -k -j N main_figure_paper --allowed-rules`. If one job fails, this
+   `snakemake -k -j N main_figure_paper`. If one job fails, this
    will continue to run the others (that's what the `-k` flag means).
    
 If you wish to create the supplemental figures as well:
@@ -54,10 +54,9 @@ If you wish to create the supplemental figures as well:
    (this is about 5GB). *NOTE*: this is not required if you have already
    downloaded the full `preprocessed` data set from
    [OpenNeuro](https://openneuro.org/datasets/ds003812/).
-2. Run `snakemake -k -j N reports/paper_figures/fig-SXX.svg --allowed-rules`
-   (where again the number must be 0-padded) to create a single supplemental
-   figure or `cat reports/figure_rules.txt | xargs snakemake -k -j N
-   supplement_figure_paper --allowed-rules` to create all of them.
+2. Run `snakemake -k -j N reports/paper_figures/fig-SXX.svg` (where again the
+   number must be 0-padded) to create a single supplemental figure or `snakemake
+   -k -j N supplement_figure_paper` to create all of them.
    
 If you have any trouble with the above, check the
 [troubleshooting](#troubleshooting) section to see if there's a solution to your
