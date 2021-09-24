@@ -19,6 +19,9 @@ if os.system("module list") == 0:
 else:
     ON_CLUSTER = False
     shell.prefix("export SUBJECTS_DIR=%s/derivatives/freesurfer; " % config["DATA_DIR"])
+    # need to set SUBJECTS_DIR here so that the run steps also use the right
+    # SUBJECTS_DIR (setting shell.prefix above makes sure the shell steps do)
+    os.environ['SUBJECTS_DIR'] = os.path.join(config['DATA_DIR'], 'derivatives', 'freesurfer')
 
 
 SUBJECTS = ['sub-wlsubj001', 'sub-wlsubj004', 'sub-wlsubj042', 'sub-wlsubj045', 'sub-wlsubj014',
