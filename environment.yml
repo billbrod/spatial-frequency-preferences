@@ -9,7 +9,7 @@ dependencies:
   - numpy=1.16
   - matplotlib==3.0.3
   - scipy
-  - seaborn>=0.11
+  - seaborn>=0.11,<0.11.2
   - pandas>=0.25
   - pyyaml
   - nipype>=1.1.1
