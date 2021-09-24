@@ -2992,6 +2992,7 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
         if 'subject' not in df.columns:
             # this way it will run even if there's no subject specified
             df['subject'] = 'none'
+        print(f"Starting subject {df['subject'].unique()}")
         if df_filter_string is not None:
             df_filter = model.construct_df_filter(df_filter_string)
             df = df_filter(df).reset_index()
@@ -3032,6 +3033,7 @@ def peakiness_check(dfs, trained_models, col='subject', voxel_subset=False,
         col_wrap = 4
     else:
         col_wrap = None
+    print("Getting ready to plot")
     g = sns.FacetGrid(hue='model', data=df_overall, palette=['C1', 'C0'],
                       hue_order=['model_predictions', 'voxel_response'],
                       height=ax_height, col=col, col_wrap=col_wrap,
