@@ -74,3 +74,6 @@ target/
 
 # ignore snakemake hidden directory
 .snakemake
+
+# ignore the rest of reports/paper_figures
+reports/paper_figures
