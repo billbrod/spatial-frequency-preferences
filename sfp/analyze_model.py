@@ -25,7 +25,8 @@ from tqdm import tqdm
 def load_LogGaussianDonut(save_path_stem):
     """this loads and returns the actual model, given the saved parameters, for analysis
     """
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # generally want to use cpu
+    device = torch.device("cpu")
     # we try and infer model type from the path name, which we can do assuming we used the
     # Snakefile to generate saved model.
     vary_amps = save_path_stem.split('_')[-1]
@@ -749,7 +750,7 @@ def calc_cv_error(loss_files, dataset_path, wildcards, outputs,
         models are trained using.
 
     """
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     if df_filter_string:
         df_filter = sfp_model.construct_df_filter(df_filter_string)
     else:
