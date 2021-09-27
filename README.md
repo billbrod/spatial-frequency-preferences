@@ -432,7 +432,7 @@ an actual experiment.
   getting confused about timestamps or something similar and wants to rerun more
   of the analysis than necessary (or at least, wants to double-check how it
   would do that). Since `fully-processed` only contains the files at the end of
-  analysis (and not the original inputs), snakemake is unable to do trace the
+  analysis (and not the original inputs), snakemake is unable to trace the
   analysis back to the beginning and so complains. By adding the modifications
   above, we tell `snakemake` that it should **only** consider using the rules
   that produce figures, and it no longer has this problem.
