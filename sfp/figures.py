@@ -2548,8 +2548,8 @@ def _create_model_prediction_df(df, trained_model, voxel_label,
         The label for this voxel.
     for_relative_plot : bool, optional
         If True, will add a column giving the peak spatial frequency for this
-        voxel at each observed orientation and evaluate the model at 12
-        frequencies log-spaced from one decade below to one decade above the
+        voxel at each observed orientation and evaluate the model at 36
+        frequencies log-spaced from two decades below to two decades above the
         peak (rather than the presented frequencies), at the four main
         orientations.
 
