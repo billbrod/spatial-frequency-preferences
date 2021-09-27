@@ -2527,7 +2527,8 @@ def voxel_exclusion(df, context='paper'):
 
 
 def _create_model_prediction_df(df, trained_model, voxel_label,
-                                for_relative_plot=False):
+                                for_relative_plot=False,
+                                extend_sf=False):
     """Create df containing model predictions for a single voxel
 
     Will contain 48 rows, with the following columns: model_predictions (normed
@@ -2552,6 +2553,10 @@ def _create_model_prediction_df(df, trained_model, voxel_label,
         frequencies log-spaced from two decades below to two decades above the
         peak (rather than the presented frequencies), at the four main
         orientations.
+    extend_sf : bool, optional
+        If True, we instead generate predictions for local spatial frequencies
+        from .01 to 100 cpd (logspaced, 36 samples), for the four main angles.
+        Cannot be True if for_relative_plot is True.
 
     Returns
     -------
@@ -2567,7 +2572,23 @@ def _create_model_prediction_df(df, trained_model, voxel_label,
     prf_loc = torch.tensor(df[['eccen', 'angle']].values)
     predictions = trained_model.evaluate(sfs[:, 0], sfs[:, 1], prf_loc[:, 0], prf_loc[:, 1])
     predictions_norm = predictions.norm(2, -1, True)
-    if for_relative_plot:
+    if extend_sf:
+        if for_relative_plot:
+            raise Exception("At most one of for_relative_plot and extend_sf can be true, but both were true!")
+        # get the 4 main orientations
+        angles = np.linspace(0, 2*np.pi, 8, endpoint=False)
+        angles = df.query('freq_space_angle in @angles').drop_duplicates('freq_space_angle')
+        angles = angles.local_sf_xy_direction.values
+        n_samps = 36
+        freqs = []
+        for a in angles:
+            freqs.extend(np.logspace(-2, 2, n_samps))
+        sfs = torch.tensor([freqs, np.concatenate([n_samps*[a] for a in angles])]).transpose(0, 1)
+        data['local_sf_magnitude'] = sfs[:, 0].detach().numpy()
+        # we use the same norm as before, in order to make sure things line up correctly
+        predictions = trained_model.evaluate(sfs[:, 0], sfs[:, 1],
+                                             prf_loc[0, 0], prf_loc[0, 1])
+    elif for_relative_plot:
         # get the 4 main orientations
         angles = np.linspace(0, 2*np.pi, 8, endpoint=False)
         angles = df.query('freq_space_angle in @angles').drop_duplicates('freq_space_angle')
@@ -2702,7 +2723,8 @@ def _voxel_responses_and_predictions(*args, label='', n_bins=10, plot_type='reg'
         return sns.lineplot(*args, label=label, **kwargs, zorder=10)
 
 
-def example_voxels(df, trained_model, voxel_idx=[2310, 2957, 1651], context='paper'):
+def example_voxels(df, trained_model, voxel_idx=[2310, 2957, 1651],
+                   extend_sf=False, context='paper'):
     """Plot some example voxel data and their model fit.
 
     For some voxels and a trained model, plot some comparisons between the
@@ -2724,6 +2746,9 @@ def example_voxels(df, trained_model, voxel_idx=[2310, 2957, 1651], context='pap
         nice. The default values are for sub-wlsubj001, ses-04, and are roughly
         foveal, parafoveal, and peripheral, all reasonably well fit by the full
         model. Regardless of how many are here, we'll have 3 columns per row.
+    extend_sf : bool, optional
+        If True, we instead generate predictions for local spatial frequencies
+        from .01 to 100 cpd (logspaced, 36 samples), for the four main angles.
     context : {'paper', 'poster'}, optional
         plotting context that's being used for this figure (as in seaborn's
         set_context function). if poster, will scale things up (but only paper
@@ -2744,26 +2769,45 @@ def example_voxels(df, trained_model, voxel_idx=[2310, 2957, 1651], context='pap
     eccen_order = voxel.sort_values('eccen').voxel.values
     for i, v in enumerate(voxel_idx):
         data.append(_create_model_prediction_df(df.query('voxel==@v'),
-                                                trained_model, v))
+                                                trained_model, v,
+                                                extend_sf=extend_sf))
     data = pd.concat(data)
     canonical_freqs = [f for f in df.freq_space_distance.unique() if f == int(f)]
     df = _remap_frequencies(df)
-    df = _merge_model_response_df(df, data)
+    if extend_sf:
+        df['model'] = 'voxel_response'
+        df = df.rename(columns={'amplitude_estimate_median_normed':
+                                'Response (a.u.)'})
+        xlim = (.01, 100)
+        ylim = (0, .225)
+        yticks = [0, .2]
+    else:
+        df = _merge_model_response_df(df, data)
+        xlim = (.1, 10)
+        ylim = (.05, .225)
+        yticks = []
     g = sns.FacetGrid(hue='model', data=df, col='voxel', col_wrap=3,
                       col_order=eccen_order, height=ax_height, aspect=.75)
     g.map_dataframe(_voxel_responses_and_predictions, x='plotting_sf',
                     y='Response (a.u.)', n_bins=len(canonical_freqs),
                     plot_type='reg')
-    g.set(xscale='log', ylim=(.05, .225), yticks=[], xlim=(.1, 10))
     for i, ax in enumerate(g.axes.flatten()):
         vox_id = int(re.findall('voxel = (\d+)', ax.get_title())[0])
         ax.set_title(f"eccentricity = {df.query('voxel==@vox_id').eccen.unique()[0]:.02f}")
+        # when extend_sf is True, we plot model predictions separately, because
+        # merging the two dfs was too difficult
+        if extend_sf:
+            sns.lineplot(ax=ax, c='C1', label='model_prediction',
+                         x='local_sf_magnitude', y='model_predictions',
+                         data=data.query("voxel==@vox_id"), zorder=10)
+            ax.legend_.remove()
         if i == 0:
             ax.set(ylabel='Response (a.u.)')
         if i != 1:
             ax.set(xlabel='')
         else:
             ax.set(xlabel='Local spatial frequency (cpd)')
+    g.set(xscale='log', ylim=ylim, yticks=yticks, xlim=xlim)
     return g
 
 

@@ -2709,7 +2709,8 @@ rule figure_example_voxel:
         import sfp
         df = pd.read_csv(input[0])
         model = sfp.analyze_model.load_LogGaussianDonut(input[1].replace('_model.pt', ''))
-        g = sfp.figures.example_voxels(df, model, context=wildcards.context)
+        g = sfp.figures.example_voxels(df, model, context=wildcards.context,
+                                       extend_sf=True)
         g.fig.savefig(output[0], bbox_inches='tight')
 
 

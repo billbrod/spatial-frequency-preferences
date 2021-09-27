@@ -349,9 +349,9 @@ def example_voxels(peakiness_fig, example_voxel_fig, save_path, context='paper')
     compose.Figure(
         figure_width, figure_height,
         SVG(peakiness_fig).move(figure_width*3/4-10, -2),
-        SVG(example_voxel_fig).move(-5, 0),
+        SVG(example_voxel_fig).move(-8, 0),
         compose.Text("A", 0, 25, size=font_size, **text_params),
-        compose.Text("B", figure_width*3/4-15, 25, size=font_size, **text_params),
+        compose.Text("B", figure_width*3/4-10, 25, size=font_size, **text_params),
     ).save(save_path)
 
 
