@@ -340,7 +340,8 @@ create specific figures or what functions are called to do so.
 We will examine the creation of `fig-02.svg`. For this tutorial, we want a new
 setup, so follow [Usage](#usage) section through step 4, but don't create any
 figures (if you've already created some figures, change `DATA_DIR` in
-`config.yml` to a new folder and run those first four steps again).
+`config.yml` to a new folder and run those first four steps again, then run `rm
+reports/paper_figures/*svg` to remove the created figures).
 
 Let's get an overview of what steps are necessary. Run `snakemake -n -r
 reports/paper_figures/fig-02.svg`. The `-n` flag tells snakemake to perform a
