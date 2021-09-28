@@ -160,8 +160,13 @@ to use these csvs with our model.
 If you are starting with the partially- or fully-processed data, as explained
 [below](#data), then you only need the python requirements. If you're re-running
 the analysis from the beginning, you will also need MATLAB, FSL, and Freesurfer.
+
 In order to use the included download script `download_data.py`, you will also
 need `rsync`, which is probably already on your machine.
+
+In order to use `download_data.py` to download the `preprocessed` data from
+OpenNeuro, you will need to install the [OpenNeuro command line
+interface](https://docs.openneuro.org/packages-openneuro-cli-readme).
 
 ### Python
 
