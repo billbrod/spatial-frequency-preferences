@@ -3494,8 +3494,11 @@ rule output_csv:
     output:
         os.path.join('data', 'tuning_2d_model', '{csv_type}_subject_params.csv')
     run:
-        import shutil
-        shutil.copy(input[0], output[0])
+        import pandas as pd
+        df = pd.read_csv(input[0])
+        df = df[['fit_model_type', 'subject', 'bootstrap_num', 'fit_value',
+                 'model_parameter']]
+        df.to_csv(output[0], index=False)
 
 
 rule main_figure_paper:
