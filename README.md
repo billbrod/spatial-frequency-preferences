@@ -61,6 +61,9 @@ If you wish to create the supplemental figures as well:
 If you have any trouble with the above, check the
 [troubleshooting](#troubleshooting) section to see if there's a solution to your
 problem.
+
+To understand what the `snakemake` command is doing, see the [What's going
+on?](#whats-going-on) section.
    
 ## Notebooks
 
@@ -309,6 +312,194 @@ names in the paper in an increasing way, so that `sub-wlsubj001` is `sub-01`,
 
 To use `download_data.py`, simply call `python download_data.py TARGET_DATASET`
 from the command-line where `TARGET_DATASET` is one of the three names above.
+
+# What's going on?
+
+The analysis for this project is built around
+[snakemake](https://snakemake.readthedocs.io/en/stable/), a workflow management
+system for reproducible and scalable data analyses. Snakemake is inspired by
+[Make](https://en.wikipedia.org/wiki/Make_(software)), an old school software
+build automation tool. The worfklow is specified in the `Snakefile` in this
+repo, which contains rules that define how to create output files from input
+files. Snakemake is then able to handle the dependencies between rules
+implicitly, by matching filenames of input files against output files. Thus,
+when the user wants to create a specific file, snakemake constructs a Directed
+Acyclic Graph (DAG) containing all the steps necessary to create the specified
+file given the availble files. It can run independent steps in parallel (by use
+of the `-j` flag included above), continue to run independent steps when one
+fails (with the `-k` flag), and even handle the management of job submission
+systems like SLURM (see [Snakemake on the cluster](#snakemake-on-the-cluster)
+for details, if you're interested).
+
+However, if you're not familiar with snakemake or this style of workflow
+management system, this can somewhat obfuscate what is *actually* being done.
+The following will walk you through a simple example, which you can hopefully
+generalize to other steps if you'd like to e.g., see what files are necessary to
+create specific figures or what functions are called to do so.
+
+We will examine the creation of `fig-02.svg`. For this tutorial, we want a new
+setup, so follow [Usage](#usage) section through step 4, but don't create any
+figures (if you've already created some figures, change `DATA_DIR` in
+`config.yml` to a new folder and run those first four steps again).
+
+Let's get an overview of what steps are necessary. Run `snakemake -n -r
+reports/paper_figures/fig-02.svg`. The `-n` flag tells snakemake to perform a
+dry-run, so it will print out the necessary steps but not run anything, and
+the `-r` tells snakemake to print out the reason for each step. You should see
+something like the following:
+   
+```sh
+$ snakemake  -n -rk reports/paper_figures/fig-02.svg
+Building DAG of jobs...
+Job counts:
+        count   jobs
+        1       compose_figures
+        1       figure_paper
+        1       figure_stimulus_schematic
+        1       presented_spatial_frequency_plot
+        1       stimulus_base_frequency_plot
+        5
+
+[Tue Sep 28 12:12:16 2021]
+rule figure_stimulus_schematic:
+    input: /home/billbrod/Desktop/sfp_test/stimuli/task-sfprescaled_stimuli.npy, /home/billbrod/Desktop/sfp_test/stimuli/task-sfprescaled_stim_description.csv
+    output: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/schematic_stimulus_task-sfprescaled.svg
+    log: /home/billbrod/Desktop/sfp_test/code/figures/paper/schematic_stimulus_task-sfprescaled_svg-%j.log
+    jobid: 3
+    benchmark: /home/billbrod/Desktop/sfp_test/code/figures/paper/schematic_stimulus_task-sfprescaled_svg_benchmark.txt
+    reason: Missing output files: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/schematic_stimulus_task-sfprescaled.svg
+    wildcards: context=paper, task=task-sfprescaled, ext=svg
+
+[Tue Sep 28 12:12:16 2021]
+rule presented_spatial_frequency_plot:
+    input: /home/billbrod/Desktop/sfp_test/stimuli/task-sfprescaled_presented_frequencies.csv
+    output: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_presented_frequencies.svg
+    log: /home/billbrod/Desktop/sfp_test/code/figures/paper/task-sfprescaled_presented_frequencies_svg-%j.log
+    jobid: 4
+    benchmark: /home/billbrod/Desktop/sfp_test/code/figures/paper/task-sfprescaled_presented_frequencies_svg_benchmark.txt
+    reason: Missing output files: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_presented_frequencies.svg
+    wildcards: context=paper, task=task-sfprescaled
+
+[Tue Sep 28 12:12:16 2021]
+rule stimulus_base_frequency_plot:
+    input: /home/billbrod/Desktop/sfp_test/stimuli/task-sfprescaled_stim_description.csv
+    output: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_base_frequencies.svg
+    log: /home/billbrod/Desktop/sfp_test/code/figures/paper/task-sfprescaled_base_frequencies_svg-%j.log
+    jobid: 2
+    benchmark: /home/billbrod/Desktop/sfp_test/code/figures/paper/task-sfprescaled_base_frequencies_svg_benchmark.txt
+    reason: Missing output files: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_base_frequencies.svg
+    wildcards: context=paper, task=task-sfprescaled
+
+[Tue Sep 28 12:12:16 2021]
+rule compose_figures:
+    input: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_base_frequencies.svg, /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/schematic_stimulus_task-sfprescaled.svg, /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_presented_frequencies.svg
+    output: /home/billbrod/Desktop/sfp_test/derivatives/compose_figures/paper/stimulus_task-sfprescaled.svg
+    log: /home/billbrod/Desktop/sfp_test/code/compose_figures/paper/stimulus_task-sfprescaled_svg-%j.log
+    jobid: 1
+    benchmark: /home/billbrod/Desktop/sfp_test/code/compose_figures/paper/stimulus_task-sfprescaled_svg_benchmark.txt
+    reason: Missing output files: /home/billbrod/Desktop/sfp_test/derivatives/compose_figures/paper/stimulus_task-sfprescaled.svg; Input files updated by another job: /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_base_frequencies.svg, /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/task-sfprescaled_presented_frequencies.svg, /home/billbrod/Desktop/sfp_test/derivatives/figures/paper/schematic_stimulus_task-sfprescaled.svg
+    wildcards: context=paper, figure_name=stimulus_task-sfprescaled
+
+[Tue Sep 28 12:12:16 2021]
+rule figure_paper:
+    input: /home/billbrod/Desktop/sfp_test/derivatives/compose_figures/paper/stimulus_task-sfprescaled.svg
+    output: reports/paper_figures/fig-02.svg
+    jobid: 0
+    reason: Missing output files: reports/paper_figures/fig-02.svg; Input files updated by another job: /home/billbrod/Desktop/sfp_test/derivatives/compose_figures/paper/stimulus_task-sfprescaled.svg
+    wildcards: fig_name=fig-02.svg
+
+Job counts:
+        count   jobs
+        1       compose_figures
+        1       figure_paper
+        1       figure_stimulus_schematic
+        1       presented_spatial_frequency_plot
+        1       stimulus_base_frequency_plot
+        5
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+```
+
+We can see that there are five steps that need to be taken to create
+`reports/paper_figures/fig-02.svg`: `figure_stimulus_schematic`,
+`presented_spatial_frequency_plot`, `stimulus_base_frequency_plot`,
+`compose_figures`, and `figure_paper`. For each of them, we can see the `input`,
+`output`, `jobid`, `benchmark`, `log`, `reason`, and `wildcards`. `jobid` is
+used internally by snakemake, so we can ignore it. `benchmark` and `log` are
+text files that will be created by snakemake and contain details on the
+resources a job required (time and memory) and some of its output to stdout and
+stderr, respectively.
+
+Let's step through the rest for the `figure_stimulus_schematic` rule:
+- `input`: These two files in the `stimuli/` directory are required to create
+  the figure.
+- `output`: an intermediate figure, contained within `deriatives/figure/paper`.
+  This will be panel B of the final `figure-02`.
+- `reason`: why we're running this step. In this case, because the output file
+  is missing.
+- `wildcards`: in order to use the same rule for similar steps, we can define
+  wildcards. These are substrings that must be present in all output files and,
+  if present in the input, must be identical to the value in the output. They
+  can then be used to modify the steps used to create the output. For example,
+  here, we have three wildcards, `context`, `task`, and `ext`. `ext` gives the
+  file extension of the output, so we could use the same code to create a `pdf`
+  or a `png`, for example, just modifying the extension of the file we save to.
+  Similarly, `context` sets some matplotlib configuration options, creating an
+  appropriate figure for either a `paper` or a `poster` (e.g., increasing text
+  size). `task` is used to specify the version of the task we used -- during
+  piloting, we used several different versions of the stimuli, and
+  `task-sfprescaled` corresponds to the final versions we used.
+  
+If we then open up `Snakefile` and search for `rule figure_stimulus_schematic`,
+we can find the rule itself. We see the following:
+
+``` python
+rule figure_stimulus_schematic:
+    input:
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stimuli.npy'),
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stim_description.csv'),
+    output:
+        os.path.join(config["DATA_DIR"], 'derivatives', 'figures', '{context}', 'schematic_stimulus_{task}.{ext}')
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_stimulus_{task}_{ext}-%j.log')
+    benchmark:
+        os.path.join(config["DATA_DIR"], 'code', 'figures', '{context}', 'schematic_stimulus_{task}_{ext}_benchmark.txt')
+    run:
+        import sfp
+        import numpy as np
+        import pandas as pd
+        stim = np.load(input[0])
+        stim_df = pd.read_csv(input[1])
+        fig = sfp.figures.stimulus_schematic(stim, stim_df, wildcards.context)
+        fig.savefig(output[0], bbox_inches='tight')
+```
+
+We can see the rule defines `input`, `output`, `log`, `benchmark`, and `run`.
+The first four are as above, defining paths to the relevant files, though you'll
+notice that some parts of the paths are contained within curly braces, e.g.,
+`{task}`. These are the wildcards, and so trying to create
+`derivatives/figures/paper/schematic_stimulus_task-sfprescaled.svg` will match
+this rule, but so will
+`derivatives/figures/poster/schematic_stimulus_task-sfprescaled.png` (as
+described above).
+
+The `run` block is the most important: it defines what to actually *do* in order
+to create the output from the input. This is all python code, we can see that we
+import several libraries, load in the stimulus array and stimulus description
+csv, then call the function `sfp.figures.stimulus_schematic`, passing it the two
+inputs and the `context` wildcard, and finally save the created figure at the
+output path. If you wanted to see what exactly that function did, you could then
+find it in `sfp/figures.py`, and you could call this block of code in a jupyter
+notebook or a python interpreter to run it yourself (though you'd need to
+replace `input`, `output`, and `wildcards.context` with appropriate values).
+
+The other rules can be understood in a similar fashion. As a general note, the
+final step for creating any of these figures will be `figure_paper`, which just
+moves and renames the figure so it ends up in `reports/paper_figures`. The
+second-to-last step will generally be `compose_figures`, which combines together
+multiple figures and labels them to create multi-panel figures.
+
+Hopefully that's enough detail for you to get a sense for what's going on and
+how you can get more information about the steps of the analysis!
 
 # Usage details
 
