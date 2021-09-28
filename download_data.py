@@ -7,7 +7,7 @@ import os.path as op
 import yaml
 
 
-def main(target_dataset):
+def main(target_dataset, preprocessed_version='1.0.0'):
     """Download dataset from OpenNeuro or OSF.
 
     Parameters
@@ -15,6 +15,9 @@ def main(target_dataset):
     target_dataset : {'preprocessed', 'partially-processed',
                       'fully-processed', 'supplemental'}
         Which dataset to download. See project README for more info.
+    preprocessed_version : str, optional
+        Which version of the preprocessed data to download. See
+        https://openneuro.org/datasets/ds003812 for possible choices.
 
     """
     with open(op.join(op.dirname(op.realpath(__file__)), 'config.yml')) as f:
@@ -26,8 +29,8 @@ def main(target_dataset):
     os.makedirs(deriv_folder, exist_ok=True)
     os.makedirs(stim_folder, exist_ok=True)
     print(f"Using {config['DATA_DIR']} as data root directory.")
-    targets = ['fully-processed', 'supplemental']
-    check_dirs = ['tuning_2d_model', 'freesurfer']
+    targets = ['preprocessed', 'fully-processed', 'supplemental']
+    check_dirs = ['preprocessed', 'tuning_2d_model', 'freesurfer']
     yesno = 'y'
     for tar, check in zip(targets, check_dirs):
         if target_dataset == tar and op.exists(op.join(deriv_folder, check)):
@@ -38,7 +41,17 @@ def main(target_dataset):
     if yesno == 'n':
         print("Exiting...")
         exit(0)
-    if target_dataset == 'fully-processed':
+    if target_dataset == 'preprocessed':
+        print("Downloading preprocessed data.")
+        try:
+            subprocess.call(['openneuro', 'download', '--snapshot', preprocessed_version,
+                             'ds003812', config["DATA_DIR"]])
+        except FileNotFoundError:
+            raise Exception("openneuro command-line interface is not installed on your "
+                            "path, please install it first!")
+    elif target_dataset == 'partially-processed':
+        raise Exception("Downloading partially-processed data not implemented yet!")
+    elif target_dataset == 'fully-processed':
         print("Downloading fully-processed data.")
         subprocess.call(["curl", "-O", "-J", "-L", "https://osf.io/djak4/download"])
         subprocess.call(["tar", "xf", "sfp_fully_processed_data.tar.gz"])
@@ -47,7 +60,7 @@ def main(target_dataset):
         subprocess.call(["rm", "-r", "derivatives/"])
         subprocess.call(["rm", "-r", "stimuli/"])
         subprocess.call(["rm", "sfp_fully_processed_data.tar.gz"])
-    if target_dataset == 'supplemental':
+    elif target_dataset == 'supplemental':
         print("Downloading data required for supplemental figures.")
         subprocess.call(["curl", "-O", "-J", "-L", "https://osf.io/d94ue/download"])
         subprocess.call(["tar", "xf", "sfp_supplemental_data.tar.gz"])
@@ -65,5 +78,7 @@ if __name__ == '__main__':
                                                    'fully-processed',
                                                    'supplemental'],
                         help="Which dataset to download, see project README for details.")
+    parser.add_argument("--preprocessed_version", default='1.0.0',
+                        help="Which version fo the preprocessed dataset from openneuro to download")
     args = vars(parser.parse_args())
     main(**args)
