@@ -155,6 +155,13 @@ to use these csvs with our model.
    
 # Setup 
 
+The analyses were all run on Linux (Ubuntu, Red Hat, and CentOS, several
+different releases). The steps required to create the figures have also been
+tested on Macs, and everything else should work on them as well. For Windows, I
+would suggest looking into the [Windows Subsystem for
+Linux](https://docs.microsoft.com/en-us/windows/wsl/about), as Windows is very
+different from the others.
+
 ## Software requirements
 
 If you are starting with the partially- or fully-processed data, as explained
