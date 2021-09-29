@@ -5,6 +5,7 @@ import subprocess
 import os
 import os.path as op
 import yaml
+from glob import glob
 
 
 def main(target_dataset, preprocessed_version='1.0.0'):
@@ -46,6 +47,12 @@ def main(target_dataset, preprocessed_version='1.0.0'):
         try:
             subprocess.call(['openneuro', 'download', '--snapshot', preprocessed_version,
                              'ds003812', config["DATA_DIR"]])
+            # there can be an issue with the timestamps when downloading using
+            # openneuro that confuses snakemake, so we make sure it knows these
+            # don't need to be re-generated
+            all_preproc_files = glob(op.join(config['DATA_DIR'], 'derivatives',
+                                             'preprocessed', '**nii.gz'))
+            subprocess.call(['snakemake', '-j', '1', '--touch'] + all_preproc_files)
         except FileNotFoundError:
             raise Exception("openneuro command-line interface is not installed on your "
                             "path, please install it first!")
