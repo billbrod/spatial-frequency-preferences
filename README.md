@@ -340,7 +340,8 @@ create specific figures or what functions are called to do so.
 We will examine the creation of `fig-02.svg`. For this tutorial, we want a new
 setup, so follow [Usage](#usage) section through step 4, but don't create any
 figures (if you've already created some figures, change `DATA_DIR` in
-`config.yml` to a new folder and run those first four steps again).
+`config.yml` to a new folder and run those first four steps again, then run `rm
+reports/paper_figures/*svg` to remove the created figures).
 
 Let's get an overview of what steps are necessary. Run `snakemake -n -r
 reports/paper_figures/fig-02.svg`. The `-n` flag tells snakemake to perform a
@@ -483,17 +484,17 @@ this rule, but so will
 described above).
 
 The `run` block is the most important: it defines what to actually *do* in order
-to create the output from the input. This is all python code, we can see that we
+to create the output from the input. This is all python code: we can see that we
 import several libraries, load in the stimulus array and stimulus description
 csv, then call the function `sfp.figures.stimulus_schematic`, passing it the two
 inputs and the `context` wildcard, and finally save the created figure at the
 output path. If you wanted to see what exactly that function did, you could then
-find it in `sfp/figures.py`, and you could call this block of code in a jupyter
+find it in `sfp/figures.py`. You could also call this block of code in a jupyter
 notebook or a python interpreter to run it yourself (though you'd need to
 replace `input`, `output`, and `wildcards.context` with appropriate values).
 
 The other rules can be understood in a similar fashion. As a general note, the
-final step for creating any of these figures will be `figure_paper`, which just
+final step for creating any of the figures will be `figure_paper`, which just
 moves and renames the figure so it ends up in `reports/paper_figures`. The
 second-to-last step will generally be `compose_figures`, which combines together
 multiple figures and labels them to create multi-panel figures.
