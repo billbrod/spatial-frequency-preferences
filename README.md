@@ -250,6 +250,11 @@ use-case:
    should use. In addition to the fMRI data gathered in this experiment, it also
    includes the (defaced) freesurfer data for each subject and the population
    receptive field solutions. See that dataset's README for more details.
+    - Note that if you download this using the `download_data.py` script, there
+      will be a lot of text output to the screen after the download is run. That
+      happens because we're running a fake snakemake run to make sure that the
+      timestamps are correct, so it doesn't try to rerun the preprocessing
+      steps.
 2. `partially-processed`: Partially-processed data is shared on OSF (**LINK**).
    If you want to re-run our 1d tuning curve analysis and the 2d model fits,
    this is the one you should use. It is not fully BIDS-compliant, but tries to
