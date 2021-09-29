@@ -51,7 +51,7 @@ def main(target_dataset, preprocessed_version='1.0.0'):
             # openneuro that confuses snakemake, so we make sure it knows these
             # don't need to be re-generated
             all_preproc_files = glob(op.join(config['DATA_DIR'], 'derivatives',
-                                             'preprocessed', '**nii.gz'))
+                                             'preprocessed', '*', 'ses-04', '*nii.gz'))
             subprocess.call(['snakemake', '-j', '1', '--touch'] + all_preproc_files)
         except FileNotFoundError:
             raise Exception("openneuro command-line interface is not installed on your "
