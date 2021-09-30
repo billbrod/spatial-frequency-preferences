@@ -33,12 +33,17 @@ def main(target_dataset, preprocessed_version='1.0.0'):
     targets = ['preprocessed', 'fully-processed', 'supplemental']
     check_dirs = ['preprocessed', 'tuning_2d_model', 'freesurfer']
     yesno = 'y'
-    for tar, check in zip(targets, check_dirs):
-        if target_dataset == tar and op.exists(op.join(deriv_folder, check)):
-            yesno = input("Previous data found, do you wish to download the data anyway? [y/n] ")
+    for tar, check, size in zip(targets, check_dirs, ['41GB', '500MB', '5GB']):
+        if target_dataset == tar:
+            if op.exists(op.join(deriv_folder, check)):
+                yesno = input("Previous data found, do you wish to download the data anyway? [y/n] ")
+                while yesno not in ['y', 'n']:
+                    print("Please enter y or n")
+                    yesno = input("Previous data found, do you wish to download the data anyway? [y/n] ")
+            yesno = input(f"{tar} dataset will be approximately {size}, do you wish to download it? [y/n] ")
             while yesno not in ['y', 'n']:
                 print("Please enter y or n")
-                yesno = input("Previous data found, do you wish to download the data anyway? [y/n] ")
+                yesno = input(f"{tar} dataset will be approximately {size}, do you wish to download it? [y/n] ")
     if yesno == 'n':
         print("Exiting...")
         exit(0)
