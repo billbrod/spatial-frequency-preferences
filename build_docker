@@ -1,3 +1,7 @@
+# This is a Dockerfile, but we use a non-default name to prevent mybinder from
+# using it. we also don't expect people to build the docker image themselves, so
+# hopefully it shouldn't trip people up.
+
 FROM mambaorg/micromamba
 
 # git is necessary for one of the packages we install via pip, gcc is required
