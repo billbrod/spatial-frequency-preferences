@@ -1,6 +1,6 @@
 Spatial frequency preferences
 ==============================
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/v1.0.0?filepath=notebooks)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/v1.0.2?filepath=notebooks)
 [![DOI](https://zenodo.org/badge/98347660.svg)](https://zenodo.org/badge/latestdoi/98347660)
 
 
@@ -77,7 +77,7 @@ We also include several jupyter notebooks in the `notebooks/` directory:
   approximations thereof.
 
 If you'd like to use them, you can either view it on
-[Binder](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/v1.0.0?filepath=notebooks)
+[Binder](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/v1.0.2?filepath=notebooks)
 or [install
 jupyter](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html)
 so you can view it locally (you can also view a static version of the notebooks
