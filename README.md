@@ -186,7 +186,7 @@ We provide several ways to reproduce the python environment used in this
 experiment, in order of increasing complexity and future-proof-ness:
 
 1. [Conda](#conda-environment)
-2. Docker / singularity: under development
+2. [Docker](#docker-image)
 3. Reprozip: under development
 
 #### Conda environment
@@ -214,6 +214,35 @@ repo is included in the docker and reprozip options.
 
 I recommend using `mamba` instead of `conda` to install the environment because
 `conda` tends to hang while attempting to solve the environment.
+
+#### Docker image
+
+If you're having trouble setting up the conda environment, are on Windows, or
+are trying to do this far enough in the future that the required package
+versions are no longer installable on your machine, you can use the [docker
+image](https://hub.docker.com/repository/docker/billbrod/sfp) instead. This only
+contains the python requirements (not matlab, FSL, or Freesurfer).
+
+To use this image, we include `docker-compose.yml`, which should hopefully
+simplify things:
+
+1. Clone this repo.
+2. Make sure you have [docker](https://docs.docker.com/engine/install/) and
+   [docker compose](https://docs.docker.com/compose/install/) installed.
+3. Set `DATA_DIR` environmental variable, so `docker` knows where your data
+   lives. You can do this in multiple ways, but the easiest is probably to run
+   `export DATA_DIR=path/to/data_dir` (if you're using bash, this will vary for
+   other shells; note that this will only apply to the terminal session you run
+   it in -- if you open a new terminal session, you'll need to run it again)
+   **OR** to put `DATA_DIR=path/to/data_dir` before `docker-compose` in the
+   command below.
+4. Open `config.yml` and set `DATA_DIR` to `/home/sfp_user/sfp_data` (this is
+   the path used within the container).
+4. Run `sudo docker-compose run sfp CMD`, where `CMD` is the same as discussed
+   elsewhere in this README, e.g., `snakemake -n main_figure_paper`.
+   
+I don't like how I handle `DATA_DIR` right now and am working on simplifying it,
+but that's what we have for now.
 
 ### Experimental environment
 

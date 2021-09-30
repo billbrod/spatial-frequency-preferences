@@ -9,10 +9,8 @@ RUN apt -y install git gcc
 # switch back to the default user
 USER micromamba
 
-RUN mkdir -p /home/sfp_user/spatial-frequency-preferences
-COPY . /home/sfp_user/spatial-frequency-preferences
+RUN mkdir -p /home/sfp_user/
+COPY ./environment.yml /home/sfp_user/sfp-environment.yml
 
-RUN micromamba install -n base -y -f /home/sfp_user/spatial-frequency-preferences/environment.yml && \
+RUN micromamba install -n base -y -f /home/sfp_user/sfp-environment.yml && \
     micromamba clean --all --yes
-
-# USER sfp_user
