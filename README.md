@@ -36,7 +36,7 @@ and recreating the figures, read further on in this README for details:
      install the environment.
    - Run `conda activate sfp` to activate the python environment.
 4. Run `python download_data.py fully-processed` to download the fully-processed
-   data (note that you need both) (this is about 500MB).
+   data (this is about 500MB).
 5. Run `snakemake -k -j N reports/paper_figures/fig-XX.svg`
    (where `N` is the number of cores to use in parallel) to recreate a given
    figure from the paper (note the number must be 0-padded, i.e., `fig-01.svg`,
@@ -94,7 +94,7 @@ conda activate sfp
 conda install -c conda-forge jupyterlab
 ```
 
-   This is easy but, if you have multiple conda environments and want to use
+   This is easy, but if you have multiple conda environments and want to use
    Jupyter notebooks in each of them, it will take up a lot of space.
    
 2. Use [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels):
@@ -113,10 +113,10 @@ conda install -n sfp ipykernel
    jupyter lab on your machine.
    
 In either case, to open the notebooks, navigate to this directory on your
-terminal and activate the environment you install jupyter into (`sfp`
-for 1, `base` for 2), then run `jupyter` and open up the notebook. If you
-followed the second method, you should be prompted to select your kernel the
-first time you open a notebook: select the one named "sfp".
+terminal and activate the environment you installed jupyter into (`sfp` for 1,
+`base` for 2), then run `jupyter` and open up the notebook. If you followed the
+second method, you should be prompted to select your kernel the first time you
+open a notebook: select the one named "sfp".
 
 ## Model parameters
 
@@ -165,16 +165,19 @@ different releases). The steps required to create the figures have also been
 tested on Macs, and everything else should work on them as well. For Windows, I
 would suggest looking into the [Windows Subsystem for
 Linux](https://docs.microsoft.com/en-us/windows/wsl/about), as Windows is very
-different from the others.
+different from the others, or using the [docker image](#docker-image), which
+should work on every OS.
 
 ## Software requirements
 
 If you are starting with the partially- or fully-processed data, as explained
-[below](#data), then you only need the python requirements. If you're re-running
-the analysis from the beginning, you will also need MATLAB, FSL, and Freesurfer.
+[below](#data), then you only need the [python](#python) requirements. If you're
+re-running the analysis from the beginning, you will also need [MATLAB](#matlab)
+with its associated toolboxes, [FSL, and Freesurfer](#other).
 
-In order to use the included download script `download_data.py`, you will also
-need `rsync`, which is probably already on your machine.
+In order to use the included download script `download_data.py` to download
+`partially-processed`, `fully-processed`, or `supplemental`, you will also need
+`rsync`, which is probably already on your machine.
 
 In order to use `download_data.py` to download the `preprocessed` data from
 OpenNeuro, you will need to install the [OpenNeuro command line
@@ -182,7 +185,8 @@ interface](https://docs.openneuro.org/packages-openneuro-cli-readme).
 
 ### Python
 
-This code works with python 3.6 and 3.7.
+This code works with python 3.6 and 3.7 (it may work with higher versions, but
+they haven't been tested).
 
 We provide several ways to reproduce the python environment used in this
 experiment, in order of increasing complexity and future-proof-ness:
@@ -211,8 +215,7 @@ it includes all of *their* dependencies as well).
 If you're re-running the pre-processing, you'll need [WinawerLab's
 MRI_tools](https://github.com/WinawerLab/MRI_tools), commit
 [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e).
-The results shouldn't change substantially if pre-processed using fMRIPrep. This
-repo is included in the docker and reprozip options.
+The results shouldn't change substantially if pre-processed using fMRIPrep.
 
 I recommend using `mamba` instead of `conda` to install the environment because
 `conda` tends to hang while attempting to solve the environment.
@@ -246,8 +249,8 @@ simplify things:
 I don't like how I handle `DATA_DIR` right now and am working on simplifying it,
 but that's what we have for now.
 
-This image only contains the python environment. Therefore, it only can run the
-steps of the analysis after `GLMdenoise` (i.e., from `partially-processed` or
+As this image only contains the python environment, it only can run the steps of
+the analysis after `GLMdenoise` (i.e., starting from `partially-processed` or
 `fully-processed`, not from `preprocessed`).
 
 ### Experimental environment
@@ -258,7 +261,9 @@ like, there is a video of a single run on the [OSF](https://osf.io/cauhd/) Once
 you have miniconda installed (i.e., once you've completed step 1 of the [conda
 environment](#conda-environment) section above), then run `conda env create -f
 environment-psychopy.yml` to install the environment, and type `conda activate
-psypy` to activate it.
+psypy` to activate it (if `conda` seems to take a while to install the
+environment, you can try installing it with `mamba` instead of `conda`, as
+described earlier).
 
 See [here](#running-the-experiment) for how to run the experiment.
 
@@ -328,10 +333,9 @@ use-case:
      subjects.
    - `derivatives/tuning_2d_model/stim_class/bayesian_posterior/filter-mean/visual_field_{vertical,horizontal}-meridia/individual_task-sfprescaled_v1_e1-12_summary_b10_r0.001_g0_iso_full_iso_all_models.csv`:
      Two csvs, one for the quarters around the vertical meridia, one for the
-     quarters around the horizontal meridia, summarizing a simple model
-     (preferred period is an affine function of eccentricity, no dependency on
-     orientation, no modulation of relative gain) fit to a subset of the visual
-     field.
+     quarters around the horizontal meridia, summarizing a model 3 (preferred
+     period is an affine function of eccentricity, no dependency on orientation,
+     no modulation of relative gain) fit to a subset of the visual field.
 4. `supplemental` (5GB): Extra data required to create the figures in the
    appendix, along with data present in `fully-processed`. This data is also
    present in `preprocessed` and is separate of `fully-processed` because it's
@@ -341,9 +345,10 @@ use-case:
      the Benson 2014 anatomical atlases (Benson et al, 2014) and Bayesian
      retinotopy solutions (Benson and Winawer, 2018).
    
-Note that the partially-processed data requires the OpenNeuro dataset.
-Additionally, these two data sets do not contain the *entire* outputs of the
-analysis at that point, just what is required to complete the following steps.
+Note that the `partially-processed` data requires the OpenNeuro dataset.
+Additionally, the `partially-processed` and `fully-processed` data sets do not
+contain the *entire* outputs of the analysis at that point, just what is
+required to complete the following steps.
 
 Also note that the subjects in the paper are just numbered from 1 to 12. In the
 data and this code, they use their subject codes; the subject codes map to the
@@ -351,7 +356,7 @@ names in the paper in an increasing way, so that `sub-wlsubj001` is `sub-01`,
 `sub-wlsubj006` is `sub-02`, etc.
 
 To use `download_data.py`, simply call `python download_data.py TARGET_DATASET`
-from the command-line where `TARGET_DATASET` is one of the three names above.
+from the command-line where `TARGET_DATASET` is one of the four names above.
 
 # What's going on?
 
@@ -379,9 +384,10 @@ create specific figures or what functions are called to do so.
 
 We will examine the creation of `fig-02.svg`. For this tutorial, we want a new
 setup, so follow [Usage](#usage) section through step 4, but don't create any
-figures (if you've already created some figures, change `DATA_DIR` in
-`config.yml` to a new folder and run those first four steps again, then run `rm
-reports/paper_figures/*svg` to remove the created figures).
+figures (if you've already created some figures, `cd` to your `DATA_DIR`, then
+delete the `figures` and `compose_figures` directories: `rm -r
+derivatives/figures derivatives/compose_figures` to remove the intermediate
+steps, then run `rm reports/paper_figures/*svg` to remove the created figures).
 
 Let's get an overview of what steps are necessary. Run `snakemake -n -r
 reports/paper_figures/fig-02.svg`. The `-n` flag tells snakemake to perform a
@@ -473,7 +479,7 @@ stderr, respectively.
 Let's step through the rest for the `figure_stimulus_schematic` rule:
 - `input`: These two files in the `stimuli/` directory are required to create
   the figure.
-- `output`: an intermediate figure, contained within `deriatives/figure/paper`.
+- `output`: an intermediate figure, contained within `derivatives/figure/paper`.
   This will be panel B of the final `figure-02`.
 - `reason`: why we're running this step. In this case, because the output file
   is missing.
@@ -519,7 +525,7 @@ The first four are as above, defining paths to the relevant files, though you'll
 notice that some parts of the paths are contained within curly braces, e.g.,
 `{task}`. These are the wildcards, and so trying to create
 `derivatives/figures/paper/schematic_stimulus_task-sfprescaled.svg` will match
-this rule, but so will
+this rule, and so will
 `derivatives/figures/poster/schematic_stimulus_task-sfprescaled.png` (as
 described above).
 
