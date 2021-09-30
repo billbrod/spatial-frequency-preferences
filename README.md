@@ -1,6 +1,8 @@
 Spatial frequency preferences
 ==============================
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/v1.0.0?filepath=notebooks)
+[![DOI](https://zenodo.org/badge/98347660.svg)](https://zenodo.org/badge/latestdoi/98347660)
+
 
 An fMRI experiment to determine the relationship between spatial
 frequency and eccentricity in the human early visual cortex.
@@ -752,7 +754,7 @@ academic publication, please cite the
    log-polar stimuli, modifying that code to create a similar set of stimuli,
    using the model code directly, adapting the code to extend the model, or
    re-running the analysis on a novel dataset), please cite this Github repo's
-   Zenodo doi (**LINK**).
+   [Zenodo doi](https://zenodo.org/badge/latestdoi/98347660).
 2. If you re-analyze the data without using the code here, please cite the
    dataset's [OpenNeuro
    doi](https://dx.doi.org/10.18112/openneuro.ds003812.v1.0.0).
