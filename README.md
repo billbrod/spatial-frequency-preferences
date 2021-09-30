@@ -674,6 +674,17 @@ an actual experiment.
   analysis back to the beginning and so complains. By adding the modifications
   above, we tell `snakemake` that it should **only** consider using the rules
   that produce figures, and it no longer has this problem.
+  
+- If you are using the [docker image](#docker-image) and get an error that looks
+  like
+  
+  ```
+  PermissionError: [Errno 13] Permission denied: '/home/sfp_user/spatial-frequency-preferences/.snakemake/log/2021-09-30T160411.331367.snakemake.log'
+  ```
+  
+  Then run the following: `chmod 777 .snakemake/log`. This means there's a
+  problem with permissions and the volume we're binding to the docker image,
+  where the docker user doesn't have write access to that folder.
 
 - Previously, I found that `snakemake>=5.4`, as now required, installs its own
   `mpi4py` on the NYU's prince cluster. If you attempt to run any python command
