@@ -1,13 +1,13 @@
 Spatial frequency preferences
 ==============================
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/HEAD?filepath=notebooks)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/v1.0.0?filepath=notebooks)
 
 An fMRI experiment to determine the relationship between spatial
 frequency and eccentricity in the human early visual cortex.
 
-See the paper **LINK** for scientific details. If you re-use some component
-of this project in an academic publication, see the [citing](#citation) section
-for how to credit us.
+See the [paper](https://doi.org/10.1101/2021.09.27.462032) for scientific
+details. If you re-use some component of this project in an academic
+publication, see the [citing](#citation) section for how to credit us.
 
 # Usage
 
@@ -75,7 +75,7 @@ We also include several jupyter notebooks in the `notebooks/` directory:
   approximations thereof.
 
 If you'd like to use them, you can either view it on
-[Binder](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/HEAD?filepath=notebooks)
+[Binder](https://mybinder.org/v2/gh/billbrod/spatial-frequency-preferences/v1.0.0?filepath=notebooks)
 or [install
 jupyter](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html)
 so you can view it locally (you can also view a static version of the notebooks
@@ -244,6 +244,10 @@ simplify things:
 I don't like how I handle `DATA_DIR` right now and am working on simplifying it,
 but that's what we have for now.
 
+This image only contains the python environment. Therefore, it only can run the
+steps of the analysis after `GLMdenoise` (i.e., from `partially-processed` or
+`fully-processed`, not from `preprocessed`).
+
 ### Experimental environment
 
 We also include a separate environment containing psychopy, if you wish to run
@@ -284,7 +288,7 @@ use-case:
       happens because we're running a fake snakemake run to make sure that the
       timestamps are correct, so it doesn't try to rerun the preprocessing
       steps.
-2. `partially-processed`: Partially-processed data is shared on OSF (**LINK**).
+2. `partially-processed`: Partially-processed data will be shared shortly.
    If you want to re-run our 1d tuning curve analysis and the 2d model fits,
    this is the one you should use. It is not fully BIDS-compliant, but tries to
    be BIDS-inspired. -- this is currently under development
@@ -741,7 +745,8 @@ the fit the model, though it does contain the loss function we used,
 # Citation
 
 If you use the data or code (including the stimuli) from this project in an
-academic publication, please cite the paper (**LINK**). Additionally:
+academic publication, please cite the
+[paper](https://doi.org/10.1101/2021.09.27.462032). Additionally:
 1. If you use the code in this or any of the linked repos
    [above](#related-repos) directly (for example, using it to generate the
    log-polar stimuli, modifying that code to create a similar set of stimuli,
