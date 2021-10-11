@@ -234,16 +234,20 @@ simplify things:
 1. Clone this repo.
 2. Make sure you have [docker](https://docs.docker.com/engine/install/) and
    [docker compose](https://docs.docker.com/compose/install/) installed.
-3. Set `DATA_DIR` environmental variable, so `docker` knows where your data
+3. Change permissions on `.snakemake` and `reports/paper_figures`: `chmod -R 777
+   .snakemake reports/paper_figures/` (the docker image will need to write in
+   these directories). If you haven't run `snakemake` yet, there will be no
+   `.snakemake` directory, so create it first: `mkdir .snakemake`
+4. Set `DATA_DIR` environmental variable, so `docker` knows where your data
    lives. You can do this in multiple ways, but the easiest is probably to run
    `export DATA_DIR=path/to/data_dir` (if you're using bash, this will vary for
    other shells; note that this will only apply to the terminal session you run
    it in -- if you open a new terminal session, you'll need to run it again)
    **OR** to put `DATA_DIR=path/to/data_dir` before `docker-compose` in the
    command below.
-4. Open `config.yml` and set `DATA_DIR` to `/home/sfp_user/sfp_data` (this is
+5. Open `config.yml` and set `DATA_DIR` to `/home/sfp_user/sfp_data` (this is
    the path used within the container).
-4. Run `sudo docker-compose run sfp CMD`, where `CMD` is the same as discussed
+6. Run `sudo docker-compose run sfp CMD`, where `CMD` is the same as discussed
    elsewhere in this README, e.g., `snakemake -n main_figure_paper`.
    
 I don't like how I handle `DATA_DIR` right now and am working on simplifying it,
@@ -694,9 +698,11 @@ an actual experiment.
   PermissionError: [Errno 13] Permission denied: '/home/sfp_user/spatial-frequency-preferences/.snakemake/log/2021-09-30T160411.331367.snakemake.log'
   ```
   
-  Then run the following: `chmod 777 .snakemake/log`. This means there's a
+  Then run the following: `chmod -R 777 .snakemake/log`. This means there's a
   problem with permissions and the volume we're binding to the docker image,
-  where the docker user doesn't have write access to that folder.
+  where the docker user doesn't have write access to that folder. I've gotten
+  similar errors complaining about being unable to lock or unlock the folder, so
+  I'd recommend just running `chmod -R 777 .snakemake`.
 
 - Previously, I found that `snakemake>=5.4`, as now required, installs its own
   `mpi4py` on the NYU's prince cluster. If you attempt to run any python command

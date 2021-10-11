@@ -79,6 +79,7 @@ def main(target_dataset, preprocessed_version='1.0.0'):
         subprocess.call(["rsync", "-avPLuz", "derivatives/", f"{deriv_folder}/"])
         subprocess.call(["rm", "-r", "derivatives/"])
         subprocess.call(["rm", "sfp_supplemental_data.tar.gz"])
+    subprocess.call(['chmod', '-R', '777', config['DATA_DIR']])
 
 
 if __name__ == '__main__':
