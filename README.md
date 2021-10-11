@@ -767,4 +767,13 @@ academic publication, please cite the
 3. If you reproduce our analysis on our data, please cite both the Github repo's
    Zenodo doi and the dataset's OpenNeuro doi.
 
+# References
+
+- Benson, N. C., Butt, O. H., Brainard, D. H., & Aguirre, G. K. (2014).
+  Correction of distortion in flattened representations of the cortical surface
+  allows prediction of v1-v3 functional organization from anatomy. PLoS Comput
+  Biol, 10(3), 1–9. http://dx.doi.org/10.1371/journal.pcbi.1003538
+- Benson, N. C., & Winawer, J. (2018). Bayesian analysis of retinotopic maps.
+  eLife, 7(), 40224. http://dx.doi.org/10.7554/eLife.40224
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
