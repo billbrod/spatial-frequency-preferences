@@ -30,10 +30,10 @@ def main(target_dataset, preprocessed_version='1.0.0'):
     os.makedirs(deriv_folder, exist_ok=True)
     os.makedirs(stim_folder, exist_ok=True)
     print(f"Using {config['DATA_DIR']} as data root directory.")
-    targets = ['preprocessed', 'fully-processed', 'supplemental']
-    check_dirs = ['preprocessed', 'tuning_2d_model', 'freesurfer']
+    targets = ['preprocessed', 'fully-processed', 'supplemental', 'partially-processed']
+    check_dirs = ['preprocessed', 'tuning_2d_model', 'freesurfer', 'GLMdenoise']
     yesno = 'y'
-    for tar, check, size in zip(targets, check_dirs, ['41GB', '500MB', '5GB']):
+    for tar, check, size in zip(targets, check_dirs, ['41GB', '500MB', '5GB', '60GB']):
         if target_dataset == tar:
             if op.exists(op.join(deriv_folder, check)):
                 yesno = input("Previous data found, do you wish to download the data anyway? [y/n] ")
@@ -62,7 +62,15 @@ def main(target_dataset, preprocessed_version='1.0.0'):
             raise Exception("openneuro command-line interface is not installed on your "
                             "path, please install it first!")
     elif target_dataset == 'partially-processed':
-        raise Exception("Downloading partially-processed data not implemented yet!")
+        print("Downloading partially-processed data, each subject is approximately 5GB")
+        GLMdenoise_dir = op.join(deriv_folder, 'GLMdenoise', 'stim_class', 'bayesian_posterior')
+        for i, sub in enumerate([1, 6, 7, 45, 46, 62, 64, 81, 95, 114, 115, 121]):
+            print(f"Downloading subject sub-wlsubj{sub:03d}")
+            subprocess.call(['curl', '-k', '-O', '-J', '-L',
+                             f'https://archive.nyu.edu/bitstream/2451/63344/{i+2}/sub-wlsubj{sub:03d}_ses-04_task-sfprescaled_results.mat'])
+            subprocess.call(['mkdir', '-p', op.join(GLMdenoise_dir, f'sub-wlsubj{sub:03d}', 'ses-04')])
+            subprocess.call(['mv', f'sub-wlsubj{sub:03d}_ses-04_task-sfprescaled_results.mat',
+                             op.join(GLMdenoise_dir, f'sub-wlsubj{sub:03d}', 'ses-04')])
     elif target_dataset == 'fully-processed':
         print("Downloading fully-processed data.")
         subprocess.call(["curl", "-O", "-J", "-L", "https://osf.io/djak4/download"])

@@ -248,7 +248,12 @@ simplify things:
 5. Open `config.yml` and set `DATA_DIR` to `/home/sfp_user/sfp_data` (this is
    the path used within the container).
 6. Run `sudo docker-compose run sfp CMD`, where `CMD` is the same as discussed
-   elsewhere in this README, e.g., `snakemake -n main_figure_paper`.
+   elsewhere in this README, e.g., `snakemake -n main_figure_paper`. Note that
+   if you want to create a particular file, your `DATA_DIR` is
+   `/home/sfp_user/sfp_data`, so your command should look like `sudo
+   docker-compose run sfp snakemake -n
+   /home/sfp_user/sfp_data/derivatives/first_level_analysis/stim_class/bayesian_posterior/sub-wlsubj006/ses-04/sub-wlsubj006_ses-04_task-sfpresc
+   aled_v1_e1-12_summary.csv/`.
    
 I don't like how I handle `DATA_DIR` right now and am working on simplifying it,
 but that's what we have for now.
@@ -299,10 +304,21 @@ use-case:
       happens because we're running a fake snakemake run to make sure that the
       timestamps are correct, so it doesn't try to rerun the preprocessing
       steps.
-2. `partially-processed`: Partially-processed data will be shared shortly.
-   If you want to re-run our 1d tuning curve analysis and the 2d model fits,
-   this is the one you should use. It is not fully BIDS-compliant, but tries to
-   be BIDS-inspired. -- this is currently under development
+2. `partially-processed` (60GB): Partially-processed data is shared on the [NYU
+   Faculty Digital Archive](https://archive.nyu.edu/handle/2451/63344). If you
+   want to re-run our 1d tuning curve analysis and the 2d model fits, this is
+   the one you should use. It is not fully BIDS-compliant, but tries to be
+   BIDS-inspired. It contains the full outputs of GLMdenoise. 
+   - If you wish to use these outputs for another analysis, you'll probably want
+     to line up the voxels and their population receptive field locations. To do
+     so, run the `first_level_analysis` step: `snakemake
+     DATA_DIR/derivatives/first_level_analysis/stim_class/bayesian_posterior/SUB/ses-04/SUB_ses-04_task-sfprescaled_VAREA_e1-12_DFMODE.csv`,
+     where `DATA_DIR` is your root data directory, `SUB` is one of the subject
+     codes (e.g., `sub-wlsubj121`), `VAREA` is the visual area to grab
+     (currently, `v1`, `v2`, and `v3` should all work, but only `v1` has been
+     extensively tested), and `DFMODE` is either `summary` (for the median
+     across GLMdenoise bootstraps) or `full` (for all bootstraps; note this is
+     *much* larger and will take much longer).
 3. `fully-processed` (523MB): Fully-processed data is shared on the
    [OSF](https://osf.io/djak4/). If you just want to re-create our figures, this
    is what you should use. It is also not fully BIDS-compliant, but
