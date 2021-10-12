@@ -16,5 +16,8 @@ USER micromamba
 RUN mkdir -p /home/sfp_user/
 COPY ./environment.yml /home/sfp_user/sfp-environment.yml
 
+# get the specific commit of the MRI_tools repo that we need
+RUN git clone https://github.com/WinawerLab/MRI_tools.git /home/sfp_user/MRI_tools; cd /home/sfp_user/MRI_tools; git checkout 8508652bd9e6b5d843d70be0910da413bbee432e
+
 RUN micromamba install -n base -y -f /home/sfp_user/sfp-environment.yml && \
     micromamba clean --all --yes
