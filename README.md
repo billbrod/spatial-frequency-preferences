@@ -262,6 +262,53 @@ As this image only contains the python environment, it only can run the steps of
 the analysis after `GLMdenoise` (i.e., starting from `partially-processed` or
 `fully-processed`, not from `preprocessed`).
 
+#### Singularity image
+
+If you want to run this on the cluster, you won't be able to use Docker.
+Fortunately, you can use singularity with docker images. Follow these steps
+instead:
+
+1. Navigate somewhere that you can put large files. This is probably not your
+   home directory, on NYU's greene this is `/scratch/$USER`, which is how we'll
+   refer to it for the rest of these instructions.
+2. Make sure you have singularity available: running `which singularity` should
+   give you a path. If not, you'll need to load it. If your cluster uses
+   [lmod](https://lmod.readthedocs.io/en/latest/), like NYU's does, this is
+   probably something like `module load singularity/3.7.4`
+3. Make sure you have python3 available: running `which python3` should
+   give you a path. If not, you'll need to load it. If your cluster uses
+   [lmod](https://lmod.readthedocs.io/en/latest/), like NYU's does, this is
+    `module load python/intel/3.8.6`
+4. Pull the image down and convert it to singularity: `singularity pull -F
+   docker://billbrod/sfp`. You should end up with a file called `sfp_latest.sif`
+   in your current directory.
+5. Edit `config.yml`: make sure `DATA_DIR` is set properly and, if you'll be
+   using the image to run preprocessing and GLMdenoise, set the paths in the `##
+   SINGULARITY` section.
+6. Navigate back to this directory and use the included `run_singularity.py`
+   script to run the image (this script makes sure to bind the appropriate
+   volumes and sets up the environment). Use it like so: `./run_singularity.py
+   path/to/sfp_latest.sif "CMD"`, where `CMD` is the same as discussed elsewhere
+   in this README, e.g., `snakemake -n main_figure_paper`. The quotes are
+   necessary if your `CMD` includes any flags (like `-n`), to prevent
+   `run_singularity.py` from trying to interpret them itself.
+    - Assuming you set the corresponding paths in `config.yml`, the container
+      will have matlab, FSL, and Freesurer available, with all the corresponding
+      toolboxes. It also includes the commit from [WinawerLab's
+      MRI_tools](https://github.com/WinawerLab/MRI_tools) required to run
+      preprocessing.
+    - You can also run `./run_singularity.py` without a `CMD` to open an
+      interactive session in the container.
+    - `DATA_DIR` has been remapped to `/home/sfp_user/sfp_data` within the
+      container, so interpret any paths within that directory as lying there.
+    - NOTE: currently, `CMD` cannot include any single quotes `'`, because of
+      how we parse the command. I don't think that's a problem, but if it stops
+      you, [open an
+      issue](https://github.com/billbrod/spatial-frequency-preferences/issues).
+
+See [cluster usage](#cluster-usage) section for more details about using this
+image on the cluster.
+
 ### Experimental environment
 
 We also include a separate environment containing psychopy, if you wish to run
