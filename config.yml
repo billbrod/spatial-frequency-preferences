@@ -1,26 +1,52 @@
+## ALWAYS DO THIS SECTION
+
 # The root of the BIDS directory. It's recommended you place this in a new
 # directory, such as Desktop/sfp_data. Note that you cannot use the ~ in this
 # path (write out the full path to your home directory, e.g., /home/billbrod or
 # /Users/billbrod) and that the name of your directory cannot have capital
 # letters in it (i.e., it should be sfp_data, not SFP_data; this causes an issue
 # on Macs)
-DATA_DIR: "/mnt/winawerlab/Projects/spatial_frequency_preferences/sfp_data"
+DATA_DIR: "/scratch/wfb229/sfp_fully_test"
 
-# Path of the Winawer Lab MRI_Tools repo. Only necessary if you're running the
-# preprocessing step
+
+## PRE-PROCESSING
+
+# Only required if you're doing so without a container
+
+# Path of the Winawer Lab MRI_Tools repo.
 MRI_TOOLS: "/home/billbrod/Documents/MRI_tools"
-
-# Working directory for preprocessing. Only necessary if you're running the
-# preprocessing step.
+# Working directory for preprocessing.
 WORKING_DIR: "/users-local/broderick/preprocess"
 
-# Path to the GLMdenoise MATLAB toolbox. Only necessary if you're running the
-# GLMdenoise steps.
-GLMDENOISE_PATH: "/home/billbrod/Documents/MATLAB/toolboxes/GLMdenoise"
 
-# Path to the Vistasoft MATLAB toolbox. Only necessary if you're running the
-# GLMdenoise step
+## GLMDENOISE
+
+# Only required if you're doing so without a container
+
+# Path to the GLMdenoise MATLAB toolbox.
+GLMDENOISE_PATH: "/home/billbrod/Documents/MATLAB/toolboxes/GLMdenoise"
+# Path to the Vistasoft MATLAB toolbox.
 VISTASOFT_PATH: "/home/billbrod/Documents/MATLAB/toolboxes/vistasoft"
+
+
+## CONTAINER
+
+# Only required if you're also running preprocessing and/or GLMdenoise. Note
+# that you don't need to edit the PREPROCESSING and GLMDENOISE sections above as
+# well (the extra repos are all included within the container).
+
+# The following are the paths to the install locations for the additional
+# dependencies required for preprocessing and GLMdenoise. To find their path on
+# the cluster, make sure they're on your path (probably by using `module load`)
+# and then run e.g., `which matlab` (or `which mri_convert`, etc.) to find where
+# they're installed. Note that we want the root directory of the install (not
+# the `bin/` folder containing the binary executables).
+MATLAB_PATH: "/share/apps/matlab/2020b"
+FREESURFER_HOME: "/share/apps/freesurfer/6.0.0"
+FSLDIR: "/share/apps/fsl/5.0.10"
+
+
+## SHOULDN'T NEED TO TOUCH THE FOLLOWING
 
 # The following paths were all used in the initial copying of data into the
 # BIDS-compliant format we shared. They will not be necessary for anyone else's

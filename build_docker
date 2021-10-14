@@ -18,3 +18,16 @@ COPY ./environment.yml /home/sfp_user/sfp-environment.yml
 
 RUN micromamba install -n base -y -f /home/sfp_user/sfp-environment.yml && \
     micromamba clean --all --yes
+
+# get the specific commit of the MRI_tools repo that we need
+RUN git clone https://github.com/WinawerLab/MRI_tools.git /home/sfp_user/MRI_tools; cd /home/sfp_user/MRI_tools; git checkout 8508652bd9e6b5d843d70be0910da413bbee432e
+# get the matlab toolboxes that we need
+RUN git clone https://github.com/cvnlab/GLMdenoise.git /home/sfp_user/GLMdenoise
+RUN git clone https://github.com/vistalab/vistasoft.git /home/sfp_user/vistasoft
+RUN mkdir -p /home/sfp_user/.config/snakemake
+RUN git clone https://github.com/billbrod/snakemake-slurm.git /home/sfp_user/.config/snakemake/slurm; cd /home/sfp_user/.config/snakemake/slurm; git checkout 9002021646d80d9c44d0728a7e847bd46a992afe
+# delete the lines saying to use the overlay
+RUN sed -i '7,9d' /home/sfp_user/.config/snakemake/slurm/slurm-jobscript.sh
+
+# copy over the env.sh file, which sets environmental variables
+COPY ./singularity_env.sh /home/sfp_user/singularity_env.sh
