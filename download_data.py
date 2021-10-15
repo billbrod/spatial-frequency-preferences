@@ -66,8 +66,9 @@ def main(target_dataset, preprocessed_version='1.0.0'):
         GLMdenoise_dir = op.join(deriv_folder, 'GLMdenoise', 'stim_class', 'bayesian_posterior')
         for i, sub in enumerate([1, 6, 7, 45, 46, 62, 64, 81, 95, 114, 115, 121]):
             print(f"Downloading subject sub-wlsubj{sub:03d}")
-            subprocess.call(['curl', '-k', '-O', '-J', '-L',
-                             f'https://archive.nyu.edu/bitstream/2451/63344/{i+2}/sub-wlsubj{sub:03d}_ses-04_task-sfprescaled_results.mat'])
+            subprocess.call(['curl', '-k', '-L',
+                             f'https://archive.nyu.edu/rest/bitstreams/{128495+i}/retrieve',
+                             '-o', f'sub-wlsubj{sub:03d}_ses-04_task-sfprescaled_results.mat'])
             subprocess.call(['mkdir', '-p', op.join(GLMdenoise_dir, f'sub-wlsubj{sub:03d}', 'ses-04')])
             subprocess.call(['mv', f'sub-wlsubj{sub:03d}_ses-04_task-sfprescaled_results.mat',
                              op.join(GLMdenoise_dir, f'sub-wlsubj{sub:03d}', 'ses-04')])
