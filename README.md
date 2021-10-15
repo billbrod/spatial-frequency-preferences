@@ -702,6 +702,29 @@ an actual experiment.
   The results were generated with torch version 1.1, but the code appears to be
   compliant with version up to at least 1.9.
   
+- There may be another Mac torch install error. If you get the following when
+  trying to import torch (which happens in a lot of places throughout the code):
+  
+  ``` sh
+  >>> import sfp
+  Traceback (most recent call last):
+   File “<stdin>“, line 1, in <module>
+   File “/Users/jh7685/Documents/GitHub/spatial-frequency-preferences/sfp/__init__.py”, line 1, in <module>
+    from . import plotting
+   File “/Users/jh7685/Documents/GitHub/spatial-frequency-preferences/sfp/plotting.py”, line 16, in <module>
+    from . import model as sfp_model
+   File “/Users/jh7685/Documents/GitHub/spatial-frequency-preferences/sfp/model.py”, line 13, in <module>
+    import torch
+   File “/Users/jh7685/opt/miniconda3/envs/sfp/lib/python3.7/site-packages/torch/__init__.py”, line 79, in <module>
+    from torch._C import *
+ImportError: dlopen(/Users/jh7685/opt/miniconda3/envs/sfp/lib/python3.7/site-packages/torch/_C.cpython-37m-darwin.so, 9): Library not loaded: /usr/local/opt/libomp/lib/libomp.dylib
+   Referenced from: /Users/jh7685/opt/miniconda3/envs/sfp/lib/python3.7/site-packages/torch/lib/libshm.dylib
+   Reason: image not found
+```
+
+  then use [homebrew](https://brew.sh/) to install the missing library: `brew
+  install libomp`.
+  
 - On a Mac, if the name of your `DATA_DIR` is uppercase, this can mess things up
   (on Macs, paths are case-insensitive, but they're case-sensitive on Linux and
   with many command-line tools). If you try to create the figures and get a
