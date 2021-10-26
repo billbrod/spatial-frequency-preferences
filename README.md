@@ -274,8 +274,6 @@ instead:
       preprocessing.
     - You can also run `./run_singularity.py path/to/sfp_latest.sif` without a
       `CMD` to open an interactive session in the container.
-    - `DATA_DIR` has been remapped to `/home/sfp_user/sfp_data` within the
-      container, so interpret any paths within that directory as lying there.
 
 See [cluster usage](#cluster-usage) section for more details about using this
 image on the cluster.
