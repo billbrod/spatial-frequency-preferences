@@ -25,8 +25,9 @@ download and proper arrangement. There are also several ways to reproduce the
 The following steps will walk you through downloading the fully-processed data
 and recreating the figures, read further on in this README for details:
 1. Clone this repo.
-2. Open `config.yml` and modify the `DATA_DIR` path to wherever you wish to
-   download the data.
+2. Open `config.json` and modify the `DATA_DIR` path to wherever you wish to
+   download the data (see [config.json](#config.json) section for details on
+   what all the other variables are).
 3. Install the python environment:
    - Install [miniconda](https://docs.conda.io/en/latest/miniconda.html) on your
      system for python 3.7.
@@ -245,7 +246,7 @@ simplify things:
    it in -- if you open a new terminal session, you'll need to run it again)
    **OR** to put `DATA_DIR=path/to/data_dir` before `docker-compose` in the
    command below.
-5. Open `config.yml` and set `DATA_DIR` to `/home/sfp_user/sfp_data` (this is
+5. Open `config.json` and set `DATA_DIR` to `/home/sfp_user/sfp_data` (this is
    the path used within the container).
 6. Run `sudo docker-compose run sfp CMD`, where `CMD` is the same as discussed
    elsewhere in this README, e.g., `snakemake -n main_figure_paper`. Note that
@@ -282,29 +283,26 @@ instead:
 4. Pull the image down and convert it to singularity: `singularity pull -F
    docker://billbrod/sfp`. You should end up with a file called `sfp_latest.sif`
    in your current directory.
-5. Edit `config.yml`: make sure `DATA_DIR` is set properly and, if you'll be
-   using the image to run preprocessing and GLMdenoise, set the paths in the `##
-   SINGULARITY` section.
+5. Edit `config.json`: make sure `DATA_DIR` is set properly. If you want to run
+   the preprocessing and/or GLMdenoise steps, you should also set the
+   `MATLAB_PATH`, `FREESURFER_HOME`, and `FSLDIR` variables (see
+   [config.json](#config.json) section for more details)
 6. Navigate back to this directory and use the included `run_singularity.py`
    script to run the image (this script makes sure to bind the appropriate
    volumes and sets up the environment). Use it like so: `./run_singularity.py
-   path/to/sfp_latest.sif "CMD"`, where `CMD` is the same as discussed elsewhere
-   in this README, e.g., `snakemake -n main_figure_paper`. The quotes are
+   path/to/sfp_latest.sif 'CMD'`, where `CMD` is the same as discussed elsewhere
+   in this README, e.g., `snakemake -n main_figure_paper`. The single quotes are
    necessary if your `CMD` includes any flags (like `-n`), to prevent
    `run_singularity.py` from trying to interpret them itself.
-    - Assuming you set the corresponding paths in `config.yml`, the container
+    - Assuming you set the corresponding paths in `config.json`, the container
       will have matlab, FSL, and Freesurer available, with all the corresponding
       toolboxes. It also includes the commit from [WinawerLab's
       MRI_tools](https://github.com/WinawerLab/MRI_tools) required to run
       preprocessing.
-    - You can also run `./run_singularity.py` without a `CMD` to open an
-      interactive session in the container.
+    - You can also run `./run_singularity.py path/to/sfp_latest.sif` without a
+      `CMD` to open an interactive session in the container.
     - `DATA_DIR` has been remapped to `/home/sfp_user/sfp_data` within the
       container, so interpret any paths within that directory as lying there.
-    - NOTE: currently, `CMD` cannot include any single quotes `'`, because of
-      how we parse the command. I don't think that's a problem, but if it stops
-      you, [open an
-      issue](https://github.com/billbrod/spatial-frequency-preferences/issues).
 
 See [cluster usage](#cluster-usage) section for more details about using this
 image on the cluster.
@@ -425,6 +423,56 @@ names in the paper in an increasing way, so that `sub-wlsubj001` is `sub-01`,
 To use `download_data.py`, simply call `python download_data.py TARGET_DATASET`
 from the command-line where `TARGET_DATASET` is one of the four names above.
 
+## config.json
+
+`config.json` is a configuration file that contains several paths used in our
+analysis, only the first of which must be set:
+- `DATA_DIR`: the root of the BIDS directory. It's recommended you place this in
+  a new directory, such as Desktop/sfp_data. Note that you cannot use `~` in
+  this path (write out the full path to your home directory, e.g.,
+  /home/billbrod or /Users/billbrod) and that the name of your directory cannot
+  have capital letters in it (i.e., it should be sfp_data, not SFP_data; this
+  causes an issue on Macs)
+- Preprocessing-related: these two only need to be set if you're re-running the
+  pre-processing steps **and** doing so without using the
+  [container](#singularity-image).
+    - `MRI_TOOLS`: path to the Winawer lab MRI tools repo, commit
+      [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e).
+    - `WORKING_DIR`: working directory for preprocessing, stores some temporary
+      outputs.
+- GLMdenoise-related: these two only need to be set if you're re-running the
+  GLMdenoise steps **and** doing so without using the
+  [container](#singularity-image).
+    - `GLMDENOISE_PATH`: Path to the GLMdenoise MATLAB toolbox.
+    - `VISTASOFT_PATH`: Path to the Vistasoft MATLAB toolbox.
+- Container-related: these only need to be set if you're using the
+  [container](#singularity-image) **and** running preprocessing and/or
+  GLMdenoise (you don't need to edit the `MRI_TOOLS`, etc paths as well). Note
+  the current paths should be correct if you're on NYU Greene. They're the paths
+  to the install locations for the additional dependencies required for
+  preprocessing and GLMdenoise. To find their path on the cluster, make sure
+  they're on your path (probably by using `module load`) and then run e.g.,
+  `which matlab` (or `which mri_convert`, etc.) to find where they're installed.
+  Note that we want the root directory of the install (not the `bin/` folder
+  containing the binary executables so that if `which matlab` returns
+  `/share/apps/matlab/2020b/bin/matlab`, we just want
+  `/share/apps/matlab/2020b`).
+    - `MATLAB_PATH`: directory containing the matlab install.
+    - `FREESURFER_HOME`: freesurfer home directory, should also be an
+      environmental variable of the same name.
+    - `FSLDIR`: FSL directory, should also be an environmental variable of the
+      same name.
+- Don't change: these last several paths were all used in the initial copying of
+  data into the BIDS-compliant format we shared. They'll not be necessary for
+  anyone else's use
+    - `TESLA_DIR`: path to NYU CBI's Tesla server, where data comes off the
+      scanner.
+    - `EXTRA_FILES_DIR`: path to directory containing the extra files necessary
+      to make directory BIDS-compliant (e.g., stimulus files, events files).
+    - `SUBJECTS_DIR`: Winawer lab Freesurfer subjects directory.
+    - `RETINOTOPY_DIR`: Winawer lab retinotopy directory, containing BIDS-like
+      outputs.
+
 # What's going on?
 
 The analysis for this project is built around
@@ -440,8 +488,8 @@ Acyclic Graph (DAG) containing all the steps necessary to create the specified
 file given the availble files. It can run independent steps in parallel (by use
 of the `-j` flag included above), continue to run independent steps when one
 fails (with the `-k` flag), and even handle the management of job submission
-systems like SLURM (see [Snakemake on the cluster](#snakemake-on-the-cluster)
-for details, if you're interested).
+systems like SLURM (see [Cluster usage](#cluster-usage) section for details, if
+you're interested).
 
 However, if you're not familiar with snakemake or this style of workflow
 management system, this can somewhat obfuscate what is *actually* being done.
@@ -617,39 +665,6 @@ how you can get more information about the steps of the analysis!
 
 # Usage details
 
-## Snakemake on the cluster
-
-If you're running this analysis locally, nothing else needs to be configured. If
-you're doing anything beyond just creating the figures, however, you probably
-will want to use a compute cluster (GLMdenoise takes ~2 hours per subject, each
-fit of the 2d model takes ~1 hour and we fit ~3000 of them in total). Snakemake
-requires a bit of configuration to do so. View their
-[docs](https://snakemake.readthedocs.io/en/stable/executing/cluster.html?highlight=cluster)
-for details.
-
-If you're using NYU's greene cluster, things are both easier (because I've
-already gone through this process) and harder (the configuration is more
-difficult because of how they want you to handle conda environments) for you. I
-put together a little [blog
-post](https://wfbroderick.com/2021-May-06.html#2021-May-06) detailing how I got
-snakemake to work with conda environments on greene (note that during step 7,
-where I say "install conda environment like normal", you should run `mamba env
-create -f environment.yml` to install the necessary packages).
-
-Once you've managed to get snakemake working with the cluster (my blog post
-includes a small test), use the following command to run our analyses instead:
-
-`snakemake --ri -k -j 60 --restart-times 2 --profile slurm --cluster-config cluster.json main_figure_paper`
-
-This tells snakemake to use our `slurm` profile (so if you set up a different
-profile for another cluster, change the name here) and the included
-`cluster.json` configuration file (which tells slurm how much memory and time to
-request per job), to try to restart jobs 2 times if they fail (sometimes job
-just fail on submission and then rerun without a problem), to rerun any jobs
-that look incomplete (`--ri`), and to keep running any independent jobs if any
-jobs fail (`-k`). This should hopefully run to completion (in my experience on
-greene, it takes about one to two days).
-
 ## Running the experiment
 
 If you just wish to see what the runs of our experiment looked like, a video has
@@ -661,7 +676,7 @@ If you wish to use the existing stimuli to run the experiment, you can do so for
 3. Activate the `psypy` environment: `conda activate pspy`.
 4. Run `python sfp/experiment.py DATA_DIR/stimuli/task-sfprescaled_stimuli.npy 1
    sub-test_ses-04`, replacing `DATA_DIR` with the path to the root of the
-   directory (as given in `config.yml`). If you want to run more than 1 run,
+   directory (as given in `config.json`). If you want to run more than 1 run,
    change the `1` in that command. Each run will last 4 minutes 24 seconds (48
    stimulus classes and 10 blank trials, each for 4 seconds, with 16 seconds of
    blank screen at the beginning and end of each run).
@@ -672,8 +687,98 @@ warning is raised to this effect when you create them). Therefore, all new
 subjects will have the same presentation order, which is not what you want for
 an actual experiment.
 
-# Troubleshooting 
+### Cluster usage
 
+If you're running this analysis locally, nothing else needs to be configured. If
+you're doing anything beyond just creating the figures, however, you probably
+will want to use a compute cluster (GLMdenoise takes ~2 hours per subject, each
+fit of the 2d model takes ~1 hour and we fit ~3000 of them in total). If you do
+so, it's recommended that you use the included [Singularity
+image](#singularity-image) to handle the environment.
+
+The following instructions will work on NYU's greene cluster, which is a SLURM
+cluster. Other SLURM clusters should work more-or-less the same, and other
+cluster management / job scheduling systems should work similarly, see
+[below](#other-clusters) for some notes.
+
+First, follow the instructions in [singularity section](#singularity-image),
+through step 5.
+
+If you only want to create the figures, you can do this interactively, just as
+we would locally. Start up an interactive node: `srun --time 1:00:00 --mem 30GB
+--cpus-per-task 8 --pty /bin/bash` (this asks for one node with 8 cpus and 30GB
+of memory for an hour). Now you can simply call `run_singularity.py` as
+described in the final step of the [singularity section](#singularity-image),
+e.g. `run_singularity.py path/to/sfp_latest.sif 'snakemake -j 8
+main_figure_paper'` to create all main paper figures.
+
+If you wish to do any other analysis, you should make use of the fact that
+snakemake can manage job submission to the cluster for us. To do so, add the
+`--profile slurm --cluster-config cluster.json` to any snakemake command. To
+test that this is working, try running `./run_singularity.py
+path/to/sfp_latest.sif 'snakemake --profile slurm --cluster-config cluster.json
+test_run test_shell'`. If it works, snakemake should report that they ran
+without a problem, and you should see two log files in your home directory,
+`test_run-##.log` and `test_shell-##.log`, where `##` is the SLURM job number
+(there may also be empty `test_run-%j.log` and `test_shell-%j.log` files, which
+you can ignore and delete). These should contain, among some snakemake
+boilerplate, `success!` and the path to the `numpy` install in the image, which
+should be something like
+`/opt/conda/lib/python3.7/site-packages/numpy/__init__.py `.
+
+Once that's all working, you'll probably want to add a couple extra flags, so
+your `CMD` to pass to `run_singularity.py` will look something like this:
+
+`snakemake --ri -k -j 60 --restart-times 2 --profile slurm --cluster-config cluster.json main_figure_paper`
+
+This tells snakemake to use our `slurm` profile and the included `cluster.json`
+configuration file (which tells slurm how much memory and time to request per
+job), to try to restart jobs 2 times if they fail (sometimes job just fail on
+submission and then rerun without a problem), to rerun any jobs that look
+incomplete (`--ri`), and to keep running any independent jobs if any jobs fail
+(`-k`). This should hopefully run to completion (in my experience on greene, it
+takes about one to two days).
+
+### Other clusters
+
+If you're on a non-NYU cluster, there are two things you need to do: 
+
+1. Make sure the image has access to your job submission system. At the top of
+   `run_singularity.py` are several lines that set several different
+   singularity-related environmental variables. These bind extra paths, modify
+   the path within the container, and bind additional libraries, respectively.
+   You should modify these if your slurm is installed in a different location or
+   if you use a different job submission system, and you'll probably need help
+   from your cluster sysadmin. See singularity's
+   [docs](https://sylabs.io/guides/3.7/user-guide/appendix.html#singularity-s-environment-variables)
+   for more details on these variables.
+
+2. Tell snakemake how to handle your cluster. If you're on slurm, you can
+   probably use the included profile, but otherwise, you may need to create the
+   snakemake profile and cluster config yourself (the following links to some
+   ones you might be able to use, with a bit of tweaking). See snakemake's
+   [docs](https://snakemake.readthedocs.io/en/stable/executing/cluster.html?highlight=cluster)
+   about how to do this ([this
+   bit](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles)
+   is also helpful). Then specify the path to the profile with the `--profile`
+   flag, e.g., `--profile ~/.config/snakemake/qsub`, and the image will make use
+   of that instead. If you try this and it doesn't work, please [open an
+   issue](https://github.com/billbrod/spatial-frequency-preferences/issues).
+    - The profile included in the image is my
+      [snakemake-slurm](https://github.com/billbrod/snakemake-slurm/tree/singularity)
+      repo, the `singularity` branch. Particularly important is the
+      `slurm-jobscript.sh` file, which is the template shell script that
+      snakemake will submit to the cluster. Several things to note:
+      - we need to know where the `run_singularity.py` script is and where the
+        `.sif` file containing the image is; I do this by setting the `SFP_PATH`
+        and `SINGULARITY_CONTAINER_PATH` environmental variables and passing
+        them through to the submitted jobs (which is what the `SBATCH --export`
+        directive on the second line does)
+      - snakemake will replace `{exec_job:q}` with the job to run, and the `:q`
+        tells it to escape the quotes so that they parse correctly in the bash
+        script. You probably want to keep that `:q`.
+
+# Troubleshooting 
 
 - There appears to be an issue installing torch version 1.1 on Macs (it affected
   about half the tested machines). If you try to create the figures and get an
