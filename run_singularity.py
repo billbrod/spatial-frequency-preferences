@@ -27,16 +27,27 @@ def check_singularity_envvars():
         os.environ[env] = joiner.join(paths)
 
 
-def main(path, args=[]):
+def check_bind_paths(volumes):
+    """Check that paths we want to bind exist, return only those that do."""
+    return [vol for vol in volumes if op.exists(vol.split(':')[0])]
+
+
+def main(image, args=[], software='singularity', sudo=False):
     """Run sfp singularity container!
 
     Parameters
     ----------
-    path : str
-        path to the .sif file containing the singularity image.
+    image : str
+        If running with singularity, the path to the .sif file containing the
+        singularity image. If running with docker, name of the docker image.
     args : list, optional
         command to pass to the container. If empty (default), we open up an
         interactive session.
+    software : {'singularity', 'docker'}, optional
+        Whether to run image with singularity or docker
+    sudo : bool, optional
+        If True, we run docker with `sudo`. If software=='singularity', we
+        ignore this.
 
     """
     check_singularity_envvars()
@@ -49,6 +60,7 @@ def main(path, args=[]):
         f'{config["FSLDIR"]}:/home/sfp_user/fsl',
         f'{config["DATA_DIR"]}:/home/sfp_user/sfp_data',
     ]
+    volumes = check_bind_paths(volumes)
     # join puts --bind between each of the volumes, we also need it in the
     # beginning
     volumes = '--bind ' + " --bind ".join(volumes)
@@ -98,12 +110,18 @@ def main(path, args=[]):
                 f"'source /home/sfp_user/singularity_env.sh; {' '.join(args)}'"]
     # set these environmental variables, which we use for the jobs submitted to
     # the cluster so they know where to find the container and this script
-    env_str = f"--env SFP_PATH={op.dirname(op.realpath(__file__))} --env SINGULARITY_CONTAINER_PATH={path}"
+    env_str = f"--env SFP_PATH={op.dirname(op.realpath(__file__))} --env SINGULARITY_CONTAINER_PATH={image}"
     # the -e flag makes sure we don't pass through any environment variables
     # from the calling shell, while --writable-tmpfs enables us to write to the
     # container's filesystem (necessary because singularity_env.sh makes a
     # temporary config.json file)
-    exec_str = f'singularity exec -e {env_str} --writable-tmpfs {volumes} {path} {" ".join(args)}'
+    if software == 'singularity':
+        exec_str = f'singularity exec -e {env_str} --writable-tmpfs {volumes} {image} {" ".join(args)}'
+    elif software == 'docker':
+        volumes = volumes.replace('--bind', '--volume')
+        exec_str = f'docker run {volumes} -it {image} {" ".join(args)}'
+        if sudo:
+            exec_str = 'sudo ' + exec_str
     print(exec_str)
     # we use shell=True because we want to carefully control the quotes used
     subprocess.call(exec_str, shell=True)
@@ -114,7 +132,14 @@ if __name__ == '__main__':
         description=("Run billbrod/sfp container. This is a wrapper, which binds the appropriate"
                      " paths and sources singularity_env.sh, setting up some environmental variables.")
     )
-    parser.add_argument('path', help='Path to the .sif image.')
+    parser.add_argument('image',
+                        help=('If running with singularity, the path to the '
+                              '.sif file containing the singularity image. '
+                              'If running with docker, name of the docker image.'))
+    parser.add_argument('--software', default='singularity', choices=['singularity', 'docker'],
+                        help="Whether to run this with singularity or docker")
+    parser.add_argument('--sudo', '-s', action='store_true',
+                        help="Whether to run docker with sudo or not. Ignored if software==singularity")
     parser.add_argument("args", nargs='*',
                         help="Command to pass to the container. If empty, we open up an interactive session.")
     args = vars(parser.parse_args())

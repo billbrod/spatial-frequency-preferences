@@ -27,7 +27,7 @@ and recreating the figures, read further on in this README for details:
 1. Clone this repo.
 2. Open `config.json` and modify the `DATA_DIR` path to wherever you wish to
    download the data (see [config.json](#config.json) section for details on
-   what all the other variables are).
+   what this file is).
 3. Install the python environment:
    - Install [miniconda](https://docs.conda.io/en/latest/miniconda.html) on your
      system for python 3.7.
@@ -194,7 +194,7 @@ experiment, in order of increasing complexity and future-proof-ness:
 
 1. [Conda](#conda-environment)
 2. [Docker](#docker-image)
-3. Reprozip: under development
+3. [Singularity](#singularity-image)
 
 #### Conda environment
 
@@ -227,41 +227,14 @@ If you're having trouble setting up the conda environment, are on Windows, or
 are trying to do this far enough in the future that the required package
 versions are no longer installable on your machine, you can use the [docker
 image](https://hub.docker.com/repository/docker/billbrod/sfp) instead. This only
-contains the python requirements (not matlab, FSL, or Freesurfer).
-
-To use this image, we include `docker-compose.yml`, which should hopefully
-simplify things:
-
-1. Clone this repo.
-2. Make sure you have [docker](https://docs.docker.com/engine/install/) and
-   [docker compose](https://docs.docker.com/compose/install/) installed.
-3. Change permissions on `.snakemake` and `reports/paper_figures`: `chmod -R 777
-   .snakemake reports/paper_figures/` (the docker image will need to write in
-   these directories). If you haven't run `snakemake` yet, there will be no
-   `.snakemake` directory, so create it first: `mkdir .snakemake`
-4. Set `DATA_DIR` environmental variable, so `docker` knows where your data
-   lives. You can do this in multiple ways, but the easiest is probably to run
-   `export DATA_DIR=path/to/data_dir` (if you're using bash, this will vary for
-   other shells; note that this will only apply to the terminal session you run
-   it in -- if you open a new terminal session, you'll need to run it again)
-   **OR** to put `DATA_DIR=path/to/data_dir` before `docker-compose` in the
-   command below.
-5. Open `config.json` and set `DATA_DIR` to `/home/sfp_user/sfp_data` (this is
-   the path used within the container).
-6. Run `sudo docker-compose run sfp CMD`, where `CMD` is the same as discussed
-   elsewhere in this README, e.g., `snakemake -n main_figure_paper`. Note that
-   if you want to create a particular file, your `DATA_DIR` is
-   `/home/sfp_user/sfp_data`, so your command should look like `sudo
-   docker-compose run sfp snakemake -n
-   /home/sfp_user/sfp_data/derivatives/first_level_analysis/stim_class/bayesian_posterior/sub-wlsubj006/ses-04/sub-wlsubj006_ses-04_task-sfpresc
-   aled_v1_e1-12_summary.csv/`.
-   
-I don't like how I handle `DATA_DIR` right now and am working on simplifying it,
-but that's what we have for now.
-
-As this image only contains the python environment, it only can run the steps of
-the analysis after `GLMdenoise` (i.e., starting from `partially-processed` or
-`fully-processed`, not from `preprocessed`).
+contains the python requirements (not matlab, FSL, or Freesurfer, though you can
+mount you can mount those with the `run_singularity.py` script). Make sure you
+have [docker installed](https://docs.docker.com/engine/install/) and then follow
+the instructions in the [singularity image](#singularity-image) section, adding
+a `--software docker` flag to the `run_singularity.py` calls (and maybe `--sudo`
+as well, if you need `sudo` to run docker; see
+[here](https://docs.docker.com/engine/install/linux-postinstall/) for steps that
+will allow you to run docker as a non-root user).
 
 #### Singularity image
 
