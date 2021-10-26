@@ -58,15 +58,13 @@ def main(image, args=[], software='singularity', sudo=False):
         f'{config["MATLAB_PATH"]}:/home/sfp_user/matlab',
         f'{config["FREESURFER_HOME"]}:/home/sfp_user/freesurfer',
         f'{config["FSLDIR"]}:/home/sfp_user/fsl',
-        f'{config["DATA_DIR"]}:/home/sfp_user/sfp_data',
+        f'{config["DATA_DIR"]}:{config["DATA_DIR"]}',
+        f'{config["WORKING_DIR"]}:{config["WORKING_DIR"]}'
     ]
     volumes = check_bind_paths(volumes)
     # join puts --bind between each of the volumes, we also need it in the
     # beginning
     volumes = '--bind ' + " --bind ".join(volumes)
-    # make sure we use the image-internal data directory
-    if any([config['DATA_DIR'] in a for a in args]):
-        args = [a.replace(config['DATA_DIR'], '/home/sfp_user/sfp_data') for a in args]
     # if the user is passing a snakemake command, need to pass
     # --configfile /home/sfp_user/sfp_config.json, since we modify the config
     # file when we source singularity_env.sh
