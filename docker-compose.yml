@@ -1,9 +1,0 @@
-version: '3'
-services:
-  sfp:
-    image: billbrod/sfp
-    container_name: sfp
-    volumes:
-      - './:/home/sfp_user/spatial-frequency-preferences'
-      - '${DATA_DIR}:/home/sfp_user/sfp_data'
-    working_dir: '/home/sfp_user/spatial-frequency-preferences'
