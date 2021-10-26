@@ -2,18 +2,48 @@
 
 import argparse
 import subprocess
+import os
 import os.path as op
-import yaml
+import json
 import re
+from glob import glob
+
+# slurm-related paths. change these if your slurm is set up differently or you
+# use a different job submission system. see docs
+# https://sylabs.io/guides/3.7/user-guide/appendix.html#singularity-s-environment-variables
+# for full description of each of these environmental variables
+os.environ['SINGULARITY_BINDPATH'] = os.environ.get('SINGULARITY_BINDPATH', '') + ',/opt/slurm,/usr/lib64/libmunge.so.2.0.0,/usr/lib64/libmunge.so.2,/var/run/munge,/etc/passwd'
+os.environ['SINGULARITYENV_PREPEND_PATH'] = os.environ.get('SINGULARITYENV_PREPEND_PATH', '') + ':/opt/slurm/bin'
+os.environ['SINGULARITY_CONTAINLIBS'] = os.environ.get('SINGULARITY_CONTAINLIBS', '') + ',' + ','.join(glob('/opt/slurm/lib64/libpmi*'))
+
+
+def check_singularity_envvars():
+    """Make sure SINGULARITY_BINDPATH, SINGULARITY_PREPEND_PATH, and SINGULARITY_CONTAINLIBS only contain existing paths
+    """
+    for env in ['SINGULARITY_BINDPATH', 'SINGULARITYENV_PREPEND_PATH', 'SINGULARITY_CONTAINLIBS']:
+        paths = os.environ[env]
+        joiner = ',' if env != "SINGULARITYENV_PREPEND_PATH" else ':'
+        paths = [p for p in paths.split(joiner) if op.exists(p)]
+        os.environ[env] = joiner.join(paths)
 
 
 def main(path, args=[]):
+    """Run sfp singularity container!
+
+    Parameters
+    ----------
+    path : str
+        path to the .sif file containing the singularity image.
+    args : list, optional
+        command to pass to the container. If empty (default), we open up an
+        interactive session.
+
     """
-    """
-    with open(op.join(op.dirname(op.realpath(__file__)), 'config.yml')) as f:
-        config = yaml.safe_load(f)
+    check_singularity_envvars()
+    with open(op.join(op.dirname(op.realpath(__file__)), 'config.json')) as f:
+        config = json.load(f)
     volumes = [
-        '.:/home/sfp_user/spatial-frequency-preferences',
+        f'{op.dirname(op.realpath(__file__))}:/home/sfp_user/spatial-frequency-preferences',
         f'{config["MATLAB_PATH"]}:/home/sfp_user/matlab',
         f'{config["FREESURFER_HOME"]}:/home/sfp_user/freesurfer',
         f'{config["FSLDIR"]}:/home/sfp_user/fsl',
@@ -26,22 +56,33 @@ def main(path, args=[]):
     if any([config['DATA_DIR'] in a for a in args]):
         args = [a.replace(config['DATA_DIR'], '/home/sfp_user/sfp_data') for a in args]
     # if the user is passing a snakemake command, need to pass
-    # --configfile /home/sfp_user/sfp_config.yml, since we modify the config
+    # --configfile /home/sfp_user/sfp_config.json, since we modify the config
     # file when we source singularity_env.sh
     if args and 'snakemake' == args[0]:
-        args = ['snakemake', '--configfile', '/home/sfp_user/sfp_config.yml', *args[1:]]
+        args = ['snakemake', '--configfile', '/home/sfp_user/sfp_config.json',
+                '-d', '/home/sfp_user/spatial-frequency-preferences',
+                '-s', '/home/sfp_user/spatial-frequency-preferences/Snakefile', *args[1:]]
     # in this case they passed a string so args[0] contains snakemake and then
     # a bunch of other stuff
     elif args and args[0].startswith('snakemake'):
-        args = ['snakemake', '--configfile', '/home/sfp_user/sfp_config.yml',
-                args[0].replace('snakemake ', ''), *args[1:]]
-    # if the user specifies --profile slurm, replace it with the appropriate
-    # path. We know it will be in the last one of args and nested below the
-    # above elif because if they specified --profile then the whole thing had
-    # to be wrapped in double quotes, which would lead to this case.
+        args = ['snakemake', '--configfile', '/home/sfp_user/sfp_config.json',
+                '-d', '/home/sfp_user/spatial-frequency-preferences',
+                '-s', '/home/sfp_user/spatial-frequency-preferences/Snakefile', args[0].replace('snakemake ', ''), *args[1:]]
+        # if the user specifies --profile slurm, replace it with the
+        # appropriate path. We know it will be in the last one of args and
+        # nested below the above elif because if they specified --profile then
+        # the whole thing had to be wrapped in quotes, which would lead to this
+        # case.
         if '--profile slurm' in args[-1]:
             args[-1] = args[-1].replace('--profile slurm',
-                                        '--profile /home/sfp_user/.config/snakemake/slurm --cluster-config cluster.json')
+                                        '--profile /home/sfp_user/.config/snakemake/slurm')
+        # then need to make sure to mount this
+        elif '--profile' in args[-1]:
+            profile_path = re.findall('--profile (.*?) ', args[-1])[0]
+            profile_name = op.split(profile_path)[-1]
+            volumes.append(f'{profile_path}:/home/sfp_user/.config/snakemake/{profile_name}')
+            args[-1] = args[-1].replace(f'--profile {profile_path}',
+                                        f'--profile /home/sfp_user/.config/snakemake/{profile_name}')
     # open up an interactive session if the user hasn't specified an argument,
     # otherwise pass the argument to bash. regardless, make sure we source the
     # env.sh file
@@ -55,13 +96,16 @@ def main(path, args=[]):
                 # double-quoted commands get evaluated in the *current* shell,
                 # not by /bin/bash -c
                 f"'source /home/sfp_user/singularity_env.sh; {' '.join(args)}'"]
+    # set these environmental variables, which we use for the jobs submitted to
+    # the cluster so they know where to find the container and this script
+    env_str = f"--env SFP_PATH={op.dirname(op.realpath(__file__))} --env SINGULARITY_CONTAINER_PATH={path}"
     # the -e flag makes sure we don't pass through any environment variables
     # from the calling shell, while --writable-tmpfs enables us to write to the
     # container's filesystem (necessary because singularity_env.sh makes a
-    # temporary config.yml file)
-    exec_str = f'singularity exec -e --writable-tmpfs {volumes} {path} {" ".join(args)}'
-    # we use shell=True because we want to carefully control the quotes used
+    # temporary config.json file)
+    exec_str = f'singularity exec -e {env_str} --writable-tmpfs {volumes} {path} {" ".join(args)}'
     print(exec_str)
+    # we use shell=True because we want to carefully control the quotes used
     subprocess.call(exec_str, shell=True)
 
 

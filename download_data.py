@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import os
 import os.path as op
-import yaml
+import json
 from glob import glob
 
 
@@ -21,8 +21,8 @@ def main(target_dataset, preprocessed_version='1.0.0'):
         https://openneuro.org/datasets/ds003812 for possible choices.
 
     """
-    with open(op.join(op.dirname(op.realpath(__file__)), 'config.yml')) as f:
-        config = yaml.safe_load(f)
+    with open(op.join(op.dirname(op.realpath(__file__)), 'config.json')) as f:
+        config = json.load(f)
     if op.split(config['DATA_DIR'])[-1].lower() != op.split(config['DATA_DIR'])[-1]:
         raise Exception(f"Name of your DATA_DIR must be all lowercase! But got {config['DATA_DIR']}")
     deriv_folder = op.join(config['DATA_DIR'], 'derivatives')

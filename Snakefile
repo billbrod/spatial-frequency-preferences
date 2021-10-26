@@ -7,7 +7,7 @@ import neuropythy as ny
 import re
 
 configfile:
-    "config.yml"
+    "config.json"
 if not os.path.isdir(config["DATA_DIR"]):
     raise Exception("Cannot find the dataset at %s" % config["DATA_DIR"])
 if os.system("module list") == 0:
@@ -169,6 +169,18 @@ def create_crossval_idx(leave_n_out, session, mat_type, seed=None):
     # this returns a list of strings, each of which looks like e.g., #,#,#,# (if leave_n_out=4)
     return [','.join(["%02d"%j for j in i]) for i in splits]
 
+# small tests to make sure snakemake is playing nicely with the job management
+# system.
+rule test_run:
+     log: os.path.expanduser('~/test_run-%j.log')
+     run:
+         import numpy
+         print("success!", numpy)
+
+rule test_shell:
+     log: os.path.expanduser('~/test_shell-%j.log')
+     shell:
+         "python -c 'import numpy; print(numpy)'; echo success!"
 
 rule model_learning_hyperparams_full:
     input:
