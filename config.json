@@ -1,0 +1,14 @@
+{
+  "DATA_DIR": "/scratch/wfb229/sfp_partial_test",
+  "MRI_TOOLS": "/home/billbrod/Documents/MRI_tools",
+  "WORKING_DIR": "/users-local/broderick/preprocess",
+  "GLMDENOISE_PATH": "/home/billbrod/Documents/MATLAB/toolboxes/GLMdenoise",
+  "VISTASOFT_PATH": "/home/billbrod/Documents/MATLAB/toolboxes/vistasoft",
+  "MATLAB_PATH": "/share/apps/matlab/2020b",
+  "FREESURFER_HOME": "/share/apps/freesurfer/6.0.0",
+  "FSLDIR": "/share/apps/fsl/5.0.10",
+  "TESLA_DIR": "/mnt/Tesla/spatial_frequency_preferences",
+  "EXTRA_FILES_DIR": "/mnt/winawerlab/Projects/spatial_frequency_preferences/extra_files",
+  "SUBJECTS_DIR": "/mnt/winawerlab/Freesurfer_subjects",
+  "RETINOTOPY_DIR": "/mnt/winawerlab/Projects/Retinotopy/BIDS"
+}
