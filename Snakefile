@@ -3477,6 +3477,8 @@ rule figure_paper:
         figure_paper_input,
     output:
         os.path.join('reports', 'paper_figures', '{fig_name}'),
+    log:
+        os.path.join(config["DATA_DIR"], 'code', 'paper_figures', '{fig_name}-%j.log')
     run:
         import shutil
         shutil.copy(input[0], output[0])
