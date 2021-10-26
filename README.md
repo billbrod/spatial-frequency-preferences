@@ -274,8 +274,6 @@ instead:
       preprocessing.
     - You can also run `./run_singularity.py path/to/sfp_latest.sif` without a
       `CMD` to open an interactive session in the container.
-    - `DATA_DIR` has been remapped to `/home/sfp_user/sfp_data` within the
-      container, so interpret any paths within that directory as lying there.
 
 See [cluster usage](#cluster-usage) section for more details about using this
 image on the cluster.
@@ -406,13 +404,13 @@ analysis, only the first of which must be set:
   /home/billbrod or /Users/billbrod) and that the name of your directory cannot
   have capital letters in it (i.e., it should be sfp_data, not SFP_data; this
   causes an issue on Macs)
-- Preprocessing-related: these two only need to be set if you're re-running the
-  pre-processing steps **and** doing so without using the
-  [container](#singularity-image).
-    - `MRI_TOOLS`: path to the Winawer lab MRI tools repo, commit
-      [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e).
-    - `WORKING_DIR`: working directory for preprocessing, stores some temporary
-      outputs.
+- `MRI_TOOLS`: path to the Winawer lab MRI tools repo, commit
+  [8508652bd9e6b5d843d70be0910da413bbee432e](https://github.com/WinawerLab/MRI_tools/tree/8508652bd9e6b5d843d70be0910da413bbee432e).
+  this only needs to be set if you're re-running the pre-processing steps
+  **and** doing so without using the [container](#singularity-image).
+- `WORKING_DIR`: working directory for preprocessing, stores some temporary
+  outputs. Needs to be set if you're re-running pre-processing, regardless of
+  whether you're using the container or not.
 - GLMdenoise-related: these two only need to be set if you're re-running the
   GLMdenoise steps **and** doing so without using the
   [container](#singularity-image).
@@ -420,14 +418,13 @@ analysis, only the first of which must be set:
     - `VISTASOFT_PATH`: Path to the Vistasoft MATLAB toolbox.
 - Container-related: these only need to be set if you're using the
   [container](#singularity-image) **and** running preprocessing and/or
-  GLMdenoise (you don't need to edit the `MRI_TOOLS`, etc paths as well). Note
-  the current paths should be correct if you're on NYU Greene. They're the paths
-  to the install locations for the additional dependencies required for
-  preprocessing and GLMdenoise. To find their path on the cluster, make sure
-  they're on your path (probably by using `module load`) and then run e.g.,
-  `which matlab` (or `which mri_convert`, etc.) to find where they're installed.
-  Note that we want the root directory of the install (not the `bin/` folder
-  containing the binary executables so that if `which matlab` returns
+  GLMdenoise. Note the current paths should be correct if you're on NYU Greene.
+  They're the paths to the install locations for the additional dependencies
+  required for preprocessing and GLMdenoise. To find their path on the cluster,
+  make sure they're on your path (probably by using `module load`) and then run
+  e.g., `which matlab` (or `which mri_convert`, etc.) to find where they're
+  installed. Note that we want the root directory of the install (not the `bin/`
+  folder containing the binary executables so that if `which matlab` returns
   `/share/apps/matlab/2020b/bin/matlab`, we just want
   `/share/apps/matlab/2020b`).
     - `MATLAB_PATH`: directory containing the matlab install.
