@@ -236,6 +236,16 @@ as well, if you need `sudo` to run docker; see
 [here](https://docs.docker.com/engine/install/linux-postinstall/) for steps that
 will allow you to run docker as a non-root user).
 
+Docker hub makes no promises about its images staying around forever (and, [in
+particular](https://www.docker.com/blog/docker-hub-image-retention-policy-delayed-and-subscription-updates/),
+is planning on deleting the images from free Docker accounts after six months of
+inactivity). So, in case the image has disappeared from Docker hub, you can get
+it from the NYU [Faculty Digital Archive](http://hdl.handle.net/2451/63344)
+associated with this project, which I will try to update with new versions of
+the images. Both the singularity and docker versions are there, so you can
+download the docker version and then can load it into docker with: `docker load
+< sfp_v1.0.0_docker.tar` (for example).
+
 #### Singularity image
 
 If you want to run this on the cluster, you won't be able to use Docker.
@@ -277,6 +287,17 @@ instead:
 
 See [cluster usage](#cluster-usage) section for more details about using this
 image on the cluster.
+
+Docker hub makes no promises about its images staying around forever (and, [in
+particular](https://www.docker.com/blog/docker-hub-image-retention-policy-delayed-and-subscription-updates/),
+is planning on deleting the images from free Docker accounts after six months of
+inactivity). So, in case the image has disappeared from Docker hub, you can get
+it from the NYU [Faculty Digital Archive](http://hdl.handle.net/2451/63344)
+associated with this project, which I will try to update with new versions of
+the images. Both the singularity and docker versions are there, so you can
+download the singularity version and then you just need to pass the path to
+`sfp_v1.0.0_singularity.sif` (for example) to `run_singularity.py` when you run
+it (skipping over the `singularity pull` step).
 
 ### Experimental environment
 
