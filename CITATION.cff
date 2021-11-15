@@ -1,0 +1,25 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: spatial-frequency-preferences
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: William F.
+    family-names: Broderick
+    email: wfb229@nyu.edu
+    affiliation: New York University
+    orcid: 'https://orcid.org/0000-0002-8999-9003'
+  - given-names: Eero P.
+    family-names: Simoncelli
+    email: eero.simoncelli@nyu.edu
+    affiliation: 'New York University, Simons Foundation'
+    orcid: 'https://orcid.org/0000-0002-1206-527X'
+  - given-names: Jonathan
+    family-names: Winawer
+    email: jonathan.winawer@nyu.edu
+    affiliation: New York University
+    orcid: 'https://orcid.org/0000-0001-7475-5586'
