@@ -420,9 +420,9 @@ from the command-line where `TARGET_DATASET` is one of the four names above.
 `config.json` is a configuration file that contains several paths used in our
 analysis, only the first of which must be set:
 - `DATA_DIR`: the root of the BIDS directory. It's recommended you place this in
-  a new directory, such as Desktop/sfp_data. Note that you cannot use `~` in
+  a new directory, such as `Desktop/sfp_data`. Note that you cannot use `~` in
   this path (write out the full path to your home directory, e.g.,
-  /home/billbrod or /Users/billbrod) and that the name of your directory cannot
+  `/home/billbrod` or `/Users/billbrod`) and that the name of your directory cannot
   have capital letters in it (i.e., it should be sfp_data, not SFP_data; this
   causes an issue on Macs)
 - `MRI_TOOLS`: path to the Winawer lab MRI tools repo, commit
@@ -493,7 +493,8 @@ setup, so follow [Usage](#usage) section through step 4, but don't create any
 figures (if you've already created some figures, `cd` to your `DATA_DIR`, then
 delete the `figures` and `compose_figures` directories: `rm -r
 derivatives/figures derivatives/compose_figures` to remove the intermediate
-steps, then run `rm reports/paper_figures/*svg` to remove the created figures).
+steps, then return to this directory and run `rm reports/paper_figures/*svg` to
+remove the created figures).
 
 Let's get an overview of what steps are necessary. Run `snakemake -n -r
 reports/paper_figures/fig-02.svg`. The `-n` flag tells snakemake to perform a
