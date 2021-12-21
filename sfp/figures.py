@@ -1869,12 +1869,19 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
         col = None
         pre_boot_gb_cols = ['reference_frame', 'Stimulus type', 'groupaverage_seed',
                             'Eccentricity (deg)']
+    if 'col' in kwargs.keys():
+        if col is None or df[col].nunique() == 1:
+            col = kwargs.pop('col')
+            gb_cols += [col]
+            pre_boot_gb_cols += [col]
+        else:
+            raise Exception("Cannot set col if we're plotting individual fits!")
     # if we're faceting over something, need to separate it out when creating
     # the feature df
     if 'hue' in kwargs.keys():
         gb_cols += [kwargs['hue']]
         pre_boot_gb_cols += [kwargs['hue']]
-    if col is None or df.subject.nunique() == 1:
+    if col is None or df[col].nunique() == 1:
         facetgrid_legend = False
         suptitle = False
         axes_titles = False
@@ -1907,7 +1914,7 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
                 kwargs.setdefault('height', 2.23)
             else:
                 kwargs.setdefault('height', (fig_width / col_wrap) / aspect)
-    if feature_type == 'pref-period':
+    if feature_type in ['pref-period', 'pref-sf']:
         if context == 'poster':
             aspect = 1.3
         else:
@@ -1923,11 +1930,15 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             orientation = np.linspace(0, np.pi, 2, endpoint=False)
         else:
             orientation = np.linspace(0, np.pi, 4, endpoint=False)
-        df = analyze_model.create_feature_df(df, reference_frame=reference_frame, gb_cols=gb_cols,
+        df = analyze_model.create_feature_df(df, feature_type.replace('pref-', 'preferred_'),
+                                             reference_frame=reference_frame,
+                                             gb_cols=gb_cols,
                                              orientation=orientation)
         if split_oris:
             df['orientation_type'] = df['Orientation (rad)'].map(ori_map)
-        g = plotting.feature_df_plot(df, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
+        y = {'pref-period': 'Preferred period (deg)',
+             'pref-sf': 'Preferred spatial frequency (cpd)'}[feature_type]
+        g = plotting.feature_df_plot(df, y=y, col=col, row=row, pre_boot_gb_func=pre_boot_gb_func,
                                      plot_func=plot_func, aspect=aspect,
                                      pre_boot_gb_cols=pre_boot_gb_cols, col_wrap=col_wrap,
                                      facetgrid_legend=facetgrid_legend, **kwargs)

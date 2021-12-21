@@ -569,7 +569,7 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
     df = []
     for n, g in models.groupby(gb_cols):
         m = sfp_model.LogGaussianDonut.init_from_df(g)
-        if feature_type == 'preferred_period':
+        if feature_type in ['preferred_period', 'preferred_sf']:
             df.append(create_preferred_period_df(m, reference_frame, **kwargs))
         elif feature_type == 'preferred_period_contour':
             df.append(create_preferred_period_contour_df(m, reference_frame, **kwargs))
@@ -582,7 +582,10 @@ def create_feature_df(models, feature_type='preferred_period', reference_frame='
         if len(gb_cols) == 1:
             n = [n]
         df[-1] = df[-1].assign(**dict(zip(gb_cols, n)))
-    return pd.concat(df).reset_index(drop=True)
+    df = pd.concat(df).reset_index(drop=True)
+    if feature_type == 'preferred_sf':
+        df['Preferred spatial frequency (cpd)'] = 1. / df['Preferred period (deg)']
+    return df
 
 
 def collect_final_loss(paths):
