@@ -206,12 +206,12 @@ experiment, in order of increasing complexity and future-proof-ness:
 4. If everything works, type `conda activate sfp` to activate this environment
    and all required packages will be available.
    
-As of this writing, few of the required packages have specific version
-requirements (those that do are marked in the `environment.yml` file). As this
-will probably change in the future, we include a `pip_freeze.txt` file which
-shows the installed versions of each python package used to run the analysis
-(note this includes more packages than specified in `environment.yml`, because
-it includes all of *their* dependencies as well).
+As of fall 2021, few of the required packages have specific version requirements
+(those that do are marked in the `environment.yml` file). As this will probably
+change in the future, we include a `pip_freeze.txt` file which shows the
+installed versions of each python package used to run the analysis (note this
+includes more packages than specified in `environment.yml`, because it includes
+all of *their* dependencies as well).
 
 If you're re-running the pre-processing, you'll need [WinawerLab's
 MRI_tools](https://github.com/WinawerLab/MRI_tools), commit
