@@ -13,9 +13,12 @@ RUN apt -y install git gcc
 # switch back to the default user
 USER micromamba
 
+# create the directory we'll put our dependencies in.
 RUN mkdir -p /home/sfp_user/
+# copy over the conda environment yml file
 COPY ./environment.yml /home/sfp_user/sfp-environment.yml
 
+# install the required python packages and remove unnecessary files.
 RUN micromamba install -n base -y -f /home/sfp_user/sfp-environment.yml && \
     micromamba clean --all --yes
 
@@ -24,6 +27,7 @@ RUN git clone https://github.com/WinawerLab/MRI_tools.git /home/sfp_user/MRI_too
 # get the matlab toolboxes that we need
 RUN git clone https://github.com/cvnlab/GLMdenoise.git /home/sfp_user/GLMdenoise
 RUN git clone https://github.com/vistalab/vistasoft.git /home/sfp_user/vistasoft
+# get the slurm snakemake profile
 RUN mkdir -p /home/sfp_user/.config/snakemake
 RUN git clone -b singularity https://github.com/billbrod/snakemake-slurm.git /home/sfp_user/.config/snakemake/slurm
 
