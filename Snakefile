@@ -2111,6 +2111,36 @@ rule prepare_image_computable:
         "-n {wildcards.ori}"
 
 
+rule summarize_behavior:
+    input:
+        os.path.join(config['DATA_DIR'], 'stimuli', '{task}_stim_description.csv'),
+        lambda wildcards: [os.path.join(config["DATA_DIR"], subj, wildcards.session, "func",
+                                        f"{subj}_{wildcards.session}_{wildcards.task}_acq-PA_run-{n:02d}_events.tsv")
+                           for subj in SUBJECTS if TASKS.get((subj, wildcards.session), None) == wildcards.task
+                           for n in range(1, NRUNS.get((subj, wildcards.session), 12)+1)]
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'behavioral', '{session}', 'all_subjects_{task}_behavior.csv'),
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'behavioral', '{session}', 'all_subjects_{task}_behavior-%j.log'),
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'behavioral', '{session}', 'all_subjects_{task}_behavior_benchmark.txt'),
+    run:
+        import sfp
+        import pandas as pd
+        import re
+        stim_df = pd.read_csv(input[0])
+        df = []
+        for p in input[1:]:
+            trials_df = pd.read_csv(p, sep='\t')
+            tmp = sfp.behavioral.create_outcome_df(trials_df, stim_df)
+            run = int(re.findall('run-([0-9]+)_events.tsv', p)[0])
+            subj = re.findall('func/(sub-wlsubj[0-9]+)_ses', p)[0]
+            tmp['subject_name'] = subj
+            tmp['run_num'] = run
+            df.append(tmp)
+        pd.concat(df).to_csv(output[0], index=False)
+
+
 rule figure_summarize_1d:
     input:
         lambda wildcards: os.path.join(config['DATA_DIR'], "derivatives", "tuning_curves", "stim_class",
