@@ -2715,8 +2715,12 @@ def _voxel_responses_and_predictions(*args, label='', n_bins=10, plot_type='reg'
         if plot_type == 'reg':
             # there are 22 unique frequencies (freq_space_distance in the
             # dataframe), but only 10 "real" ones, the others are just off by a
-            # little bit (because w_a/w_r needed to be whole numbers)
-            return sns.regplot(*args, x_bins=n_bins,
+            # little bit (because w_a/w_r needed to be whole numbers). we add 2
+            # to n_bins because seaborn's regplot bins in a way that excludes
+            # the ends of the possible range of values. since we want those end
+            # values (they're meaningful), we add 2 here, which gives us the
+            # right number of bins
+            return sns.regplot(*args, x_bins=n_bins+2,
                                fit_reg=False, label=label,
                                scatter_kws={'s': 10}, **kwargs)
         elif plot_type == 'hist':
@@ -2794,7 +2798,7 @@ def example_voxels(df, trained_model, voxel_idx=[2310, 2957, 1651],
         yticks = [0, .2]
     else:
         df = _merge_model_response_df(df, data)
-        xlim = (.1, 10)
+        xlim = (.1, 20)
         ylim = (.05, .225)
         yticks = []
     g = sns.FacetGrid(hue='model', data=df, col='voxel', col_wrap=3,
