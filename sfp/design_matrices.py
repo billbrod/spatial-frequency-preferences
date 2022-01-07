@@ -168,6 +168,12 @@ def create_all_design_matrices(BIDS_directory, subject, session, mat_type="stim_
         # by default, pandas interprets empty fields as NaNs. We have some empty strings in the
         # "notes" column, which we want to interpret as empty strings
         tsv_df = pd.read_csv(tsv_file[0].path, sep='\t', na_filter=False)
+        # rows with trial_type == n/a are digit-only trials, the blank trials
+        # preceding and following the scan. we ignore them.
+        tsv_df = tsv_df[tsv_df.trial_type != 'n/a']
+        # cast these columns back to numeric, now that we've removed the rows
+        # that had n/a in them.
+        tsv_df = tsv_df.astype({'stim_file_index': int, 'trial_type': int})
         class_size = _discover_class_size(tsv_df.trial_type.values)
         # We let _find_stim_class_length know that no blanks have been dropped, so even the blank
         # trials are included (and thus the time between all onsets in the tsv should be the same)

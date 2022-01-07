@@ -7,7 +7,95 @@ import h5py
 import warnings
 import pandas as pd
 from collections import Counter
+from scipy.spatial import distance
 import os
+
+
+def _signal_detection_outcome(row):
+    """Return signal detection outcomes, based on response and correct answer
+
+    For use with DataFrame.apply
+
+    """
+    correct_answer, response = row.correct_answer, row.response
+    if correct_answer == response and response == 'press':
+        return 'hit'
+    if correct_answer == response and response == 'no_press':
+        return 'correct_rejection'
+    if correct_answer != response and response == 'press':
+        return 'false_alarm'
+    if correct_answer != response and response == 'no_press':
+        return 'miss'
+
+   
+def create_behavioral_df(behavioral_results, run_num):
+    """Create df with behavioral info.
+
+    This dataframe contains the information about the digit stream at fixation,
+    as well as the subject's responses.
+
+    Parameters
+    ----------
+    behavioral_results: h5py.File
+        file (not the path) containing behavioral results
+    run_num: int
+        run (as used in behavioral_results) to examine
+
+    Returns
+    -------
+    trials : pd.DataFrame
+        df with the behavioral information
+
+    """
+    # grab the time of the first scan
+    initial_TR_time = float(behavioral_results[f'run_{run_num:02d}_button_presses'][()][0][1])
+
+    trials = behavioral_results[f'run_{run_num:02d}_fixation_data'][()]
+    # get the data into the dataframe and in the proper type
+    trials = pd.DataFrame(trials, columns=['digit', 'onset'])
+    trials['onset'] = trials['onset'].astype(float)
+    trials.digit = pd.to_numeric(trials.digit)
+    # the NaN trials here are those with no digit at fixation. these are the inter-trial intervals and thus not meaningful for our analysis
+    trials = trials.dropna().reset_index(drop=True)
+    trials.digit = trials.digit.astype(int)
+    trials['trial'] = np.arange(len(trials))
+    # subtract off the time of the first scan
+    trials.onset -= initial_TR_time
+    # the button should be pressed whenever a digit repeats, which this computes
+    press = trials.digit.values[1:] == trials.digit.values[:-1]
+    # first trial's correct answer is not to press button (because there hasn't been a digit before it)
+    trials['correct_answer'] = np.concatenate([[False], press])
+    # remap to more readable values
+    trials.correct_answer = trials.correct_answer.map({True: 'press', False: 'no_press'})
+
+    # get the subject's responses
+    button_presses = behavioral_results[f'run_{run_num:02d}_button_presses'][()].astype(float)
+    # all 5s are scanner triggers, so ignore them
+    button_presses = button_presses[button_presses[:, 0] != 5]
+    button_presses[:, 1] -= initial_TR_time
+
+    # find the difference between each button press and trial start (this
+    # method of doing it is inspired by how seaborn's regression plot bins
+    # data)
+    dist = distance.cdist(np.c_[button_presses[:, 1]], np.c_[trials.onset.values],
+                          lambda x, y: x-y)
+    # we want to ignore all negative differences, since those came after the button press
+    dist[dist < 0] = np.inf
+    # this is then the most recent trial before the button press
+    trial_num = np.argmin(dist, axis=1)
+
+    # create a df with the response info
+    responses = pd.DataFrame(np.stack([button_presses[:,1], trial_num]).T,
+                             columns=['response_time', 'trial'])
+    responses['response'] = 'press'
+
+    # combine information about digit stream at fixation with subject responses
+    trials = trials.merge(responses, 'left', on=['trial'])
+    trials.response = trials.response.fillna('no_press')
+    trials['reaction_time'] = trials.response_time - trials.onset
+
+    trials['outcome'] = trials.apply(_signal_detection_outcome, 1)
+    return trials
 
 
 def create_tsv_df(behavioral_results, unshuffled_stim_description, run_num):
@@ -69,6 +157,59 @@ def _find_timing_from_results(results, run_num):
     return Counter(times).most_common(1)[0][0]
 
 
+def _merge_scan_and_behavior(design_df, trials_df):
+    """Merge the two dfs with info about scan.
+
+    Parameters
+    ----------
+    design_df : pd.DataFrame
+        dataframe that contains information about visual stimulus, as created
+        by create_tsv_df (and then started modifying to be more BIDS-compliant)
+    trials_df : pd.DataFrame
+        dataframe that contains information about behavior, as created by
+        create_behavioral_df.
+
+    Returns
+    -------
+    merged_df : pd.DataFrame
+        Merged df containing both sets of info
+
+    """
+    # grab only the relevant columns
+    trials_df = trials_df[['onset', 'reaction_time', 'outcome']]
+    # what we call reaction time is BIDS' response_time
+    trials_df = trials_df.rename(columns={'reaction_time': 'response_time'})
+    trials_df.response_time = trials_df.response_time.apply(lambda x: f"{x:.03f}" if np.isfinite(x)
+                                                            else np.nan, 1)
+    # do similar trick to before to figure out the closest stimulus onset (they
+    # may be off by 1 msec or so)
+    dist = distance.cdist(np.c_[trials_df.onset.values], np.c_[design_df.onset.values])
+    # this is then the closest trial
+    trial_num = np.argmin(dist, axis=1)
+    # these extras are dummy numbers for those digits that preceded or followed
+    # the last stimulus
+    trial_num[:16] = np.arange(-16, 0)
+    trial_num[-16:] = np.arange(trial_num.max()+1, trial_num.max()+17)
+    trials_df['trial'] = trial_num
+    # combine the two
+    design_df = design_df.merge(trials_df, 'outer', left_index=True, right_on='trial').sort_values('trial')
+    # where there's no onset_x, fill in from onset_y. these are the digit-only
+    # rows which precede and follow the stimuli
+    design_df.onset_x = design_df.onset_x.fillna(design_df.onset_y)
+    # drop the unnecessary columns from trials_df, rename onset_x back to onset
+    # (it's the onset columns of design_df, before the merge)
+    design_df = design_df.drop(columns=['onset_y', 'trial']).rename(columns={'onset_x': 'onset'})
+    # then convert to .03f format because that looks nicer
+    design_df.onset = design_df.onset.apply(lambda x: f"{x:.03f}")
+    # duration has to be zero or a positive number. Set these digit-only trials to 0
+    design_df.duration = design_df.duration.fillna(0)
+    design_df = design_df.fillna('n/a')
+    # want these to look like ints, so they get loaded in correctly
+    design_df.trial_type = design_df.trial_type.apply(lambda x: f'{x:.0f}' if x!= 'n/a' else x)
+    design_df.stim_file_index = design_df.stim_file_index.apply(lambda x: f'{x:.0f}' if x!= 'n/a' else x)
+    return design_df
+
+
 def main(behavioral_results_path, unshuffled_stim_descriptions_path, stimulus_file_name=None,
          save_path='data/MRI_first_level/run_%02d_events.tsv', full_TRs=264):
     """create and save BIDS events tsvs for all runs.
@@ -113,12 +254,12 @@ def main(behavioral_results_path, unshuffled_stim_descriptions_path, stimulus_fi
                 # blank fields should be n/a
                 design_df['note'] = "n/a"
                 design_df.loc[design_df.trial_type == design_df.trial_type.max(), 'note'] = "blank trial"
-                # design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file', 'stim_file_index', 'note']]
-                design_df['onset'] = design_df.onset.apply(lambda x: "%.03f" % x)
+                trials_df = create_behavioral_df(results, run_num)
+                design_df = _merge_scan_and_behavior(design_df, trials_df)
                 # reorder the columns so that onset is first and duration is second (otherwise it
                 # won't pass the bids validator)
                 design_df = design_df[['onset', 'duration', 'trial_type', 'stim_file',
-                                       'stim_file_index', 'note']]
+                                       'stim_file_index', 'response_time', 'outcome', 'note']]
                 design_df.to_csv(save_path % (save_num), '\t', index=False)
                 save_num += 1
             run_num += 1
