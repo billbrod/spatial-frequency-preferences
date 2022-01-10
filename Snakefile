@@ -2135,8 +2135,9 @@ rule summarize_behavior:
             tmp = sfp.behavioral.create_outcome_df(trials_df, stim_df)
             run = int(re.findall('run-([0-9]+)_events.tsv', p)[0])
             subj = re.findall('func/(sub-wlsubj[0-9]+)_ses', p)[0]
-            tmp['subject_name'] = subj
+            tmp['subject'] = subj
             tmp['run_num'] = run
+            tmp['task'] = wildcards.task
             df.append(tmp)
         pd.concat(df).to_csv(output[0], index=False)
 
@@ -3164,6 +3165,24 @@ rule figure_mtf:
         fig.savefig(output[0], bbox_inches='tight')
 
 
+rule figure_behavior:
+    input:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'behavioral', '{session}', 'all_subjects_{task}_behavior.csv'),
+    output:
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', '{context}', '{task}_{session}_behavior_{by_subject}.svg')
+    log:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_{session}_behavior_{by_subject}.svg')
+    benchmark:
+        os.path.join(config['DATA_DIR'], 'code', 'figures', '{context}', '{task}_{session}_behavior_{by_subject}_benchmark.txt')
+    run:
+        import sfp
+        import pandas as pd
+        df = sfp.figures.prep_df(pd.read_csv(input[0]), wildcards.task)
+        by_subj = {'by-subject': True, 'combined': False}[wildcards.by_subject]
+        fig = sfp.figures.behavioral_heatmap(df, by_subj)
+        fig.savefig(output[0], bbox_inches='tight')
+
+
 rule sigma_interpretation:
     input:
         unpack(get_params_csv),
@@ -3477,6 +3496,8 @@ def figure_paper_input(wildcards):
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_v1_area_vs_period_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'compose_figures', 'paper', 'visual-field-diff_filter-mean_iso_full_iso_s-5.svg'),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "task-sfprescaled_ses-04_behavior_combined.svg"),
+        os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "task-sfprescaled_ses-04_behavior_by-subject.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper', "individual_1d_pref-period_s-None_task-sfprescaled.svg"),
         os.path.join(config['DATA_DIR'], 'derivatives', 'figures', 'paper',
                      'individual_filter-mean_full_full_absolute_feature_visualfield-all_pref-period_bootstraps_angles-avg_s-None_task-sfprescaled_relative.svg'),
@@ -3496,7 +3517,7 @@ def figure_paper_input(wildcards):
         os.path.join(config['DATA_DIR'], "derivatives", 'figures', 'paper',
                      "individual_v1_area_vs_period_linreg_task-sfprescaled_filter-mean_full_full_absolute_bayesian_posterior_svg.txt"),
     ]
-    outputs = (['fig-{:02d}.svg'.format(i) for i in range(1, 12)] + ['fig-S{:02d}.svg'.format(i) for i in range(1, 10)] +
+    outputs = (['fig-{:02d}.svg'.format(i) for i in range(1, 12)] + ['fig-S{:02d}.svg'.format(i) for i in range(1, 12)] +
                ['sigma_interpretation.txt', 'v1_size_interpretation.txt'])
     mapping = dict(zip(outputs, inputs))
     return mapping[wildcards.fig_name]
@@ -3553,5 +3574,5 @@ rule main_figure_paper:
 
 rule supplement_figure_paper:
     input:
-        [os.path.join('reports', 'paper_figures', 'fig-S{:02d}.svg').format(i) for i in range(1, 10)],
+        [os.path.join('reports', 'paper_figures', 'fig-S{:02d}.svg').format(i) for i in range(1, 12)],
         os.path.join('reports', 'paper_figures', 'v1_size_interpretation.txt'),

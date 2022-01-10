@@ -24,13 +24,13 @@ import pandas as pd
 import scipy as sp
 from sklearn import linear_model
 
-LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'angular', 'reverse spiral', 'mixtures']
+LOGPOLAR_SUPERCLASS_ORDER = ['radial', 'forward spiral', 'angular', 'reverse spiral', 'mixtures', 'baseline']
 CONSTANT_SUPERCLASS_ORDER = ['vertical', 'forward diagonal', 'horizontal', 'reverse diagonal',
                              'off-diagonal']
 # radial and angular are ambiguous labels -- do they refer to the direction of
 # the oscillation or the stripes? annulus and pinwheel are less ambiguous in
 # this regard, so we use them in the paper.
-SUPERCLASS_PLOT_LABELS = {'radial': 'annulus', 'angular': 'pinwheel'}
+SUPERCLASS_PLOT_LABELS = {'radial': 'annulus', 'angular': 'pinwheel', 'baseline': 'blank'}
 ORIG_PARAM_ORDER = (['sigma', 'sf_ecc_slope', 'sf_ecc_intercept'] +
                     ['%s_%s_%s' % (i, j, k) for j, i, k in
                      itertools.product(['mode', 'amplitude'], ['abs', 'rel'],
@@ -163,7 +163,8 @@ def stimulus_type_palette(reference_frame):
     if isinstance(reference_frame, str):
         reference_frame = [reference_frame]
     if 'relative' in reference_frame:
-        pal = sns.color_palette('deep', 5)
+        # the last one is midgray for blanks
+        pal = sns.color_palette('deep', 5) + [(.5, .5, .5)]
         palette.update(dict(zip(LOGPOLAR_SUPERCLASS_ORDER, pal)))
     if 'absolute' in reference_frame:
         pal = sns.color_palette('cubehelix', 5)

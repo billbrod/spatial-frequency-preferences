@@ -3534,3 +3534,94 @@ def stimulus_frequency(df, context='paper', **kwargs):
     g.ax.set_xlabel(r'$\omega_r$', fontsize=1.25*float(params['axes.labelsize']))
     g.ax.set_ylabel(r'$\omega_a$', fontsize=1.25*float(params['axes.labelsize']))
     return g
+
+
+def behavioral_heatmap(outcomes, by_subject=False, context='paper'):
+    """Heatmap showing behavioral data outcomes.
+
+    Creates a heatmap with stimulus_superclass along the vertical axis and the
+    outcome (in signal detection terms) along the horizontal axis.
+
+    Percentage / colors are normalized so that correct reject + false alarm = 1
+    and hit + miss = 1
+
+    Parameters
+    ----------
+    outcomes : pd.DataFrame
+        The behavioral dataframe created by the summarize_behavior rule.
+    by_subject : bool, optional
+        Whether to combine across subjects (False) or plot each subject as a
+        separate heatmap (True)
+    context : {'paper', 'poster'}, optional
+        plotting context that's being used for this figure (as in seaborn's
+        set_context function). if poster, will scale things up (but only paper
+        has been tested)
+
+    Returns
+    -------
+    fig : plt.Figure
+        matplotlib figure containing the heatmap
+
+    """
+    params, fig_width = style.plotting_style(context, figsize={False: 'half', True: 'full'}[by_subject])
+    plt.style.use(params)
+    order = ['annulus', 'pinwheel', 'forward spiral', 'reverse spiral', 'mixtures', 'blank']
+    pal = plotting.get_palette('stimulus_type', 'relative', outcomes.stimulus_superclass.unique(),
+                               True)
+    pal = {plotting.SUPERCLASS_PLOT_LABELS.get(k, k): v for k, v in pal.items()}
+    def pivot_outcome(df):
+        df = df.pivot('stimulus_superclass', 'outcome', 'percentage').fillna(0)
+        # reorder
+        return df.loc[order]
+
+    outcomes.stimulus_superclass = outcomes.stimulus_superclass.apply(lambda x: plotting.SUPERCLASS_PLOT_LABELS.get(x, x))
+    outcomes.outcome = outcomes.outcome.apply(lambda x: x.replace('_', ' '))
+    gb_cols = ['stimulus_superclass', 'outcome_supercategory']
+    if by_subject:
+        gb_cols += ['subject']
+    kwargs = {'vmin': 0, 'vmax': 1, 'fmt': '.02f', 'cmap': 'Blues',
+              'annot': True}
+    outcomes = outcomes.groupby(gb_cols + ['outcome']).n_trials.sum().reset_index()
+    totals = outcomes.groupby(gb_cols)['n_trials'].sum().rename('total_trials')
+    outcomes = outcomes.merge(totals, left_on=gb_cols, right_index=True)
+    outcomes['percentage'] = outcomes['n_trials'] / outcomes.total_trials
+    if not by_subject:
+        fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_width))
+        ax = sns.heatmap(pivot_outcome(outcomes), square=True, ax=ax, **kwargs)
+        fig = ax.figure
+    else:
+        def map_func(x, y, value, data=None, **kwargs):
+            sns.heatmap(pivot_outcome(data), **kwargs)
+
+        g = sns.FacetGrid(outcomes, col='subject', col_wrap=3, height=fig_width/3)
+        cbar_ax = g.fig.add_axes([.92, .36, .02, .4])
+        g.map_dataframe(map_func, 'stimulus_superclass', 'outcome', 'percentage',
+                        cbar_ax=cbar_ax, **kwargs)
+        # the meaning of x and y is backwards for heatmap compared to what
+        # facetgrid expects, so we swap labels
+        g.set_ylabels('stimulus_superclass')
+        g.set_xlabels('outcome')
+        # make room for the cbar axes
+        g.fig.subplots_adjust(right=.9)
+        fig = g.fig
+    for ax in fig.axes:
+        # remove axes labels for paper
+        if context == 'paper':
+            ax.set(xlabel='', ylabel='')
+            # remove the subject tag, if present
+            ax.set_title(ax.get_title().replace('subject = ', ''))
+        # sometimes the rotation gets messed up, fo rno reason I can track
+        # down, so this makes sure it's correct
+        if ax.get_xticklabels() and ax.get_xticklabels()[0].get_visible():
+            for lab in ax.get_xticklabels():
+                lab.set_rotation(90)
+        if ax.get_yticklabels() and ax.get_yticklabels()[0].get_visible():
+            for lab in ax.get_yticklabels():
+                # this skips over the colorbar axes labels
+                if lab.get_text() in pal.keys():
+                    lab.set_bbox({'fc': 'none', 'ec': pal[lab.get_text()], 'pad': 2})
+                    lab.set_rotation(0)
+        # don't need ticks for this plot
+        ax.tick_params('x', bottom=False)
+        ax.tick_params('y', left=False)
+    return fig
