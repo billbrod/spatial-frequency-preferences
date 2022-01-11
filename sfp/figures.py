@@ -907,11 +907,7 @@ def model_schematic(context='paper'):
                                  orientation=orientation)
         if i != 0:
             ax.set(ylabel='')
-        if i != 1:
-            ax.set(xlabel='')
-        else:
-            # want to move this closer
-            ax.set_xlabel(ax.get_xlabel(), labelpad=-10)
+        ax.set(xlabel='')
         ax.set_title(labels[i])
         ax.set(xticklabels=[], yticklabels=[])
 
@@ -2063,8 +2059,8 @@ def feature_df_plot(df, avg_across_retinal_angle=False, reference_frame='relativ
             # remove the xlabel from one of them and place the remaining one in
             # between the two subplots, because it's redundant
             g.axes[0, 0].set_xlabel('')
-            # this can have its xlabel removed, since it will be above another plot which has one
-            if feature_type == 'pref-period-contour':
+            # these can have their xlabel removed, since the legend will clarify
+            if feature_type in ['pref-period-contour', 'max-amp']:
                 g.axes[0, 1].set_xlabel('')
             else:
                 g.axes[0, 1].set_xlabel(g.axes.flatten()[1].get_xlabel(), x=-.05,
