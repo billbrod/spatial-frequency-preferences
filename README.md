@@ -11,6 +11,34 @@ See the [paper](https://doi.org/10.1101/2021.09.27.462032) for scientific
 details. If you re-use some component of this project in an academic
 publication, see the [citing](#citation) section for how to credit us.
 
+Table of Contents
+=================
+
+* [Usage](#usage)
+   * [Notebooks](#notebooks)
+   * [Model parameters](#model-parameters)
+* [Setup](#setup)
+   * [Software requirements](#software-requirements)
+      * [Python](#python)
+         * [Conda environment](#conda-environment)
+         * [Docker image](#docker-image)
+         * [Singularity image](#singularity-image)
+      * [Experimental environment](#experimental-environment)
+      * [Matlab](#matlab)
+      * [Other](#other)
+   * [Data](#data)
+   * [config.json](#configjson)
+* [What's going on?](#whats-going-on)
+* [Usage details](#usage-details)
+   * [Running the experiment](#running-the-experiment)
+      * [Cluster usage](#cluster-usage)
+      * [Other clusters](#other-clusters)
+* [Troubleshooting](#troubleshooting)
+   * [Getting help](#getting-help)
+* [Related repos](#related-repos)
+* [Citation](#citation)
+* [References](#references)
+
 # Usage
 
 The data and code for this project are shared with the primary goal of enabling
