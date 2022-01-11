@@ -402,10 +402,11 @@ use-case:
      the Benson 2014 anatomical atlases (Benson et al, 2014) and Bayesian
      retinotopy solutions (Benson and Winawer, 2018).
    
-Note that the `partially-processed` data requires the OpenNeuro dataset.
-Additionally, the `partially-processed` and `fully-processed` data sets do not
-contain the *entire* outputs of the analysis at that point, just what is
-required to complete the following steps.
+Note that in order to run the analysis starting at the `partially-processed`
+data, the `preprocessed` dataset from OpenNeuro is also required. Additionally,
+the `partially-processed` and `fully-processed` data sets do not contain the
+*entire* outputs of the analysis at that point, just what is required to
+complete the following steps.
 
 Also note that the subjects in the paper are just numbered from 1 to 12. In the
 data and this code, they use their subject codes; the subject codes map to the
@@ -729,7 +730,8 @@ job), to try to restart jobs 2 times if they fail (sometimes job just fail on
 submission and then rerun without a problem), to rerun any jobs that look
 incomplete (`--ri`), and to keep running any independent jobs if any jobs fail
 (`-k`). This should hopefully run to completion (in my experience on greene, it
-takes about one to two days).
+takes about one to two days from the very beginning of the analysis to the end,
+from preprocessed data to paper figures).
 
 ### Other clusters
 
