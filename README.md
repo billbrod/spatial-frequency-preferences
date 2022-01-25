@@ -17,6 +17,7 @@ Table of Contents
 * [Usage](#usage)
    * [Notebooks](#notebooks)
    * [Model parameters](#model-parameters)
+   * [Model exploration widget](#model-exploration-widget)
 * [Setup](#setup)
    * [Software requirements](#software-requirements)
       * [Python](#python)
