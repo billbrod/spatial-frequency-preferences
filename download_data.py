@@ -87,6 +87,9 @@ def main(target_dataset, preprocessed_version='1.0.0'):
         subprocess.call(["tar", "xf", "sfp_supplemental_data.tar.gz"])
         subprocess.call(["rsync", "-avPLuz", "derivatives/", f"{deriv_folder}/"])
         subprocess.call(["rm", "-r", "derivatives/"])
+        for sub in [1, 6, 7, 45, 46, 62, 64, 81, 95, 114, 115, 121]:
+            subprocess.call(["rsync", "-avPLuz", f"sub-wlsubj{sub:03d}", f"{config['DATA_DIR']}/"])
+            subprocess.call(['rm', '-r', f'sub-wlsubj{sub:03d}/'])
         subprocess.call(["rm", "sfp_supplemental_data.tar.gz"])
     subprocess.call(['chmod', '-R', '777', config['DATA_DIR']])
 

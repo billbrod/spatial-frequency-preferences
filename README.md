@@ -440,6 +440,8 @@ use-case:
    - `derivatives/prf_solutions/`: the pRF solutions for each subject, including
      the Benson 2014 anatomical atlases (Benson et al, 2014) and Bayesian
      retinotopy solutions (Benson and Winawer, 2018).
+   - `sub-*/ses-04/func/*events.tsv`: the events.tsv files defining scanner
+     events, used to do the behavioral analysis.
    
 Note that in order to run the analysis starting at the `partially-processed`
 data, the `preprocessed` dataset from OpenNeuro is also required. Additionally,
