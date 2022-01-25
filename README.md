@@ -187,6 +187,16 @@ Both csvs have five columns: fit_model_type, model_parameter, subject, bootstrap
 See the [included How-to-use-model notebook](#notebooks) for details about how
 to use these csvs with our model.
    
+## Model exploration widget
+
+The model, despite only having 14 parameters, is a little unintuitive: it's not
+obvious how its predictions change with different parameter values and how
+they'll interact. In order to help develop your intuition, we've put together a
+little [webapp](https://wfbroderick.com/spatial-frequency-model/) (github repo
+[here](https://github.com/billbrod/spatial-frequency-model)) for exploration,
+which allows you to adjust the model parameters and see how it's reflected on
+voxel tuning and the type of preferred period plots found in the paper.
+   
 # Setup 
 
 The analyses were all run on Linux (Ubuntu, Red Hat, and CentOS, several
