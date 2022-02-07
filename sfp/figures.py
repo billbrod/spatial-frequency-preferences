@@ -2391,10 +2391,10 @@ def theory_background_figure(context):
         Figure containing this plot
 
     """
-    einstein_path = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
-                            'einstein.pgm')
-    einstein = plt.imread(einstein_path)
-    einstein = einstein / einstein.max()
+    tiles_path = op.join(op.dirname(op.realpath(__file__)), '..', 'reports', 'figures',
+                         'tiles.png')
+    tiles = plt.imread(tiles_path)
+    tiles = tiles / tiles.max()
     params, fig_width = style.plotting_style(context, figsize='full')
     params['axes.titlesize'] = '8'
     params['axes.labelsize'] = '8'
@@ -2414,9 +2414,9 @@ def theory_background_figure(context):
 
     for ax in axes[:2]:
         ax.axis('off')
-    pt.imshow((einstein+.5)/1.5, ax=axes[0], zoom=110/256, title=None,
+    pt.imshow((tiles+.5)/1.5, ax=axes[0], zoom=110/256, title=None,
               vrange=(0, 1))
-    pt.imshow((einstein+.5)/1.5, ax=axes[1], zoom=110/256, title=None,
+    pt.imshow((tiles+.5)/1.5, ax=axes[1], zoom=110/256, title=None,
               vrange=(0, 1))
 
     axes[0].set_title(r'SF preferences $\bf{constant}$'+'\nacross visual field')
