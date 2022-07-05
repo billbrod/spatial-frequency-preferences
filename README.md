@@ -845,7 +845,7 @@ If you're on a non-NYU cluster, there are two things you need to do:
 - There may be another Mac torch install error. If you get the following when
   trying to import torch (which happens in a lot of places throughout the code):
   
-  ``` sh
+  ```sh
   >>> import sfp
   Traceback (most recent call last):
    File “<stdin>“, line 1, in <module>
@@ -857,10 +857,11 @@ If you're on a non-NYU cluster, there are two things you need to do:
     import torch
    File “/Users/jh7685/opt/miniconda3/envs/sfp/lib/python3.7/site-packages/torch/__init__.py”, line 79, in <module>
     from torch._C import *
-ImportError: dlopen(/Users/jh7685/opt/miniconda3/envs/sfp/lib/python3.7/site-packages/torch/_C.cpython-37m-darwin.so, 9): Library not loaded: /usr/local/opt/libomp/lib/libomp.dylib
+
+   ImportError: dlopen(/Users/jh7685/opt/miniconda3/envs/sfp/lib/python3.7/site-packages/torch/_C.cpython-37m-darwin.so, 9): Library not loaded: /usr/local/opt/libomp/lib/libomp.dylib
    Referenced from: /Users/jh7685/opt/miniconda3/envs/sfp/lib/python3.7/site-packages/torch/lib/libshm.dylib
    Reason: image not found
-```
+   ```
 
   then use [homebrew](https://brew.sh/) to install the missing library: `brew
   install libomp`.
