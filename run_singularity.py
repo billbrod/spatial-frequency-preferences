@@ -139,6 +139,7 @@ if __name__ == '__main__':
     parser.add_argument('--sudo', '-s', action='store_true',
                         help="Whether to run docker with sudo or not. Ignored if software==singularity")
     parser.add_argument("args", nargs='*',
-                        help="Command to pass to the container. If empty, we open up an interactive session.")
+                        help=("Command to pass to the container. If empty, we open up an interactive session."
+                              " If it contains flags, surround with SINGLE QUOTES (not double)."))
     args = vars(parser.parse_args())
     main(**args)
