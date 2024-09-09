@@ -451,21 +451,26 @@ def _add_baseline(df):
 def _transform_angle(x):
     """transform angle from Benson14 convention to our convention
 
-    The Benson atlases' convention for angle in visual field is: zero is the upper vertical
-    meridian, angle is in degrees, the left and right hemisphere both run from 0 to 180 from the
-    upper to lower meridian (so they increase as you go clockwise and counter-clockwise,
-    respectively). For our calculations, we need the following convention: zero is the right
-    horizontal meridian, angle is in radians (and lie between 0 and 2*pi, rather than -pi and pi),
-    angle increases as you go clockwise, and each angle is unique (refers to one point on the
-    visual field; we don't have the same number in the left and right hemispheres)
+    The Benson atlases' convention for angle in visual field is: zero is the upper
+    vertical meridian, angle is in degrees, the left and right hemisphere both run from
+    0 to 180 from the upper to lower meridian (so they increase as you go clockwise and
+    counter-clockwise, respectively). For our calculations, we need the following
+    convention: zero is the right horizontal meridian, angle is in radians (and lie
+    between 0 and 2*pi, rather than -pi and pi), angle increases as you go
+    counter-clockwise, and each angle is unique (refers to one point on the visual
+    field; we don't have the same number in the left and right hemispheres)
+
     """
     ang = x.angle
-    if x.hemi == 'rh':
-        # we want to remap the right hemisphere angles to negative. Noah says this is the
-        # convention, but I have seen positive values there, so maybe it changed at one point.
-        if ang > 0:
-            ang = -ang
-    return np.mod(np.radians(ang - 90), 2*np.pi)
+    if x.hemi == 'lh':
+        # we need to remap from the Benson convention to the standard one, as described
+        # above. With the mapping we use below, the left cortical hemisphere / right
+        # visual field needs to have negative values. Note that each subject in this
+        # experiment (in each hemisphere) had a small number of voxels (<10, out of
+        # 1700-3000) with a negative angle. These all lay between 0 and -.00021 which
+        # suggests a precision issue to me.
+        ang = -ang
+    return np.mod(np.radians(ang + 90), 2*np.pi)
 
 
 def _precision_dist(x, axis=None):
@@ -636,7 +641,22 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
     core_dists = df[df.stimulus_superclass == 'radial'].freq_space_distance.unique()
     if stim_type in ['logpolar', 'pilot']:
         df = _round_freq_space_distance(df, core_dists)
+    orig_angles = df.drop_duplicates('voxel')
     df['angle'] = df.apply(_transform_angle, 1)
+
+    if save_path is not None:
+        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+        for axs, data, t in zip(axes, [orig_angles, df.drop_duplicates('voxel')], ["Original", "Remapped"]):
+            for ax, hemi in zip(axs, ['lh', 'rh']):
+                plot_data = data.query("hemi==@hemi").angle.values
+                sns.histplot(x=plot_data, ax=ax, kde=False)
+                title = f"{t} angles for {hemi}"
+                if t == "Original":
+                    blw_zero = np.sum(plot_data<0)
+                    title += f", {blw_zero} below 0 (min: {plot_data.min()})"
+                ax.set_title(title)
+        fig.savefig(save_path.replace('.csv', '_angles.svg'))
+
     df = _add_local_sf_to_df(df, stim, stim_type, stim_rad_deg, mid_val)
     df = _add_baseline(df)
     df = _append_precision_col(df)
