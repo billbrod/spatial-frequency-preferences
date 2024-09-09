@@ -653,7 +653,10 @@ def main(benson_template_path, results_path, df_mode='summary', stim_type='logpo
                 title = f"{t} angles for {hemi}"
                 if t == "Original":
                     blw_zero = np.sum(plot_data<0)
-                    title += f", {blw_zero} below 0 (min: {plot_data.min()})"
+                    title += f", {blw_zero} below 0 (min: {plot_data.min():.1e})"
+                    ax.set_xlim((-1, 180))
+                elif t== 'Remapped':
+                    ax.set_xlim((-1, 2*np.pi))
                 ax.set_title(title)
         fig.savefig(save_path.replace('.csv', '_angles.svg'))
 
