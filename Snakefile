@@ -2874,6 +2874,10 @@ rule figure_compare_surface_area:
     run:
         import sfp
         import pandas as pd
+        import neuropythy as ny
+        import pathlib
+        # neuropythy needs to know where to find the freesurfer subjects
+        ny.config['freesurfer_subject_paths'] = pathlib.Path(input.freesurfer_dir[0]).parent.as_posix()
         subjects = [subj for subj in SUBJECTS if TASKS.get((subj, 'ses-04'), None) == wildcards.task]
         template = input.vareas[0].replace('sub-wlsubj001', '{subject}').replace('lh', '{hemi}').replace('rh', '{hemi}').replace('varea', '{prop}')
         df = sfp.figures.prep_df(pd.read_csv(input.params), wildcards.task)
