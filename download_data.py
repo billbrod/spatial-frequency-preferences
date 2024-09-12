@@ -8,7 +8,7 @@ import json
 from glob import glob
 
 
-def main(target_dataset, preprocessed_version='1.0.0'):
+def main(target_dataset, preprocessed_version='1.1.0'):
     """Download dataset from OpenNeuro or OSF.
 
     Parameters
@@ -103,7 +103,7 @@ if __name__ == '__main__':
                                                    'fully-processed',
                                                    'supplemental'],
                         help="Which dataset to download, see project README for details.")
-    parser.add_argument("--preprocessed_version", default='1.0.0',
+    parser.add_argument("--preprocessed_version", default='1.1.0',
                         help="Which version fo the preprocessed dataset from openneuro to download")
     args = vars(parser.parse_args())
     main(**args)
