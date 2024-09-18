@@ -179,9 +179,9 @@ def _add_freq_metainfo(stim_df):
             sc = 'angular'
         elif x.w_r != 0 and x.w_a == 0:
             sc = 'radial'
-        elif x.w_r == x.w_a:
-            sc = 'forward spiral'
         elif x.w_r == -x.w_a:
+            sc = 'forward spiral'
+        elif x.w_r == x.w_a:
             sc = 'reverse spiral'
         else:
             sc = 'mixtures'
