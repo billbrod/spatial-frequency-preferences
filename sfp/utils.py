@@ -102,6 +102,7 @@ def create_sin_cpp(size, w_x, w_y, phase=0, origin=None):
         origin = [(size+1) / 2., (size+1) / 2.]
     x = np.array(range(1, size+1))
     x, y = np.meshgrid(x - origin[0], x - origin[1])
+    y = np.flip(y, 0)
     return np.cos(2*np.pi*x*w_x + 2*np.pi*y*w_y + phase)
 
 
@@ -124,6 +125,7 @@ def create_circle_mask(x, y, rad, size):
     """
     x_grid = np.array(range(size))
     x_grid, y_grid = np.meshgrid(x_grid, x_grid)
+    y_grid = np.flip(y_grid, 0)
     mask = np.zeros((size, size))
     mask[(x_grid - x)**2 + (y_grid - y)**2 <= rad**2] = 1
     return mask
@@ -188,6 +190,7 @@ def create_prf_loc_map(size=1080, max_visual_angle=24, origin=None):
         origin = ((size+1) / 2., (size+1) / 2.)
     x, y = np.meshgrid(np.arange(1, size+1) - origin[0],
                        np.arange(1, size+1) - origin[1])
+    y = np.flip(y, 0)
     eccen = np.sqrt(x**2 + y**2)
     angle = np.mod(np.arctan2(y, x), 2*np.pi)
     return eccen, angle
@@ -323,15 +326,21 @@ def local_grad_sin(dx, dy, loc_x, loc_y, w_r=None, w_a=None, phase=0, origin=Non
     size = dx.shape[0]
     x, y = np.meshgrid(np.array(range(1, size+1)) - loc_x,
                        np.array(range(1, size+1)) - loc_y)
+    y = np.flip(y, 0)
     if origin is None:
         origin = ((size+1) / 2., (size+1) / 2.)
     x_orig, y_orig = np.meshgrid(np.array(range(1, size+1))-origin[0],
                                  np.array(range(1, size+1))-origin[1])
-    local_x = x_orig[loc_y, loc_x]
-    local_y = y_orig[loc_y, loc_x]
+    # we flip y_orig because that's what we did in order to get the correct polar angle
+    # (0 at right horizontal meridian, increase counter-clockwise)
+    y_orig = np.flip(y_orig, 0)
+    # since we've flipped the y-coordinate, we need to use -loc_y to grab the correct y
+    local_x = x_orig[-loc_y, loc_x]
+    local_y = y_orig[-loc_y, loc_x]
 
-    w_x = 2 * np.pi * dx[loc_y, loc_x]
-    w_y = 2 * np.pi * dy[loc_y, loc_x]
+    # since we've flipped the y-coordinate, we need to use -loc_y to grab the correct y
+    w_x = 2 * np.pi * dx[-loc_y, loc_x]
+    w_y = 2 * np.pi * dy[-loc_y, loc_x]
 
     # the local phase is just the value of the actual grating at that point (see the explanation in
     # sfp.stimuli._calc_sf_analytically about why this works).

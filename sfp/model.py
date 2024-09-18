@@ -487,6 +487,7 @@ class LogGaussianDonut(torch.nn.Module):
         self.filters = filters * norm_weights
         x = np.linspace(-self.stim_radius_degree, self.stim_radius_degree, self.image_size)
         x, y = np.meshgrid(x, x)
+        y = np.flip(y, 0)
         # we want to try and delete things to save memory
         del norm_weights, energy, filters
         self.visual_space = np.dstack((x, y))
@@ -494,6 +495,7 @@ class LogGaussianDonut(torch.nn.Module):
     def _create_mag_angle(self, extent=(-10, 10), n_samps=1001):
         x = torch.linspace(extent[0], extent[1], n_samps)
         x, y = torch.meshgrid(x, x)
+        y = np.flip(y, 0)
         r = torch.sqrt(torch.pow(x, 2) + torch.pow(y, 2))
         th = torch.atan2(y, x)
         return r, th
