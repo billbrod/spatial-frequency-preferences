@@ -943,17 +943,17 @@ def _gen_freqs(base_freqs, round_flag=True):
     base frequencies are the distance from the center of frequency space.
     """
     # radial / vertical, where w_r/w_x=0
-    freqs = [(0, f) for f in base_freqs]
+    freqs = [(0, -f) for f in base_freqs]
     # angular / horizontal, where w_a/w_y=0
     freqs.extend([(f, 0) for f in base_freqs])
     # spirals / diagonals, where w_a/w_y=w_r/w_x or -w_a/-w_y=w_r/w_x
-    freqs.extend([(f*np.sin(np.pi/4), f*np.sin(np.pi/4)) for f in base_freqs])
     freqs.extend([(f*np.sin(np.pi/4), -f*np.sin(np.pi/4)) for f in base_freqs])
+    freqs.extend([(f*np.sin(np.pi/4), f*np.sin(np.pi/4)) for f in base_freqs])
     # arc, where distance from the origin is half the max (in log space)
     #  skip those values which we've already gotten: 0, pi/4, pi/2, 3*pi/4, and pi
     angles = [np.pi*1/12.*i for i in [1, 2, 4, 5, 7, 8, 10, 11]]
     freqs.extend([(base_freqs[len(base_freqs)//2]*np.sin(i),
-                   base_freqs[len(base_freqs)//2]*np.cos(i)) for i in angles])
+                   -base_freqs[len(base_freqs)//2]*np.cos(i)) for i in angles])
     if round_flag:
         freqs = np.round(freqs)
     return freqs
