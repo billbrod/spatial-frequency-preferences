@@ -1146,8 +1146,7 @@ def main(subject_name, output_dir="../data/stimuli/", create_stim=True, create_i
         np.save(os.path.join(output_dir, stimuli_name), stim)
         np.save(os.path.join(output_dir, stimuli_name.replace('task-sfp', 'task-sfpconstant')),
                 constant_stim)
-        np.save(os.path.join(output_dir, stimuli_name.replace('task-sfp_stimuli', 'antialiasing_mask')),
-                mask)
+        np.save(os.path.join(output_dir, 'antialiasing_mask.npy'), mask)
         return stim, constant_stim, mask
 
 

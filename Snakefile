@@ -447,8 +447,8 @@ rule rescaled_stimuli:
         "data/stimuli/task-sfpconstantrescaled_stim_description.csv",
         "data/stimuli/antialiasing_mask.npy",
     params:
-        stim_name = lambda wildcards: os.path.split(wildcards.output[0])[-1],
-        csv_name = lambda wildcards: os.path.split(wildcards.output[1])[-1],
+        stim_name = lambda wildcards, output: os.path.split(output[0])[-1],
+        csv_name = lambda wildcards, output: os.path.split(output[1])[-1],
     shell:
         "python -m sfp.stimuli -c --mtf {input} -n {params.stim_name} -d {params.csv_name}"
 
