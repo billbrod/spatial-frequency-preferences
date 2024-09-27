@@ -8,7 +8,7 @@ import json
 from glob import glob
 
 
-def main(target_dataset, preprocessed_version='1.1.0'):
+def main(target_dataset, preprocessed_version='2.0.0'):
     """Download dataset from OpenNeuro or OSF.
 
     Parameters
