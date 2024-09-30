@@ -14,7 +14,7 @@ publication, see the [citing](#citation) section for how to credit us.
 > [!WARNING]
 > Over the summer of 2024, we discovered a bug in our consideration of all polar angle coordinates. This does not affect our results at all, but does mean that e.g., the original local orientation of the stimuli calculation was incorrect. See [notes for release v2.0.0](https://github.com/billbrod/spatial-frequency-preferences/releases/tag/v2.0.0) for details. 
 > 
-> This repo, as well as the associated datasets one OpenNeuro and OSF, have now been corrected.
+> This repo, as well as the associated datasets on OpenNeuro and OSF, have now been corrected.
 
 Table of Contents
 =================
